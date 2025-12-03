@@ -343,9 +343,9 @@ export default function PlaceCatalog({ catalogState, setCatalogState }) {
     return result;
   };
 
-  // Filtrera trädet baserat på sökning och auto-expandera träffar
+  // Filtrera trädet baserat på sökning (returnerar både filtered tree och nodes to expand)
   const filterTree = (nodes, term) => {
-    if (!term) return nodes;
+    if (!term) return { filtered: nodes, nodesToExpand: new Set() };
     
     const filtered = [];
     const lowerTerm = term.toLowerCase();
@@ -360,7 +360,7 @@ export default function PlaceCatalog({ catalogState, setCatalogState }) {
       const filteredChildren = node.children ? node.children.map(child => filterNode(child, [...ancestorIds, node.id])).filter(Boolean) : [];
       
       if (matches || filteredChildren.length > 0) {
-        // Auto-expandera alla ancestors
+        // Samla noder att expandera
         if (matches) {
           ancestorIds.forEach(id => nodesToExpand.add(id));
           nodesToExpand.add(node.id);
@@ -379,13 +379,18 @@ export default function PlaceCatalog({ catalogState, setCatalogState }) {
       if (result) filtered.push(result);
     });
     
-    // Uppdatera expanded nodes
-    if (nodesToExpand.size > 0) {
-      setExpandedNodes(prev => new Set([...prev, ...nodesToExpand]));
-    }
-    
-    return filtered;
+    return { filtered, nodesToExpand };
   };
+  
+  // Auto-expandera noder vid sökning (använd useEffect för att undvika infinite loop)
+  useEffect(() => {
+    if (searchTerm && tree.length > 0) {
+      const { nodesToExpand } = filterTree(tree, searchTerm);
+      if (nodesToExpand.size > 0) {
+        setExpandedNodes(prev => new Set([...prev, ...nodesToExpand]));
+      }
+    }
+  }, [searchTerm, tree]);
 
   // Expandera nod
   const toggleExpand = (id) => {
@@ -586,7 +591,8 @@ export default function PlaceCatalog({ catalogState, setCatalogState }) {
   
   let displayTree = tree;
   if (searchTerm) {
-    displayTree = filterTree(tree, searchTerm);
+    const { filtered } = filterTree(tree, searchTerm);
+    displayTree = filtered;
   }
   displayTree = sortTree(displayTree);
 
