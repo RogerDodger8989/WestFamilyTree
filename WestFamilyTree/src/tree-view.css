@@ -1,0 +1,89 @@
+/* Minimal placeholder for tree-view styles
+   Created to satisfy import from src/main.jsx and avoid Vite import errors.
+   You can replace or expand these styles with the original design later.
+*/
+
+/* Basic reset for the family tree canvas */
+.family-tree {
+  box-sizing: border-box;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  color: #111827; /* gray-900 */
+}
+
+/* Example node styles — safe defaults */
+/* Minimal placeholder for tree-view styles
+   Created to satisfy import from src/main.jsx and avoid Vite import errors.
+   You can replace or expand these styles with the original design later.
+*/
+
+/* Prevent text selection and native touch highlighting while interacting with the family tree.
+   This avoids the default blue-selection rectangle on Windows when dragging the mouse.
+   Target only the tree container so inputs/editors elsewhere are unaffected. */
+[data-family-tree="1"],
+[data-family-tree="1"] * {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Basic reset for the family tree canvas */
+.family-tree {
+  box-sizing: border-box;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  color: #111827; /* gray-900 */
+}
+
+/* Example node styles — safe defaults */
+.family-tree .node {
+  background: #ffffff;
+  border: 1px solid #e5e7eb; /* gray-200 */
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+}
+
+/* Canvas container fallback sizing */
+.family-tree-container {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+}
+
+/* Ghost relation buttons (SVG <g> elements styled here) */
+.ghost-relation-btn {
+  cursor: pointer;
+  transform-origin: center center;
+  transform-box: fill-box;
+  will-change: transform, opacity;
+  transition: transform 160ms cubic-bezier(.2,.9,.2,1), opacity 160ms ease;
+  /* Hidden/collapsed by default; will fold out when the parent node is hovered */
+  opacity: 0;
+  transform: scale(0.4);
+  pointer-events: none;
+}
+.ghost-relation-btn circle {
+  transition: fill-opacity 160ms ease;
+  vector-effect: non-scaling-stroke;
+}
+.ghost-relation-btn:hover,
+.ghost-relation-btn:focus {
+  transform: scale(1.12);
+}
+.ghost-relation-btn:active {
+  transform: scale(0.98);
+}
+
+/* Hide hover-only decorations on touch devices; show buttons always on touch by using a class on body if desired */
+@media (hover: hover) and (pointer: fine) {
+  /* Show buttons on node hover */
+  .node:hover .ghost-relation-btn { opacity: 1; transform: scale(1); pointer-events: auto; }
+  .ghost-relation-btn:hover { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ghost-relation-btn { transition: none; }
+}
+

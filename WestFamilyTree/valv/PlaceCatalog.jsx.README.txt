@@ -1,0 +1,1 @@
+Backup av PlaceCatalog.jsx från src-mappen. Återställ vid behov.

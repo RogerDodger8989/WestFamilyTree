@@ -1,0 +1,1 @@
+Detta är en backup-mapp (valv) för tidigare versioner av platsregistret och relaterade filer. Lägg här undan gamla versioner innan du börjar om på nytt.

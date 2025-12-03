@@ -1,0 +1,17 @@
+# Node.js
+node_modules/
+dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Vite
+.vite/
+
+# Miljövariabler
+.env*
+test.py
+Places.xml
+*.xml
+map.geojson
+official_places.db

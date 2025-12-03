@@ -1,0 +1,23 @@
+[
+  {
+    "id": "1",
+    "name": "Anna Andersson",
+    "birth_date": "1900-01-01",
+    "father_id": "2",
+    "mother_id": "3"
+  },
+  {
+    "id": "2",
+    "name": "Bertil Andersson",
+    "birth_date": "1870-05-12",
+    "father_id": null,
+    "mother_id": null
+  },
+  {
+    "id": "3",
+    "name": "Clara Svensson",
+    "birth_date": "1872-09-30",
+    "father_id": null,
+    "mother_id": null
+  }
+]
