@@ -42,10 +42,20 @@ class OfficialPlaceDatabase:
                 lopnummer REAL,
                 fid INTEGER,
                 latitude REAL,
-                longitude REAL
+                longitude REAL,
+                note TEXT
             )
         ''')
         conn.commit()
+        # Säkerställ att kolumnen note finns även i befintlig DB
+        try:
+            info = c.execute('PRAGMA table_info(official_places)').fetchall()
+            cols = [row[1] for row in info]
+            if 'note' not in cols:
+                c.execute('ALTER TABLE official_places ADD COLUMN note TEXT')
+                conn.commit()
+        except Exception:
+            pass
         conn.close()
 
     def get_all_lan(self):
@@ -102,6 +112,9 @@ class OfficialPlaceDatabase:
             'lanskod', 'lansnamn', 'detaljtyp', 'sprak', 'kvartsruta',
             'nkoordinat', 'ekoordinat', 'lopnummer', 'fid', 'latitude', 'longitude'
         ]
+        # Tillåt uppdatering av notering
+        if 'note' in data:
+            allowed.append('note')
         fields = []
         values = []
         for key in allowed:

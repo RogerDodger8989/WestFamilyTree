@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useApp } from './AppContext.jsx';
 import PlaceEditModal from './PlaceEditModal.jsx';
+import PlaceCreateModal from './PlaceCreateModal.jsx';
 
 // Ikoner för varje platstyp
 const PLACE_TYPE_ICONS = {
@@ -132,7 +134,7 @@ const ContextMenu = ({ x, y, node, onClose, onAction }) => {
   }, [onClose]);
 
   const menuItems = [
-    { label: 'Ny', action: 'new', icon: '➕' },
+    { label: 'Ny plats under', action: 'new', icon: '➕' },
     { label: 'Redigera', action: 'edit', icon: '✏️' },
     { label: 'Radera', action: 'delete', icon: '🗑️' },
     { label: '---', action: 'separator' },
@@ -172,6 +174,7 @@ const ContextMenu = ({ x, y, node, onClose, onAction }) => {
 };
 
 export default function PlaceCatalog({ catalogState, setCatalogState }) {
+  const { recordAudit, showStatus } = useApp();
   const [tree, setTree] = useState([]);
   const [flatPlaces, setFlatPlaces] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -183,7 +186,22 @@ export default function PlaceCatalog({ catalogState, setCatalogState }) {
   const [sortOrder, setSortOrder] = useState('name-asc');
   const [contextMenu, setContextMenu] = useState(null);
   const [editingPlace, setEditingPlace] = useState(null);
+  const [creatingParent, setCreatingParent] = useState(null);
   const fileInputRef = useRef(null);
+
+  // Hjälpfunktion: lägg till ny nod under parentId i trädet
+  const addNodeToTree = (nodes, parentId, newNode) => {
+    return nodes.map(node => {
+      if (node.id === parentId) {
+        const children = [...(node.children || []), newNode].sort((a, b) => a.name.localeCompare(b.name, 'sv'));
+        return { ...node, children };
+      }
+      if (node.children && node.children.length > 0) {
+        return { ...node, children: addNodeToTree(node.children, parentId, newNode) };
+      }
+      return node;
+    });
+  };
 
   // Ladda platser från backend (full tree)
   useEffect(() => {
@@ -422,14 +440,27 @@ export default function PlaceCatalog({ catalogState, setCatalogState }) {
   const handleContextAction = async (action, node) => {
     switch (action) {
       case 'new':
-        alert('Skapa ny plats (kommer snart)');
+        setCreatingParent(node);
         break;
       case 'edit':
         setEditingPlace(node);
         break;
       case 'delete':
         if (window.confirm(`Vill du verkligen radera "${node.name}"?`)) {
-          alert('Radera plats (kommer snart)');
+          try {
+            const id = node.metadata?.id;
+            if (!id) {
+              showStatus && showStatus('Kan inte radera: saknar ID.', 'error');
+              break;
+            }
+            const res = await fetch(`http://127.0.0.1:5005/official_places/${id}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error('Delete misslyckades');
+            await loadPlaces();
+            try { recordAudit && recordAudit({ type: 'delete', entityType: 'place', entityId: id, details: { name: node.name } }); } catch (e) {}
+            showStatus && showStatus('Plats raderad.');
+          } catch (err) {
+            showStatus && showStatus('Kunde inte radera plats.', 'error');
+          }
         }
         break;
       case 'copy-id':
@@ -475,7 +506,19 @@ export default function PlaceCatalog({ catalogState, setCatalogState }) {
     const response = await fetch(`http://127.0.0.1:5005/official_places/${placeId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formData)
+      body: JSON.stringify({
+        ortnamn: formData.ortnamn,
+        sockenstadnamn: formData.sockenstadnamn,
+        sockenstadkod: formData.sockenstadkod,
+        kommunkod: formData.kommunkod,
+        kommunnamn: formData.kommunnamn,
+        lanskod: formData.lanskod,
+        lansnamn: formData.lansnamn,
+        detaljtyp: editingPlace.type,
+        latitude: formData.latitude,
+        longitude: formData.longitude,
+        note: formData.note
+      })
     });
     
     if (!response.ok) {
@@ -484,6 +527,68 @@ export default function PlaceCatalog({ catalogState, setCatalogState }) {
     
     // Ladda om platser
     await loadPlaces();
+  };
+
+  // Skapa ny plats
+  const handleCreatePlace = async (formData) => {
+    // 1) Lokal uppdatering för direkt feedback
+    const parent = creatingParent || selectedNode || tree[0];
+    const parentId = parent?.id || 'root';
+    const tempId = 'new_' + Date.now();
+    const tempNode = {
+      id: tempId,
+      name: formData.name || 'Ny plats',
+      type: formData.type || 'default',
+      children: [],
+      metadata: {
+        latitude: formData.latitude || null,
+        longitude: formData.longitude || null,
+        note: formData.note || ''
+      }
+    };
+    setTree(prev => addNodeToTree(prev, parentId, tempNode));
+    setExpandedNodes(prev => new Set([...prev, parentId]));
+
+    // 2) Persistens till backend
+    const payload = { name: formData.name, type: formData.type, latitude: formData.latitude || null, longitude: formData.longitude || null };
+    // Mappa hierarkin från föräldern
+    if (parent) {
+      const meta = parent.metadata || {};
+      if (parent.type === 'Parish') {
+        payload.sockenstadkod = meta.sockenstadkod || meta.sockenstadnamn || null;
+        payload.sockenstadnamn = meta.sockenstadnamn || null;
+        payload.kommunkod = meta.kommunkod || null;
+        payload.kommunnamn = meta.kommunnamn || null;
+        payload.lanskod = meta.lanskod || null;
+        payload.lansnamn = meta.lansnamn || null;
+      } else if (parent.type === 'Municipality') {
+        payload.kommunkod = meta.kommunkod || meta.kommunnamn || null;
+        payload.kommunnamn = meta.kommunnamn || null;
+        payload.lanskod = meta.lanskod || null;
+        payload.lansnamn = meta.lansnamn || null;
+      } else if (parent.type === 'County') {
+        payload.lanskod = meta.lanskod || meta.lansnamn || null;
+        payload.lansnamn = meta.lansnamn || null;
+      }
+    }
+
+    try {
+      const response = await fetch('http://127.0.0.1:5005/official_places', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) {
+        const err = await response.text();
+        throw new Error(err || 'Kunde inte skapa plats');
+      }
+      // Uppdatera trädet från backend (ersätter temp-node med riktig data)
+      await loadPlaces();
+      setExpandedNodes(prev => new Set([...prev, parentId]));
+    } catch (e) {
+      // Vid fel: lämna temp-noden kvar eller visa fel
+      console.error('Skapa plats misslyckades:', e);
+    }
   };
 
   // Importera XML-fil
@@ -602,7 +707,7 @@ export default function PlaceCatalog({ catalogState, setCatalogState }) {
       <div className="bg-white border-b border-gray-300 px-4 py-2 flex items-center gap-2 shadow-sm">
         <button 
           className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
-          onClick={() => alert('Ny plats (kommer snart)')}
+          onClick={() => setCreatingParent(selectedNode || tree[0])}
         >
           ➕ Ny
         </button>
@@ -787,6 +892,17 @@ export default function PlaceCatalog({ catalogState, setCatalogState }) {
           place={editingPlace}
           onClose={() => setEditingPlace(null)}
           onSave={handleSavePlace}
+        />
+      )}
+
+      {/* Create Modal */}
+      {creatingParent && (
+        <PlaceCreateModal
+          parentNode={creatingParent}
+          onClose={() => setCreatingParent(null)}
+          onCreate={async (form) => {
+            await handleCreatePlace({ name: form.name, type: form.type, latitude: form.latitude, longitude: form.longitude, note: form.note });
+          }}
         />
       )}
     </div>

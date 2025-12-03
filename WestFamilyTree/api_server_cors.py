@@ -121,6 +121,19 @@ def update_official_place(place_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/official_places/<int:place_id>', methods=['DELETE'])
+def delete_official_place(place_id):
+    try:
+        import sqlite3
+        conn = sqlite3.connect(OFFICIAL_PLACES_PATH)
+        c = conn.cursor()
+        c.execute('DELETE FROM official_places WHERE id = ?', (place_id,))
+        conn.commit()
+        conn.close()
+        return jsonify({'status': 'deleted', 'id': place_id})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 # Sök i officiell platsdatabas (autocomplete)
 @app.route('/official_places/search')
 def search_official_places():
@@ -204,6 +217,68 @@ def get_full_tree():
         'tree': tree_array
     })
     return jsonify(official_place_db.get_all_places())
+
+# Skapa ny officiell plats
+@app.route('/official_places', methods=['POST'])
+def create_official_place():
+    data = request.get_json() or {}
+    name = data.get('name', '').strip()
+    ptype = (data.get('type') or '').strip()
+    if not name or not ptype:
+        return jsonify({'error': 'Missing name or type'}), 400
+    # Tillåt extra fält för hierarki
+    lanskod = data.get('lanskod')
+    lansnamn = data.get('lansnamn')
+    kommunkod = data.get('kommunkod')
+    kommunnamn = data.get('kommunnamn')
+    sockenstadkod = data.get('sockenstadkod')
+    sockenstadnamn = data.get('sockenstadnamn')
+    latitude = data.get('latitude')
+    longitude = data.get('longitude')
+
+    import sqlite3
+    conn = sqlite3.connect(OFFICIAL_PLACES_PATH)
+    c = conn.cursor()
+    # Mappa typ till kolumnsättning
+    # Village/Building/Cemetary: sätt ortnamn + överliggande kommun/län
+    # Parish: sätt sockenstadnamn/kod + överliggande kommun/län
+    # Municipality: sätt kommunnamn/kod + län
+    # County: sätt lansnamn/kod
+    cols = ['ortnamn','sockenstadnamn','sockenstadkod','kommunkod','kommunnamn','lanskod','lansnamn','detaljtyp','latitude','longitude','note']
+    values = [None, None, None, None, None, None, None, ptype, latitude, longitude, data.get('note')]
+    t = ptype.lower()
+    if t in ['village','building','cemetary']:
+        values[0] = name
+    elif t == 'parish':
+        values[1] = sockenstadnamn or name
+        values[2] = sockenstadkod
+    elif t == 'municipality':
+        values[4] = kommunnamn or name
+        values[3] = kommunkod
+    elif t == 'county':
+        values[6] = lansnamn or name
+        values[5] = lanskod
+    # Always set upper levels if provided
+    if lanskod: values[5] = lanskod
+    if lansnamn: values[6] = lansnamn
+    if kommunkod: values[3] = kommunkod
+    if kommunnamn: values[4] = kommunnamn
+    if sockenstadkod: values[2] = sockenstadkod
+    if sockenstadnamn: values[1] = sockenstadnamn
+
+    c.execute(f'''
+        INSERT INTO official_places ({','.join(cols)})
+        VALUES (?,?,?,?,?,?,?,?,?,?,?)
+    ''', values)
+    new_id = c.lastrowid
+    conn.commit()
+    # Returnera skapad rad
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    cur.execute('SELECT * FROM official_places WHERE id = ?', (new_id,))
+    row = cur.fetchone()
+    conn.close()
+    return jsonify(dict(row)), 201
 
 @app.route('/places/unmatched')
 def get_unmatched_places():
