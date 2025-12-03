@@ -173,7 +173,7 @@ const ContextMenu = ({ x, y, node, onClose, onAction }) => {
   );
 };
 
-export default function PlaceCatalog({ catalogState, setCatalogState }) {
+export default function PlaceCatalog({ catalogState, setCatalogState, onPick, onClose }) {
   const { recordAudit, showStatus } = useApp();
   const [tree, setTree] = useState([]);
   const [flatPlaces, setFlatPlaces] = useState([]);
@@ -188,6 +188,13 @@ export default function PlaceCatalog({ catalogState, setCatalogState }) {
   const [editingPlace, setEditingPlace] = useState(null);
   const [creatingParent, setCreatingParent] = useState(null);
   const fileInputRef = useRef(null);
+  // Stäng med ESC när i pick-läge
+  useEffect(() => {
+    if (!onPick) return;
+    const handler = (e) => { if (e.key === 'Escape') onClose && onClose(); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onPick, onClose]);
 
   // Hjälpfunktion: lägg till ny nod under parentId i trädet
   const addNodeToTree = (nodes, parentId, newNode) => {
@@ -866,14 +873,21 @@ export default function PlaceCatalog({ catalogState, setCatalogState }) {
         </div>
       </div>
 
-      {/* Footer: Breadcrumbs */}
-      <div className="h-8 bg-gray-800 text-white flex items-center px-4 text-xs border-t border-gray-700">
-        {breadcrumbs.length > 0 ? (
-          <span>{breadcrumbs.join(' › ')}</span>
-        ) : (
-          <span>Ingen plats vald</span>
-        )}
-      </div>
+      {/* Footer: Picker actions or Breadcrumbs */}
+      {onPick ? (
+        <div className="h-10 bg-gray-100 border-t border-gray-300 flex items-center justify-end gap-2 px-3">
+          <button className="px-3 py-1 bg-gray-200 rounded" onClick={() => onClose && onClose()}>Avbryt</button>
+          <button className="px-3 py-1 bg-blue-600 text-white rounded" disabled={!selectedNode} onClick={() => selectedNode && onPick(selectedNode)}>OK</button>
+        </div>
+      ) : (
+        <div className="h-8 bg-gray-800 text-white flex items-center px-4 text-xs border-t border-gray-700">
+          {breadcrumbs.length > 0 ? (
+            <span>{breadcrumbs.join(' › ')}</span>
+          ) : (
+            <span>Ingen plats vald</span>
+          )}
+        </div>
+      )}
 
       {/* Context Menu */}
       {contextMenu && (

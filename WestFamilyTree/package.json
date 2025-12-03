@@ -16,12 +16,13 @@
     "dompurify": "^3.0.0",
     "electron-store": "^11.0.2",
     "iconv-lite": "^0.6.3",
+    "lucide-react": "^0.555.0",
     "parse-gedcom": "^1.0.5",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-quill": "^2.0.0",
-    "react-simple-wysiwyg": "^3.0.3",
-    "react-select": "^5.7.3"
+    "react-select": "^5.7.3",
+    "react-simple-wysiwyg": "^3.0.3"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

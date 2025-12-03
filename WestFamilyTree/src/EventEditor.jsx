@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import SmartDateField from './SmartDateField.jsx';
+import PlacePicker from './PlacePicker.jsx';
 
 // NY HJÄLPFUNKTION (kopierad från EditPersonModal för konsistens)
 function buildPlaceString(place) {
@@ -28,17 +29,24 @@ export default function EventEditor({ event, index, onEventChange, allPeople, al
         <>
             <td className="px-4 py-2"><SmartDateField value={event.date || ''} onChange={(val) => handleFieldChange('date', val)} placeholder="Datum (t.ex. 25 jan 1990)" /></td>
             <td className="px-4 py-2">
-                                {event.placeId && allPlaces.find(p => p.id === event.placeId) ? (
-                                        <span 
-                                            onClick={() => onNavigateToPlace && onNavigateToPlace(event.placeId, event.id)}
-                                            className="text-blue-600 hover:underline cursor-pointer font-semibold"
-                                            title="Klicka för att visa i Platsregistret"
-                                        >
-                                            {buildPlaceString(allPlaces.find(p => p.id === event.placeId))}
-                                        </span>
-                                    ) : (
-                    <input type="text" value={event.place || ''} onChange={(e) => handleFieldChange('place', e.target.value)} className="w-full bg-transparent border-b border-transparent focus:border-blue-500 outline-none" placeholder="Plats"/>
-                  )}
+                {event.placeId && allPlaces.find(p => p.id === event.placeId) ? (
+                    <span
+                        onClick={() => onNavigateToPlace && onNavigateToPlace(event.placeId, event.id)}
+                        className="text-blue-600 hover:underline cursor-pointer font-semibold"
+                        title="Klicka för att visa i Platsregistret"
+                    >
+                        {buildPlaceString(allPlaces.find(p => p.id === event.placeId))}
+                    </span>
+                ) : (
+                    <PlacePicker
+                        value={event.placeId || ''}
+                        allPlaces={allPlaces}
+                        onChange={(placeId) => {
+                            handleFieldChange('placeId', placeId);
+                            handleFieldChange('place', '');
+                        }}
+                    />
+                )}
             </td>
             <td className="px-4 py-2">
                 <div className="flex items-center gap-2">
@@ -90,17 +98,24 @@ export default function EventEditor({ event, index, onEventChange, allPeople, al
                 </select>
                  <SmartDateField value={event.date || ''} onChange={(val) => handleFieldChange('date', val)} placeholder="Datum" />
                  <div className="flex-grow">
-                                        {event.placeId && allPlaces.find(p => p.id === event.placeId) ? (
-                                                <span 
-                                                    onClick={() => onNavigateToPlace && onNavigateToPlace(event.placeId, event.id)}
-                                                    className="text-blue-600 hover:underline cursor-pointer font-semibold"
-                                                    title="Klicka för att visa i Platsregistret"
-                                                >
-                                                    {buildPlaceString(allPlaces.find(p => p.id === event.placeId))}
-                                                </span>
-                                            ) : (
-                        <input type="text" value={event.place || ''} onChange={(e) => handleFieldChange('place', e.target.value)} className="w-full bg-transparent border-b border-transparent focus:border-blue-500 outline-none" placeholder="Plats"/>
-                      )}
+                    {event.placeId && allPlaces.find(p => p.id === event.placeId) ? (
+                        <span
+                            onClick={() => onNavigateToPlace && onNavigateToPlace(event.placeId, event.id)}
+                            className="text-blue-600 hover:underline cursor-pointer font-semibold"
+                            title="Klicka för att visa i Platsregistret"
+                        >
+                            {buildPlaceString(allPlaces.find(p => p.id === event.placeId))}
+                        </span>
+                    ) : (
+                        <PlacePicker
+                            value={event.placeId || ''}
+                            allPlaces={allPlaces}
+                            onChange={(placeId) => {
+                                handleFieldChange('placeId', placeId);
+                                handleFieldChange('place', '');
+                            }}
+                        />
+                    )}
                  </div>
             </div>
         </td>

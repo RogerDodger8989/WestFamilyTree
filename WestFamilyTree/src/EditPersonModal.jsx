@@ -9,6 +9,7 @@ import ImageGallery from './ImageGallery.jsx';
 import { useApp } from './AppContext';
 import SmartDateField from './SmartDateField.jsx';
 import MaybeEditor from './MaybeEditor.jsx';
+import PlacePicker from './PlacePicker.jsx';
 
 // --- HJÄLPFUNKTIONER FÖR GEDCOM-ÖVERSÄTTNING ---
 const EVENT_LABELS = {
@@ -497,11 +498,23 @@ function EditPersonModal({ person, onClose, onSave, onChange, allSources, allPeo
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
                   <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase">Födelseort</label>
-                    <input type="text" value={birthEvent.place || person.birthPlace || ''} onChange={(e) => handleVitalEventChange('Födelse', 'BIRT', 'place', e.target.value)} className="w-full p-2 border rounded" placeholder="Ort" />
+                    <PlacePicker
+                      value={birthEvent.placeId || ''}
+                      allPlaces={allPlaces}
+                      onChange={(placeId) => {
+                        handleVitalEventChange('Födelse', 'BIRT', 'placeId', placeId);
+                      }}
+                    />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase">Dödsort</label>
-                    <input type="text" value={deathEvent.place || person.deathPlace || ''} onChange={(e) => handleVitalEventChange('Död', 'DEAT', 'place', e.target.value)} className="w-full p-2 border rounded" placeholder="Ort" />
+                    <PlacePicker
+                      value={deathEvent.placeId || ''}
+                      allPlaces={allPlaces}
+                      onChange={(placeId) => {
+                        handleVitalEventChange('Död', 'DEAT', 'placeId', placeId);
+                      }}
+                    />
                   </div>
                 </div>
               </section>

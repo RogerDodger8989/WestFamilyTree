@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "lucide-react": "^0.555.0",
     "react-select": "^5.10.2"
   }
 }

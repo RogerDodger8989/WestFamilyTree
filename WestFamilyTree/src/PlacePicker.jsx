@@ -1,5 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { parsePlaceString } from './parsePlaceString.js';
+import PlaceCatalog from './PlaceCatalogNew.jsx';
+import { Globe, Search, X, History } from 'lucide-react';
 
 // Helper för att bygga en läsbar sträng från ett platsobjekt
 export function buildPlaceString(place) {
@@ -16,6 +18,7 @@ export function buildPlaceString(place) {
 export default function PlacePicker({ value, allPlaces, onChange }) {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [isModalOpen, setIsModalOpen] = useState(false);
     const wrapperRef = useRef(null);
 
     const selectedPlace = useMemo(() => allPlaces.find(p => p.id === value), [value, allPlaces]);
@@ -51,22 +54,63 @@ export default function PlacePicker({ value, allPlaces, onChange }) {
     }, [wrapperRef]);
 
     return (
-        <div className="relative w-full" ref={wrapperRef}>
-            <div onClick={() => setIsOpen(!isOpen)} className="w-full p-1 bg-transparent border-b border-gray-300 hover:border-blue-500 cursor-pointer min-h-[30px]">
-                {selectedPlace ? <span className="text-sm">{buildPlaceString(selectedPlace)}</span> : <span className="text-sm text-gray-400">Välj plats...</span>}
-            </div>
-
-            {isOpen && (
-                <div className="absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+        <div className="relative w-full max-w-md" ref={wrapperRef}>
+            {/* Input + Globe */}
+            <div className="relative flex items-center">
+                <div className="relative flex-1">
+                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                     <input
                         type="text"
+                        className="w-full bg-white border border-gray-300 text-gray-800 text-sm rounded-l-md pl-9 pr-8 py-2 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                         placeholder="Sök plats..."
                         value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="sticky top-0 w-full p-2 border-b"
-                        autoFocus
+                        onChange={(e) => { setSearchTerm(e.target.value); setIsOpen(true); }}
+                        onFocus={() => setIsOpen(true)}
                     />
-                    <ul>{filteredPlaces.map(place => (<li key={place.id} onClick={() => handleSelect(place.id)} className="px-3 py-2 text-sm cursor-pointer hover:bg-blue-100">{buildPlaceString(place)}</li>))}</ul>
+                    {searchTerm && (
+                        <button onClick={() => { setSearchTerm(''); setIsOpen(false); }} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700">
+                            <X size={14} />
+                        </button>
+                    )}
+                </div>
+                <button
+                    className="bg-gray-100 hover:bg-gray-200 border-y border-r border-gray-300 text-gray-700 p-2 rounded-r-md"
+                    title="Öppna platsregister"
+                    onClick={() => setIsModalOpen(true)}
+                >
+                    <Globe size={20} />
+                </button>
+            </div>
+
+            {/* Dropdown */}
+            {isOpen && (
+                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-xl max-h-64 overflow-y-auto">
+                    {filteredPlaces.length > 0 ? (
+                        <ul>
+                            {filteredPlaces.map(place => (
+                                <li key={place.id} onClick={() => handleSelect(place.id)} className="px-4 py-2 hover:bg-blue-50 hover:text-blue-700 cursor-pointer flex items-center gap-2 border-b border-gray-200 last:border-0">
+                                    <span className="text-sm text-gray-800">{buildPlaceString(place)}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <div className="p-4 text-center text-gray-500 text-sm italic">Inga platser hittades</div>
+                    )}
+                </div>
+            )}
+
+            {/* Modal: Place Catalog Picker */}
+            {isModalOpen && (
+                <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center" onClick={() => setIsModalOpen(false)}>
+                    <div className="bg-white rounded-xl shadow-2xl w-[90vw] h-[85vh] max-w-5xl" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-between px-4 py-2 border-b">
+                            <h3 className="font-semibold">Platsregister</h3>
+                            <button className="text-xl text-gray-500" onClick={() => setIsModalOpen(false)}>×</button>
+                        </div>
+                        <div className="h-[calc(100%-40px)]">
+                            <PlaceCatalog onPick={(node) => { onChange(node.metadata?.id || node.id); setIsModalOpen(false); }} onClose={() => setIsModalOpen(false)} />
+                        </div>
+                    </div>
                 </div>
             )}
         </div>
