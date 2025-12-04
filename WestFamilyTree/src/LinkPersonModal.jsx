@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import DraggableModal from './DraggableModal';
+import WindowFrame from './WindowFrame';
 
 function translateEvent(type) {
     const map = {
@@ -54,12 +54,9 @@ export default function LinkPersonModal({
     if (!isOpen) return null;
 
     return (
-        <DraggableModal
+        <WindowFrame
             title="Välj Person"
             onClose={onClose}
-            onCancel={onClose}
-            showConfirm={false} 
-            zIndex={zIndex}
             initialWidth={600}
             initialHeight={600}
         >
@@ -70,7 +67,7 @@ export default function LinkPersonModal({
                             ref={inputRef}
                             type="text" 
                             placeholder="Sök på namn eller REF..." 
-                            className="w-full border p-2 rounded shadow-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                            className="w-full border p-2 rounded shadow-sm focus:ring-2 focus:ring-blue-500 outline-none bg-slate-900 text-slate-200 border-slate-700"
                             value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
                         />
@@ -97,6 +94,6 @@ export default function LinkPersonModal({
                     ))}
                 </div>
             </div>
-        </DraggableModal>
+        </WindowFrame>
     );
 }

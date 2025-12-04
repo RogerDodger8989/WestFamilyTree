@@ -474,6 +474,7 @@ export default function SourceCatalog({
                     </div>
                     <div className="flex gap-2">
                         {onAddSource && <Button onClick={onAddSource} variant="primary" size="sm">Ny källa</Button>}
+                        {isDrawerMode && onLinkSource && <Button onClick={() => onLinkSource(selectedSource.id)} variant="success" size="sm">✓ Koppla källa</Button>}
                         <Button onClick={() => { if(confirm('Ta bort källa?')) onDeleteSource(selectedSource.id); }} variant="danger" size="sm">Ta bort källa</Button>
                     </div>
                 </div>

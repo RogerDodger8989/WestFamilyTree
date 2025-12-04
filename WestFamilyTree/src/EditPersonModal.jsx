@@ -742,21 +742,9 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
 
   return (
     <>
-      {/* MODAL CONTAINER */}
-      <div
-        ref={modalRef}
-        className="w-full max-w-5xl h-[85vh] bg-slate-800 border border-slate-700 rounded-xl shadow-xl flex flex-col overflow-hidden"
-        style={{
-          left: `${position.x}px`,
-          top: `${position.y}px`,
-          position: 'fixed',
-          width: '85vw',
-          maxWidth: '1280px',
-          zIndex: 4000
-        }}
-        onMouseDown={handleMouseDown}
-      >        {/* HEADER */}
-        <div className="modal-header h-16 bg-slate-700 border-b border-slate-600 flex items-center justify-between px-6 shrink-0 cursor-move">
+      {/* BARA INNEHÅL - WindowFrame hanterar containern */}
+      <div className="w-full h-full bg-slate-800 flex flex-col overflow-hidden">        {/* HEADER */}
+        <div className="modal-header h-16 bg-slate-700 border-b border-slate-600 flex items-center justify-between px-6 shrink-0">
           <div className="flex items-center gap-4 select-none">
             <div className="w-10 h-10 rounded-full bg-slate-600 overflow-hidden border-2 border-slate-500 pointer-events-none">
               {person.media?.length > 0 ? (

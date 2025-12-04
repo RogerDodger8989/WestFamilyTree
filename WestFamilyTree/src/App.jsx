@@ -19,7 +19,7 @@ import SuggestionsPanel from './SuggestionsPanel.jsx';
 import DuplicateMergePanel from './DuplicateMergePanel.jsx';
 import RelationSettings from './RelationSettings.jsx';
 import GedcomImporter from './GedcomImporter.jsx';
-import DraggableModal from './DraggableModal.jsx';
+import WindowFrame from './WindowFrame.jsx';
 import LinkPersonModal from './LinkPersonModal.jsx';
 import { MediaManagerModal } from './MediaManagerModal.jsx';
 import Button from './Button.jsx'; 
@@ -577,24 +577,31 @@ function App() {
 
           {/* EDITING PERSON (MODAL) */}
           {editingPerson && (
-            <EditPersonModal
-              person={editingPerson}
+            <WindowFrame
+              title={`Redigera ${editingPerson.firstName || ''} ${editingPerson.lastName || ''}`}
               onClose={handleCloseEditModalSafe}
-              onSave={patchedHandleSavePersonDetails}
-              onChange={handleEditFormChange}
-              allSources={dbData.sources}
-              allPlaces={dbData.places || []}
-              allPeople={visiblePeople}
-              onDeleteEvent={handleDeleteEvent}
-              onOpenSourceDrawer={handleToggleSourceDrawer}
-              onNavigateToSource={handleNavigateToSource}
-              onNavigateToPlace={handleNavigateToPlace}
-              onTogglePlaceDrawer={handleTogglePlaceDrawer}
-              onViewInFamilyTree={handleViewInFamilyTree}
-              focusPair={focusPair}
-              onSetFocusPair={handleSetFocusPair}
-              activeSourcingEventId={sourcingEventInfo?.eventId}
-            />
+              initialWidth={1200}
+              initialHeight={800}
+            >
+              <EditPersonModal
+                person={editingPerson}
+                onClose={handleCloseEditModalSafe}
+                onSave={patchedHandleSavePersonDetails}
+                onChange={handleEditFormChange}
+                allSources={dbData.sources}
+                allPlaces={dbData.places || []}
+                allPeople={visiblePeople}
+                onDeleteEvent={handleDeleteEvent}
+                onOpenSourceDrawer={handleToggleSourceDrawer}
+                onNavigateToSource={handleNavigateToSource}
+                onNavigateToPlace={handleNavigateToPlace}
+                onTogglePlaceDrawer={handleTogglePlaceDrawer}
+                onViewInFamilyTree={handleViewInFamilyTree}
+                focusPair={focusPair}
+                onSetFocusPair={handleSetFocusPair}
+                activeSourcingEventId={sourcingEventInfo?.eventId}
+              />
+            </WindowFrame>
           )}
         </div>
       </div>
@@ -604,15 +611,12 @@ function App() {
       {/* ====================================================== */}
       
       {isSourceDrawerOpen && (
-        <DraggableModal
+        <WindowFrame
           title="Källkatalog"
           onClose={forceCloseSourceModal}
-          onCancel={forceCloseSourceModal}
-          onConfirm={forceCloseSourceModal}
-          showLinkButton={!!(sourceCatalogState.selectedSourceId && sourcingEventInfo?.eventId)}
-          onLink={() => { if (sourceCatalogState.selectedSourceId && sourcingEventInfo?.personId) { handleLinkSourceFromDrawer(sourceCatalogState.selectedSourceId); } else { alert("Ingen källa vald eller ingen händelse aktiv."); } }}
           initialWidth={1100}
           initialHeight={700}
+          zIndex={9999}
         >
           <SourceCatalog
             sources={dbData.sources || []}
@@ -633,7 +637,7 @@ function App() {
             onOpenLinkPersonModal={handleOpenLinkPersonModal} 
             onUnlinkSourceFromEvent={handleUnlinkSourceFromPerson}
           />
-        </DraggableModal>
+        </WindowFrame>
       )}
 
       {/* Övriga modaler */}

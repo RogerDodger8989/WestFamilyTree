@@ -57,22 +57,7 @@ export default function PlaceEditModal({ place, onClose, onSave }) {
   if (!place) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
-      <div 
-        className="bg-slate-800 border border-slate-700 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto m-4"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="sticky top-0 bg-slate-700 border-b border-slate-600 px-6 py-4 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-slate-200">Redigera Plats</h2>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-300 text-2xl leading-none"
-          >
-            ×
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+    <form onSubmit={handleSubmit} className="p-6 space-y-4 flex flex-col h-full">
           {/* Namn */}
           <div>
             <label className="block text-sm font-bold text-slate-300 mb-1">
@@ -183,8 +168,6 @@ export default function PlaceEditModal({ place, onClose, onSave }) {
               Avbryt
             </button>
           </div>
-        </form>
-      </div>
-    </div>
+    </form>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import DraggableModal from './DraggableModal';
+import WindowFrame from './WindowFrame';
 import Button from './Button';
 import LinkPersonModal from './LinkPersonModal';
 
@@ -370,14 +370,11 @@ export default function ImageViewer({
                 zIndex={3000}
             />
 
-            <DraggableModal
+            <WindowFrame
                 title={imageTitle || "Bildvisare"}
                 onClose={onClose}
-                onCancel={onClose}
-                showConfirm={false}
                 initialWidth={1000}
                 initialHeight={800}
-                zIndex={2000}
             >
                 <div className="flex flex-col h-full bg-slate-900 relative">
                     <div 
@@ -487,7 +484,7 @@ export default function ImageViewer({
                         </div>
                     </div>
                 </div>
-            </DraggableModal>
+            </WindowFrame>
         </>
     );
 }

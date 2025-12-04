@@ -12,28 +12,28 @@ function EventDiff({ selectedPair, targetIsA, choices, setChoices }) {
     const pairs = matchEvents(evsA, evsB, { threshold: 0.35 });
 
     return (
-        <div style={{ border: '1px solid #fde68a', padding: 8, borderRadius: 6, marginBottom: 12 }}>
-            <div style={{ fontWeight: 700, marginBottom: 8 }}>Händelse-sammanslagning</div>
+        <div style={{ border: '1px solid #475569', padding: 8, borderRadius: 6, marginBottom: 12, backgroundColor: '#1e293b' }}>
+            <div style={{ fontWeight: 700, marginBottom: 8, color: '#e2e8f0' }}>Händelse-sammanslagning</div>
             <div style={{ maxHeight: 220, overflow: 'auto' }}>
                 {pairs.map((pr, idx) => (
                     <div key={idx} style={{ padding: 8, borderBottom: '1px solid #334155' }}>
                         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                             <div style={{ flex: 1 }}>
-                                <div style={{ fontSize: 13, fontWeight: 700 }}>{(pr.a ? (pr.a.type || 'Händelse') : (pr.b ? pr.b.type : 'Händelse'))}</div>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0' }}>{(pr.a ? (pr.a.type || 'Händelse') : (pr.b ? pr.b.type : 'Händelse'))}</div>
                                 <div style={{ fontSize: 12, color: '#94a3b8' }}>{pr.a ? `${pr.a.date || ''} ${pr.a.place || ''}` : ''}</div>
                             </div>
                             <div style={{ width: 340, display: 'flex', gap: 8, alignItems: 'center' }}>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}><input type="radio" name={`evt_${idx}`} checked={choices[pr.a?.id] === 'keep-target'} onChange={() => setChoices(c => ({ ...c, [pr.a?.id || pr.b?.id]: 'keep-target' }))} /> Behåll mål</label>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}><input type="radio" name={`evt_${idx}`} checked={choices[pr.a?.id] === 'keep-source'} onChange={() => setChoices(c => ({ ...c, [pr.a?.id || pr.b?.id]: 'keep-source' }))} /> Behåll källa</label>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}><input type="radio" name={`evt_${idx}`} checked={choices[pr.a?.id] === 'merge'} onChange={() => setChoices(c => ({ ...c, [pr.a?.id || pr.b?.id]: 'merge' }))} /> Slå ihop</label>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#cbd5e1' }}><input type="radio" name={`evt_${idx}`} checked={choices[pr.a?.id] === 'keep-target'} onChange={() => setChoices(c => ({ ...c, [pr.a?.id || pr.b?.id]: 'keep-target' }))} /> Behåll mål</label>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#cbd5e1' }}><input type="radio" name={`evt_${idx}`} checked={choices[pr.a?.id] === 'keep-source'} onChange={() => setChoices(c => ({ ...c, [pr.a?.id || pr.b?.id]: 'keep-source' }))} /> Behåll källa</label>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#cbd5e1' }}><input type="radio" name={`evt_${idx}`} checked={choices[pr.a?.id] === 'merge'} onChange={() => setChoices(c => ({ ...c, [pr.a?.id || pr.b?.id]: 'merge' }))} /> Slå ihop</label>
                             </div>
                         </div>
                     </div>
                 ))}
             </div>
             <div style={{ marginTop: 8, display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-                <button onClick={() => setChoices({})} className="px-3 py-1 border rounded">Återställ</button>
-                <button onClick={() => {}} className="px-3 py-1 bg-blue-600 text-white rounded">Spara event-val</button>
+                <button onClick={() => setChoices({})} className="px-3 py-1 border border-slate-600 bg-slate-700 text-slate-200 rounded hover:bg-slate-600">Återställ</button>
+                <button onClick={() => {}} className="px-3 py-1 bg-blue-700 text-white rounded hover:bg-blue-600">Spara event-val</button>
             </div>
         </div>
     );
@@ -55,26 +55,26 @@ function FieldLevelDiff({ selectedPair, targetIsA, choices, setChoices }) {
     };
 
     return (
-        <div style={{ border: '1px solid #eef2ff', padding: 8, borderRadius: 6, marginBottom: 12 }}>
-            <div style={{ fontWeight: 700, marginBottom: 8 }}>Fältnivåval</div>
+        <div style={{ border: '1px solid #475569', padding: 8, borderRadius: 6, marginBottom: 12, backgroundColor: '#1e293b' }}>
+            <div style={{ fontWeight: 700, marginBottom: 8, color: '#e2e8f0' }}>Fältnivåval</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px 120px', gap: 8, alignItems: 'center' }}>
                 <div></div>
-                <div style={{ fontWeight: 700, textAlign: 'center' }}>{a.firstName} {a.lastName}</div>
-                <div style={{ fontWeight: 700, textAlign: 'center' }}>{b.firstName} {b.lastName}</div>
+                <div style={{ fontWeight: 700, textAlign: 'center', color: '#e2e8f0' }}>{a.firstName} {a.lastName}</div>
+                <div style={{ fontWeight: 700, textAlign: 'center', color: '#e2e8f0' }}>{b.firstName} {b.lastName}</div>
                 {fields.map(f => (
                     <React.Fragment key={f.key}>
-                        <div style={{ padding: 6 }}>{f.label}</div>
-                        <div style={{ textAlign: 'center' }}><label><input type="radio" name={f.key} checked={choices[f.key] === 'a'} onChange={() => setChoices(c => ({ ...c, [f.key]: 'a' }))} /> <div style={{ fontSize: 12 }}>{a[f.key] || '—'}</div></label></div>
-                        <div style={{ textAlign: 'center' }}><label><input type="radio" name={f.key} checked={choices[f.key] === 'b'} onChange={() => setChoices(c => ({ ...c, [f.key]: 'b' }))} /> <div style={{ fontSize: 12 }}>{b[f.key] || '—'}</div></label></div>
+                        <div style={{ padding: 6, color: '#cbd5e1' }}>{f.label}</div>
+                        <div style={{ textAlign: 'center' }}><label style={{ color: '#cbd5e1' }}><input type="radio" name={f.key} checked={choices[f.key] === 'a'} onChange={() => setChoices(c => ({ ...c, [f.key]: 'a' }))} /> <div style={{ fontSize: 12, color: '#cbd5e1' }}>{a[f.key] || '—'}</div></label></div>
+                        <div style={{ textAlign: 'center' }}><label style={{ color: '#cbd5e1' }}><input type="radio" name={f.key} checked={choices[f.key] === 'b'} onChange={() => setChoices(c => ({ ...c, [f.key]: 'b' }))} /> <div style={{ fontSize: 12, color: '#cbd5e1' }}>{b[f.key] || '—'}</div></label></div>
                     </React.Fragment>
                 ))}
-                <div style={{ padding: 6 }}>Födelsedatum</div>
-                <div style={{ textAlign: 'center' }}><label><input type="radio" name="birth" checked={choices.birth === 'a'} onChange={() => setChoices(c => ({ ...c, birth: 'a' }))} /> <div style={{ fontSize: 12 }}>{getBirth(a) || '—'}</div></label></div>
-                <div style={{ textAlign: 'center' }}><label><input type="radio" name="birth" checked={choices.birth === 'b'} onChange={() => setChoices(c => ({ ...c, birth: 'b' }))} /> <div style={{ fontSize: 12 }}>{getBirth(b) || '—'}</div></label></div>
+                <div style={{ padding: 6, color: '#cbd5e1' }}>Födelsedatum</div>
+                <div style={{ textAlign: 'center' }}><label><input type="radio" name="birth" checked={choices.birth === 'a'} onChange={() => setChoices(c => ({ ...c, birth: 'a' }))} /> <div style={{ fontSize: 12, color: '#cbd5e1' }}>{getBirth(a) || '—'}</div></label></div>
+                <div style={{ textAlign: 'center' }}><label><input type="radio" name="birth" checked={choices.birth === 'b'} onChange={() => setChoices(c => ({ ...c, birth: 'b' }))} /> <div style={{ fontSize: 12, color: '#cbd5e1' }}>{getBirth(b) || '—'}</div></label></div>
             </div>
             <div style={{ marginTop: 8, display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-                <button onClick={() => setChoices({})} className="px-3 py-1 border rounded">Återställ</button>
-                <button onClick={() => {}} className="px-3 py-1 bg-blue-600 text-white rounded">Spara val till mål</button>
+                <button onClick={() => setChoices({})} className="px-3 py-1 border border-slate-600 bg-slate-700 text-slate-200 rounded hover:bg-slate-600">Återställ</button>
+                <button onClick={() => {}} className="px-3 py-1 bg-blue-700 text-white rounded hover:bg-blue-600">Spara val till mål</button>
             </div>
         </div>
     );
@@ -148,20 +148,20 @@ function MergeSummary({ selectedPair, targetIsA, fieldChoices, eventChoices, dbD
     return (
         <div className="fixed inset-0 z-100 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.35)' }}>
             <div className="bg-slate-800 rounded shadow-lg border border-slate-700" style={{ width: 'min(900px, 94%)', maxHeight: '80vh', overflow: 'auto' }}>
-                <div className="p-4 border-b flex justify-between items-center">
+                <div className="p-4 border-b border-slate-700 bg-slate-900 flex justify-between items-center">
                     <div>
-                        <div className="text-lg font-semibold">Sammanfognings-sammanfattning</div>
-                        <div className="text-sm text-slate-300">Granska ändringar innan du bekräftar.</div>
+                        <div className="text-lg font-semibold text-slate-200">Sammanfognings-sammanfattning</div>
+                        <div className="text-sm text-slate-400">Granska ändringar innan du bekräftar.</div>
                     </div>
                     <div>
-                        <button onClick={() => setShowSummary(false)} className="text-slate-500 hover:text-slate-300 text-2xl px-2 py-1" aria-label="Stäng">×</button>
+                        <button onClick={() => setShowSummary(false)} className="text-slate-400 hover:text-slate-200 text-2xl px-2 py-1" aria-label="Stäng">×</button>
                     </div>
                 </div>
                 <div className="p-4">
-                    <div className="mb-3"><b>Mål:</b> {target.firstName} {target.lastName} ({target.id})</div>
-                    <div className="mb-3"><b>Källa:</b> {source.firstName} {source.lastName} ({source.id})</div>
+                    <div className="mb-3 text-slate-200"><b>Mål:</b> {target.firstName} {target.lastName} ({target.id})</div>
+                    <div className="mb-3 text-slate-200"><b>Källa:</b> {source.firstName} {source.lastName} ({source.id})</div>
                     <div className="mb-3">
-                        <div className="font-medium">Fältändringar (justera i förhandsgranskning)</div>
+                        <div className="font-medium text-slate-200">Fältändringar (justera i förhandsgranskning)</div>
                         <div className="p-3 border border-slate-700 rounded bg-slate-900 mt-2">
                             <div className="grid grid-cols-2 gap-2">
                                 <div>
@@ -200,13 +200,13 @@ function MergeSummary({ selectedPair, targetIsA, fieldChoices, eventChoices, dbD
                         </div>
                     </div>
                     <div className="mb-3">
-                        <div className="font-medium">Händelser</div>
-                        <div className="text-sm">Antal par att överväga: {pairs.length}</div>
+                        <div className="font-medium text-slate-200">Händelser</div>
+                        <div className="text-sm text-slate-300">Antal par att överväga: {pairs.length}</div>
                     </div>
                     <div className="flex flex-col gap-2">
                         <div className="flex justify-end gap-2">
-                            <button onClick={() => setShowSummary(false)} className="px-3 py-1 border rounded">Avbryt</button>
-                            <button onClick={confirmAndApply} className="px-3 py-1 bg-red-600 text-white rounded">Bekräfta och slå ihop</button>
+                            <button onClick={() => setShowSummary(false)} className="px-3 py-1 border border-slate-600 bg-slate-700 text-slate-200 rounded hover:bg-slate-600">Avbryt</button>
+                            <button onClick={confirmAndApply} className="px-3 py-1 bg-red-700 text-white rounded hover:bg-red-600">Bekräfta och slå ihop</button>
                         </div>
                         <div className="mt-2 text-xs text-slate-400">Obs: efter genomförd sammanfogning kan du ångra via toastens ångra-knapp.</div>
                     </div>
@@ -254,60 +254,60 @@ export default function DuplicateMergePanel({ allPeople = [], onClose, initialPa
     const content = (
         <div className="fixed inset-0 z-[9999] flex items-start justify-center" style={{ paddingTop: 64 }}>
             <div className="bg-slate-800 rounded shadow-lg border border-slate-700" style={{ width: '94%', maxWidth: 1100, maxHeight: '84vh', overflow: 'auto' }}>
-                <div className="flex items-center justify-between p-4 border-b">
+                <div className="flex items-center justify-between p-4 border-b border-slate-700 bg-slate-900">
                     <div>
-                        <div className="text-lg font-semibold">Föreslagna dubbletter</div>
-                        <div className="text-sm text-slate-300">Grupperade efter normaliserat namn och födelseear</div>
+                        <div className="text-lg font-semibold text-slate-200">Föreslagna dubbletter</div>
+                        <div className="text-sm text-slate-400">Grupperade efter normaliserat namn och födelseear</div>
                     </div>
                     <div>
-                        <button onClick={onClose} className="text-slate-500 hover:text-slate-300 text-2xl px-2 py-1" aria-label="Stäng">×</button>
+                        <button onClick={onClose} className="text-slate-400 hover:text-slate-200 text-2xl px-2 py-1" aria-label="Stäng">×</button>
                     </div>
                 </div>
                 <div style={{ display: 'flex', gap: 12 }}>
-                    <div style={{ width: 360, borderRight: '1px solid #e5e7eb', padding: 12 }}>
-                        <div style={{ marginBottom: 8 }} className="text-sm font-medium">Förslag ({suggestions.length})</div>
+                    <div style={{ width: 360, borderRight: '1px solid #475569', padding: 12 }}>
+                        <div style={{ marginBottom: 8 }} className="text-sm font-medium text-slate-200">Förslag ({suggestions.length})</div>
                         <div style={{ maxHeight: '64vh', overflow: 'auto' }}>
                             {suggestions.map((item, idx) => {
                                 const pair = item.pair;
                                 return (
                                     <div key={`${pair[0].id}-${pair[1].id}`} style={{ padding: 8, borderBottom: '1px solid #334155', cursor: 'pointer', background: selectedPair && selectedPair[0].id === pair[0].id && selectedPair[1].id === pair[1].id ? '#334155' : 'transparent' }} onClick={() => { setSelectedPair(pair); setTargetIsA(true); }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <div style={{ fontWeight: 700 }}>{pair[0].firstName} {pair[0].lastName}</div>
+                                            <div style={{ fontWeight: 700, color: '#e2e8f0' }}>{pair[0].firstName} {pair[0].lastName}</div>
                                             <div style={{ fontSize: 12, color: '#cbd5e1' }}>{Math.round((item.score||0) * 100)}%</div>
                                         </div>
-                                        <div style={{ color: '#e2e8f0' }}>{pair[1].firstName} {pair[1].lastName}</div>
+                                        <div style={{ color: '#cbd5e1' }}>{pair[1].firstName} {pair[1].lastName}</div>
                                     </div>
                                 );
                             })}
                         </div>
                     </div>
                     <div style={{ flex: 1, padding: 12 }}>
-                        {!selectedPair && <div className="text-sm text-slate-400">Välj ett par till vänster för att se en förhandsgranskningav sammanslagning.</div>}
+                        {!selectedPair && <div className="text-sm text-slate-300">Välj ett par till vänster för att se en förhandsgranskning av sammanslagning.</div>}
                         {selectedPair && (
                             <div>
                                 <div className="mb-3">
-                                    <div className="text-sm font-medium">Valt par</div>
+                                    <div className="text-sm font-medium text-slate-200">Valt par</div>
                                     <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
-                                        <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}><input type="radio" checked={targetIsA} onChange={() => setTargetIsA(true)} /> {selectedPair[0].firstName} {selectedPair[0].lastName}</label>
-                                        <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}><input type="radio" checked={!targetIsA} onChange={() => setTargetIsA(false)} /> {selectedPair[1].firstName} {selectedPair[1].lastName}</label>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#cbd5e1' }}><input type="radio" checked={targetIsA} onChange={() => setTargetIsA(true)} /> {selectedPair[0].firstName} {selectedPair[0].lastName}</label>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#cbd5e1' }}><input type="radio" checked={!targetIsA} onChange={() => setTargetIsA(false)} /> {selectedPair[1].firstName} {selectedPair[1].lastName}</label>
                                     </div>
                                 </div>
                                 <FieldLevelDiff selectedPair={selectedPair} targetIsA={targetIsA} choices={fieldChoices} setChoices={setFieldChoices} />
                                 <EventDiff selectedPair={selectedPair} targetIsA={targetIsA} choices={eventChoices} setChoices={setEventChoices} />
                                 <div className="mb-3">
-                                    <div className="text-sm font-medium">Preview</div>
+                                    <div className="text-sm font-medium text-slate-200">Preview</div>
                                     {!preview && <div className="text-sm text-slate-400">Ingen förhandsgranskning tillgänglig.</div>}
                                     {preview && (
                                         <div style={{ marginTop: 8 }}>
-                                            <div className="text-sm">Total events i källor: {preview.totalEvents}</div>
-                                            <div className="text-sm">Behållna relationer: {preview.keptList.length}</div>
-                                            <div className="text-sm">Arkiverade relationer: {preview.archivedList.length}</div>
+                                            <div className="text-sm text-slate-200">Total events i källor: {preview.totalEvents}</div>
+                                            <div className="text-sm text-slate-200">Behållna relationer: {preview.keptList.length}</div>
+                                            <div className="text-sm text-slate-200">Arkiverade relationer: {preview.archivedList.length}</div>
                                         </div>
                                     )}
                                 </div>
                                 <div className="flex justify-end gap-2">
-                                    <button onClick={() => setSelectedPair(null)} className="px-3 py-1 border rounded">Avmarkera</button>
-                                    <button onClick={doMerge} className="px-3 py-1 bg-red-600 text-white rounded">Sammanfoga</button>
+                                    <button onClick={() => setSelectedPair(null)} className="px-3 py-1 border border-slate-600 rounded bg-slate-700 text-slate-200 hover:bg-slate-600">Avmarkera</button>
+                                    <button onClick={doMerge} className="px-3 py-1 bg-red-700 text-white rounded hover:bg-red-600">Sammanfoga</button>
                                 </div>
                             </div>
                         )}

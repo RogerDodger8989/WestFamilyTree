@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from './AppContext.jsx';
+import WindowFrame from './WindowFrame.jsx';
 import PlaceEditModal from './PlaceEditModal.jsx';
 import PlaceCreateModal from './PlaceCreateModal.jsx';
 
@@ -902,22 +903,26 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
 
       {/* Edit Modal */}
       {editingPlace && (
-        <PlaceEditModal
-          place={editingPlace}
-          onClose={() => setEditingPlace(null)}
-          onSave={handleSavePlace}
-        />
+        <WindowFrame title={`Redigera: ${editingPlace.name}`} onClose={() => setEditingPlace(null)}>
+          <PlaceEditModal
+            place={editingPlace}
+            onClose={() => setEditingPlace(null)}
+            onSave={handleSavePlace}
+          />
+        </WindowFrame>
       )}
 
       {/* Create Modal */}
       {creatingParent && (
-        <PlaceCreateModal
-          parentNode={creatingParent}
-          onClose={() => setCreatingParent(null)}
-          onCreate={async (form) => {
-            await handleCreatePlace({ name: form.name, type: form.type, latitude: form.latitude, longitude: form.longitude, note: form.note });
-          }}
-        />
+        <WindowFrame title="Skapa ny plats" onClose={() => setCreatingParent(null)}>
+          <PlaceCreateModal
+            parentNode={creatingParent}
+            onClose={() => setCreatingParent(null)}
+            onCreate={async (form) => {
+              await handleCreatePlace({ name: form.name, type: form.type, latitude: form.latitude, longitude: form.longitude, note: form.note });
+            }}
+          />
+        </WindowFrame>
       )}
     </div>
   );

@@ -38,13 +38,7 @@ export default function PlaceCreateModal({ parentNode, onClose, onCreate }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-xl w-full max-w-lg">
-        <div className="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-slate-200">Ny plats</h2>
-          <button className="text-2xl leading-none text-slate-400 hover:text-slate-300" onClick={onClose}>×</button>
-        </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+    <form onSubmit={handleSubmit} className="p-6 space-y-4 flex flex-col h-full">
           <div>
             <label className="block text-sm font-semibold text-slate-300">Namn</label>
             <input type="text" name="name" value={form.name} onChange={handleChange} required autoComplete="off" className="w-full border border-slate-600 bg-slate-900 text-slate-200 rounded px-3 py-2" />
@@ -73,8 +67,6 @@ export default function PlaceCreateModal({ parentNode, onClose, onCreate }) {
             <button type="submit" disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded">{saving ? 'Skapar...' : 'Skapa'}</button>
             <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-700 text-slate-200 rounded">Avbryt</button>
           </div>
-        </form>
-      </div>
-    </div>
+    </form>
   );
 }
