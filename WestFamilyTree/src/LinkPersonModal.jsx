@@ -28,6 +28,8 @@ export default function LinkPersonModal({
     people, 
     onLink, 
     initialPersonId,
+    skipEventSelection = false, // New prop for face tagging mode
+    excludePersonIds = [], // Array of person IDs to exclude (already tagged)
     zIndex = 10000
 }) {
     const [searchTerm, setSearchTerm] = useState('');
@@ -38,7 +40,20 @@ export default function LinkPersonModal({
         if (isOpen) {
             setSearchTerm('');
             setSelectedPerson(null);
-            setTimeout(() => { if (inputRef.current) inputRef.current.focus(); }, 50);
+            // Multiple attempts to ensure focus
+            const focusInput = () => {
+                if (inputRef.current) {
+                    inputRef.current.focus();
+                    inputRef.current.click(); // Also trigger click to ensure focus
+                }
+            };
+            
+            requestAnimationFrame(() => {
+                focusInput();
+                setTimeout(focusInput, 50);
+                setTimeout(focusInput, 150);
+                setTimeout(focusInput, 300);
+            });
         }
     }, [isOpen]);
 
@@ -46,12 +61,15 @@ export default function LinkPersonModal({
         if (initialPersonId) return people.filter(p => p.id === initialPersonId);
         if (!searchTerm) return [];
         const lower = searchTerm.toLowerCase();
-        return people.filter(p => 
-            (p.firstName && p.firstName.toLowerCase().includes(lower)) ||
-            (p.lastName && p.lastName.toLowerCase().includes(lower)) ||
-            (p.refNumber && String(p.refNumber).includes(lower))
-        ).slice(0, 20); 
-    }, [people, searchTerm, initialPersonId]);
+        // Filter out excluded persons (already tagged)
+        return people
+            .filter(p => !excludePersonIds.includes(p.id))
+            .filter(p => 
+                (p.firstName && p.firstName.toLowerCase().includes(lower)) ||
+                (p.lastName && p.lastName.toLowerCase().includes(lower)) ||
+                (p.refNumber && String(p.refNumber).includes(lower))
+            ).slice(0, 20); 
+    }, [people, searchTerm, initialPersonId, excludePersonIds]);
 
     if (!isOpen) return null;
 
@@ -135,6 +153,8 @@ export default function LinkPersonModal({
                             className="w-full border p-2 rounded shadow-sm focus:ring-2 focus:ring-blue-500 outline-none bg-slate-900 text-slate-200 border-slate-700"
                             value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
+                            onClick={() => inputRef.current?.focus()}
+                            autoFocus
                         />
                     </div>
                 )}
@@ -147,7 +167,16 @@ export default function LinkPersonModal({
                         <div key={person.id} className="border-b border-slate-700 bg-slate-900">
                             <div 
                                 className="p-3 cursor-pointer hover:bg-slate-700 flex justify-between items-center"
-                                onClick={() => setSelectedPerson(person)}
+                                onClick={() => {
+                                    if (skipEventSelection) {
+                                        // For face tagging: select person directly and close
+                                        onLink(person.id, null);
+                                        onClose();
+                                    } else {
+                                        // For source linking: go to event selection step
+                                        setSelectedPerson(person);
+                                    }
+                                }}
                             >
                                 <div className="font-bold text-slate-200 text-sm">
                                     {person.firstName} {person.lastName} 

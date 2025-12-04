@@ -76,7 +76,8 @@ export function createNewDatabase() {
         meta: { version: "1.3", created: new Date().toISOString(), merges: [], currentUser: '' }, 
         people: [],
         sources: [],
-        relations: [] // relation objects: { id, type, fromPersonId, toPersonId, roleFrom, roleTo, startDate, endDate, certainty, sourceIds, note, createdBy, createdAt, modifiedAt, _archived }
+        relations: [], // relation objects: { id, type, fromPersonId, toPersonId, roleFrom, roleTo, startDate, endDate, certainty, sourceIds, note, createdBy, createdAt, modifiedAt, _archived }
+        media: [] // media objects: { id, url, name, date, libraryId, isProfile, description, connections, tags, faces, transcription }
     };
 }
 

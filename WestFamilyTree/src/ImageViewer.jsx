@@ -84,7 +84,8 @@ const RegionComponent = React.memo(({ region, idx, people, onStartEdit, onStopEd
                 }
             }
 
-            newRegion = { x: newX, y: newY, w: newW, h: newH };
+            // Preserve all region properties (personId, label, etc.)
+            newRegion = { ...startRegion.current, x: newX, y: newY, w: newW, h: newH };
         }
         
         onRegionChange(idx, newRegion);
@@ -197,12 +198,20 @@ export default function ImageViewer({
         if (isOpen && imageSrc) {
             setLoading(true); setError(null);
             setZoomLevel(1.0); setPanOffset({ x: 0, y: 0 }); // Återställ zoom och pan
-            window.electronAPI.readFile(imageSrc)
-                .then(data => {
-                    if (data && !data.error) {
-                        const blob = new Blob([data]);
-                        const url = URL.createObjectURL(blob);
-                        setBlobUrl(url);
+            
+            // Check if it's an HTTP URL or local file
+            if (imageSrc.startsWith('http://') || imageSrc.startsWith('https://')) {
+                // For HTTP URLs, use directly
+                setBlobUrl(imageSrc);
+                setLoading(false);
+            } else {
+                // For local files, use Electron API
+                window.electronAPI.readFile(imageSrc)
+                    .then(data => {
+                        if (data && !data.error) {
+                            const blob = new Blob([data]);
+                            const url = URL.createObjectURL(blob);
+                            setBlobUrl(url);
                         // Vänta tills bilden laddats och mät storlek
                         setTimeout(() => {
                             if (imgRef.current) {
@@ -223,27 +232,29 @@ export default function ImageViewer({
                                 }
                             }
                         }, 50);
-                    } else { setError("Kunde inte läsa in bilden."); }
-                })
-                .catch(err => setError(err.message))
-                .finally(() => setLoading(false));
+                        } else { setError("Kunde inte läsa in bilden."); }
+                    })
+                    .catch(err => setError(err.message))
+                    .finally(() => setLoading(false));
+            }
         }
         return () => {
-            if (blobUrl) URL.revokeObjectURL(blobUrl); 
+            if (blobUrl && !blobUrl.startsWith('http')) URL.revokeObjectURL(blobUrl); 
             setBlobUrl(null);
             setIsDrawing(false);
             setEditingRegion(null);
         };
     }, [isOpen, imageSrc]);
 
-    const handlePanMouseDown = (e) => {
-        if (e.button !== 0 || isDrawing || editingRegion !== null || zoomLevel === 1) return;
+    const handlePanStart = (e) => {
+        if (showLinkModal || e.button !== 0 || isDrawing || editingRegion !== null || zoomLevel === 1) return;
         e.preventDefault();
         setIsPanning(true);
         panStart.current = { x: e.clientX, y: e.clientY };
     };
 
     const handleZoom = (e) => {
+        if (showLinkModal) return;
         e.preventDefault();
         const delta = e.deltaY * -0.01;
         const newZoom = Math.min(Math.max(1, zoomLevel + delta), 4);
@@ -251,7 +262,7 @@ export default function ImageViewer({
     };
 
     const handleMouseDown = (e) => {
-        if (isPanning || editingRegion !== null || !isDrawing || e.target !== imgRef.current) return;
+        if (showLinkModal || isPanning || editingRegion !== null || !isDrawing || e.target !== imgRef.current) return;
         e.preventDefault();
         const rect = imgRef.current.getBoundingClientRect();
         // Ta hänsyn till zoom och pan
@@ -267,6 +278,7 @@ export default function ImageViewer({
     };
 
     const handleMouseMove = (e) => {
+        if (showLinkModal) return;
         if (isPanning) {
             const dx = e.clientX - panStart.current.x;
             const dy = e.clientY - panStart.current.y;
@@ -291,6 +303,7 @@ export default function ImageViewer({
     };
 
     const handleMouseUp = () => {
+        if (showLinkModal) return;
         if (isPanning) { setIsPanning(false); return; }
         if (editingRegion !== null) { setEditingRegion(null); return; }
 
@@ -306,7 +319,17 @@ export default function ImageViewer({
         setShowLinkModal(true);
     };
 
-    const handlePersonSelected = (personId) => {
+    const handlePersonSelected = (personId, eventId) => {
+        // For face tagging, we only care about personId, ignore eventId
+        // Check if person is already tagged
+        if (regions.some(r => r.personId === personId)) {
+            alert('Denna person är redan taggad på bilden!');
+            setShowLinkModal(false);
+            setCurrentBox(null);
+            setStartPos(null);
+            return;
+        }
+        
         const person = people.find(p => p.id === personId);
         if (!person) return;
         const newRegion = {
@@ -367,7 +390,9 @@ export default function ImageViewer({
                 onClose={() => { setShowLinkModal(false); setCurrentBox(null); }}
                 people={people}
                 onLink={handlePersonSelected}
-                zIndex={3000}
+                skipEventSelection={true}
+                excludePersonIds={regions.map(r => r.personId).filter(Boolean)}
+                zIndex={6000}
             />
 
             <WindowFrame
@@ -399,7 +424,7 @@ export default function ImageViewer({
                                         transformOrigin: 'center center',
                                         maxWidth: '100%', maxHeight: '100%' 
                                     }}
-                                    onMouseDown={handlePanMouseDown}
+                                    onMouseDown={handlePanStart}
                                 >
                                     <img 
                                         ref={imgRef}

@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import WindowFrame from './WindowFrame.jsx';
 import PlacePicker from './PlacePicker.jsx';
+import ImageViewer from './ImageViewer.jsx';
 
 // --- KONSTANTER ---
 
@@ -358,8 +359,10 @@ const SourceModal = ({ isOpen, onClose, onAdd, eventType }) => {
 
 // --- HUVUDKOMPONENT ---
 
-export default function EditPersonModal({ person: initialPerson, allPlaces, onSave, onClose, onOpenSourceDrawer, allSources }) {
+export default function EditPersonModal({ person: initialPerson, allPlaces, onSave, onClose, onOpenSourceDrawer, allSources, allPeople, onOpenEditModal }) {
   const [activeTab, setActiveTab] = useState('info');
+  const [selectedMediaIndex, setSelectedMediaIndex] = useState(null);
+  const [imageViewerOpen, setImageViewerOpen] = useState(false);
   const [position, setPosition] = useState({ x: 50, y: 50 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -1029,30 +1032,91 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
 
             {/* FLIK: MEDIA */}
             {activeTab === 'media' && (
-              <div className="animate-in fade-in duration-300 h-full flex flex-col">
-                <div className="flex justify-between items-center mb-4">
-                  <p className="text-xs text-slate-400">Dra och släpp filer här eller klistra in (Ctrl+V).</p>
-                </div>
-                
-                <div className="flex-1 border-2 border-dashed border-slate-600 rounded-lg bg-slate-800 flex flex-wrap content-start p-4 gap-4 overflow-y-auto">
-                   {person.media?.map(m => (
-                     <div key={m.id} className="w-32 group relative">
-                       <div className="aspect-square bg-slate-700 rounded border border-slate-600 overflow-hidden relative">
-                         <img src={m.url} alt={m.name} className="w-full h-full object-cover" />
-                         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition-opacity">
-                           <button className="p-1 bg-slate-600 rounded hover:bg-blue-600 text-white"><Edit3 size={12}/></button>
-                           <button className="p-1 bg-slate-600 rounded hover:bg-red-600 text-white"><Trash2 size={12}/></button>
-                         </div>
-                       </div>
-                       <p className="text-xs text-center mt-1 truncate text-slate-300">{m.name}</p>
-                     </div>
-                   ))}
-                   
-                   <div className="w-32 aspect-square flex flex-col items-center justify-center border-2 border-slate-600 border-dashed rounded hover:border-slate-500 hover:bg-slate-700 transition-colors cursor-pointer text-slate-400 hover:text-slate-300">
+              <div className="animate-in fade-in duration-300 h-full flex gap-4">
+                {/* VÄNSTER: Thumbnails */}
+                <div className="w-48 flex flex-col gap-2">
+                  <p className="text-xs text-slate-400">Bilder</p>
+                  <div className="flex-1 flex flex-col gap-3 overflow-y-auto">
+                    {person.media?.map((m, idx) => (
+                      <div 
+                        key={m.id} 
+                        onClick={() => setSelectedMediaIndex(idx)}
+                        className={`group relative cursor-pointer rounded border-2 transition-all ${
+                          selectedMediaIndex === idx 
+                            ? 'border-blue-500 ring-2 ring-blue-500/50' 
+                            : 'border-slate-600 hover:border-slate-500'
+                        }`}
+                      >
+                        <div className="aspect-square bg-slate-700 rounded overflow-hidden relative">
+                          <img src={m.url} alt={m.name} className="w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition-opacity">
+                            <button className="p-1 bg-slate-600 rounded hover:bg-red-600 text-white"><Trash2 size={12}/></button>
+                          </div>
+                        </div>
+                        <p className="text-xs text-center mt-1 truncate text-slate-300 px-1">{m.name}</p>
+                      </div>
+                    ))}
+                    
+                    <div className="aspect-square flex flex-col items-center justify-center border-2 border-slate-600 border-dashed rounded hover:border-slate-500 hover:bg-slate-700 transition-colors cursor-pointer text-slate-400 hover:text-slate-300">
                       <Plus size={24} />
                       <span className="text-xs mt-2">Lägg till</span>
-                   </div>
+                    </div>
+                  </div>
                 </div>
+
+                {/* HÖGER: Stor preview med ansiktstagging */}
+                <div className="flex-1 flex flex-col gap-2">
+                  {selectedMediaIndex !== null && person.media?.[selectedMediaIndex] ? (
+                    <>
+                      <div className="flex justify-between items-center">
+                        <p className="text-sm text-slate-300 font-medium">{person.media[selectedMediaIndex].name}</p>
+                        <button 
+                          onClick={() => setImageViewerOpen(true)}
+                          className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded flex items-center gap-2 transition-colors"
+                        >
+                          <Camera size={16} />
+                          Ansiktstagga
+                        </button>
+                      </div>
+                      <div className="flex-1 border-2 border-slate-600 rounded-lg bg-slate-900 flex items-center justify-center overflow-hidden">
+                        <img 
+                          src={person.media[selectedMediaIndex].url} 
+                          alt={person.media[selectedMediaIndex].name} 
+                          className="max-w-full max-h-full object-contain"
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex-1 border-2 border-dashed border-slate-600 rounded-lg bg-slate-800 flex items-center justify-center text-slate-400">
+                      <div className="text-center">
+                        <ImageIcon size={48} className="mx-auto mb-2 opacity-50" />
+                        <p>Välj eller lägg till en bild</p>
+                        <p className="text-xs mt-1">Dra och släpp eller klistra in (Ctrl+V)</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* ImageViewer för ansiktstagging */}
+                <ImageViewer
+                  isOpen={imageViewerOpen}
+                  onClose={() => setImageViewerOpen(false)}
+                  imageSrc={selectedMediaIndex !== null && person.media?.[selectedMediaIndex]?.url}
+                  imageTitle={selectedMediaIndex !== null && person.media?.[selectedMediaIndex]?.name}
+                  regions={selectedMediaIndex !== null && person.media?.[selectedMediaIndex]?.regions || []}
+                  onSaveRegions={(newRegions) => {
+                    if (selectedMediaIndex !== null) {
+                      const updatedMedia = [...person.media];
+                      updatedMedia[selectedMediaIndex] = {
+                        ...updatedMedia[selectedMediaIndex],
+                        regions: newRegions
+                      };
+                      setPerson({ ...person, media: updatedMedia });
+                    }
+                  }}
+                  people={allPeople}
+                  onOpenEditModal={onOpenEditModal}
+                />
               </div>
             )}
 

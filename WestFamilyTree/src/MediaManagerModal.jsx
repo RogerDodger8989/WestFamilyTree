@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import ImageViewer from './ImageViewer.jsx';
 import { 
   X, Save, Image as ImageIcon, Grid, List, Tag, User, 
   MapPin, Calendar, Search, Plus, Trash2, MoreVertical, 
@@ -244,7 +245,7 @@ const LibraryButton = ({ lib, isActive, onClick, onDrop, onDelete }) => {
     );
 };
 
-export function MediaManager() {
+export function MediaManager({ allPeople = [], onOpenEditModal = () => {} }) {
   // UI State (simplified - no window management for tab mode)
   const [viewMode, setViewMode] = useState('grid'); 
   const [activeLib, setActiveLib] = useState('all');
@@ -262,6 +263,8 @@ export function MediaManager() {
   // Selection & Interaction State
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [selectedImage, setSelectedImage] = useState(null);
+  const [imageViewerOpen, setImageViewerOpen] = useState(false);
+  const [imageViewerOpen, setImageViewerOpen] = useState(false);
   const [lastSelectedId, setLastSelectedId] = useState(null); 
   const [showTranscription, setShowTranscription] = useState(false);
 
@@ -517,7 +520,11 @@ export function MediaManager() {
   
   const handleRotate = () => setTransform(prev => ({ ...prev, rotate: prev.rotate + 90 }));
   const handleCrop = () => alert("Öppna beskärningsverktyg...");
-  const handleTagFace = () => alert("Starta ansiktstaggning...");
+  const handleTagFace = () => {
+    if (selectedImage) {
+      setImageViewerOpen(true);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -874,6 +881,27 @@ export function MediaManager() {
               <div className="w-2 h-2 bg-slate-500 rounded-full"/>
             </div>
         )}
+
+        {/* IMAGE VIEWER FOR FACE TAGGING */}
+        <ImageViewer
+          isOpen={imageViewerOpen}
+          onClose={() => setImageViewerOpen(false)}
+          imageSrc={selectedImage?.url}
+          imageTitle={selectedImage?.name}
+          regions={selectedImage?.faces || []}
+          onSaveRegions={(newRegions) => {
+            if (selectedImage) {
+              setMediaItems(prev => prev.map(item => 
+                item.id === selectedImage.id 
+                  ? { ...item, faces: newRegions }
+                  : item
+              ));
+              setSelectedImage({ ...selectedImage, faces: newRegions });
+            }
+          }}
+          people={allPeople || []}
+          onOpenEditModal={onOpenEditModal}
+        />
       </div>
       
       <style dangerouslySetInnerHTML={{__html: `

@@ -420,6 +420,7 @@ function App() {
           <Button onClick={() => setShowSettings(true)} variant="secondary" size="sm">Inställningar</Button>
           <Button onClick={() => setIsMergeModalOpen(true)} variant="secondary" size="sm">Slå ihop</Button>
           <Button onClick={() => setIsMergesPanelOpen(true)} variant="secondary" size="sm">Merges</Button>
+          <Button onClick={() => setIsGedcomImporterOpen(true)} variant="secondary" size="sm">GEDCOM import</Button>
         </div>
         <div className="text-xs text-slate-400"><span>{fileHandle ? `Öppen fil: ${fileHandle.name}` : 'Ny namnlös databas'}</span></div>
       </div>
@@ -538,7 +539,17 @@ function App() {
 
           {activeTab === 'orphanArchive' && (<OrphanArchiveView people={dbData.people || []} allSources={dbData.sources || []} onOpenPerson={handleOpenEditModal} onViewInFamilyTree={handleViewInFamilyTree} />)}
           {activeTab === 'audit' && ( <AuditPanel /> )}
-          {activeTab === 'media' && ( <MediaManager /> )}
+          {activeTab === 'media' && ( 
+            <MediaManager 
+              allPeople={visiblePeople} 
+              onOpenEditModal={handleOpenEditModal}
+              mediaItems={dbData.media || []}
+              onUpdateMedia={(updatedMedia) => {
+                setDbData(prev => ({ ...prev, media: updatedMedia }));
+                setIsDirty(true);
+              }}
+            /> 
+          )}
 
           {/* STANDARDVISNING AV KÄLLKATALOG (EJ EDIT) */}
 
@@ -703,8 +714,6 @@ function App() {
           </div>
         </div>
       )}
-
-      <Button onClick={() => setIsGedcomImporterOpen(true)} variant="primary" size="lg" className="fixed bottom-4 right-4 z-50 shadow-lg">NY GEDCOM-import</Button>
     </div>
   )
 }

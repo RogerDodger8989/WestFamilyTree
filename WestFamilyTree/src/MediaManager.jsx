@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
+import ImageViewer from './ImageViewer.jsx';
 import { 
   Search, Image as ImageIcon, Grid, List, Tag, User, 
   MapPin, Calendar, Plus, Trash2, AlertCircle, UploadCloud, 
   Crop, RotateCw, ScanFace, ZoomIn, ZoomOut, Maximize,
   FolderPlus, Folder, CheckSquare, Square, MoveRight,
   Check, Edit2, FileWarning, PenTool, Mic, Link,
-  X, Layers, FileText, MoreVertical
+  X, Layers, FileText, MoreVertical, Save
 } from 'lucide-react';
 
 const SYSTEM_LIBRARIES = [
@@ -230,7 +231,7 @@ const LibraryButton = ({ lib, isActive, onClick, onDrop, onDelete }) => {
     );
 };
 
-export function MediaManager() {
+export function MediaManager({ allPeople = [], onOpenEditModal = () => {}, mediaItems: initialMedia = [], onUpdateMedia = () => {} }) {
   // UI State
   const [viewMode, setViewMode] = useState('grid'); 
   const [activeLib, setActiveLib] = useState('all');
@@ -239,8 +240,15 @@ export function MediaManager() {
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [filterUnlinked, setFilterUnlinked] = useState(false);
   
-  // Data State
-  const [mediaItems, setMediaItems] = useState(INITIAL_MEDIA);
+  // Data State - Use media from database, fallback to INITIAL_MEDIA for demo
+  const [mediaItems, setMediaItems] = useState(initialMedia.length > 0 ? initialMedia : INITIAL_MEDIA);
+  
+  // Helper to update media and notify parent
+  const updateMedia = (newMedia) => {
+    setMediaItems(newMedia);
+    onUpdateMedia(newMedia);
+  };
+  
   const [customLibraries, setCustomLibraries] = useState([
     { id: 'album1', label: 'Okända soldater', icon: Folder, type: 'custom' }
   ]);
@@ -248,6 +256,7 @@ export function MediaManager() {
   // Selection & Interaction State
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [selectedImage, setSelectedImage] = useState(null);
+  const [imageViewerOpen, setImageViewerOpen] = useState(false);
   const [lastSelectedId, setLastSelectedId] = useState(null); 
   const [showTranscription, setShowTranscription] = useState(false);
 
@@ -315,7 +324,7 @@ export function MediaManager() {
     e.stopPropagation();
     if (confirm("Vill du radera detta album? Bilder inuti raderas inte utan hamnar i 'Alla bilder'.")) {
       setCustomLibraries(prev => prev.filter(l => l.id !== id));
-      setMediaItems(prev => prev.map(m => m.libraryId === id ? { ...m, libraryId: 'gallery' } : m));
+      updateMedia(mediaItems.map(m => m.libraryId === id ? { ...m, libraryId: 'gallery' } : m));
       if (activeLib === id) setActiveLib('all');
     }
   };
@@ -363,7 +372,7 @@ export function MediaManager() {
 
   const handleBatchDelete = () => {
     if (confirm(`Radera ${selectedIds.size} bilder permanent?`)) {
-      setMediaItems(prev => prev.filter(m => !selectedIds.has(m.id)));
+      updateMedia(mediaItems.filter(m => !selectedIds.has(m.id)));
       setSelectedIds(new Set());
       setIsSelectMode(false);
       setSelectedImage(null);
@@ -371,7 +380,7 @@ export function MediaManager() {
   };
 
   const handleBatchMove = (targetLibId) => {
-    setMediaItems(prev => prev.map(m => selectedIds.has(m.id) ? { ...m, libraryId: targetLibId } : m));
+    updateMedia(mediaItems.map(m => selectedIds.has(m.id) ? { ...m, libraryId: targetLibId } : m));
     setSelectedIds(new Set());
     setIsSelectMode(false);
     setIsMoveModalOpen(false);
@@ -386,12 +395,12 @@ export function MediaManager() {
   };
 
   const handleLibraryDrop = (targetLibId, ids) => {
-      setMediaItems(prev => prev.map(m => ids.includes(m.id) ? { ...m, libraryId: targetLibId } : m));
+      updateMedia(mediaItems.map(m => ids.includes(m.id) ? { ...m, libraryId: targetLibId } : m));
   };
 
   const handleBatchEditSave = ({ date, tags }) => {
       const tagArray = tags.split(',').map(t => t.trim()).filter(t => t);
-      setMediaItems(prev => prev.map(m => {
+      updateMedia(mediaItems.map(m => {
           if (selectedIds.has(m.id)) return { ...m, date: date || m.date, tags: [...new Set([...m.tags, ...tagArray])] };
           return m;
       }));
@@ -414,7 +423,7 @@ export function MediaManager() {
       transcription: '',
       description: ''
     }));
-    setMediaItems(prev => [...newItems, ...prev]);
+    updateMedia([...newItems, ...mediaItems]);
   };
 
   useEffect(() => {
@@ -438,7 +447,11 @@ export function MediaManager() {
   
   const handleRotate = () => setTransform(prev => ({ ...prev, rotate: prev.rotate + 90 }));
   const handleCrop = () => alert("Öppna beskärningsverktyg...");
-  const handleTagFace = () => alert("Starta ansiktstaggning...");
+  const handleTagFace = () => {
+    if (selectedImage) {
+      setImageViewerOpen(true);
+    }
+  };
 
   return (
     <div className="flex flex-1 overflow-hidden w-full h-full bg-slate-900">
@@ -744,16 +757,26 @@ export function MediaManager() {
       </div>
       ) : null}
 
-    </div>
-  );
-}
-
-export default function DemoWrapper() {
-  const [isOpen, setIsOpen] = useState(true);
-  return (
-    <div className="h-screen bg-slate-950 flex items-center justify-center">
-      {!isOpen && <button onClick={() => setIsOpen(true)} className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded font-medium">Öppna Mediahanterare</button>}
-      <MediaManager />
+      {/* IMAGE VIEWER FOR FACE TAGGING */}
+      <ImageViewer
+        isOpen={imageViewerOpen}
+        onClose={() => setImageViewerOpen(false)}
+        imageSrc={selectedImage?.url}
+        imageTitle={selectedImage?.name}
+        regions={selectedImage?.faces || []}
+        onSaveRegions={(newRegions) => {
+          if (selectedImage) {
+            updateMedia(mediaItems.map(item => 
+              item.id === selectedImage.id 
+                ? { ...item, faces: newRegions }
+                : item
+            ));
+            setSelectedImage({ ...selectedImage, faces: newRegions });
+          }
+        }}
+        people={allPeople}
+        onOpenEditModal={onOpenEditModal}
+      />
     </div>
   );
 }
