@@ -364,6 +364,48 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const modalRef = useRef(null);
 
+  // Helper: Få födelse- och dödsdata från events
+  const getLifeInfo = (personData) => {
+    if (!personData || !personData.events) {
+      return { birthYear: null, deathYear: null, lifeSpan: null };
+    }
+
+    const birthEvent = personData.events.find(e => e.type === 'Födelse');
+    const deathEvent = personData.events.find(e => e.type === 'Död');
+
+    const birthYear = birthEvent && birthEvent.date ? birthEvent.date.substring(0, 4) : null;
+    const deathYear = deathEvent && deathEvent.date ? deathEvent.date.substring(0, 4) : null;
+
+    let lifeSpan = null;
+    if (birthYear && deathYear) {
+      lifeSpan = parseInt(deathYear) - parseInt(birthYear);
+    }
+
+    return { birthYear, deathYear, lifeSpan };
+  };
+
+  // Helper: Beräkna ålder vid ett visst datum
+  const calculateAgeAtEvent = (birthDate, eventDate) => {
+    if (!birthDate || !eventDate) return null;
+    
+    const birthYear = parseInt(birthDate.substring(0, 4));
+    const eventYear = parseInt(eventDate.substring(0, 4));
+    
+    if (isNaN(birthYear) || isNaN(eventYear)) return null;
+    
+    return eventYear - birthYear;
+  };
+
+  // Helper: Sortera events efter datum
+  const sortedEvents = () => {
+    if (!person.events) return [];
+    return [...person.events].sort((a, b) => {
+      const dateA = a.date || '';
+      const dateB = b.date || '';
+      return dateA.localeCompare(dateB);
+    });
+  };
+
   const handleMouseDown = (e) => {
     // Bara drag från header
     if (e.target.closest('.modal-header')) {
@@ -684,9 +726,22 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
             </div>
             <div>
               <h1 className="text-lg font-bold text-gray-900 leading-tight">
-                {person.firstName} {person.lastName} <span className="text-gray-500 font-normal text-sm">({person.refId || 'Ny'})</span>
+                {person.firstName} {person.lastName}
               </h1>
-              <p className="text-xs text-gray-600">{person.birthDate || '?'} — {person.deathDate || 'Levande'}</p>
+              <p className="text-xs text-gray-600">
+                {(() => {
+                  const { birthYear, deathYear, lifeSpan } = getLifeInfo(person);
+                  if (birthYear && deathYear && lifeSpan !== null) {
+                    return `${birthYear} — ${deathYear} (ca. ${lifeSpan} år)`;
+                  } else if (birthYear && deathYear) {
+                    return `${birthYear} — ${deathYear}`;
+                  } else if (birthYear) {
+                    return `${birthYear} — Levande`;
+                  } else {
+                    return '? — ?';
+                  }
+                })()}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -780,6 +835,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                     <table className="w-full text-sm text-left">
                       <thead className="bg-gray-50 text-gray-700 text-xs uppercase">
                         <tr>
+                          <th className="p-3">Ålder</th>
                           <th className="p-3">Typ</th>
                           <th className="p-3">Datum</th>
                           <th className="p-3">Plats</th>
@@ -788,56 +844,60 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                        {person.events?.map((evt, idx) => (
-                          <tr 
-                            key={evt.id || idx} 
-                            onClick={() => {
-                              if (editingEventIndex === null) {
-                                setSelectedEventIndex(selectedEventIndex === idx ? null : idx);
-                              }
-                            }}
-                            className={`hover:bg-gray-50 transition-colors group cursor-pointer ${
-                              selectedEventIndex === idx && editingEventIndex === null ? 'bg-blue-50 border-l-4 border-blue-600' : ''
-                            }`}
-                          >
-                            <td className="p-3 font-medium text-gray-900">{evt.type}</td>
-                            <td className="p-3 font-mono text-gray-700">{evt.date || '-'}</td>
-                            <td className="p-3 text-blue-600 hover:underline cursor-pointer flex items-center gap-1">
-                               <MapPin size={12} /> {evt.place || '-'}
-                            </td>
-                            <td className="p-3">
-                              <div className="flex justify-center gap-3 text-xs text-gray-600">
-                                <span 
-                                  className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${evt.sources?.length > 0 ? 'text-gray-900' : ''}`}
-                                  onClick={(e) => { e.stopPropagation(); setSelectedEventIndex(idx); }}
-                                >
-                                  <LinkIcon size={12}/> {evt.sources?.length || 0}
-                                </span>
-                                <span 
-                                  className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${evt.notes ? 'text-gray-900' : ''}`}
-                                  onClick={(e) => { e.stopPropagation(); }}
-                                  title={evt.notes || ''}
-                                >
-                                  <FileText size={12}/> {evt.notes ? 1 : 0}
-                                </span>
-                                <span 
-                                  className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${evt.images > 0 ? 'text-gray-900' : ''}`}
-                                  onClick={(e) => { e.stopPropagation(); }}
-                                >
-                                  <ImageIcon size={12}/> {evt.images || 0}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="p-3 text-right flex gap-2 justify-end">
-                              <button onClick={(e) => { e.stopPropagation(); handleEditEvent(idx); }} className="text-gray-600 hover:text-gray-900 p-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Edit3 size={14} />
-                              </button>
-                              <button onClick={(e) => { e.stopPropagation(); handleDeleteEvent(idx); }} className="text-gray-600 hover:text-red-600 p-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Trash2 size={14} />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
+                        {sortedEvents().map((evt, idx) => {
+                          const age = calculateAgeAtEvent(person.events?.find(e => e.type === 'Födelse')?.date, evt.date);
+                          return (
+                            <tr 
+                              key={evt.id || idx} 
+                              onClick={() => {
+                                if (editingEventIndex === null) {
+                                  setSelectedEventIndex(selectedEventIndex === idx ? null : idx);
+                                }
+                              }}
+                              className={`hover:bg-gray-50 transition-colors group cursor-pointer ${
+                                selectedEventIndex === idx && editingEventIndex === null ? 'bg-blue-50 border-l-4 border-blue-600' : ''
+                              }`}
+                            >
+                              <td className="p-3 text-gray-700">{age !== null ? `${age} år` : '-'}</td>
+                              <td className="p-3 font-medium text-gray-900">{evt.type}</td>
+                              <td className="p-3 font-mono text-gray-700">{evt.date || '-'}</td>
+                              <td className="p-3 text-blue-600 hover:underline cursor-pointer flex items-center gap-1">
+                                 <MapPin size={12} /> {evt.place || '-'}
+                              </td>
+                              <td className="p-3">
+                                <div className="flex justify-center gap-3 text-xs text-gray-600">
+                                  <span 
+                                    className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${evt.sources?.length > 0 ? 'text-gray-900' : ''}`}
+                                    onClick={(e) => { e.stopPropagation(); setSelectedEventIndex(idx); }}
+                                  >
+                                    <LinkIcon size={12}/> {evt.sources?.length || 0}
+                                  </span>
+                                  <span 
+                                    className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${evt.notes ? 'text-gray-900' : ''}`}
+                                    onClick={(e) => { e.stopPropagation(); }}
+                                    title={evt.notes || ''}
+                                  >
+                                    <FileText size={12}/> {evt.notes ? 1 : 0}
+                                  </span>
+                                  <span 
+                                    className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${evt.images > 0 ? 'text-gray-900' : ''}`}
+                                    onClick={(e) => { e.stopPropagation(); }}
+                                  >
+                                    <ImageIcon size={12}/> {evt.images || 0}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="p-3 text-right flex gap-2 justify-end">
+                                <button onClick={(e) => { e.stopPropagation(); handleEditEvent(idx); }} className="text-gray-600 hover:text-gray-900 p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <Edit3 size={14} />
+                                </button>
+                                <button onClick={(e) => { e.stopPropagation(); handleDeleteEvent(idx); }} className="text-gray-600 hover:text-red-600 p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <Trash2 size={14} />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
                         {(!person.events || person.events.length === 0) && (
                           <tr>
                             <td colSpan="5" className="p-4 text-center text-gray-600 text-sm">Inga händelser tillagda än</td>
