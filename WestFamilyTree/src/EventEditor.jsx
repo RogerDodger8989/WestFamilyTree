@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import SmartDateField from './SmartDateField.jsx';
 import PlacePicker from './PlacePicker.jsx';
 
@@ -17,8 +17,38 @@ function buildPlaceString(place) {
 }
 
 export default function EventEditor({ event, index, onEventChange, allPeople, allPlaces, onNavigateToPlace, onNavigateToSource, onEditNote }) {
+    const [resolvedPlaceName, setResolvedPlaceName] = useState('');
+
+    const localPlace = useMemo(() => allPlaces.find(p => p.id === event.placeId), [allPlaces, event.placeId]);
+
+    useEffect(() => {
+        let abort = false;
+        async function resolve() {
+            if (!event.placeId) { setResolvedPlaceName(''); return; }
+            if (localPlace) {
+                const name = buildPlaceString(localPlace);
+                setResolvedPlaceName(name);
+                return;
+            }
+            try {
+                const res = await fetch(`http://localhost:5005/official_places/${encodeURIComponent(event.placeId)}`);
+                if (!res.ok) { setResolvedPlaceName(''); return; }
+                const data = await res.json();
+                if (abort) return;
+                const name = data.ortnamn || data.sockenstadnamn || data.kommunnamn || data.lansnamn || '';
+                const meta = [data.sockenstadnamn, data.kommunnamn, data.lansnamn].filter(Boolean).join(' • ');
+                setResolvedPlaceName(meta ? `${name} (${meta})` : name);
+            } catch (e) {
+                if (!abort) setResolvedPlaceName('');
+            }
+        }
+        resolve();
+        return () => { abort = true; };
+    }, [event.placeId, localPlace]);
     const handleFieldChange = (field, value) => {
-        onEventChange(index, field, value);
+        console.log('EventEditor: handleFieldChange called with field:', field, 'value:', value);
+        const updatedEvent = { ...event, [field]: value };
+        onEventChange(index, updatedEvent);
     };
 
     const handleDeleteNote = () => {
@@ -29,19 +59,20 @@ export default function EventEditor({ event, index, onEventChange, allPeople, al
         <>
             <td className="px-4 py-2"><SmartDateField value={event.date || ''} onChange={(val) => handleFieldChange('date', val)} placeholder="Datum (t.ex. 25 jan 1990)" /></td>
             <td className="px-4 py-2">
-                {event.placeId && allPlaces.find(p => p.id === event.placeId) ? (
+                {event.placeId ? (
                     <span
                         onClick={() => onNavigateToPlace && onNavigateToPlace(event.placeId, event.id)}
                         className="text-blue-600 hover:underline cursor-pointer font-semibold"
                         title="Klicka för att visa i Platsregistret"
                     >
-                        {buildPlaceString(allPlaces.find(p => p.id === event.placeId))}
+                        {resolvedPlaceName || buildPlaceString(localPlace)}
                     </span>
                 ) : (
                     <PlacePicker
                         value={event.placeId || ''}
                         allPlaces={allPlaces}
                         onChange={(placeId) => {
+                            console.log('EventEditor: PlacePicker onChange triggered with placeId:', placeId);
                             handleFieldChange('placeId', placeId);
                             handleFieldChange('place', '');
                         }}
@@ -98,19 +129,20 @@ export default function EventEditor({ event, index, onEventChange, allPeople, al
                 </select>
                  <SmartDateField value={event.date || ''} onChange={(val) => handleFieldChange('date', val)} placeholder="Datum" />
                  <div className="flex-grow">
-                    {event.placeId && allPlaces.find(p => p.id === event.placeId) ? (
+                    {event.placeId ? (
                         <span
                             onClick={() => onNavigateToPlace && onNavigateToPlace(event.placeId, event.id)}
                             className="text-blue-600 hover:underline cursor-pointer font-semibold"
                             title="Klicka för att visa i Platsregistret"
                         >
-                            {buildPlaceString(allPlaces.find(p => p.id === event.placeId))}
+                            {resolvedPlaceName || buildPlaceString(localPlace)}
                         </span>
                     ) : (
                         <PlacePicker
                             value={event.placeId || ''}
                             allPlaces={allPlaces}
                             onChange={(placeId) => {
+                                console.log('EventEditor (partner field): PlacePicker onChange triggered with placeId:', placeId);
                                 handleFieldChange('placeId', placeId);
                                 handleFieldChange('place', '');
                             }}

@@ -1,698 +1,853 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import TagInput from './TagInput.jsx';
-import Editor from './MaybeEditor.jsx';
-import EventEditor from './EventEditor.jsx';
-import SourceManager from './SourceManager.jsx';
-import RelationshipPath from './RelationshipPath.jsx';
-import NoteEditorModal from './NoteEditorModal.jsx';
-import ImageGallery from './ImageGallery.jsx';
-import { useApp } from './AppContext';
-import SmartDateField from './SmartDateField.jsx';
-import MaybeEditor from './MaybeEditor.jsx';
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  X, Save, User, Users, Image as ImageIcon, FileText, 
+  Activity, Tag, Plus, Trash2, Calendar, MapPin, 
+  Link as LinkIcon, Camera, Edit3, AlertCircle, Check, 
+  ChevronDown, MoreHorizontal, Search, Globe
+} from 'lucide-react';
 import PlacePicker from './PlacePicker.jsx';
 
-// --- HJÄLPFUNKTIONER FÖR GEDCOM-ÖVERSÄTTNING ---
-const EVENT_LABELS = {
-  'BIRT': 'Födelse',
-  'CHR': 'Dop',
-  'CONF': 'Konfirmation',
-  'DEAT': 'Död',
-  'BURI': 'Begravning',
-  'MARR': 'Vigsel',
-  'DIV': 'Skilsmässa',
-  'RESI': 'Bosatt',
-  'OCCU': 'Yrke',
-  'EDUC': 'Utbildning',
-  'PROB': 'Bouppteckning',
-  'EMIG': 'Emigration',
-  'IMMI': 'Immigration',
-  'EVEN': 'Annan händelse',
-  'NOTE': 'Notering',
-  'ANUL': 'Annulering',
-  'CENS': 'Folkräkning',
-  'CREM': 'Kremering',
-  'NATU': 'Naturalisation',
-  'RETI': 'Pension',
-  'BAPM': 'Barndop',
-  'BLES': 'Välsignelse',
-  'ADOP': 'Adoption',
-  'BAPL': 'Dop (LDS)',
-  'BASM': 'Bat Mitzvah',
-  'ORDN': 'Ordination',
-  'GRAD': 'Examen',
-  'WILL': 'Testamente',
-  'EVEN_CUSTOM': 'Egen händelse'
+// --- KONSTANTER ---
+
+const RELATION_TYPES = {
+  parent: ['Biologisk', 'Adoptiv', 'Fosterförälder', 'Styvförälder'],
+  partner: ['Gift', 'Sambo', 'Förlovad', 'Skild', 'Okänd'],
+  child: ['Biologiskt', 'Adoptivbarn', 'Fosterbarn', 'Styvbarn']
 };
 
-const getEventLabel = (type) => EVENT_LABELS[type] || type;
+const PRIORITY_LEVELS = [
+  { level: 0, label: 'Ingen prio', color: 'text-slate-400' },
+  { level: 1, label: 'Låg prio', color: 'text-green-400' },
+  { level: 2, label: 'Mellan prio', color: 'text-yellow-400' },
+  { level: 3, label: 'Hög prio', color: 'text-orange-400' },
+  { level: 4, label: 'Mycket hög prio', color: 'text-red-400' },
+  { level: 5, label: 'Extremt hög prio', color: 'text-red-600 font-bold' },
+];
 
-// --- BILDHANTERING ---
-function ImagePreview({ source, onOpenSourceModal }) {
-  const imgPreview = useImagePreview(source);
-  if (!source) return null;
-  if (!imgPreview) return null;
+const EVENT_TYPES = [
+  'Födelse', 'Dop', 'Konfirmation', 'Vigsel', 'Skilsmässa', 
+  'Bosatt', 'Emigration', 'Immigration', 'Död', 'Begravning'
+];
+
+// Enkel datumformatterare
+const standardizeDate = (input) => {
+  if (!input) return '';
+  const digits = input.replace(/\D/g, '');
+  if (digits.length === 8) {
+    return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6, 8)}`;
+  }
+  return input;
+};
+
+// --- SUB-COMPONENTS ---
+
+const EditorToolbar = () => (
+  <div className="flex gap-1 bg-gray-100 p-1 rounded-t border-b border-gray-300 mb-0">
+    {['B', 'I', 'U'].map(cmd => (
+      <button key={cmd} className="w-6 h-6 flex items-center justify-center hover:bg-gray-200 rounded text-xs font-bold text-gray-700">
+        {cmd}
+      </button>
+    ))}
+    <div className="w-px h-4 bg-gray-300 mx-1 self-center"></div>
+    <button className="px-2 h-6 flex items-center justify-center hover:bg-gray-200 rounded text-xs text-gray-700">H1</button>
+    <button className="px-2 h-6 flex items-center justify-center hover:bg-gray-200 rounded text-xs text-gray-700">Lista</button>
+  </div>
+);
+
+// Sub-modal för att lägga till källa
+const SourceModal = ({ isOpen, onClose, onAdd, eventType }) => {
+  const [source, setSource] = useState({
+    type: 'Arkiv',
+    title: '',
+    author: '',
+    year: '',
+    citation: '',
+    url: ''
+  });
+
+  const handleAdd = () => {
+    if (source.title.trim()) {
+      onAdd(source);
+      setSource({ type: 'Arkiv', title: '', author: '', year: '', citation: '', url: '' });
+      onClose();
+    }
+  };
+
+  if (!isOpen) return null;
+
   return (
-    <div className="flex flex-col items-center mr-2">
-      <img src={imgPreview} alt="miniatyr" style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 6, border: '2px solid #bbb', marginBottom: 4 }} />
-      <div className="text-[10px] text-gray-500 text-center break-all max-w-[90px]">
-        {source.imagePath || 'bild.png'}
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30">
+      <div className="bg-white border border-gray-300 rounded-lg shadow-2xl w-full max-w-md p-0 overflow-hidden">
+        <div className="bg-gray-50 p-4 border-b border-gray-200 flex justify-between items-center">
+          <h3 className="font-bold text-gray-900">Lägg till källa</h3>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-900"><X size={20}/></button>
+        </div>
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Källtyp</label>
+            <select 
+              value={source.type} 
+              onChange={e => setSource({...source, type: e.target.value})}
+              className="w-full bg-white border border-gray-300 rounded p-2 text-gray-900 focus:border-blue-500 focus:outline-none"
+            >
+              <option>Arkiv</option>
+              <option>Bok</option>
+              <option>Artikel</option>
+              <option>Webb</option>
+              <option>Familjebok</option>
+              <option>Övrigt</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Titel</label>
+            <input 
+              type="text"
+              value={source.title}
+              onChange={e => setSource({...source, title: e.target.value})}
+              className="w-full bg-white border border-gray-300 rounded p-2 text-gray-900 focus:border-blue-500 focus:outline-none"
+              placeholder="Källans titel"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Författare</label>
+            <input 
+              type="text"
+              value={source.author}
+              onChange={e => setSource({...source, author: e.target.value})}
+              className="w-full bg-white border border-gray-300 rounded p-2 text-gray-900 focus:border-blue-500 focus:outline-none"
+              placeholder="Namn"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-600 uppercase mb-1">År</label>
+            <input 
+              type="text"
+              value={source.year}
+              onChange={e => setSource({...source, year: e.target.value})}
+              className="w-full bg-white border border-gray-300 rounded p-2 text-gray-900 focus:border-blue-500 focus:outline-none"
+              placeholder="ÅÅÅÅ"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Citat/Referens</label>
+            <textarea
+              value={source.citation}
+              onChange={e => setSource({...source, citation: e.target.value})}
+              className="w-full bg-white border border-gray-300 rounded p-2 text-gray-900 focus:border-blue-500 focus:outline-none resize-none"
+              rows="3"
+              placeholder="Relevanta citat eller sidnummer"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-600 uppercase mb-1">URL (valfritt)</label>
+            <input 
+              type="url"
+              value={source.url}
+              onChange={e => setSource({...source, url: e.target.value})}
+              className="w-full bg-white border border-gray-300 rounded p-2 text-gray-900 focus:border-blue-500 focus:outline-none"
+              placeholder="https://..."
+            />
+          </div>
+        </div>
+        <div className="bg-gray-50 p-4 border-t border-gray-200 flex justify-end gap-3">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900">Avbryt</button>
+          <button 
+            onClick={handleAdd}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-bold"
+          >
+            Lägg till källa
+          </button>
+        </div>
       </div>
-      <div className="text-[10px] text-gray-400">{imgPreview.length ? Math.round((imgPreview.length * 3 / 4) / 1024) : ''} kB</div>
-      <button
-        className="mt-1 text-xs text-red-500 hover:text-red-700 underline"
-        onClick={e => { e.stopPropagation(); if(window.confirm('Ta bort bild?')) onOpenSourceModal({ ...source, imageBase64: null, imagePath: null, imageNote: '' }); }}
-      >Radera bild</button>
-      <Editor
-        value={source.imageNote || ''}
-        onChange={(e) => { e.stopPropagation && e.stopPropagation(); onOpenSourceModal({ ...source, imageNote: e.target.value }); }}
-        containerProps={{
-          style: {
-            width: '80px',
-            minHeight: '36px',
-            maxHeight: '80px',
-            overflow: 'auto'
-          },
-          onMouseDown: (e) => e.stopPropagation()
-        }}
-        spellCheck={true}
-        lang="sv"
-      />
     </div>
   );
-}
-
-function useImagePreview(source, imageFolder) {
-  const [imgPreview, setImgPreview] = useState(null); 
-
-  // Fix: Använd useCallback för att stabilisera readFile-funktionen
-  const readFile = useCallback(async (filePath) => {
-    try {
-        const data = await window.electronAPI.readFile(filePath);
-        if (data && data instanceof Uint8Array) {
-            const binary = Array.from(data).map(b => String.fromCharCode(b)).join('');
-            const base64 = btoa(binary);
-            setImgPreview('data:image/png;base64,' + base64);
-        } else {
-            setImgPreview(null);
-        }
-    } catch (err) {
-        setImgPreview(null);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!source) return;
-    
-    // 1. Har vi redan base64?
-    if (source.imageBase64) {
-      setImgPreview(source.imageBase64);
-      return;
-    }
-
-    // 2. Annars, ladda från disk via Electron
-    if (source.imagePath && window.electronAPI && window.electronAPI.readFile) {
-      let rootFolder = imageFolder || 'C:/WestFamilyTree/bilder';
-      const filePath = `${rootFolder}\\${source.imagePath}`.replace(/\+/g, '\\');
-      readFile(filePath);
-    } else {
-      setImgPreview(null);
-    }
-  }, [source?.id, source?.imagePath, source?.imageBase64, imageFolder, readFile]);
-
-  return imgPreview;
-}
+};
 
 // --- HUVUDKOMPONENT ---
-function EditPersonModal({ person, onClose, onSave, onChange, allSources, allPeople, allPlaces, onDeleteEvent, onOpenSourceDrawer, onNavigateToSource, onNavigateToPlace, onTogglePlaceDrawer, activeSourcingEventId, focusPair, onViewInFamilyTree, isDrawerMode = false }) {
-      // Bokmärken och släktträd
-      const { bookmarks = [], handleToggleBookmark, onViewInFamilyTree: goToFamilyTree } = useApp();
-      const isBookmarked = bookmarks.includes(person.id);
-    // Samla bilder där personen är taggad (regions) eller äger bilden
-    const personId = person.id;
-    const ownImages = person.images || [];
-    // Hitta bilder från andra personer där denna person är taggad
-    const taggedImages = useMemo(() => {
-      if (!allPeople) return [];
-      let result = [];
-      for (const p of allPeople) {
-        if (!p.images) continue;
-        for (const img of p.images) {
-          if (Array.isArray(img.regions) && img.regions.some(r => r.personId === personId)) {
-            // Undvik dubbletter om det är samma objekt
-            if (!ownImages.includes(img)) result.push(img);
-          }
+
+export default function EditPersonModal({ person: initialPerson, allPlaces, onSave, onClose }) {
+  const [activeTab, setActiveTab] = useState('info');
+  const [position, setPosition] = useState({ x: 50, y: 50 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const modalRef = useRef(null);
+
+  const handleMouseDown = (e) => {
+    // Bara drag från header
+    if (e.target.closest('.modal-header')) {
+      setIsDragging(true);
+      const rect = modalRef.current.getBoundingClientRect();
+      setDragOffset({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      });
+    }
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging) return;
+    setPosition({
+      x: e.clientX - dragOffset.x,
+      y: e.clientY - dragOffset.y
+    });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isDragging, dragOffset]);
+  const [person, setPerson] = useState(initialPerson || {
+    id: 'I_new',
+    refId: '',
+    firstName: '',
+    lastName: '',
+    sex: 'U',
+    birthDate: '',
+    deathDate: '',
+    birthPlace: '',
+    deathPlace: '',
+    tags: [],
+    events: [],
+    relations: { parents: [], partners: [], children: [] },
+    research: [],
+    media: [],
+    notes: []
+  });
+
+  const [isEventModalOpen, setEventModalOpen] = useState(false);
+  const [isSourceModalOpen, setSourceModalOpen] = useState(false);
+  const [editingEventIndex, setEditingEventIndex] = useState(null);
+  const [newEvent, setNewEvent] = useState({ 
+    id: `evt_${Date.now()}`,
+    type: 'Bosatt', 
+    date: '', 
+    place: '',
+    placeId: '',
+    sources: [],
+    images: 0,
+    notes: ''
+  });
+
+  const [tagInput, setTagInput] = useState('');
+
+  // Tag handling
+  const addTag = (e) => {
+    if ((e.key === 'Enter' || e.key === ',') && tagInput.trim()) {
+      e.preventDefault();
+      const newTag = tagInput.replace(',', '').trim();
+      if (!person.tags.includes(newTag)) {
+        setPerson({ ...person, tags: [...person.tags, newTag] });
+      }
+      setTagInput('');
+    }
+  };
+
+  const removeTag = (tagToRemove) => {
+    setPerson({ ...person, tags: person.tags.filter(t => t !== tagToRemove) });
+  };
+
+  // Event handling
+  const handleAddEvent = () => {
+    setEditingEventIndex(null);
+    setNewEvent({ 
+      id: `evt_${Date.now()}`,
+      type: 'Bosatt', 
+      date: '', 
+      place: '',
+      placeId: '',
+      sources: [],
+      images: 0,
+      notes: ''
+    });
+    setEventModalOpen(true);
+  };
+
+  const handleEditEvent = (index) => {
+    setEditingEventIndex(index);
+    setNewEvent(person.events[index]);
+    setEventModalOpen(true);
+  };
+
+  const handleSaveEvent = () => {
+    if (editingEventIndex !== null) {
+      const updated = person.events.map((e, i) => i === editingEventIndex ? newEvent : e);
+      setPerson({ ...person, events: updated });
+    } else {
+      setPerson({ ...person, events: [...person.events, newEvent] });
+    }
+    setEventModalOpen(false);
+    setNewEvent({ 
+      id: `evt_${Date.now()}`,
+      type: 'Bosatt', 
+      date: '', 
+      place: '',
+      placeId: '',
+      sources: [],
+      images: 0,
+      notes: ''
+    });
+  };
+
+  const handleDeleteEvent = (index) => {
+    setPerson({ ...person, events: person.events.filter((_, i) => i !== index) });
+  };
+
+  const handleAddSource = (source) => {
+    const updatedEvent = {
+      ...newEvent,
+      sources: [...(newEvent.sources || []), { id: `src_${Date.now()}`, ...source }]
+    };
+    setNewEvent(updatedEvent);
+  };
+
+  // Image paste handler
+  useEffect(() => {
+    const handlePaste = (e) => {
+      if (activeTab !== 'media') return;
+      const items = e.clipboardData.items;
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          const blob = items[i].getAsFile();
+          const fakeUrl = URL.createObjectURL(blob);
+          setPerson(prev => ({
+            ...prev,
+            media: [...prev.media, { id: `img_${Date.now()}`, url: fakeUrl, name: 'Urklipp.png', type: 'image' }]
+          }));
         }
       }
-      return result;
-    }, [allPeople, personId, ownImages]);
-    const allImages = [...ownImages, ...taggedImages];
-  if (!person) return null;
-  const [newEventTypeName, setNewEventTypeName] = useState('Födelse');
-  const [editingNoteForEvent, setEditingNoteForEvent] = useState(null);
-  const [activePersonTab, setActivePersonTab] = useState('info');
-  // Forskning: tasks och anmärkning
-  const [researchTasks, setResearchTasks] = useState(person.researchTasks || []);
-  const [researchNote, setResearchNote] = useState(person.researchNote || '');
-  // Taggar (komma-separerad sträng)
-  const [personTags, setPersonTags] = useState(person.tags || '');
-  
-  // Hämta nödvändiga funktioner från AppContext
-  const { getPersonRelations, addRelation, unlinkRelation, updateRelation, dbData, undoMerge, restorePerson, showStatus, recordAudit, handleDeletePerson } = useApp();
-
-  // Förydliga händelser för Editorn
-  const { birthEvent, deathEvent } = useMemo(() => {
-    const events = person.events || [];
-    const getEvent = (type) => events.find(e => e.type === type || e.type === EVENT_LABELS[type]) || {};
-    return {
-        birthEvent: getEvent('BIRT'),
-        deathEvent: getEvent('DEAT'),
     };
-  }, [person.events]);
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, [activeTab]);
 
-  const isArchived = person._archived;
-
-  // --- FUNKTIONER ---
-  const handleSaveChanges = () => onSave(person);
-  const handleRestore = () => restorePerson(person.id);
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    onChange({ ...person, [name]: value });
-  };
-  
-  const handleEventChange = (index, updatedEvent) => {
-    const updatedEvents = person.events.map((e, i) => i === index ? updatedEvent : e);
-    onChange({ ...person, events: updatedEvents });
-  };
-
-  const handleLinkSourceToEvent = (eventIndex, sourceId) => {
-    const updatedEvents = person.events.map((e, i) => {
-        if (i === eventIndex) {
-            const sources = e.sources ? [...e.sources, sourceId] : [sourceId];
-            return { ...e, sources };
-        }
-        return e;
-    });
-    onChange({ ...person, events: updatedEvents });
-  };
-  
-  const handleUnlinkSourceFromEvent = (eventIndex, sourceId) => {
-    const updatedEvents = person.events.map((e, i) => {
-        if (i === eventIndex) {
-            const sources = (e.sources || []).filter(sid => sid !== sourceId);
-            return { ...e, sources };
-        }
-        return e;
-    });
-    onChange({ ...person, events: updatedEvents });
-  };
-
-  const handleAddEvent = () => {
-    const eventType = newEventTypeName;
-    const newEvent = {
-        id: `evt_${Date.now()}`,
-        type: eventType,
-        date: '',
-        place: '',
-        note: '',
-        sources: []
-    };
-    const updatedEvents = [...(person.events || []), newEvent];
-    onChange({ ...person, events: updatedEvents });
-    setNewEventTypeName('Födelse'); // Återställ
-  };
-
-  const handleVitalEventChange = (eventTypeLabel, eventTypeGedcom, field, value) => {
-    const currentEventIndex = person.events?.findIndex(e => e.type === eventTypeLabel || e.type === eventTypeGedcom);
-    
-    let updatedEvents = [...(person.events || [])];
-    
-    if (currentEventIndex !== -1) {
-        // Uppdatera befintlig händelse
-        const updatedEvent = { ...updatedEvents[currentEventIndex], [field]: value };
-        updatedEvents[currentEventIndex] = updatedEvent;
-    } else {
-        // Skapa ny händelse om den saknas
-        if (value) {
-            const newEvent = {
-                id: `evt_${Date.now()}`,
-                type: eventTypeLabel, // Använd etiketten för svenska
-                [field]: value,
-                sources: []
-            };
-            updatedEvents.push(newEvent);
-        }
+  const handleSave = async () => {
+    try {
+      if (onSave) {
+        await onSave(person);
+      }
+      if (onClose) onClose();
+    } catch (error) {
+      console.error('Error saving person:', error);
     }
-
-    // Filter bort tomma vitala event om både datum och plats tas bort
-    updatedEvents = updatedEvents.filter(e => {
-      const isVital = e.type === 'Födelse' || e.type === 'Död' || e.type === 'BIRT' || e.type === 'DEAT';
-      if (isVital && (!e.date && !e.place)) return false;
-      return true;
-    });
-
-    onChange({ ...person, events: updatedEvents });
   };
-  
-  // --- RENDERING ---
+
   return (
-    <div className="h-full flex flex-col" style={{ scrollbarGutter: 'stable' }}>
-      {/* NOTE EDITOR MODAL */}
-      {editingNoteForEvent && (
-        <NoteEditorModal 
-          isOpen={!!editingNoteForEvent}
-          onClose={() => setEditingNoteForEvent(null)}
-          initialHtml={editingNoteForEvent.event.note || ''}
-          onSave={(newNote) => {
-            handleEventChange(editingNoteForEvent.index, { ...editingNoteForEvent.event, note: newNote });
-            setEditingNoteForEvent(null);
-          }}
-          title={`Redigera notering för ${getEventLabel(editingNoteForEvent.event.type)}`}
-        />
-      )}
-
-      <div className="flex-grow overflow-y-auto p-6 bg-white">
-        {/* TOP HEADER (Oförändrad) */}
-        <div className="mb-4 flex items-start justify-between">
-          <div className="flex-1">
-            <RelationshipPath startPerson={person} endPersonId={focusPair?.primary} allPeople={allPeople} />
-          </div>
-        </div>
-
-        {!isDrawerMode && (
-          <div className="mb-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="text-lg font-semibold text-gray-800">{person.firstName} {person.lastName}</div>
-              {/* Bokmärke */}
-              <button
-                onClick={() => handleToggleBookmark(person.id)}
-                title={isBookmarked ? 'Ta bort bokmärke' : 'Bokmärk person'}
-                className={`ml-2 text-xl ${isBookmarked ? 'text-yellow-400' : 'text-gray-300 hover:text-yellow-400'}`}
-                style={{ lineHeight: 1 }}
-              >★</button>
-              {/* Gå till släktträd */}
-              <button
-                onClick={() => goToFamilyTree ? goToFamilyTree(person.id) : null}
-                title="Gå till släktträd"
-                className="ml-1 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 border border-blue-200"
-              >Släktträd</button>
-              {isArchived && <div className="text-red-600 font-semibold ml-2">ARKIVERAD</div>}
+    <>
+      {/* MODAL CONTAINER */}
+      <div
+        ref={modalRef}
+        className="w-full max-w-5xl h-[85vh] bg-white border border-gray-300 rounded-xl shadow-xl flex flex-col overflow-hidden"
+        style={{
+          left: `${position.x}px`,
+          top: `${position.y}px`,
+          position: 'fixed',
+          width: '85vw',
+          maxWidth: '1280px',
+          zIndex: 4000
+        }}
+        onMouseDown={handleMouseDown}
+      >        {/* HEADER */}
+        <div className="modal-header h-16 bg-gray-50 border-b border-gray-200 flex items-center justify-between px-6 shrink-0 cursor-move">
+          <div className="flex items-center gap-4 select-none">
+            <div className="w-10 h-10 rounded-full bg-gray-300 overflow-hidden border-2 border-gray-400 pointer-events-none">
+              {person.media?.length > 0 ? (
+                <img src={person.media[0].url} alt="Profil" className="w-full h-full object-cover" />
+              ) : (
+                <User className="w-full h-full p-1 text-gray-500" />
+              )}
             </div>
-            {isArchived && <button onClick={handleRestore} className="px-3 py-1 bg-red-600 text-white rounded">Återställ</button>}
+            <div>
+              <h1 className="text-lg font-bold text-gray-900 leading-tight">
+                {person.firstName} {person.lastName} <span className="text-gray-500 font-normal text-sm">({person.refId || 'Ny'})</span>
+              </h1>
+              <p className="text-xs text-gray-600">{person.birthDate || '?'} — {person.deathDate || 'Levande'}</p>
+            </div>
           </div>
-        )}
-
-        {/* PERSONFLIKAR */}
-        <div className="flex border-b mb-6 bg-gray-50 rounded-t-lg shadow-sm">
-          <button
-            className={`relative px-5 py-2 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors duration-150 focus:outline-none ${activePersonTab === 'info' ? 'border-blue-600 text-blue-700 bg-white shadow -mb-px' : 'border-transparent text-gray-500 hover:text-blue-600 hover:bg-blue-50'}`}
-            onClick={() => setActivePersonTab('info')}
-            title="Info"
-          >
-            <span className="text-lg" role="img" aria-label="Info">ℹ️</span>
-            Info
-            {activePersonTab === 'info' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2 h-2 bg-blue-500 rounded-full" />}
-          </button>
-          <button
-            className={`relative px-5 py-2 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors duration-150 focus:outline-none ${activePersonTab === 'relations' ? 'border-blue-600 text-blue-700 bg-white shadow -mb-px' : 'border-transparent text-gray-500 hover:text-blue-600 hover:bg-blue-50'}`}
-            onClick={() => setActivePersonTab('relations')}
-            title="Relationer"
-          >
-            <span className="text-lg" role="img" aria-label="Relationer">👪</span>
-            Relationer
-            {activePersonTab === 'relations' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2 h-2 bg-blue-500 rounded-full" />}
-          </button>
-          <button
-            className={`relative px-5 py-2 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors duration-150 focus:outline-none ${activePersonTab === 'images' ? 'border-blue-600 text-blue-700 bg-white shadow -mb-px' : 'border-transparent text-gray-500 hover:text-blue-600 hover:bg-blue-50'}`}
-            onClick={() => setActivePersonTab('images')}
-            title="Bilder"
-          >
-            <span className="text-lg" role="img" aria-label="Bilder">🖼️</span>
-            Bilder
-            {allImages.length > 0 && (
-              <span className="absolute -top-2 -right-2 bg-green-500 text-white text-xs font-bold rounded-full px-2 py-0.5 shadow" style={{ minWidth: 22, textAlign: 'center' }}>{allImages.length}</span>
-            )}
-            {activePersonTab === 'images' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2 h-2 bg-blue-500 rounded-full" />}
-          </button>
-          <button
-            className={`relative px-5 py-2 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors duration-150 focus:outline-none ${activePersonTab === 'notes' ? 'border-blue-600 text-blue-700 bg-white shadow -mb-px' : 'border-transparent text-gray-500 hover:text-blue-600 hover:bg-blue-50'}`}
-            onClick={() => setActivePersonTab('notes')}
-            title="Noteringar"
-          >
-            <span className="text-lg" role="img" aria-label="Noteringar">📝</span>
-            Noteringar
-            {activePersonTab === 'notes' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2 h-2 bg-blue-500 rounded-full" />}
-          </button>
-          {/* Forskning-flik */}
-          <button
-            className={`relative px-5 py-2 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors duration-150 focus:outline-none ${activePersonTab === 'research' ? 'border-blue-600 text-blue-700 bg-white shadow -mb-px' : 'border-transparent text-gray-500 hover:text-blue-600 hover:bg-blue-50'}`}
-            onClick={() => setActivePersonTab('research')}
-            title="Forskning"
-          >
-            <span className="text-lg" role="img" aria-label="Forskning">🔬</span>
-            Forskning
-            {activePersonTab === 'research' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2 h-2 bg-blue-500 rounded-full" />}
-          </button>
-          {/* Taggar-flik */}
-          <button
-            className={`relative px-5 py-2 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors duration-150 focus:outline-none ${activePersonTab === 'tags' ? 'border-blue-600 text-blue-700 bg-white shadow -mb-px' : 'border-transparent text-gray-500 hover:text-blue-600 hover:bg-blue-50'}`}
-            onClick={() => setActivePersonTab('tags')}
-            title="Taggar"
-          >
-            <span className="text-lg" role="img" aria-label="Taggar">🏷️</span>
-            Taggar
-            {activePersonTab === 'tags' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2 h-2 bg-blue-500 rounded-full" />}
-          </button>
+          <div className="flex items-center gap-3">
+             <nav className="flex bg-gray-100 p-1 rounded-lg mr-4">
+                {[
+                  { id: 'info', icon: User, label: 'Info' },
+                  { id: 'relations', icon: Users, label: 'Relationer' },
+                  { id: 'media', icon: ImageIcon, label: 'Media' },
+                  { id: 'notes', icon: FileText, label: 'Noteringar' },
+                  { id: 'research', icon: Activity, label: 'Forskning' },
+                  { id: 'tags', icon: Tag, label: 'Taggar' },
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm transition-all ${
+                      activeTab === tab.id 
+                      ? 'bg-blue-600 text-white shadow-md' 
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                    }`}
+                  >
+                    <tab.icon size={14} /> {tab.label}
+                  </button>
+                ))}
+             </nav>
+             <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full text-gray-600 hover:text-gray-900 cursor-pointer"><X size={20}/></button>
+          </div>
         </div>
-            {activePersonTab === 'research' && (
-              <section>
-                <h4 className="text-lg font-semibold text-gray-800 border-b pb-2 mb-4">Forskning</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Att göra-lista */}
-                  <div>
-                    <h5 className="font-bold mb-2">Att göra</h5>
-                    <ul className="mb-2">
-                      {researchTasks.map((task, idx) => (
-                        <li key={idx} className="flex items-center gap-2 mb-1">
-                          <span className="inline-block min-w-[110px] text-gray-500 text-xs font-semibold">
-                            {(() => {
-                              switch (task.prio) {
-                                case '1': return '1 - Låg prio';
-                                case '2': return '2 - Mellan prio';
-                                case '3': return '3 - Hög prio';
-                                case '4': return '4 - Mycket hög prio';
-                                case '5': return '5 - Extremt hög prio';
-                                default: return '0 - Ingen prio';
-                              }
-                            })()}
-                          </span>
-                          <span className="flex-1">{task.text}</span>
-                          <button className="text-red-500 hover:text-red-700 text-xs" onClick={() => setResearchTasks(researchTasks.filter((_, i) => i !== idx))}>Ta bort</button>
-                        </li>
-                      ))}
-                    </ul>
-                    <form className="flex gap-2" onSubmit={e => { e.preventDefault(); const text = e.target.tasktext.value.trim(); const prio = e.target.prio.value; if (text) { setResearchTasks([...researchTasks, { text, prio }]); e.target.reset(); } }}>
-                      <select name="prio" className="w-36 p-1 border rounded text-xs">
-                        <option value="0">0 - Ingen prio</option>
-                        <option value="1">1 - Låg prio</option>
-                        <option value="2">2 - Mellan prio</option>
-                        <option value="3">3 - Hög prio</option>
-                        <option value="4">4 - Mycket hög prio</option>
-                        <option value="5">5 - Extremt hög prio</option>
-                      </select>
-                      <input name="tasktext" placeholder="Vad/hur?" className="flex-1 p-1 border rounded text-xs" />
-                      <button type="submit" className="px-2 py-1 bg-blue-600 text-white rounded text-xs">Lägg till</button>
-                    </form>
-                  </div>
-                  {/* Anmärkning */}
-                  <div>
-                    <h5 className="font-bold mb-2">Anmärkning</h5>
-                    <MaybeEditor
-                      value={researchNote}
-                      onChange={e => setResearchNote(e.target.value)}
-                      placeholder="Forskningsnotiser, tankar, tips..."
-                      className="w-full min-h-[100px]"
-                      lang="sv"
-                      spellCheck={true}
-                    />
-                  </div>
-                </div>
-              </section>
-            )}
-            {activePersonTab === 'tags' && (
-              <section>
-                <h4 className="text-lg font-semibold text-gray-800 border-b pb-2 mb-4">Taggar</h4>
-                <TagInput value={personTags} onChange={setPersonTags} placeholder="Lägg till tagg..." />
-                <div className="text-xs text-gray-500 mt-2">Skriv och tryck Enter eller , (komma) för att lägga till. Taggar är unika för personen.</div>
-              </section>
-            )}
 
-        {/* FLIKINNEHÅLL */}
-        <div className="space-y-8">
-          {activePersonTab === 'info' && (
-            <>
-              {/* Info-innehåll (allt som tidigare fanns här) */}
-              <section>
-                <div className="flex flex-col border-b pb-2 mb-4">
-                  <div className="flex items-end gap-2 mb-3 w-full">
-                    {/* REF - Fast bredd */}
-                    <div className="flex-shrink-0">
-                      <label className="block text-xs font-bold text-gray-500 uppercase">GEDCOM/REF</label>
-                      <input 
-                        type="text" 
-                        value={person.refNumber || ''} 
-                        onChange={handleChange} 
-                        name="refNumber" 
-                        className="w-24 p-2 border rounded bg-gray-100 text-center" 
-                      />
+        {/* CONTENT AREA */}
+        <div className="flex-1 overflow-hidden flex bg-white relative">
+          <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+            
+            {/* FLIK: INFO */}
+            {activeTab === 'info' && (
+              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                
+                {/* Grunddata */}
+                <div className="grid grid-cols-12 gap-6">
+                  <div className="col-span-3">
+                    <div className="aspect-[3/4] bg-gray-100 rounded-lg border border-gray-300 flex items-center justify-center relative group cursor-pointer overflow-hidden">
+                       {person.media?.length > 0 ? (
+                         <img src={person.media[0].url} alt="Profil" className="w-full h-full object-cover" />
+                       ) : (
+                         <User size={64} className="text-gray-400" />
+                       )}
+                       <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                         <Camera className="text-white" />
+                       </div>
                     </div>
-                    {/* FÖRNAMN - Flexibel bredd (Fyller ut) */}
-                    <div className="flex-1">
-                      <label className="block text-xs font-bold text-gray-500 uppercase">Förnamn</label>
-                      <input 
-                        type="text" 
-                        name="firstName" 
-                        value={person.firstName || ''} 
-                        onChange={handleChange} 
-                        className="w-full p-2 border rounded" 
-                      />
+                  </div>
+                  <div className="col-span-9 grid grid-cols-2 gap-4 content-start">
+                    <div>
+                      <label className="text-xs uppercase font-bold text-gray-600">Förnamn</label>
+                      <input type="text" value={person.firstName} onChange={e => setPerson({...person, firstName: e.target.value})} className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none" />
                     </div>
-                    {/* EFTERNAMN - Flexibel bredd (Fyller ut) */}
-                    <div className="flex-1">
-                      <label className="block text-xs font-bold text-gray-500 uppercase">Efternamn</label>
-                      <input 
-                        type="text" 
-                        name="lastName" 
-                        value={person.lastName || ''} 
-                        onChange={handleChange} 
-                        className="w-full p-2 border rounded" 
-                      />
+                    <div>
+                      <label className="text-xs uppercase font-bold text-gray-600">Efternamn</label>
+                      <input type="text" value={person.lastName} onChange={e => setPerson({...person, lastName: e.target.value})} className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none" />
                     </div>
-                    {/* KÖN - Fast bredd (Högerjusterad) */}
-                    <div className="flex-shrink-0 ml-2">
-                      <label className="block text-xs font-bold text-gray-500 uppercase">Kön</label>
-                      <select 
-                        name="gender" 
-                        value={person.gender || ''} 
-                        onChange={handleChange} 
-                        className="w-32 p-2 border rounded"
-                      >
-                        <option value="">Okänt</option>
+                    <div>
+                      <label className="text-xs uppercase font-bold text-gray-600">Kön</label>
+                      <select value={person.sex} onChange={e => setPerson({...person, sex: e.target.value})} className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none">
                         <option value="M">Man</option>
                         <option value="K">Kvinna</option>
+                        <option value="U">Okänd</option>
                       </select>
+                    </div>
+                    <div>
+                      <label className="text-xs uppercase font-bold text-gray-600">Ref Nr</label>
+                      <input type="text" value={person.refId} onChange={e => setPerson({...person, refId: e.target.value})} className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none" />
                     </div>
                   </div>
                 </div>
-                {/* VITALA HÄNDELSER */}
-                <div className={isArchived ? 'grid grid-cols-1 md:grid-cols-2 gap-4 opacity-60 pointer-events-none' : 'grid grid-cols-1 md:grid-cols-2 gap-4'}>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase">Födelsedatum</label>
-                    <SmartDateField className="w-full p-2 border rounded bg-white" value={birthEvent.date || person.birthDate || ''} onChange={(val) => handleVitalEventChange('Födelse', 'BIRT', 'date', val)} placeholder="t.ex. 12 apr 1900" />
+
+                {/* Livshändelser */}
+                <div>
+                  <div className="flex justify-between items-center mb-3">
+                    <h3 className="text-md font-bold text-gray-900 uppercase tracking-wide flex items-center gap-2">
+                      <Activity size={16} className="text-blue-600"/> Livshändelser
+                    </h3>
+                    <button 
+                      onClick={handleAddEvent}
+                      className="flex items-center gap-1 text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded transition-colors"
+                    >
+                      <Plus size={14}/> Lägg till händelse
+                    </button>
                   </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase">Dödsdatum</label>
-                    <SmartDateField className="w-full p-2 border rounded bg-white" value={deathEvent.date || person.deathDate || ''} onChange={(val) => handleVitalEventChange('Död', 'DEAT', 'date', val)} placeholder="t.ex. 2010" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase">Födelseort</label>
-                    <PlacePicker
-                      value={birthEvent.placeId || ''}
-                      allPlaces={allPlaces}
-                      onChange={(placeId) => {
-                        handleVitalEventChange('Födelse', 'BIRT', 'placeId', placeId);
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase">Dödsort</label>
-                    <PlacePicker
-                      value={deathEvent.placeId || ''}
-                      allPlaces={allPlaces}
-                      onChange={(placeId) => {
-                        handleVitalEventChange('Död', 'DEAT', 'placeId', placeId);
-                      }}
-                    />
-                  </div>
-                </div>
-              </section>
-              <section>
-                <h4 className="text-lg font-semibold text-gray-800 border-b pb-2 mb-4">Händelser & Livshistoria</h4>
-                <div className="mb-4 p-3 bg-blue-50 rounded border border-blue-100 flex gap-2 items-end">
-                  <div className="flex-grow">
-                    <label className="text-xs font-bold text-blue-800">Lägg till händelsetyp</label>
-                    <select value={newEventTypeName} onChange={(e) => setNewEventTypeName(e.target.value)} className="w-full p-2 border rounded text-sm bg-white">
-                      <optgroup label="Vitala">
-                        <option value="Födelse" disabled={person.events?.some(e => e.type === 'Födelse' || e.type === 'BIRT')}>Födelse</option>
-                        <option value="Dop" disabled={person.events?.some(e => e.type === 'Dop' || e.type === 'CHR')}>Dop</option>
-                        <option value="Konfirmation" disabled={person.events?.some(e => e.type === 'Konfirmation' || e.type === 'CONF')}>Konfirmation</option>
-                        <option value="Död" disabled={person.events?.some(e => e.type === 'Död' || e.type === 'DEAT')}>Död</option>
-                        <option value="Begravning" disabled={person.events?.some(e => e.type === 'Begravning' || e.type === 'BURI')}>Begravning</option>
-                      </optgroup>
-                      <optgroup label="Familj & Civilstånd">
-                        <option value="Vigsel">Vigsel</option>
-                        <option value="Skilsmässa">Skilsmässa</option>
-                        <option value="Annulering">Annulering</option>
-                        <option value="Adoption">Adoption</option>
-                      </optgroup>
-                      <optgroup label="Migration & Folkbokföring">
-                        <option value="Emigration">Emigration</option>
-                        <option value="Immigration">Immigration</option>
-                        <option value="Folkräkning">Folkräkning</option>
-                        <option value="Naturalisation">Naturalisation</option>
-                      </optgroup>
-                      <optgroup label="Liv & Yrke">
-                        <option value="Bosatt">Bosatt</option>
-                        <option value="Yrke">Yrke</option>
-                        <option value="Utbildning">Utbildning</option>
-                        <option value="Examen">Examen</option>
-                      </optgroup>
-                    </select>
-                  </div>
-                  <button onClick={handleAddEvent} className="bg-blue-600 text-white px-4 py-2 rounded text-sm font-bold hover:bg-blue-700">Lägg till</button>
-                </div>
-                
-                <table className="w-full text-sm text-left text-gray-600">
-                  <thead className="text-xs text-gray-700 uppercase bg-gray-100">
-                    <tr>
-                      <th className="px-4 py-2">Typ</th>
-                      <th className="px-4 py-2">Datum</th>
-                      <th className="px-4 py-2">Plats</th>
-                      <th className="px-4 py-2">Notering</th>
-                      {/* Bildkolumn borttagen */}
-                      <th className="px-4 py-2 text-center">Källor</th>
-                      <th className="w-10"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(person.events || [])
-                      .map((ev, idx) => ({ ...ev, originalIndex: idx }))
-                      .map((event) => (
-                        <React.Fragment key={event.id || event.originalIndex}>
-                          <tr className={`event-row border-b transition-colors ${activeSourcingEventId === event.id ? 'bg-blue-100' : ''}`}>
-                            <EventEditor 
-                              event={{...event, type: getEventLabel(event.type)}}
-                              index={event.originalIndex} 
-                              onEventChange={handleEventChange} 
-                              allPeople={allPeople}
-                              allPlaces={allPlaces}
-                              onNavigateToPlace={(placeId, eventId) => onTogglePlaceDrawer(placeId, { personId: person.id, eventId })}
-                              onEditNote={() => setEditingNoteForEvent({ index: event.originalIndex, event })}
-                              onNavigateToSource={onNavigateToSource}
-                            />
-                            <td className="px-4 py-2 text-right"><button onClick={() => onDeleteEvent(person.id, event.originalIndex)} className="text-red-500 hover:text-red-700 font-bold text-lg">×</button></td>
-                          </tr>
-                          <tr className="bg-gray-50/50">
-                            <td colSpan="7" className="px-4 py-1 border-b">
-                              <SourceManager
-                                event={event}
-                                allSources={allSources}
-                                onLinkSource={(sourceId) => handleLinkSourceToEvent(event.originalIndex, sourceId)}
-                                onUnlinkSource={(sourceId) => handleUnlinkSourceFromEvent(event.originalIndex, sourceId)}
-                                onToggleDrawer={() => onOpenSourceDrawer(person.id, event.id)}
-                                onNavigateToSource={onNavigateToSource}
-                              />
+                  
+                  <div className="bg-white rounded-lg border border-gray-300 overflow-hidden">
+                    <table className="w-full text-sm text-left">
+                      <thead className="bg-gray-50 text-gray-700 text-xs uppercase">
+                        <tr>
+                          <th className="p-3">Typ</th>
+                          <th className="p-3">Datum</th>
+                          <th className="p-3">Plats</th>
+                          <th className="p-3 text-center">Info</th>
+                          <th className="p-3 text-right"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {person.events?.map((evt, idx) => (
+                          <tr key={evt.id || idx} className="hover:bg-gray-50 transition-colors group">
+                            <td className="p-3 font-medium text-gray-900">{evt.type}</td>
+                            <td className="p-3 font-mono text-gray-700">{evt.date || '-'}</td>
+                            <td className="p-3 text-blue-600 hover:underline cursor-pointer flex items-center gap-1">
+                               <MapPin size={12} /> {evt.place || '-'}
+                            </td>
+                            <td className="p-3">
+                              <div className="flex justify-center gap-3 text-xs text-gray-600">
+                                <span className={`flex items-center gap-1 ${evt.sources?.length > 0 ? 'text-gray-900' : ''}`}><LinkIcon size={12}/> {evt.sources?.length || 0}</span>
+                                <span className={`flex items-center gap-1 ${evt.images > 0 ? 'text-gray-900' : ''}`}><ImageIcon size={12}/> {evt.images || 0}</span>
+                              </div>
+                            </td>
+                            <td className="p-3 text-right flex gap-2 justify-end">
+                              <button onClick={() => handleEditEvent(idx)} className="text-gray-600 hover:text-gray-900 p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Edit3 size={14} />
+                              </button>
+                              <button onClick={() => handleDeleteEvent(idx)} className="text-gray-600 hover:text-red-600 p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Trash2 size={14} />
+                              </button>
                             </td>
                           </tr>
-                        </React.Fragment>
-                      ))}
-                  </tbody>
-                </table>
-              </section>
-            </>
-            )}
-            {activePersonTab === 'relations' && (
-              <section>
-                <h4 className="text-lg font-semibold text-gray-800 border-b pb-2 mb-4">Relationer</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Föräldrar */}
-                  <div>
-                    <h5 className="font-bold mb-2">Föräldrar</h5>
-                    {(person.relations?.parents || []).length === 0 && <div className="text-gray-400 italic">Ingen förälder registrerad.</div>}
-                    {(person.relations?.parents || []).map((parentRel, idx) => {
-                      const parentId = typeof parentRel === 'object' ? parentRel.id : parentRel;
-                      const parent = allPeople.find(p => p.id === parentId);
-                      const status = typeof parentRel === 'object' ? parentRel.status : 'biologisk';
-                      return (
-                        <div key={parentId} className="flex items-center gap-2 mb-2">
-                          <span className="font-semibold text-gray-700">{parent ? `${parent.firstName} ${parent.lastName}` : parentId}</span>
-                          <select
-                            value={status || 'biologisk'}
-                            onChange={e => {
-                              const updatedParents = (person.relations.parents || []).map((pr, i) => i === idx ? { ...(typeof pr === 'object' ? pr : { id: pr }), status: e.target.value } : pr);
-                              onChange({ ...person, relations: { ...person.relations, parents: updatedParents } });
-                            }}
-                            className="text-xs px-1 py-0.5 border rounded bg-white shadow"
-                            style={{ width: 110 }}
-                          >
-                            <option value="biologisk">Biologisk</option>
-                            <option value="adopterad">Adopterad</option>
-                            <option value="styvbarn">Styvbarn</option>
-                            <option value="fosterbarn">Fosterbarn</option>
-                            <option value="okänd">Okänd</option>
-                          </select>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {/* Barn */}
-                  <div>
-                    <h5 className="font-bold mb-2">Barn</h5>
-                    {(person.relations?.children || []).length === 0 && <div className="text-gray-400 italic">Inga barn registrerade.</div>}
-                    {(person.relations?.children || []).map((childRel, idx) => {
-                      const childId = typeof childRel === 'object' ? childRel.id : childRel;
-                      const child = allPeople.find(p => p.id === childId);
-                      const status = typeof childRel === 'object' ? childRel.status : 'biologisk';
-                      return (
-                        <div key={childId} className="flex items-center gap-2 mb-2">
-                          <span className="font-semibold text-gray-700">{child ? `${child.firstName} ${child.lastName}` : childId}</span>
-                          <select
-                            value={status || 'biologisk'}
-                            onChange={e => {
-                              const updatedChildren = (person.relations.children || []).map((cr, i) => i === idx ? { ...(typeof cr === 'object' ? cr : { id: cr }), status: e.target.value } : cr);
-                              onChange({ ...person, relations: { ...person.relations, children: updatedChildren } });
-                            }}
-                            className="text-xs px-1 py-0.5 border rounded bg-white shadow"
-                            style={{ width: 110 }}
-                          >
-                            <option value="biologisk">Biologisk</option>
-                            <option value="adopterad">Adopterad</option>
-                            <option value="styvbarn">Styvbarn</option>
-                            <option value="fosterbarn">Fosterbarn</option>
-                            <option value="okänd">Okänd</option>
-                          </select>
-                        </div>
-                      );
-                    })}
+                        ))}
+                        {(!person.events || person.events.length === 0) && (
+                          <tr>
+                            <td colSpan="5" className="p-4 text-center text-gray-600 text-sm">Inga händelser tillagda än</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
-              </section>
-          )}
-          {activePersonTab === 'images' && (
-            <ImageGallery
-              source={{ ...person, images: allImages }}
-              onEditSource={(updates) => onChange({ ...person, ...updates })}
-              people={allPeople}
-              onOpenEditModal={(personId) => onViewInFamilyTree ? onViewInFamilyTree(personId) : null}
-            />
-          )}
-          {activePersonTab === 'notes' && (
-            <section>
-              <h4 className="text-lg font-semibold text-gray-800 border-b pb-2 mb-4">Noteringar & Externa Länkar</h4>
-              <Editor
-                value={person.notes || ''}
-                onChange={(e) => handleChange({ target: { name: 'notes', value: e.target.value } })}
-                containerProps={{ style: { minHeight: '120px', maxHeight: '40vh', overflow: 'auto' } }}
-                spellCheck={true} lang="sv"
-              />
-            </section>
-          )}
+              </div>
+            )}
+
+            {/* FLIK: RELATIONER */}
+            {activeTab === 'relations' && (
+              <div className="space-y-8 animate-in fade-in duration-300">
+                {/* Föräldrar */}
+                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                   <div className="flex justify-between mb-2">
+                      <h4 className="text-sm font-bold text-gray-900 uppercase">Föräldrar</h4>
+                      <button className="text-blue-600 hover:text-blue-800 text-xs flex items-center gap-1"><Plus size={12}/> Lägg till</button>
+                   </div>
+                   {person.relations?.parents?.length > 0 ? (
+                     person.relations.parents.map((p, idx) => (
+                       <div key={idx} className="flex items-center justify-between bg-white p-2 rounded mb-2 border border-gray-200">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600"><User size={16}/></div>
+                            <span className="text-gray-900 font-medium">{p.name}</span>
+                          </div>
+                          <select className="bg-white border border-gray-300 text-xs rounded px-2 py-1 text-gray-900">
+                            {RELATION_TYPES.parent.map(r => <option key={r}>{r}</option>)}
+                          </select>
+                       </div>
+                     ))
+                   ) : (
+                     <p className="text-xs text-gray-600">Ingen förälder tillagd</p>
+                   )}
+                </div>
+
+                {/* Partners */}
+                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                   <div className="flex justify-between mb-2">
+                      <h4 className="text-sm font-bold text-gray-900 uppercase">Partner</h4>
+                      <button className="text-blue-600 hover:text-blue-800 text-xs flex items-center gap-1"><Plus size={12}/> Lägg till</button>
+                   </div>
+                   {person.relations?.partners?.length > 0 ? (
+                     person.relations.partners.map((p, idx) => (
+                       <div key={idx} className="flex items-center justify-between bg-white p-2 rounded mb-2 border border-gray-200">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600"><User size={16}/></div>
+                            <span className="text-gray-900 font-medium">{p.name}</span>
+                          </div>
+                          <select className="bg-white border border-gray-300 text-xs rounded px-2 py-1 text-gray-900">
+                            {RELATION_TYPES.partner.map(r => <option key={r}>{r}</option>)}
+                          </select>
+                       </div>
+                     ))
+                   ) : (
+                     <p className="text-xs text-gray-600">Ingen partner tillagd</p>
+                   )}
+                </div>
+
+                {/* Barn */}
+                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                   <div className="flex justify-between mb-2">
+                      <h4 className="text-sm font-bold text-gray-900 uppercase">Barn</h4>
+                      <button className="text-blue-600 hover:text-blue-800 text-xs flex items-center gap-1"><Plus size={12}/> Lägg till</button>
+                   </div>
+                   {person.relations?.children?.length > 0 ? (
+                     person.relations.children.map((c, idx) => (
+                       <div key={idx} className="flex items-center justify-between bg-white p-2 rounded mb-2 border border-gray-200">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600"><User size={16}/></div>
+                            <span className="text-gray-900 font-medium">{c.name}</span>
+                          </div>
+                          <select className="bg-white border border-gray-300 text-xs rounded px-2 py-1 text-gray-900">
+                             {RELATION_TYPES.child.map(r => <option key={r}>{r}</option>)}
+                          </select>
+                       </div>
+                     ))
+                   ) : (
+                     <p className="text-xs text-gray-600">Inget barn tillagd</p>
+                   )}
+                </div>
+              </div>
+            )}
+
+            {/* FLIK: MEDIA */}
+            {activeTab === 'media' && (
+              <div className="animate-in fade-in duration-300 h-full flex flex-col">
+                <div className="flex justify-between items-center mb-4">
+                  <p className="text-xs text-gray-600">Dra och släpp filer här eller klistra in (Ctrl+V).</p>
+                </div>
+                
+                <div className="flex-1 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 flex flex-wrap content-start p-4 gap-4 overflow-y-auto">
+                   {person.media?.map(m => (
+                     <div key={m.id} className="w-32 group relative">
+                       <div className="aspect-square bg-gray-200 rounded border border-gray-300 overflow-hidden relative">
+                         <img src={m.url} alt={m.name} className="w-full h-full object-cover" />
+                         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition-opacity">
+                           <button className="p-1 bg-gray-600 rounded hover:bg-blue-600 text-white"><Edit3 size={12}/></button>
+                           <button className="p-1 bg-gray-600 rounded hover:bg-red-600 text-white"><Trash2 size={12}/></button>
+                         </div>
+                       </div>
+                       <p className="text-xs text-center mt-1 truncate text-gray-700">{m.name}</p>
+                     </div>
+                   ))}
+                   
+                   <div className="w-32 aspect-square flex flex-col items-center justify-center border-2 border-gray-300 border-dashed rounded hover:border-gray-400 hover:bg-gray-100 transition-colors cursor-pointer text-gray-600 hover:text-gray-900">
+                      <Plus size={24} />
+                      <span className="text-xs mt-2">Lägg till</span>
+                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* FLIK: FORSKNING */}
+            {activeTab === 'research' && (
+              <div className="animate-in fade-in duration-300">
+                <div className="flex justify-between mb-4">
+                   <h3 className="text-md font-bold text-gray-900 uppercase">Forskningsuppgifter</h3>
+                   <button className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded flex items-center gap-1">
+                     <Plus size={14}/> Ny uppgift
+                   </button>
+                </div>
+
+                <div className="space-y-3">
+                   {person.research?.map((task, idx) => {
+                     const prio = PRIORITY_LEVELS.find(p => p.level === task.priority) || PRIORITY_LEVELS[0];
+                     return (
+                       <div key={idx} className="bg-white border border-gray-300 rounded-lg p-4 hover:border-gray-400 transition-colors">
+                          <div className="flex justify-between items-start mb-2">
+                             <div className="flex-1">
+                               <input type="text" defaultValue={task.task} className="bg-transparent font-medium text-gray-900 w-full focus:outline-none focus:border-b border-blue-500" />
+                             </div>
+                             <div className="flex gap-2 ml-4">
+                               <select 
+                                 className={`bg-white border border-gray-300 text-xs rounded px-2 py-1 text-gray-900 ${prio.color}`}
+                                 defaultValue={task.priority}
+                               >
+                                 {PRIORITY_LEVELS.map(p => (
+                                   <option key={p.level} value={p.level}>{p.level} - {p.label}</option>
+                                 ))}
+                               </select>
+                               <button className="text-gray-600 hover:text-red-600"><Trash2 size={16}/></button>
+                             </div>
+                          </div>
+                          
+                          <div className="bg-gray-50 rounded border border-gray-200 mt-2">
+                            <EditorToolbar />
+                            <textarea 
+                              className="w-full bg-transparent text-sm text-gray-900 p-2 focus:outline-none min-h-[60px] resize-y"
+                              defaultValue={task.notes}
+                            />
+                          </div>
+                       </div>
+                     );
+                   })}
+                </div>
+              </div>
+            )}
+
+            {/* FLIK: TAGGAR */}
+            {activeTab === 'tags' && (
+              <div className="animate-in fade-in duration-300">
+                <label className="block text-xs font-bold text-gray-600 uppercase mb-2">Hantera Taggar</label>
+                <div className="flex items-center gap-2 mb-4">
+                  <input 
+                    type="text" 
+                    className="bg-white border border-gray-300 rounded px-3 py-2 text-sm text-gray-900 w-64 focus:outline-none focus:border-blue-500"
+                    placeholder="Skriv tagg och tryck Enter..."
+                    value={tagInput}
+                    onChange={e => setTagInput(e.target.value)}
+                    onKeyDown={addTag}
+                  />
+                  <p className="text-xs text-gray-600">Separera med komma eller enter.</p>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {person.tags?.map(tag => (
+                    <span key={tag} className="flex items-center gap-1 bg-green-100 border border-green-300 text-green-800 px-3 py-1 rounded-full text-sm">
+                      {tag}
+                      <button onClick={() => removeTag(tag)} className="hover:text-green-900"><X size={14}/></button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* FLIK: NOTERINGAR */}
+            {activeTab === 'notes' && (
+              <div className="space-y-4 animate-in fade-in duration-300">
+                 <div className="flex justify-end">
+                    <button className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded flex items-center gap-1"><Plus size={14}/> Ny notering</button>
+                 </div>
+                 {person.notes?.map((note, idx) => (
+                   <div key={idx} className="bg-white border border-gray-300 rounded-lg overflow-hidden">
+                      <div className="bg-gray-50 p-2 border-b border-gray-200 flex justify-between items-center">
+                         <input type="text" defaultValue={note.title} className="bg-transparent font-bold text-sm text-gray-900 focus:outline-none" />
+                         <div className="flex gap-2">
+                           <button className="text-gray-600 hover:text-red-600"><Trash2 size={14}/></button>
+                         </div>
+                      </div>
+                      <EditorToolbar />
+                      <textarea 
+                        className="w-full bg-gray-50 text-sm text-gray-900 p-3 focus:outline-none min-h-[150px] resize-y"
+                        defaultValue={note.content}
+                      />
+                   </div>
+                 ))}
+              </div>
+            )}
+
+          </div>
+        </div>
+
+        {/* FOOTER */}
+        <div className="h-16 bg-gray-50 border-t border-gray-200 flex items-center justify-between px-6 shrink-0">
+          <div className="text-xs text-gray-600">
+            Senast ändrad: {new Date().toISOString().split('T')[0]}
+          </div>
+          <div className="flex gap-3">
+            <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">Avbryt</button>
+            <button onClick={handleSave} className="flex items-center gap-2 px-6 py-2 bg-green-600 hover:bg-green-500 text-white rounded font-medium shadow-lg transition-all transform hover:scale-[1.02]">
+              <Save size={18} /> Spara Ändringar
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* --- EVENT MODAL (SUB-MODAL) --- */}
+      {isEventModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+           <div className="bg-white border border-gray-300 rounded-lg shadow-2xl w-full max-w-lg p-0 overflow-hidden">
+              <div className="bg-gray-50 p-4 border-b border-gray-200 flex justify-between items-center">
+                <h3 className="font-bold text-gray-900">{editingEventIndex !== null ? 'Redigera' : 'Lägg till'} händelse</h3>
+                <button onClick={() => setEventModalOpen(false)} className="text-gray-600 hover:text-gray-900"><X size={20}/></button>
+              </div>
+              <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Händelsetyp</label>
+                  <select 
+                    value={newEvent.type}
+                    onChange={(e) => setNewEvent({...newEvent, type: e.target.value})}
+                    className="w-full bg-white border border-gray-300 rounded p-2 text-gray-900 focus:border-blue-500 focus:outline-none"
+                  >
+                    {EVENT_TYPES.map(t => <option key={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                   <div>
+                      <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Datum</label>
+                      <div className="relative">
+                        <Calendar size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500"/>
+                        <input 
+                          type="text" 
+                          placeholder="ÅÅÅÅ-MM-DD"
+                          value={newEvent.date}
+                          onChange={(e) => setNewEvent({...newEvent, date: e.target.value})}
+                          className="w-full bg-white border border-gray-300 rounded pl-9 p-2 text-gray-900 focus:border-blue-500 focus:outline-none"
+                          onBlur={(e) => setNewEvent({...newEvent, date: standardizeDate(e.target.value)})}
+                        />
+                      </div>
+                   </div>
+                   <div>
+                      <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Plats</label>
+                      <PlacePicker
+                        value={newEvent.placeId || ''}
+                        allPlaces={allPlaces || []}
+                        onChange={(placeId) => {
+                          const place = (allPlaces || []).find(p => p.id === placeId);
+                          const placeName = place ? (place.name || place.ortnamn || place.sockenstadnamn || '') : '';
+                          setNewEvent({...newEvent, placeId, place: placeName});
+                        }}
+                      />
+                   </div>
+                </div>
+                
+                {/* Källor */}
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="block text-xs font-bold text-gray-600 uppercase">Källor</label>
+                    <button 
+                      onClick={() => setSourceModalOpen(true)}
+                      className="text-xs bg-gray-200 hover:bg-gray-300 text-blue-600 px-2 py-1 rounded flex items-center gap-1"
+                    >
+                      <Plus size={12}/> Lägg till källa
+                    </button>
+                  </div>
+                  
+                  {newEvent.sources && newEvent.sources.length > 0 ? (
+                    <div className="space-y-2">
+                      {newEvent.sources.map((src, idx) => (
+                        <div key={src.id} className="bg-gray-50 p-2 rounded text-xs border border-gray-200 flex justify-between items-start">
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-900">{src.title}</p>
+                            <p className="text-gray-700">{src.type}</p>
+                          </div>
+                          <button 
+                            onClick={() => setNewEvent({
+                              ...newEvent, 
+                              sources: newEvent.sources.filter((_, i) => i !== idx)
+                            })}
+                            className="text-gray-600 hover:text-red-600"
+                          >
+                            <Trash2 size={12}/>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-600">Ingen källa tillagd</p>
+                  )}
+                </div>
+                
+                {/* Noteringar */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Noteringar</label>
+                  <textarea
+                    value={newEvent.notes}
+                    onChange={(e) => setNewEvent({...newEvent, notes: e.target.value})}
+                    className="w-full bg-white border border-gray-300 rounded p-2 text-gray-900 focus:border-blue-500 focus:outline-none text-sm resize-none"
+                    rows="3"
+                    placeholder="Lägg till noter för denna händelse..."
+                  />
+                </div>
+              </div>
+              <div className="bg-gray-50 p-4 border-t border-gray-200 flex justify-end gap-3">
+                 <button onClick={() => setEventModalOpen(false)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900">Avbryt</button>
+                 <button 
+                   onClick={handleSaveEvent}
+                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-bold"
+                 >
+                   {editingEventIndex !== null ? 'Uppdatera' : 'Lägg till'} händelse
+                 </button>
+              </div>
+           </div>
+        </div>
+      )}
+
+      {/* --- SOURCE MODAL (SUB-MODAL) --- */}
+      <SourceModal 
+        isOpen={isSourceModalOpen}
+        onClose={() => setSourceModalOpen(false)}
+        onAdd={handleAddSource}
+        eventType={newEvent.type}
+      />
+
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f3f4f6; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; border: 2px solid #f3f4f6; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #475569; }
+      `}</style>
+    </>
   );
 }
-
-export default EditPersonModal;

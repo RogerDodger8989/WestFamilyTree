@@ -508,7 +508,7 @@ function App() {
 
         <div className={`flex-grow min-h-0 ${editingPerson ? 'flex gap-4' : ''}`}>
           {/* Visa personregistret som fallback om activeTab är null/undefined eller 'people' */}
-          {(!activeTab || activeTab === 'people') && !editingPerson && (
+          {(!activeTab || activeTab === 'people') && (
             <div className="tab-content max-w-6xl mx-auto w-full">
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <PersonAddForm newFirstName={newFirstName} setNewFirstName={setNewFirstName} newLastName={newLastName} setNewLastName={setNewLastName} onAddPerson={handleAddPerson} />
@@ -519,12 +519,12 @@ function App() {
             </div>
           )}
 
-          {activeTab === 'orphanArchive' && !editingPerson && (<OrphanArchiveView people={dbData.people || []} allSources={dbData.sources || []} onOpenPerson={handleOpenEditModal} onViewInFamilyTree={handleViewInFamilyTree} />)}
-          {activeTab === 'audit' && !editingPerson && ( <AuditPanel /> )}
+          {activeTab === 'orphanArchive' && (<OrphanArchiveView people={dbData.people || []} allSources={dbData.sources || []} onOpenPerson={handleOpenEditModal} onViewInFamilyTree={handleViewInFamilyTree} />)}
+          {activeTab === 'audit' && ( <AuditPanel /> )}
 
           {/* STANDARDVISNING AV KÄLLKATALOG (EJ EDIT) */}
 
-          {activeTab === 'sources' && !editingPerson && (
+          {activeTab === 'sources' && (
             <SourceCatalog
               sources={dbData.sources || []}
               people={visiblePeople}
@@ -542,7 +542,7 @@ function App() {
             />
           )}
 
-          {activeTab === 'places' && !editingPerson && (
+          {activeTab === 'places' && (
             <PlaceCatalog
               places={dbData.places || []}
               allPeople={visiblePeople}
@@ -564,39 +564,28 @@ function App() {
           {/* HÄR VISAS SLÄKTTRÄDET ÄVEN NÄR EDITINGPERSON ÄR TRUE */}
           {activeTab === 'familyTree' && (<FamilyTreeView allPeople={visiblePeople} focusPersonId={familyTreeFocusPersonId} onSetFocus={(personId) => setFamilyTreeFocusPersonId(personId)} onOpenEditModal={handleOpenEditModal} onOpenPersonDrawer={openPersonDrawer} onSave={handleSaveRelations} onCreatePersonAndLink={createPersonAndLink} onOpenContextMenu={showContextMenu} highlightPlaceholderId={personDrawerEditContext?.id || (personDrawer && personDrawer._isPlaceholder ? personDrawer.id : null)} onRequestOpenDuplicateMerge={() => setShowDuplicateMerge(true)} />)}
           
-          {activeTab === 'farmArchive' && !editingPerson && (<FarmArchiveView places={dbData.places || []} people={visiblePeople} allSources={dbData.sources || []} onSavePlace={handleSavePlace} onOpenPerson={handleOpenEditModal} onViewInFamilyTree={handleViewInFamilyTree} onNavigateToSource={handleNavigateToSource} onOpenSourceDrawer={handleToggleSourceDrawer} onNavigateToPlace={handleNavigateToPlace} onOpenPlaceDrawer={handleTogglePlaceDrawer} onOpenSourceInDrawer={handleOpenSourceInDrawer} />)}
+          {activeTab === 'farmArchive' && (<FarmArchiveView places={dbData.places || []} people={visiblePeople} allSources={dbData.sources || []} onSavePlace={handleSavePlace} onOpenPerson={handleOpenEditModal} onViewInFamilyTree={handleViewInFamilyTree} onNavigateToSource={handleNavigateToSource} onOpenSourceDrawer={handleToggleSourceDrawer} onNavigateToPlace={handleNavigateToPlace} onOpenPlaceDrawer={handleTogglePlaceDrawer} onOpenSourceInDrawer={handleOpenSourceInDrawer} />)}
 
           {/* EDITING PERSON (MODAL) */}
           {editingPerson && (
-            <DraggableModal
-              title={editingPerson.firstName + ' ' + editingPerson.lastName}
+            <EditPersonModal
+              person={editingPerson}
               onClose={handleCloseEditModalSafe}
-              onCancel={handleCloseEditModalSafe}
-              showConfirm={false}
-              initialWidth={900}
-              initialHeight={700}
-              // Viktigt: Se till att zIndex är hög för att fält ska kunna användas
-              zIndex={4000} 
-            >
-              <EditPersonModal
-                person={editingPerson}
-                onClose={handleCloseEditModalSafe}
-                onSave={patchedHandleSavePersonDetails}
-                onChange={handleEditFormChange} // <-- Tillåter skrivning i fält
-                allSources={dbData.sources}
-                allPlaces={dbData.places || []}
-                allPeople={visiblePeople}
-                onDeleteEvent={handleDeleteEvent}
-                onOpenSourceDrawer={handleToggleSourceDrawer}
-                onNavigateToSource={handleNavigateToSource}
-                onNavigateToPlace={handleNavigateToPlace}
-                onTogglePlaceDrawer={handleTogglePlaceDrawer}
-                onViewInFamilyTree={handleViewInFamilyTree}
-                focusPair={focusPair}
-                onSetFocusPair={handleSetFocusPair}
-                activeSourcingEventId={sourcingEventInfo?.eventId}
-              />
-            </DraggableModal>
+              onSave={patchedHandleSavePersonDetails}
+              onChange={handleEditFormChange}
+              allSources={dbData.sources}
+              allPlaces={dbData.places || []}
+              allPeople={visiblePeople}
+              onDeleteEvent={handleDeleteEvent}
+              onOpenSourceDrawer={handleToggleSourceDrawer}
+              onNavigateToSource={handleNavigateToSource}
+              onNavigateToPlace={handleNavigateToPlace}
+              onTogglePlaceDrawer={handleTogglePlaceDrawer}
+              onViewInFamilyTree={handleViewInFamilyTree}
+              focusPair={focusPair}
+              onSetFocusPair={handleSetFocusPair}
+              activeSourcingEventId={sourcingEventInfo?.eventId}
+            />
           )}
         </div>
       </div>
