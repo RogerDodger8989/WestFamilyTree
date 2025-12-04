@@ -1312,10 +1312,10 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                       <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Plats</label>
                       <PlacePicker
                         value={newEvent.placeId || ''}
+                        displayValue={newEvent.place || ''}
                         allPlaces={allPlaces || []}
-                        onChange={(placeId) => {
-                          const place = (allPlaces || []).find(p => p.id === placeId);
-                          const placeName = place ? (place.name || place.ortnamn || place.sockenstadnamn || '') : '';
+                        onChange={(placeId, placeObject) => {
+                          const placeName = placeObject ? (placeObject.name || placeObject.ortnamn || placeObject.sockenstadnamn || '') : '';
                           setNewEvent({...newEvent, placeId, place: placeName});
                         }}
                       />

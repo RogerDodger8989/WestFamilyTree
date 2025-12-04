@@ -23,7 +23,7 @@ export function buildPlaceString(place) {
     return candidates.join(', ');
 }
 
-export default function PlacePicker({ value, allPlaces, onChange }) {
+export default function PlacePicker({ value, displayValue, allPlaces, onChange }) {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -141,21 +141,11 @@ export default function PlacePicker({ value, allPlaces, onChange }) {
         return () => { abort = true; };
     }, [searchTerm]);
 
-    const handleSelect = (placeId) => {
-        console.log('PlacePicker: Selecting place with ID:', placeId);
-        console.log('PlacePicker: onChange function is:', typeof onChange, onChange);
+    const handleSelect = (placeId, placeObject) => {
         if (placeId) {
-            try {
-                console.log('PlacePicker: Calling onChange with placeId:', placeId);
-                onChange(placeId);
-                console.log('PlacePicker: onChange called successfully');
-                setIsOpen(false);
-                setSearchTerm('');
-            } catch (error) {
-                console.error('PlacePicker: Error calling onChange:', error);
-            }
-        } else {
-            console.warn('PlacePicker: Attempted to select place with no ID');
+            onChange(placeId, placeObject);
+            setIsOpen(false);
+            setSearchTerm('');
         }
     };
 
@@ -180,7 +170,7 @@ export default function PlacePicker({ value, allPlaces, onChange }) {
                         type="text"
                         className="w-full bg-white border border-gray-300 text-gray-800 text-sm rounded-l-md pl-9 pr-8 py-2 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                         placeholder="Sök plats..."
-                        value={searchTerm}
+                        value={searchTerm || displayValue || buildPlaceString(selectedPlace)}
                         onChange={(e) => { setSearchTerm(e.target.value); setIsOpen(true); }}
                         onFocus={() => setIsOpen(true)}
                     />
@@ -212,7 +202,7 @@ export default function PlacePicker({ value, allPlaces, onChange }) {
                                     }}
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        handleSelect(place.id);
+                                        handleSelect(place.id, place);
                                     }}
                                     className="px-4 py-2 hover:bg-blue-50 cursor-pointer flex items-start gap-2 border-b border-gray-200 last:border-0"
                                 >
