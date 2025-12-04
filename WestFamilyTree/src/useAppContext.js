@@ -325,15 +325,7 @@ export default function useAppContext() {
         }
     }, []);
 
-    useEffect(() => {
-        const handleKeyDown = (event) => {
-            if (event.key === 'Escape' && editingPerson) {
-                handleCloseEditModal();
-            }
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [editingPerson, handleCloseEditModal]);
+    // ESC-hantering för editingPerson sköts nu av WindowFrame.jsx
 
     const handleSaveSettings = () => {
         setShowSettings(false);

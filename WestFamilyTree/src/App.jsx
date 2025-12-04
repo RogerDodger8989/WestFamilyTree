@@ -19,9 +19,9 @@ import SuggestionsPanel from './SuggestionsPanel.jsx';
 import DuplicateMergePanel from './DuplicateMergePanel.jsx';
 import RelationSettings from './RelationSettings.jsx';
 import GedcomImporter from './GedcomImporter.jsx';
+import { MediaManager } from './MediaManager.jsx';
 import WindowFrame from './WindowFrame.jsx';
 import LinkPersonModal from './LinkPersonModal.jsx';
-import { MediaManagerModal } from './MediaManagerModal.jsx';
 import Button from './Button.jsx'; 
 
 function App() {
@@ -117,6 +117,13 @@ function App() {
   const handleLinkSourceToPerson = (personId, eventId) => {
       const sourceId = sourceCatalogState.selectedSourceId;
       if (!sourceId) return;
+      
+      // Om eventId är '__create_new_event__', öppna EditPersonModal för att skapa event
+      if (eventId === '__create_new_event__') {
+          handleOpenEditModal(personId);
+          return;
+      }
+      
       setDbData(prev => {
           const people = [...prev.people];
           const pIndex = people.findIndex(p => p.id === personId);
@@ -289,14 +296,16 @@ function App() {
   useEffect(() => {
     const onKey = (e) => {
       if (e.key !== 'Escape') return;
-      if (linkPersonModal.isOpen) { setLinkPersonModal({ isOpen: false, preSelectedPersonId: null }); return; }
+      
+      // WindowFrame hanterar ESC själv - om det finns en WindowFrame öppen, gör ingenting här
+      // editingPerson, linkPersonModal, och källkatalog använder WindowFrame
+      
       if (isSourceDrawerOpen) { e.preventDefault(); e.stopPropagation(); forceCloseSourceModal(); return; }
       if (isPlaceDrawerOpen && !placeDrawerLocked) { e.preventDefault(); e.stopPropagation(); handleTogglePlaceDrawer(placeCatalogState.selectedPlaceId); return; }
-      if (editingPerson) { handleCloseEditModalSafe(); return; }
       if (personDrawer && !personDrawerLocked) { closePersonDrawer(); }
     };
-    window.addEventListener('keydown', onKey, true); return () => window.removeEventListener('keydown', onKey, true);
-  }, [isSourceDrawerOpen, isPlaceDrawerOpen, personDrawer, personDrawerLocked, editingPerson, sourcingEventInfo, linkPersonModal]); 
+    window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey);
+  }, [isSourceDrawerOpen, isPlaceDrawerOpen, personDrawer, personDrawerLocked]); 
 
   useEffect(() => {
     const handler = (e) => {
@@ -424,7 +433,7 @@ function App() {
       {showDuplicateMerge && <DuplicateMergePanel allPeople={dbData.people || []} initialPair={mergeInitialPair} onClose={() => { setShowDuplicateMerge(false); setMergeInitialPair(null); }} />}
       
       {/* NY MODAL: Koppla Person */}
-      <LinkPersonModal isOpen={linkPersonModal.isOpen} onClose={() => setLinkPersonModal({ isOpen: false, preSelectedPersonId: null })} people={visiblePeople} onLink={handleLinkSourceToPerson} initialPersonId={linkPersonModal.preSelectedPersonId} />
+      <LinkPersonModal isOpen={linkPersonModal.isOpen} onClose={() => setLinkPersonModal({ isOpen: false, preSelectedPersonId: null })} people={visiblePeople} onLink={handleLinkSourceToPerson} initialPersonId={linkPersonModal.preSelectedPersonId} zIndex={isSourceDrawerOpen ? 10100 : 5100} />
 
       {isHistoryOpen && (<div className="modal" style={{display: 'block'}} onClick={handleShowHistory}><div className="modal-content card bg-slate-800 border border-slate-700 p-4 max-w-md" onClick={(e) => e.stopPropagation()}><div className="flex justify-between items-center mb-4"><h3 className="text-lg font-bold text-slate-200">Historik</h3><button onClick={handleShowHistory} className="text-slate-400 hover:text-slate-300 text-2xl">&times;</button></div><div className="text-sm text-slate-300 max-h-64 overflow-y-auto"><ul className="space-y-2">{historyState.past.map((h, idx) => (<li key={idx} onClick={() => applyHistoryEntry(h)} className="p-2 border border-slate-700 rounded hover:bg-slate-700 cursor-pointer"><div className="font-semibold">Flik: <b>{h.tab}</b></div></li>))}</ul></div></div></div>)}
 
@@ -529,7 +538,7 @@ function App() {
 
           {activeTab === 'orphanArchive' && (<OrphanArchiveView people={dbData.people || []} allSources={dbData.sources || []} onOpenPerson={handleOpenEditModal} onViewInFamilyTree={handleViewInFamilyTree} />)}
           {activeTab === 'audit' && ( <AuditPanel /> )}
-          {activeTab === 'media' && ( <MediaManagerModal isOpen={activeTab === 'media'} onClose={() => {}} /> )}
+          {activeTab === 'media' && ( <MediaManager /> )}
 
           {/* STANDARDVISNING AV KÄLLKATALOG (EJ EDIT) */}
 

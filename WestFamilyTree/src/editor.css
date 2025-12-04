@@ -9,6 +9,17 @@
   padding: 8px;
   min-height: 120px;
   outline: none;
+  background: #0f172a !important; /* slate-900 */
+  color: #e2e8f0 !important; /* slate-200 */
+}
+
+.rsw-ce ul,
+.rsw-ce ol {
+  color: #e2e8f0; /* slate-200 */
+}
+
+.rsw-ce li {
+  color: #e2e8f0; /* slate-200 */
 }
 
 /* Fix for lists when using global resets */
@@ -23,4 +34,49 @@
   padding: 6px;
   border-bottom: 1px solid #334155; /* slate-700 */
   background: #1e293b; /* slate-800 */
+}
+
+.rsw-toolbar button {
+  background: #475569 !important; /* slate-600 */
+  color: #e2e8f0 !important; /* slate-200 */
+  border: 1px solid #334155 !important; /* slate-700 */
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.rsw-toolbar button svg {
+  filter: brightness(0) !important;
+}
+
+.rsw-toolbar button img {
+  filter: brightness(0) !important;
+  opacity: 0.7;
+}
+
+.rsw-toolbar button:hover {
+  background: #64748b !important; /* slate-500 */
+  border-color: #475569 !important; /* slate-600 */
+}
+
+.rsw-toolbar button:active,
+.rsw-toolbar button[aria-pressed="true"] {
+  background: #334155 !important; /* slate-700 */
+}
+
+.rsw-toolbar select {
+  background: #475569 !important; /* slate-600 */
+  color: #e2e8f0 !important; /* slate-200 */
+  border: 1px solid #334155 !important; /* slate-700 */
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.rsw-toolbar select:hover {
+  background: #64748b !important; /* slate-500 */
+}
+
+/* Dropdown menu styling */
+.rsw-toolbar select option {
+  background: #1e293b; /* slate-800 */
+  color: #e2e8f0; /* slate-200 */
 }

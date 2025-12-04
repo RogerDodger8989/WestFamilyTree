@@ -7,6 +7,7 @@ let globalZIndex = 5000;
 
 export function WindowFrameProvider({ children }) {
   const [windows, setWindows] = useState([]);
+  const [activeWindowId, setActiveWindowId] = useState(null);
 
   const openWindow = useCallback((config) => {
     const {
@@ -33,6 +34,7 @@ export function WindowFrameProvider({ children }) {
       zIndex: windowZIndex,
     }]);
 
+    setActiveWindowId(id);
     return id;
   }, []);
 
@@ -45,16 +47,19 @@ export function WindowFrameProvider({ children }) {
   }, []);
 
   return (
-    <WindowFrameContext.Provider value={{ openWindow, closeWindow, closeAll }}>
+    <WindowFrameContext.Provider value={{ openWindow, closeWindow, closeAll, activeWindowId, setActiveWindowId }}>
       {children}
       {windows.map(window => (
         <WindowFrame
           key={window.id}
+          windowId={window.id}
           title={window.title}
           icon={window.icon}
           initialWidth={window.initialWidth}
           initialHeight={window.initialHeight}
           zIndex={window.zIndex}
+          isActive={window.id === activeWindowId}
+          onActivate={() => setActiveWindowId(window.id)}
           onClose={() => {
             if (window.onClose) window.onClose();
             closeWindow(window.id);

@@ -97,11 +97,11 @@ function NoteEditorModal({ isOpen, initialHtml = '', onClose, onSave }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={handleOverlayClick}>
       <div className="w-[90%] max-w-3xl bg-slate-800 border border-slate-700 rounded shadow-lg overflow-hidden" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between p-3 border-b">
-          <div className="font-semibold">Redigera notering</div>
+        <div className="flex items-center justify-between p-3 border-b border-slate-700 bg-slate-900">
+          <div className="font-semibold text-slate-200">Redigera notering</div>
           <div className="flex items-center gap-2">
-            <button onClick={onClose} className="px-3 py-1 rounded border">Avbryt</button>
-            <button onClick={handleSave} className="px-3 py-1 bg-green-600 text-white rounded">Spara</button>
+            <button onClick={onClose} className="px-3 py-1 rounded border border-slate-600 bg-slate-700 text-slate-200 hover:bg-slate-600">Avbryt</button>
+            <button onClick={handleSave} className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 font-medium">Spara</button>
           </div>
         </div>
         <div className="p-3">

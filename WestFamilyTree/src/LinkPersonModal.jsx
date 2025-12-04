@@ -28,14 +28,16 @@ export default function LinkPersonModal({
     people, 
     onLink, 
     initialPersonId,
-    zIndex = 2000
+    zIndex = 10000
 }) {
     const [searchTerm, setSearchTerm] = useState('');
+    const [selectedPerson, setSelectedPerson] = useState(null);
     const inputRef = useRef(null);
 
     useEffect(() => {
         if (isOpen) {
             setSearchTerm('');
+            setSelectedPerson(null);
             setTimeout(() => { if (inputRef.current) inputRef.current.focus(); }, 50);
         }
     }, [isOpen]);
@@ -53,12 +55,75 @@ export default function LinkPersonModal({
 
     if (!isOpen) return null;
 
+    // Om en person är vald, visa dess events
+    if (selectedPerson) {
+        return (
+            <WindowFrame
+                title={`Välj Händelse - ${selectedPerson.firstName} ${selectedPerson.lastName}`}
+                onClose={() => setSelectedPerson(null)}
+                initialWidth={600}
+                initialHeight={600}
+                zIndex={zIndex}
+            >
+                <div className="p-4 h-full flex flex-col">
+                    <div className="mb-3 text-sm text-slate-400">
+                        Denna person har ingen händelse ännu. Du kan:
+                    </div>
+                    <div className="flex-1 overflow-y-auto border rounded bg-slate-800 border-slate-700 mb-4">
+                        {(!selectedPerson.events || selectedPerson.events.length === 0) && (
+                            <div className="p-4 text-slate-400 text-center italic">Inga händelser</div>
+                        )}
+                        {selectedPerson.events && selectedPerson.events.map(event => (
+                            <div key={event.id} className="border-b border-slate-700 bg-slate-900">
+                                <div 
+                                    className="p-3 cursor-pointer hover:bg-slate-700 flex justify-between items-center"
+                                    onClick={() => {
+                                        onLink(selectedPerson.id, event.id);
+                                        setSelectedPerson(null);
+                                        onClose();
+                                    }}
+                                >
+                                    <div className="text-slate-200 text-sm">
+                                        <span className="font-bold">{event.type}</span>
+                                        <span className="text-slate-400 ml-2">{event.date || '-'}</span>
+                                        <span className="text-slate-500 text-xs ml-2">{event.place || ''}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setSelectedPerson(null)}
+                            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded text-sm font-medium"
+                        >
+                            Tillbaka
+                        </button>
+                        <button
+                            onClick={() => {
+                                // Skicka signal att man vill skapa event för denna person
+                                onLink(selectedPerson.id, '__create_new_event__');
+                                setSelectedPerson(null);
+                                onClose();
+                            }}
+                            className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium"
+                        >
+                            + Lägg till ny händelse
+                        </button>
+                    </div>
+                </div>
+            </WindowFrame>
+        );
+    }
+
+    // Visa person-väljare
     return (
         <WindowFrame
             title="Välj Person"
             onClose={onClose}
             initialWidth={600}
             initialHeight={600}
+            zIndex={zIndex}
         >
             <div className="p-4 h-full flex flex-col">
                 {!initialPersonId && (
@@ -82,7 +147,7 @@ export default function LinkPersonModal({
                         <div key={person.id} className="border-b border-slate-700 bg-slate-900">
                             <div 
                                 className="p-3 cursor-pointer hover:bg-slate-700 flex justify-between items-center"
-                                onClick={() => onLink(person.id)}
+                                onClick={() => setSelectedPerson(person)}
                             >
                                 <div className="font-bold text-slate-200 text-sm">
                                     {person.firstName} {person.lastName} 

@@ -5,6 +5,7 @@ import {
   Link as LinkIcon, Camera, Edit3, AlertCircle, Check, 
   ChevronDown, MoreHorizontal, Search, Globe
 } from 'lucide-react';
+import WindowFrame from './WindowFrame.jsx';
 import PlacePicker from './PlacePicker.jsx';
 
 // --- KONSTANTER ---
@@ -577,6 +578,15 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
   };
 
   const handleSaveEvent = () => {
+    // Validera: om det är en ny händelse (inte redigering) och händelsen är unique, kolla om den redan finns
+    if (editingEventIndex === null) {
+      const eventConfig = EVENT_TYPES.find(e => e.value === newEvent.type);
+      if (eventConfig?.unique && person.events?.some(e => e.type === newEvent.type)) {
+        alert(`Händelsen "${newEvent.type}" finns redan och kan bara läggas till en gång.`);
+        return;
+      }
+    }
+    
     if (editingEventIndex !== null) {
       const updated = person.events.map((e, i) => i === editingEventIndex ? newEvent : e);
       setPerson({ ...person, events: updated });
@@ -773,8 +783,8 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-             <nav className="flex bg-slate-700 p-1 rounded-lg mr-4">
+          <div className="flex items-center gap-2">
+             <nav className="flex gap-1">
                 {[
                   { id: 'info', icon: User, label: 'Info' },
                   { id: 'relations', icon: Users, label: 'Relationer' },
@@ -786,17 +796,17 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm transition-all ${
+                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all relative ${
                       activeTab === tab.id 
-                      ? 'bg-blue-600 text-white shadow-md' 
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-600'
+                      ? 'bg-slate-900 text-blue-400 border-b-2 border-blue-500' 
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 border-b-2 border-transparent'
                     }`}
                   >
-                    <tab.icon size={14} /> {tab.label}
+                    <tab.icon size={16} />
+                    <span>{tab.label}</span>
                   </button>
                 ))}
              </nav>
-             <button onClick={onClose} className="p-2 hover:bg-slate-600 rounded-full text-slate-400 hover:text-slate-200 cursor-pointer"><X size={20}/></button>
           </div>
         </div>
 
@@ -885,7 +895,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                 }
                               }}
                               className={`hover:bg-slate-800 transition-colors group cursor-pointer ${
-                                selectedEventIndex === idx && editingEventIndex === null ? 'bg-blue-50 border-l-4 border-blue-600' : ''
+                                selectedEventIndex === idx && editingEventIndex === null ? 'bg-blue-900/30 border-l-4 border-blue-500' : ''
                               }`}
                             >
                               <td className="p-3 text-slate-300">{age !== null ? `${age} år` : '-'}</td>
@@ -1373,26 +1383,18 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
 
       {/* --- EVENT MODAL (SUB-MODAL) --- */}
       {isEventModalOpen && (
-        <div className="fixed inset-0 z-[4050] flex items-center justify-center bg-black/30">
-           <div 
-             ref={eventModalRef}
-             className="bg-slate-800 border border-slate-700 rounded-lg shadow-2xl w-full max-w-lg p-0 overflow-hidden"
-             style={{
-               position: 'fixed',
-               left: `${eventModalPosition.x}px`,
-               top: `${eventModalPosition.y}px`,
-               maxWidth: '600px'
-             }}
-             onMouseDown={handleEventModalMouseDown}
-           >
-              <div className="modal-header bg-slate-900 p-4 border-b border-slate-700 flex justify-between items-center cursor-move">
-                <h3 className="font-bold text-white">{editingEventIndex !== null ? 'Redigera' : 'Lägg till'} händelse</h3>
-                <button onClick={() => {
-                  setEventModalOpen(false);
-                  setEditingEventIndex(null);
-                }} className="text-slate-400 hover:text-white"><X size={20}/></button>
-              </div>
-              <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+        <WindowFrame
+          title={`${editingEventIndex !== null ? 'Redigera' : 'Lägg till'} händelse`}
+          icon={Activity}
+          initialWidth={600}
+          initialHeight={650}
+          onClose={() => {
+            setEventModalOpen(false);
+            setEditingEventIndex(null);
+          }}
+        >
+          <div className="flex flex-col h-full">
+              <div className="p-6 space-y-4 flex-1 overflow-y-auto">
                 <div ref={eventTypeSearchRef} className="relative">
                   <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Händelsetyp</label>
                   <div className="relative">
@@ -1423,7 +1425,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                               key={eventType.value}
                               onClick={() => !isDisabled && handleEventTypeSelect(eventType.value)}
                               className={`px-3 py-2 cursor-pointer flex items-center gap-2 ${
-                                isSelected ? 'bg-blue-500 text-white' : 'hover:bg-slate-800'
+                                isSelected ? 'bg-blue-500 text-white' : 'hover:bg-slate-800 text-slate-200'
                               } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
                               <span>{eventType.icon}</span>
@@ -1579,8 +1581,8 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                    {editingEventIndex !== null ? 'Uppdatera' : 'Lägg till'} händelse
                  </button>
               </div>
-           </div>
-        </div>
+          </div>
+        </WindowFrame>
       )}
 
       {/* --- SOURCE MODAL (SUB-MODAL) --- */}

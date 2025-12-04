@@ -6,6 +6,10 @@ import {
   Monitor, Settings, UploadCloud
 } from 'lucide-react';
 
+// Global tracker för vilket WindowFrame som är aktivt
+let activeWindowFrameId = null;
+const windowFrameListeners = new Set();
+
 // Knapp för bibliotek som kan ta emot drops (Förenklad för fixen)
 const LibraryButton = ({ lib, isActive, onClick }) => {
     const LibraryIcon = lib.icon; 
@@ -26,7 +30,11 @@ const LibraryButton = ({ lib, isActive, onClick }) => {
 
 // --- HUVUDKOMPONENT: WindowFrame ---
 
-export function WindowFrame({ children, title, icon: Icon = Layers, initialWidth = 1000, initialHeight = 700, onClose, zIndex = null }) {
+export function WindowFrame({ windowId, children, title, icon: Icon = Layers, initialWidth = 1000, initialHeight = 700, onClose, zIndex = null, isActive = true, onActivate }) {
+  
+  // Generera unikt ID för detta WindowFrame om inget windowId ges
+  const internalIdRef = useRef(windowId || `wf-${Date.now()}-${Math.random()}`);
+  const internalId = internalIdRef.current;
   
   // Fönsterhanteringslogik (Local Storage, drag, resize, maximize/minimize)
   const localStorageKey = `windowState:${title.replace(/\s/g, '')}`; 
@@ -103,6 +111,36 @@ export function WindowFrame({ children, title, icon: Icon = Layers, initialWidth
     };
   }, [winState.isMaximized, winState.x, winState.y, winState.width, winState.height]);
 
+  // Sätt detta WindowFrame som aktivt när det monteras
+  useEffect(() => {
+    activeWindowFrameId = internalId;
+    if (onActivate) onActivate();
+    
+    return () => {
+      if (activeWindowFrameId === internalId) {
+        activeWindowFrameId = null;
+      }
+    };
+  }, []);
+
+  // ESC-tangent stänger fönstret (bara om detta är det aktiva fönstret)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && activeWindowFrameId === internalId) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        onClose();
+      }
+    };
+    
+    // Använd capture phase för att fånga eventet före andra listeners
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, [onClose, internalId]);
+
   const startDrag = (e) => {
     if (winState.isMaximized || winState.isMinimized) return;
     isDraggingWindow.current = true;
@@ -149,7 +187,11 @@ export function WindowFrame({ children, title, icon: Icon = Layers, initialWidth
         <div className={`bg-slate-900 border border-slate-700 shadow-2xl flex flex-col overflow-hidden transition-all duration-200 ease-out 
              ${winState.isMaximized ? '' : 'rounded-xl'}`}
              style={{ ...windowStyle, position: 'fixed' }}
-             onMouseDown={(e) => e.stopPropagation()} 
+             onMouseDown={(e) => {
+               e.stopPropagation();
+               activeWindowFrameId = internalId;
+               if (onActivate) onActivate();
+             }} 
         >
         
             {/* WINDOW HEADER */}

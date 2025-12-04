@@ -244,8 +244,8 @@ const LibraryButton = ({ lib, isActive, onClick, onDrop, onDelete }) => {
     );
 };
 
-export function MediaManagerModal({ isOpen, onClose }) {
-  // UI State
+export function MediaManager() {
+  // UI State (simplified - no window management for tab mode)
   const [viewMode, setViewMode] = useState('grid'); 
   const [activeLib, setActiveLib] = useState('all');
   const [isSelectMode, setIsSelectMode] = useState(false);
