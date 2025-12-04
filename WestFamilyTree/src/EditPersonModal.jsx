@@ -448,6 +448,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
   });
 
   const [tagInput, setTagInput] = useState('');
+  const [selectedEventIndex, setSelectedEventIndex] = useState(null);
 
   // Kontrollera om en händelsetyp redan finns (för unique events)
   const canAddEventType = (eventType) => {
@@ -788,7 +789,17 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                       </thead>
                       <tbody className="divide-y divide-gray-200">
                         {person.events?.map((evt, idx) => (
-                          <tr key={evt.id || idx} className="hover:bg-gray-50 transition-colors group">
+                          <tr 
+                            key={evt.id || idx} 
+                            onClick={() => {
+                              if (editingEventIndex === null) {
+                                setSelectedEventIndex(selectedEventIndex === idx ? null : idx);
+                              }
+                            }}
+                            className={`hover:bg-gray-50 transition-colors group cursor-pointer ${
+                              selectedEventIndex === idx && editingEventIndex === null ? 'bg-blue-50 border-l-4 border-blue-600' : ''
+                            }`}
+                          >
                             <td className="p-3 font-medium text-gray-900">{evt.type}</td>
                             <td className="p-3 font-mono text-gray-700">{evt.date || '-'}</td>
                             <td className="p-3 text-blue-600 hover:underline cursor-pointer flex items-center gap-1">
@@ -796,15 +807,32 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                             </td>
                             <td className="p-3">
                               <div className="flex justify-center gap-3 text-xs text-gray-600">
-                                <span className={`flex items-center gap-1 ${evt.sources?.length > 0 ? 'text-gray-900' : ''}`}><LinkIcon size={12}/> {evt.sources?.length || 0}</span>
-                                <span className={`flex items-center gap-1 ${evt.images > 0 ? 'text-gray-900' : ''}`}><ImageIcon size={12}/> {evt.images || 0}</span>
+                                <span 
+                                  className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${evt.sources?.length > 0 ? 'text-gray-900' : ''}`}
+                                  onClick={(e) => { e.stopPropagation(); setSelectedEventIndex(idx); }}
+                                >
+                                  <LinkIcon size={12}/> {evt.sources?.length || 0}
+                                </span>
+                                <span 
+                                  className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${evt.notes ? 'text-gray-900' : ''}`}
+                                  onClick={(e) => { e.stopPropagation(); }}
+                                  title={evt.notes || ''}
+                                >
+                                  <FileText size={12}/> {evt.notes ? 1 : 0}
+                                </span>
+                                <span 
+                                  className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${evt.images > 0 ? 'text-gray-900' : ''}`}
+                                  onClick={(e) => { e.stopPropagation(); }}
+                                >
+                                  <ImageIcon size={12}/> {evt.images || 0}
+                                </span>
                               </div>
                             </td>
                             <td className="p-3 text-right flex gap-2 justify-end">
-                              <button onClick={() => handleEditEvent(idx)} className="text-gray-600 hover:text-gray-900 p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button onClick={(e) => { e.stopPropagation(); handleEditEvent(idx); }} className="text-gray-600 hover:text-gray-900 p-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <Edit3 size={14} />
                               </button>
-                              <button onClick={() => handleDeleteEvent(idx)} className="text-gray-600 hover:text-red-600 p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button onClick={(e) => { e.stopPropagation(); handleDeleteEvent(idx); }} className="text-gray-600 hover:text-red-600 p-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <Trash2 size={14} />
                               </button>
                             </td>
@@ -1024,6 +1052,159 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
 
           </div>
         </div>
+
+        {/* DETAIL BLOCK - visa källa-info för vald händelse */}
+        {selectedEventIndex !== null && editingEventIndex === null && person.events?.[selectedEventIndex] && (
+          <div className="bg-white border-t border-gray-200 p-4 max-h-40 overflow-y-auto">
+            <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200">
+              <h4 className="text-sm font-bold text-gray-900">
+                {person.events[selectedEventIndex].type} 
+                {person.events[selectedEventIndex].date && ` - ${person.events[selectedEventIndex].date}`}
+              </h4>
+              {/* INFO-rad kopiad från livshändelser */}
+              <div className="flex gap-3 text-xs text-gray-600">
+                <span 
+                  className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${person.events[selectedEventIndex].sources?.length > 0 ? 'text-gray-900' : ''}`}
+                >
+                  <LinkIcon size={12}/> {person.events[selectedEventIndex].sources?.length || 0}
+                </span>
+                <span 
+                  className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${person.events[selectedEventIndex].notes ? 'text-gray-900' : ''}`}
+                  title={person.events[selectedEventIndex].notes || ''}
+                >
+                  <FileText size={12}/> {person.events[selectedEventIndex].notes ? 1 : 0}
+                </span>
+                <span 
+                  className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${person.events[selectedEventIndex].images > 0 ? 'text-gray-900' : ''}`}
+                >
+                  <ImageIcon size={12}/> {person.events[selectedEventIndex].images || 0}
+                </span>
+              </div>
+            </div>
+            
+            {person.events[selectedEventIndex].sources && person.events[selectedEventIndex].sources.length > 0 ? (
+              <div className="space-y-2">
+                {person.events[selectedEventIndex].sources.map((sourceId) => {
+                  const source = allSources?.find(s => s.id === sourceId);
+                  if (!source) return null;
+                  
+                  return (
+                    <div key={sourceId} className="bg-gray-50 p-2 rounded border border-gray-200 flex items-start gap-3">
+                      {/* Thumbnails */}
+                      <div className="flex gap-1 items-start">
+                        {source.images && source.images.length > 0 ? (
+                          source.images.slice(0, 3).map((img, idx) => (
+                            <div key={idx} className="relative group">
+                              <img 
+                                src={img.url || img.thumbnail || img} 
+                                alt="Thumbnail" 
+                                className="h-8 w-8 object-cover rounded cursor-pointer border border-gray-300 hover:border-blue-500"
+                                onClick={() => {
+                                  const fullUrl = img.url || img;
+                                  window.open(fullUrl, '_blank');
+                                }}
+                              />
+                              <div className="absolute hidden group-hover:block z-50 bg-white border border-gray-300 rounded shadow-lg p-1 left-0 top-10">
+                                <img src={img.url || img} alt="Preview" className="h-32 w-32 object-cover rounded" />
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="h-8 w-8 bg-gray-200 rounded flex items-center justify-center text-gray-400">
+                            <ImageIcon size={12} />
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Source info */}
+                      <div className="flex-1 text-xs">
+                        <div className="font-semibold text-gray-900">
+                          {source.title || 'Ingen titel'}
+                          {source.location && ` / ${source.location}`}
+                          {source.volume && ` vol. ${source.volume}`}
+                          {source.year && ` (${source.year})`}
+                        </div>
+                        {source.aid && (
+                          <a 
+                            href={`https://sok.riksarkivet.se/bildvisning/${source.aid}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 underline text-xs"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            AID: {source.aid}
+                          </a>
+                        )}
+                        {source.notes && (
+                          <div className="mt-1 text-gray-600 text-xs italic line-clamp-1">
+                            {source.notes}
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Action buttons */}
+                      <div className="flex gap-1 ml-2 items-center text-xs">
+                        {/* Noter-ikon */}
+                        {source.notes && (
+                          <div className="relative group">
+                            <button 
+                              className="text-gray-600 hover:text-blue-600 p-1 flex items-center gap-0.5"
+                              title="Noter"
+                            >
+                              <FileText size={12} />
+                              <span className="text-gray-600">1</span>
+                            </button>
+                            <div className="absolute hidden group-hover:block z-50 bg-gray-900 text-white text-xs rounded shadow-lg p-2 right-0 top-6 min-w-max max-w-xs whitespace-normal">
+                              {source.notes}
+                              <div className="absolute top-0 right-2 transform -translate-y-1 w-2 h-2 bg-gray-900 rotate-45"></div>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Bild-ikon */}
+                        {source.images && source.images.length > 0 && (
+                          <button 
+                            className="text-gray-600 hover:text-blue-600 p-1 flex items-center gap-0.5"
+                            title={`${source.images.length} bilder`}
+                          >
+                            <ImageIcon size={12} />
+                            <span className="text-gray-600">{source.images.length}</span>
+                          </button>
+                        )}
+                        
+                        <button 
+                          onClick={() => {
+                            // TODO: Redigera källa
+                            console.log('Edit source:', source);
+                          }}
+                          className="text-gray-600 hover:text-blue-600 p-1"
+                          title="Redigera källa"
+                        >
+                          <Edit3 size={14} />
+                        </button>
+                        <button 
+                          onClick={() => {
+                            const newSources = person.events[selectedEventIndex].sources.filter(id => id !== sourceId);
+                            const updatedEvents = person.events.map((e, i) => 
+                              i === selectedEventIndex ? { ...e, sources: newSources } : e
+                            );
+                            setPerson({ ...person, events: updatedEvents });
+                          }}
+                          className="text-gray-600 hover:text-red-600 p-1"
+                          title="Ta bort källa"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-600">Ingen källa kopplad till denna händelse</p>
+            )}
+          </div>
+        )}
 
         {/* FOOTER */}
         <div className="h-16 bg-gray-50 border-t border-gray-200 flex items-center justify-between px-6 shrink-0">
