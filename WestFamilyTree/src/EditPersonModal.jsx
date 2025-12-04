@@ -25,11 +25,154 @@ const PRIORITY_LEVELS = [
 ];
 
 const EVENT_TYPES = [
-  'Födelse', 'Dop', 'Konfirmation', 'Vigsel', 'Skilsmässa', 
-  'Bosatt', 'Emigration', 'Immigration', 'Död', 'Begravning'
+  { value: 'Adoption', label: 'Adoption', icon: '❤️', unique: false },
+  { value: 'Alternativt namn', label: 'Alternativt namn', icon: '💬', unique: false },
+  { value: 'Annulering av vigsel', label: 'Annulering av vigsel', icon: '💔', unique: false },
+  { value: 'Antal barn', label: 'Antal barn', icon: '👶', unique: false },
+  { value: 'Antal äktenskap', label: 'Antal äktenskap', icon: '💍', unique: false },
+  { value: 'Arkivering av skilsmässa', label: 'Arkivering av skilsmässa', icon: '📁', unique: false },
+  { value: 'Bar mitzvah', label: 'Bar mitzvah', icon: '🕎', unique: true },
+  { value: 'Begravning', label: 'Begravning', icon: '⚰️', unique: true },
+  { value: 'Bosatt', label: 'Bosatt', icon: '🏠', unique: false },
+  { value: 'Bouppteckning', label: 'Bouppteckning', icon: '✍️', unique: false },
+  { value: 'Dop', label: 'Dop', icon: '💧', unique: true },
+  { value: 'Dop som vuxen', label: 'Dop som vuxen', icon: '💧', unique: true },
+  { value: 'Död', label: 'Död', icon: '✝️', unique: true },
+  { value: 'Egen händelse', label: 'Egen händelse', icon: '📅', unique: false },
+  { value: 'Egendom', label: 'Egendom', icon: '📋', unique: false },
+  { value: 'Emigration', label: 'Emigration', icon: '➡️', unique: false },
+  { value: 'Examen', label: 'Examen', icon: '🎓', unique: false },
+  { value: 'Faktauppgift', label: 'Faktauppgift', icon: '✝️', unique: false },
+  { value: 'Folkräkning', label: 'Folkräkning', icon: '📋', unique: false },
+  { value: 'Fysisk status', label: 'Fysisk status', icon: '✓', unique: false },
+  { value: 'Födelse', label: 'Födelse', icon: '👶', unique: true },
+  { value: 'Förlovning', label: 'Förlovning', icon: '💐', unique: false },
+  { value: 'Första nattvarden', label: 'Första nattvarden', icon: '🍞', unique: true },
+  { value: 'Immigration', label: 'Immigration', icon: '⬅️', unique: false },
+  { value: 'Kast', label: 'Kast', icon: '👤', unique: false },
+  { value: 'Konfirmation', label: 'Konfirmation', icon: '🙏', unique: true },
+  { value: 'Kremering', label: 'Kremering', icon: '🔥', unique: true },
+  { value: 'Lysning', label: 'Lysning', icon: '📢', unique: false },
+  { value: 'Militärtjänst', label: 'Militärtjänst', icon: '⚔️', unique: false },
+  { value: 'Nationalitet', label: 'Nationalitet', icon: '🏴', unique: false },
+  { value: 'Naturalisering', label: 'Naturalisering', icon: '🤝', unique: false },
+  { value: 'Notering', label: 'Notering', icon: '📝', unique: false },
+  { value: 'Pensionering', label: 'Pensionering', icon: '💰', unique: false },
+  { value: 'Personnummer', label: 'Personnummer', icon: '📋', unique: false },
+  { value: 'Prästvigling', label: 'Prästvigling', icon: '⛪', unique: false },
+  { value: 'Religionstillhörighet', label: 'Religionstillhörighet', icon: '⚙️', unique: false },
+  { value: 'Samlevnad', label: 'Samlevnad', icon: '🤝', unique: false },
+  { value: 'Samvetsäktenskap', label: 'Samvetsäktenskap', icon: '💕', unique: false },
+  { value: 'Skilsmässa', label: 'Skilsmässa', icon: '💔', unique: false },
+  { value: 'Socialförsäkringsnummer', label: 'Socialförsäkringsnummer', icon: '📋', unique: false },
+  { value: 'Testamente', label: 'Testamente', icon: '📜', unique: false },
+  { value: 'Titel', label: 'Titel', icon: '💬', unique: false },
+  { value: 'Troendedop', label: 'Troendedop', icon: '💧', unique: true },
+  { value: 'Utbildning', label: 'Utbildning', icon: '📚', unique: false },
+  { value: 'Vigsel', label: 'Vigsel', icon: '💒', unique: false },
+  { value: 'Välsignelse', label: 'Välsignelse', icon: '🙏', unique: false },
+  { value: 'Yrke', label: 'Yrke', icon: '💼', unique: false }
 ];
 
-// Enkel datumformatterare
+// Smart datumformatterare med stöd för olika format och prefix
+const parseAndFormatDate = (input) => {
+  if (!input || !input.trim()) return '';
+  
+  const original = input.trim();
+  let prefix = '';
+  let dateStr = original;
+  
+  // Hantera prefix (från, omkring, till, mellan)
+  const prefixMatch = original.match(/^(från|omkring|ca|c|till|före|efter|mellan)\s+/i);
+  if (prefixMatch) {
+    const p = prefixMatch[1].toLowerCase();
+    if (p === 'från') prefix = 'från ';
+    else if (p === 'omkring' || p === 'ca' || p === 'c') prefix = 'ca ';
+    else if (p === 'till' || p === 'före') prefix = 'före ';
+    else if (p === 'efter') prefix = 'efter ';
+    else if (p === 'mellan') prefix = 'mellan ';
+    dateStr = original.substring(prefixMatch[0].length);
+  }
+  
+  // Hantera "från-till" intervall
+  if (dateStr.includes('-') && !dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    const parts = dateStr.split('-').map(s => s.trim());
+    if (parts.length === 2) {
+      return `${parseDate(parts[0])} - ${parseDate(parts[1])}`;
+    }
+  }
+  
+  return prefix + parseDate(dateStr);
+};
+
+const parseDate = (input) => {
+  if (!input) return '';
+  
+  const cleaned = input.trim();
+  
+  // Redan i rätt format (ÅÅÅÅ-MM-DD)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(cleaned)) return cleaned;
+  
+  // Format: ÅÅÅÅMMDD (8 siffror utan separator) - t.ex. 20090401
+  if (/^\d{8}$/.test(cleaned)) {
+    const year = cleaned.substring(0, 4);
+    const month = cleaned.substring(4, 6);
+    const day = cleaned.substring(6, 8);
+    return `${year}-${month}-${day}`;
+  }
+  
+  // Månadsmappning
+  const months = {
+    'jan': '01', 'januari': '01',
+    'feb': '02', 'februari': '02',
+    'mar': '03', 'mars': '03',
+    'apr': '04', 'april': '04',
+    'maj': '05', 'may': '05',
+    'jun': '06', 'juni': '06',
+    'jul': '07', 'juli': '07',
+    'aug': '08', 'augusti': '08',
+    'sep': '09', 'september': '09',
+    'okt': '10', 'oktober': '10',
+    'nov': '11', 'november': '11',
+    'dec': '12', 'december': '12'
+  };
+  
+  // Format: 21 nov 1980, 21 november 1980
+  const monthNameMatch = cleaned.match(/(\d{1,2})\s+([a-zå-ö]+)\s+(\d{4})/i);
+  if (monthNameMatch) {
+    const day = monthNameMatch[1].padStart(2, '0');
+    const monthName = monthNameMatch[2].toLowerCase();
+    const year = monthNameMatch[3];
+    const month = months[monthName];
+    if (month) return `${year}-${month}-${day}`;
+  }
+  
+  // Format: 21/11/1980, 21.11.1980, 21-11-1980
+  const numericMatch = cleaned.match(/(\d{1,2})[\/\.\-\s](\d{1,2})[\/\.\-\s](\d{4})/);
+  if (numericMatch) {
+    const day = numericMatch[1].padStart(2, '0');
+    const month = numericMatch[2].padStart(2, '0');
+    const year = numericMatch[3];
+    return `${year}-${month}-${day}`;
+  }
+  
+  // Format: 1980-11-21 (redan ok)
+  const isoMatch = cleaned.match(/(\d{4})[\/\.\-](\d{1,2})[\/\.\-](\d{1,2})/);
+  if (isoMatch) {
+    const year = isoMatch[1];
+    const month = isoMatch[2].padStart(2, '0');
+    const day = isoMatch[3].padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+  
+  // Bara årtal
+  if (/^\d{4}$/.test(cleaned)) return cleaned;
+  
+  // Kunde inte tolka - returnera original
+  return input;
+};
+
+// Enkel datumformatterare (gammal)
 const standardizeDate = (input) => {
   if (!input) return '';
   const digits = input.replace(/\D/g, '');
@@ -65,6 +208,45 @@ const SourceModal = ({ isOpen, onClose, onAdd, eventType }) => {
     url: ''
   });
 
+  const [position, setPosition] = useState({ x: window.innerWidth / 2 - 250, y: 100 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const modalRef = useRef(null);
+
+  const handleMouseDown = (e) => {
+    if (e.target.closest('.modal-header')) {
+      setIsDragging(true);
+      const rect = modalRef.current.getBoundingClientRect();
+      setDragOffset({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      });
+    }
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging) return;
+    setPosition({
+      x: e.clientX - dragOffset.x,
+      y: e.clientY - dragOffset.y
+    });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isDragging, dragOffset]);
+
   const handleAdd = () => {
     if (source.title.trim()) {
       onAdd(source);
@@ -76,9 +258,19 @@ const SourceModal = ({ isOpen, onClose, onAdd, eventType }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30">
-      <div className="bg-white border border-gray-300 rounded-lg shadow-2xl w-full max-w-md p-0 overflow-hidden">
-        <div className="bg-gray-50 p-4 border-b border-gray-200 flex justify-between items-center">
+    <div className="fixed inset-0 z-[4100] flex items-center justify-center bg-black/30">
+      <div 
+        ref={modalRef}
+        className="bg-white border border-gray-300 rounded-lg shadow-2xl w-full max-w-md p-0 overflow-hidden"
+        style={{
+          position: 'fixed',
+          left: `${position.x}px`,
+          top: `${position.y}px`,
+          maxWidth: '500px'
+        }}
+        onMouseDown={handleMouseDown}
+      >
+        <div className="modal-header bg-gray-50 p-4 border-b border-gray-200 flex justify-between items-center cursor-move">
           <h3 className="font-bold text-gray-900">Lägg till källa</h3>
           <button onClick={onClose} className="text-gray-500 hover:text-gray-900"><X size={20}/></button>
         </div>
@@ -165,7 +357,7 @@ const SourceModal = ({ isOpen, onClose, onAdd, eventType }) => {
 
 // --- HUVUDKOMPONENT ---
 
-export default function EditPersonModal({ person: initialPerson, allPlaces, onSave, onClose }) {
+export default function EditPersonModal({ person: initialPerson, allPlaces, onSave, onClose, onOpenSourceDrawer, allSources }) {
   const [activeTab, setActiveTab] = useState('info');
   const [position, setPosition] = useState({ x: 50, y: 50 });
   const [isDragging, setIsDragging] = useState(false);
@@ -206,30 +398,47 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
       };
     }
   }, [isDragging, dragOffset]);
-  const [person, setPerson] = useState(initialPerson || {
-    id: 'I_new',
-    refId: '',
-    firstName: '',
-    lastName: '',
-    sex: 'U',
-    birthDate: '',
-    deathDate: '',
-    birthPlace: '',
-    deathPlace: '',
-    tags: [],
-    events: [],
-    relations: { parents: [], partners: [], children: [] },
-    research: [],
-    media: [],
-    notes: []
+  const [person, setPerson] = useState(() => {
+    const base = initialPerson || {
+      id: 'I_new',
+      refId: '',
+      firstName: '',
+      lastName: '',
+      sex: 'U',
+      birthDate: '',
+      deathDate: '',
+      birthPlace: '',
+      deathPlace: '',
+      tags: [],
+      events: [],
+      relations: { parents: [], partners: [], children: [] },
+      research: [],
+      media: [],
+      notes: []
+    };
+    
+    // Säkerställ att events är en array
+    if (!Array.isArray(base.events)) {
+      base.events = [];
+    }
+    
+    return base;
   });
 
   const [isEventModalOpen, setEventModalOpen] = useState(false);
   const [isSourceModalOpen, setSourceModalOpen] = useState(false);
   const [editingEventIndex, setEditingEventIndex] = useState(null);
+  const [eventModalPosition, setEventModalPosition] = useState({ x: window.innerWidth / 2 - 300, y: 100 });
+  const [isEventModalDragging, setIsEventModalDragging] = useState(false);
+  const [eventModalDragOffset, setEventModalDragOffset] = useState({ x: 0, y: 0 });
+  const eventModalRef = useRef(null);
+  const [eventTypeSearchOpen, setEventTypeSearchOpen] = useState(false);
+  const [eventTypeSearchText, setEventTypeSearchText] = useState('');
+  const [eventTypeSearchIndex, setEventTypeSearchIndex] = useState(0);
+  const eventTypeSearchRef = useRef(null);
   const [newEvent, setNewEvent] = useState({ 
     id: `evt_${Date.now()}`,
-    type: 'Bosatt', 
+    type: 'Födelse', 
     date: '', 
     place: '',
     placeId: '',
@@ -239,6 +448,13 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
   });
 
   const [tagInput, setTagInput] = useState('');
+
+  // Kontrollera om en händelsetyp redan finns (för unique events)
+  const canAddEventType = (eventType) => {
+    const eventConfig = EVENT_TYPES.find(e => e.value === eventType);
+    if (!eventConfig || !eventConfig.unique) return true;
+    return !person.events?.some(e => e.type === eventType);
+  };
 
   // Tag handling
   const addTag = (e) => {
@@ -261,7 +477,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
     setEditingEventIndex(null);
     setNewEvent({ 
       id: `evt_${Date.now()}`,
-      type: 'Bosatt', 
+      type: 'Födelse', 
       date: '', 
       place: '',
       placeId: '',
@@ -288,7 +504,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
     setEventModalOpen(false);
     setNewEvent({ 
       id: `evt_${Date.now()}`,
-      type: 'Bosatt', 
+      type: 'Födelse', 
       date: '', 
       place: '',
       placeId: '',
@@ -309,6 +525,105 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
     };
     setNewEvent(updatedEvent);
   };
+
+  // Event Modal dragging handlers
+  const handleEventModalMouseDown = (e) => {
+    if (e.target.closest('.modal-header')) {
+      setIsEventModalDragging(true);
+      const rect = eventModalRef.current.getBoundingClientRect();
+      setEventModalDragOffset({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      });
+    }
+  };
+
+  const handleEventModalMouseMove = (e) => {
+    if (!isEventModalDragging) return;
+    setEventModalPosition({
+      x: e.clientX - eventModalDragOffset.x,
+      y: e.clientY - eventModalDragOffset.y
+    });
+  };
+
+  const handleEventModalMouseUp = () => {
+    setIsEventModalDragging(false);
+  };
+
+  useEffect(() => {
+    if (isEventModalDragging) {
+      document.addEventListener('mousemove', handleEventModalMouseMove);
+      document.addEventListener('mouseup', handleEventModalMouseUp);
+      return () => {
+        document.removeEventListener('mousemove', handleEventModalMouseMove);
+        document.removeEventListener('mouseup', handleEventModalMouseUp);
+      };
+    }
+  }, [isEventModalDragging, eventModalDragOffset]);
+
+  // Event type search functions
+  const getFilteredEventTypes = () => {
+    if (!eventTypeSearchText) return EVENT_TYPES;
+    const search = eventTypeSearchText.toLowerCase();
+    return EVENT_TYPES.filter(t => t.label.toLowerCase().includes(search));
+  };
+
+  const handleEventTypeSearchKeyDown = (e) => {
+    const filteredTypes = getFilteredEventTypes();
+    
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setEventTypeSearchIndex(prev => Math.min(prev + 1, filteredTypes.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setEventTypeSearchIndex(prev => Math.max(prev - 1, 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (filteredTypes[eventTypeSearchIndex]) {
+        const selectedType = filteredTypes[eventTypeSearchIndex];
+        if (editingEventIndex !== null || canAddEventType(selectedType.value)) {
+          setNewEvent({...newEvent, type: selectedType.value});
+          setEventTypeSearchOpen(false);
+          setEventTypeSearchText('');
+          setEventTypeSearchIndex(0);
+        }
+      }
+    } else if (e.key === 'Escape') {
+      setEventTypeSearchOpen(false);
+      setEventTypeSearchText('');
+      setEventTypeSearchIndex(0);
+    }
+  };
+
+  const handleEventTypeSelect = (eventType) => {
+    if (editingEventIndex !== null || canAddEventType(eventType)) {
+      setNewEvent({...newEvent, type: eventType});
+      setEventTypeSearchOpen(false);
+      setEventTypeSearchText('');
+      setEventTypeSearchIndex(0);
+    }
+  };
+
+  useEffect(() => {
+    if (eventTypeSearchText !== '') {
+      setEventTypeSearchIndex(0);
+    }
+  }, [eventTypeSearchText]);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (eventTypeSearchRef.current && !eventTypeSearchRef.current.contains(e.target)) {
+        setEventTypeSearchOpen(false);
+        setEventTypeSearchText('');
+        setEventTypeSearchIndex(0);
+      }
+    };
+    
+    if (eventTypeSearchOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [eventTypeSearchOpen]);
 
   // Image paste handler
   useEffect(() => {
@@ -410,19 +725,19 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                 
                 {/* Grunddata */}
                 <div className="grid grid-cols-12 gap-6">
-                  <div className="col-span-3">
+                  <div className="col-span-2">
                     <div className="aspect-[3/4] bg-gray-100 rounded-lg border border-gray-300 flex items-center justify-center relative group cursor-pointer overflow-hidden">
                        {person.media?.length > 0 ? (
                          <img src={person.media[0].url} alt="Profil" className="w-full h-full object-cover" />
                        ) : (
-                         <User size={64} className="text-gray-400" />
+                         <User size={40} className="text-gray-400" />
                        )}
                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                         <Camera className="text-white" />
+                         <Camera size={20} className="text-white" />
                        </div>
                     </div>
                   </div>
-                  <div className="col-span-9 grid grid-cols-2 gap-4 content-start">
+                  <div className="col-span-10 grid grid-cols-2 gap-4 content-start">
                     <div>
                       <label className="text-xs uppercase font-bold text-gray-600">Förnamn</label>
                       <input type="text" value={person.firstName} onChange={e => setPerson({...person, firstName: e.target.value})} className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none" />
@@ -726,22 +1041,75 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
 
       {/* --- EVENT MODAL (SUB-MODAL) --- */}
       {isEventModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-           <div className="bg-white border border-gray-300 rounded-lg shadow-2xl w-full max-w-lg p-0 overflow-hidden">
-              <div className="bg-gray-50 p-4 border-b border-gray-200 flex justify-between items-center">
+        <div className="fixed inset-0 z-[4050] flex items-center justify-center bg-black/30">
+           <div 
+             ref={eventModalRef}
+             className="bg-white border border-gray-300 rounded-lg shadow-2xl w-full max-w-lg p-0 overflow-hidden"
+             style={{
+               position: 'fixed',
+               left: `${eventModalPosition.x}px`,
+               top: `${eventModalPosition.y}px`,
+               maxWidth: '600px'
+             }}
+             onMouseDown={handleEventModalMouseDown}
+           >
+              <div className="modal-header bg-gray-50 p-4 border-b border-gray-200 flex justify-between items-center cursor-move">
                 <h3 className="font-bold text-gray-900">{editingEventIndex !== null ? 'Redigera' : 'Lägg till'} händelse</h3>
                 <button onClick={() => setEventModalOpen(false)} className="text-gray-600 hover:text-gray-900"><X size={20}/></button>
               </div>
               <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-                <div>
+                <div ref={eventTypeSearchRef} className="relative">
                   <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Händelsetyp</label>
-                  <select 
-                    value={newEvent.type}
-                    onChange={(e) => setNewEvent({...newEvent, type: e.target.value})}
-                    className="w-full bg-white border border-gray-300 rounded p-2 text-gray-900 focus:border-blue-500 focus:outline-none"
-                  >
-                    {EVENT_TYPES.map(t => <option key={t}>{t}</option>)}
-                  </select>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={eventTypeSearchOpen ? eventTypeSearchText : EVENT_TYPES.find(t => t.value === newEvent.type)?.label || ''}
+                      onChange={(e) => {
+                        setEventTypeSearchText(e.target.value);
+                        if (!eventTypeSearchOpen) setEventTypeSearchOpen(true);
+                      }}
+                      onFocus={() => {
+                        setEventTypeSearchOpen(true);
+                        setEventTypeSearchText('');
+                      }}
+                      onKeyDown={handleEventTypeSearchKeyDown}
+                      placeholder="Sök händelsetyp..."
+                      className="w-full bg-white border border-gray-300 rounded p-2 text-gray-900 focus:border-blue-500 focus:outline-none"
+                    />
+                    {eventTypeSearchOpen && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded shadow-lg max-h-60 overflow-y-auto">
+                        {getFilteredEventTypes().map((eventType, index) => {
+                          const isDisabled = eventType.unique && 
+                                           editingEventIndex === null && 
+                                           !canAddEventType(eventType.value);
+                          const isSelected = index === eventTypeSearchIndex;
+                          return (
+                            <div
+                              key={eventType.value}
+                              onClick={() => !isDisabled && handleEventTypeSelect(eventType.value)}
+                              className={`px-3 py-2 cursor-pointer flex items-center gap-2 ${
+                                isSelected ? 'bg-blue-500 text-white' : 'hover:bg-gray-100'
+                              } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                              <span>{eventType.icon}</span>
+                              <span>{eventType.label}</span>
+                              {isDisabled && <span className="text-xs ml-auto">(finns redan)</span>}
+                            </div>
+                          );
+                        })}
+                        {getFilteredEventTypes().length === 0 && (
+                          <div className="px-3 py-2 text-gray-500 text-sm">
+                            Inga matchande händelsetyper
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {newEvent.type && EVENT_TYPES.find(e => e.value === newEvent.type)?.unique && 
+                   editingEventIndex === null && 
+                   !canAddEventType(newEvent.type) && (
+                    <p className="text-xs text-amber-600 mt-1">⚠️ Denna händelse kan bara läggas till en gång</p>
+                  )}
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                    <div>
@@ -750,13 +1118,14 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                         <Calendar size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500"/>
                         <input 
                           type="text" 
-                          placeholder="ÅÅÅÅ-MM-DD"
+                          placeholder="t.ex. 21 nov 1980, från 1950, ca 1920"
                           value={newEvent.date}
                           onChange={(e) => setNewEvent({...newEvent, date: e.target.value})}
                           className="w-full bg-white border border-gray-300 rounded pl-9 p-2 text-gray-900 focus:border-blue-500 focus:outline-none"
-                          onBlur={(e) => setNewEvent({...newEvent, date: standardizeDate(e.target.value)})}
+                          onBlur={(e) => setNewEvent({...newEvent, date: parseAndFormatDate(e.target.value)})}
                         />
                       </div>
+                      <p className="text-xs text-gray-500 mt-1">Format: ÅÅÅÅ-MM-DD, eller skriv naturligt</p>
                    </div>
                    <div>
                       <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Plats</label>
@@ -777,7 +1146,26 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                   <div className="flex justify-between items-center mb-2">
                     <label className="block text-xs font-bold text-gray-600 uppercase">Källor</label>
                     <button 
-                      onClick={() => setSourceModalOpen(true)}
+                      onClick={() => {
+                        // Öppna source drawer UTAN att spara personen
+                        // Använd ett speciellt eventId som signalerar att vi är i edit-läge
+                        if (onOpenSourceDrawer) {
+                          // Sätt en global callback som source drawer kan använda
+                          window.__addSourceToEvent = (sourceId) => {
+                            setNewEvent(prev => ({
+                              ...prev,
+                              sources: prev.sources.includes(sourceId) 
+                                ? prev.sources 
+                                : [...prev.sources, sourceId]
+                            }));
+                          };
+                          
+                          // Öppna drawer med ett speciellt flag
+                          onOpenSourceDrawer(person.id, '__editing__');
+                        } else {
+                          setSourceModalOpen(true);
+                        }
+                      }}
                       className="text-xs bg-gray-200 hover:bg-gray-300 text-blue-600 px-2 py-1 rounded flex items-center gap-1"
                     >
                       <Plus size={12}/> Lägg till källa
@@ -786,23 +1174,56 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                   
                   {newEvent.sources && newEvent.sources.length > 0 ? (
                     <div className="space-y-2">
-                      {newEvent.sources.map((src, idx) => (
-                        <div key={src.id} className="bg-gray-50 p-2 rounded text-xs border border-gray-200 flex justify-between items-start">
-                          <div className="flex-1">
-                            <p className="font-medium text-gray-900">{src.title}</p>
-                            <p className="text-gray-700">{src.type}</p>
+                      {newEvent.sources.map((sourceId, idx) => {
+                        const source = allSources?.find(s => s.id === sourceId);
+                        if (!source) return null;
+                        
+                        return (
+                          <div key={sourceId} className="bg-gray-50 p-3 rounded text-sm border border-gray-200 flex justify-between items-start">
+                            <div className="flex-1">
+                              <p className="font-semibold text-gray-900 mb-1">
+                                {source.title || 'Ingen titel'}
+                                {source.location && ` / ${source.location}`}
+                                {source.volume && ` vol. ${source.volume}`}
+                                {source.year && ` (${source.year})`}
+                              </p>
+                              {source.aid && (
+                                <a 
+                                  href={`https://sok.riksarkivet.se/bildvisning/${source.aid}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:text-blue-800 underline text-xs"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  AID: {source.aid}
+                                </a>
+                              )}
+                            </div>
+                            <div className="flex gap-2 ml-3">
+                              <button 
+                                onClick={() => {
+                                  // TODO: Öppna redigera källa modal
+                                  console.log('Edit source:', source);
+                                }}
+                                className="text-gray-600 hover:text-blue-600 p-1"
+                                title="Redigera källa"
+                              >
+                                <Edit3 size={14}/>
+                              </button>
+                              <button 
+                                onClick={() => setNewEvent({
+                                  ...newEvent, 
+                                  sources: newEvent.sources.filter(id => id !== sourceId)
+                                })}
+                                className="text-gray-600 hover:text-red-600 p-1"
+                                title="Ta bort källa"
+                              >
+                                <Trash2 size={14}/>
+                              </button>
+                            </div>
                           </div>
-                          <button 
-                            onClick={() => setNewEvent({
-                              ...newEvent, 
-                              sources: newEvent.sources.filter((_, i) => i !== idx)
-                            })}
-                            className="text-gray-600 hover:text-red-600"
-                          >
-                            <Trash2 size={12}/>
-                          </button>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
                     <p className="text-xs text-gray-600">Ingen källa tillagd</p>

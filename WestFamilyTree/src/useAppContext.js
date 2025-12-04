@@ -697,22 +697,64 @@ export default function useAppContext() {
     };
 
     const handleLinkSourceFromDrawer = (sourceId) => {
-        if (!sourcingEventInfo) return;
+        console.log('🔗 handleLinkSourceFromDrawer called with:', { sourceId, sourcingEventInfo, hasDbData: !!dbData.people });
+        
+        if (!sourcingEventInfo) {
+            console.log('❌ No sourcingEventInfo');
+            return;
+        }
+        
         const { personId, eventId } = sourcingEventInfo;
+        
+        // Special case: om eventId är '__editing__', använd global callback
+        if (eventId === '__editing__') {
+            if (window.__addSourceToEvent) {
+                window.__addSourceToEvent(sourceId);
+                showStatus("Källa tillagd!");
+                console.log('✅ Source added to editing event via callback');
+                // Stäng source drawer
+                setSourceDrawerOpen(false);
+                setSourcingEventInfo(null);
+            } else {
+                console.log('❌ No __addSourceToEvent callback found');
+            }
+            return;
+        }
+        
+        console.log('👤 Looking for person:', personId, 'event:', eventId);
+        
         const personIndex = dbData.people.findIndex(p => p.id === personId);
-        if (personIndex === -1) return;
+        if (personIndex === -1) {
+            console.log('❌ Person not found:', personId);
+            return;
+        }
+        
         const updatedPeople = [...dbData.people];
         const targetPerson = { ...updatedPeople[personIndex] };
+        console.log('✅ Found person:', targetPerson.firstName, targetPerson.lastName, 'Events:', targetPerson.events?.length);
+        
         const eventIndex = targetPerson.events.findIndex(e => e.id === eventId);
-        if (eventIndex === -1) return;
+        if (eventIndex === -1) {
+            console.log('❌ Event not found:', eventId, 'Available events:', targetPerson.events.map(e => ({ id: e.id, type: e.type })));
+            return;
+        }
+        
+        console.log('✅ Found event at index:', eventIndex);
         const eventToUpdate = { ...targetPerson.events[eventIndex] };
+        
         if (!eventToUpdate.sources.includes(sourceId)) {
             eventToUpdate.sources.push(sourceId);
             targetPerson.events[eventIndex] = eventToUpdate;
             setDbData(prev => ({ ...prev, people: updatedPeople }));
             setEditingPerson(targetPerson);
             setIsDirty(true);
+            console.log('✅ Source linked successfully!');
             showStatus("Källa kopplad!");
+            // Stäng source drawer
+            setSourceDrawerOpen(false);
+            setSourcingEventInfo(null);
+        } else {
+            console.log('⚠️ Source already linked');
         }
     };
 

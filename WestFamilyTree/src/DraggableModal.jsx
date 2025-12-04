@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 
-let globalModalZ = 2000;
+let globalModalZ = 5000;
 
 const DraggableModal = ({ 
   title, 
