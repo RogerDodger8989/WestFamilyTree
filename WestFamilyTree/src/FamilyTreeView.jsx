@@ -484,9 +484,9 @@ export default function FamilyTreeView({ allPeople, focusPersonId, onSetFocus, o
     // Visa meddelande om tomt träd
     if (nodes.length === 0) {
         return (
-            <div className="flex flex-col h-full w-full items-center justify-center bg-gray-100">
+            <div className="flex flex-col h-full w-full items-center justify-center bg-slate-800">
                 {/* Sökruta (Måste vara utanför SVG för att vara interaktiv) */}
-                <div className="p-2 border-b bg-gray-50 flex gap-4 shrink-0 absolute top-0 w-full justify-start">
+                <div className="p-2 border-b bg-slate-800 flex gap-4 shrink-0 absolute top-0 w-full justify-start">
                     <input 
                         type="text" 
                         placeholder="Sök person i träd..." 
@@ -496,13 +496,13 @@ export default function FamilyTreeView({ allPeople, focusPersonId, onSetFocus, o
                     />
                     <button 
                         onClick={() => onSetFocus(null)} 
-                        className="px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300"
+                        className="px-3 py-1 bg-slate-700 rounded text-sm text-slate-200 hover:bg-slate-600"
                     >
                         Återställ fokus
                     </button>
                 </div>
                 
-                <div className="mt-10 text-gray-500">
+                <div className="mt-10 text-slate-400">
                     {focusPersonId ? "Personen har valts, men det finns inga relationer att rita." : "Välj en person att fokusera på i personregistret, eller sök ovan."}
                 </div>
             </div>
@@ -513,27 +513,27 @@ export default function FamilyTreeView({ allPeople, focusPersonId, onSetFocus, o
     return (
         <div className="flex flex-col h-full w-full">
             {/* Sökruta och Kontrollpanel */}
-            <div className="p-2 border-b bg-gray-50 flex gap-4 shrink-0">
+            <div className="p-2 border-b border-slate-700 bg-slate-900 flex gap-4 shrink-0">
                 <input 
                     type="text" 
                     placeholder="Sök person i träd..." 
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="px-3 py-1 border rounded shadow-sm text-sm w-64"
+                    className="px-3 py-1 border border-slate-600 rounded shadow-sm text-sm w-64 bg-slate-800 text-slate-200 focus:border-blue-500 focus:outline-none"
                 />
                 <button 
                     onClick={() => onSetFocus(null)} 
-                    className="px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300"
+                    className="px-3 py-1 bg-slate-700 rounded text-sm hover:bg-slate-600 text-slate-200 font-medium"
                 >
                     Återställ fokus
                 </button>
                 {searchQuery && (
-                    <span className="text-sm text-gray-600">Visar träd med fokus på sökresultat.</span>
+                    <span className="text-sm text-slate-400">Visar träd med fokus på sökresultat.</span>
                 )}
             </div>
 
             {/* SVG-VISNINGSYTA */}
-            <svg ref={svgRef} className="flex-1 w-full h-full bg-gray-100 min-h-0" data-family-tree="1">
+            <svg ref={svgRef} className="flex-1 w-full h-full bg-slate-800 min-h-0" data-family-tree="1">
                 {/* 1. Länkar och D3-hanterade element (Flyttas av D3's zoom) */}
                 <g className="node-container" />
                 

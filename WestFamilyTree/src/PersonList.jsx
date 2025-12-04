@@ -106,35 +106,35 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
       <div
         key={person.id}
         onContextMenu={(e) => handleContextMenu(e, person.id)}
-        className="flex justify-between items-center p-4 hover:bg-blue-50 transition border-b border-gray-100 last:border-0"
+        className="flex justify-between items-center p-4 hover:bg-slate-700 transition border-b border-slate-700 last:border-0"
       >
         <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-400 font-mono mr-2">REF: {person.refNumber}</span>
+          <span className="text-xs text-slate-500 font-mono mr-2">REF: {person.refNumber}</span>
           <span
             onClick={(e) => { e.stopPropagation(); onSetFocusPair('primary', person.id); }}
-            className={`cursor-pointer text-xl ${person.id === focusPair.primary ? 'text-yellow-400' : 'text-gray-300 hover:text-yellow-300'}`}
+            className={`cursor-pointer text-xl ${person.id === focusPair.primary ? 'text-yellow-400' : 'text-slate-500 hover:text-yellow-300'}`}
             title="Sätt som Primär Fokus"
           >★</span>
           <span
             onClick={(e) => { e.stopPropagation(); onSetFocusPair('secondary', person.id); }}
-            className={`cursor-pointer text-xl ${person.id === focusPair.secondary ? 'text-blue-500' : 'text-gray-300 hover:text-blue-400'}`}
+            className={`cursor-pointer text-xl ${person.id === focusPair.secondary ? 'text-blue-500' : 'text-slate-500 hover:text-blue-400'}`}
             title="Sätt som Sekundär Fokus"
           >★</span>
           <GenderIcon gender={person.gender} className="mr-2 flex-shrink-0" />
-          <span className="cursor-pointer hover:text-blue-600" onClick={() => onOpenEditModal(person.id)}>
-            <span className="font-bold">{person.firstName} {person.lastName}</span>
-            {person._archived && <span className="text-red-600 font-semibold ml-2">ARKIVERAD</span>}
+          <span className="cursor-pointer hover:text-blue-400" onClick={() => onOpenEditModal(person.id)}>
+            <span className="font-bold text-slate-200">{person.firstName} {person.lastName}</span>
+            {person._archived && <span className="text-red-500 font-semibold ml-2">ARKIVERAD</span>}
             {person._archived && (
               <button onClick={(e) => handleRestore(e)} className="ml-2 px-2 py-0.5 bg-red-600 text-white rounded text-xs hover:bg-red-700">Återställ</button>
             )}
-            <span className="text-gray-500 text-sm font-normal ml-1">{getLifeSpanString(person)}</span>
+            <span className="text-slate-400 text-sm font-normal ml-1">{getLifeSpanString(person)}</span>
           </span>
         </div>
         <div className="flex gap-2 items-center">
           <button
             onClick={(e) => { e.stopPropagation(); setFamilyTreeFocusPersonId(person.id); showStatus('Huvudperson uppdaterad.'); }}
             title="Huvudperson - sätt som fokus i trädvyn"
-            className={`px-2 py-0.5 text-xs border rounded ${familyTreeFocusPersonId === person.id ? 'bg-yellow-100 border-yellow-300 text-yellow-800' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-100'}`}
+            className={`px-2 py-0.5 text-xs border rounded ${familyTreeFocusPersonId === person.id ? 'bg-yellow-600 border-yellow-500 text-yellow-100' : 'bg-slate-700 border-slate-600 text-slate-300 hover:bg-slate-600'}`}
           >
             Huvudperson
           </button>
@@ -142,7 +142,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
           <button
             onClick={() => onOpenEditModal(person.id)}
             title="Redigera person"
-            className="px-2 py-0.5 text-xs bg-white border border-gray-300 text-gray-700 rounded hover:bg-gray-100"
+            className="px-2 py-0.5 text-xs bg-slate-700 border border-slate-600 text-slate-200 rounded hover:bg-slate-600"
           >
             Redigera
           </button>
@@ -150,7 +150,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
           <button
             onClick={() => onOpenRelationModal(person.id)}
             title="Koppla person till annan"
-            className="px-2 py-0.5 text-xs border border-purple-200 text-purple-600 rounded hover:bg-purple-50"
+            className="px-2 py-0.5 text-xs border border-purple-600 text-purple-300 rounded hover:bg-purple-900"
           >
             Koppla
           </button>
@@ -158,7 +158,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
           <button
             onClick={() => onDeletePerson(person.id)}
             title="Ta bort person"
-            className="px-2 py-0.5 text-xs border border-red-200 text-red-600 rounded hover:bg-red-50 font-semibold"
+            className="px-2 py-0.5 text-xs border border-red-600 text-red-400 rounded hover:bg-red-900 font-semibold"
           >
             Ta bort
           </button>
@@ -170,18 +170,18 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
   return (
     <div className="lg:col-span-2 h-[84vh]">
       <div className="card min-h-[500px] h-full flex flex-col">
-        <div className="p-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center rounded-t-lg">
-          <h2 className="font-semibold text-gray-700">Personer i databasen</h2>
-          <span className="text-xs bg-gray-200 px-2 py-1 rounded-full text-gray-600">{people.length} st</span>
+        <div className="p-4 border-b border-slate-700 bg-slate-900 flex justify-between items-center rounded-t-lg">
+          <h2 className="font-semibold text-slate-200">Människor i databasen</h2>
+          <span className="text-xs bg-slate-700 px-2 py-1 rounded-full text-slate-300">{people.length} st</span>
         </div>
-        <div className="divide-y divide-gray-100 flex-grow max-h-[600px] overflow-y-auto">
+        <div className="divide-y divide-slate-700 flex-grow max-h-[600px] overflow-y-auto bg-slate-800">
           {people.length === 0 ? (
-            <div className="p-8 text-center text-gray-400">Registret är tomt.</div>
+            <div className="p-8 text-center text-slate-500">Registret är tomt.</div>
           ) : (
             <>
               {bookmarkedPeople.map(person => <PersonRow key={person.id} person={person} />)}
               {bookmarkedPeople.length > 0 && otherPeople.length > 0 && (
-                <hr className="my-2 border-t-2 border-dashed border-gray-200" />
+                <hr className="my-2 border-t-2 border-dashed border-slate-700" />
               )}
               {otherPeople.map(person => <PersonRow key={person.id} person={person} />)}
             </>

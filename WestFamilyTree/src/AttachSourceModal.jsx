@@ -98,38 +98,38 @@ function AttachSourceModal({ allSources, allPeople, onAttach, onCreateNew, onClo
 
   return (
     <div className="modal" style={{ display: 'block' }}>
-      <div className="modal-content card bg-white p-6 rounded-xl max-w-3xl">
-        <h3 className="text-xl font-bold mb-4">Koppla Källa till Händelser</h3>
+      <div className="modal-content card bg-slate-800 border border-slate-700 p-6 rounded-xl max-w-3xl text-slate-200">
+        <h3 className="text-xl font-bold mb-4 text-slate-200">Koppla Källa till Händelser</h3>
         <input
           type="text"
           placeholder="Sök i källkatalogen..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full p-2 border border-gray-300 rounded mb-4"
+          className="w-full p-2 border border-slate-600 bg-slate-900 text-slate-200 rounded mb-4"
         />
         <div className="flex gap-6">
           <div className="w-1/2">
-            <h4 className="font-semibold mb-2">Välj källa</h4>
-            <div className="space-y-2 max-h-72 overflow-y-auto border rounded p-2 mb-4">
+            <h4 className="font-semibold mb-2 text-slate-200">Välj källa</h4>
+            <div className="space-y-2 max-h-72 overflow-y-auto border border-slate-700 bg-slate-800 rounded p-2 mb-4">
               {filteredSources.length === 0 ? (
-                <p className="text-gray-400 italic p-4 text-center">Inga källor finns i källkatalogen.</p>
+                <p className="text-slate-400 italic p-4 text-center">Inga källor finns i källkatalogen.</p>
               ) : (
                 filteredSources.map(source => {
                   const { yearRange, pageNumber, aid } = getParsedSourceInfo(source);
                   return (
-                    <div key={source.id} className={`p-2 rounded flex gap-3 items-center cursor-pointer ${selectedSourceIds.includes(source.id) ? 'bg-blue-100' : 'hover:bg-gray-50'}`}>
+                    <div key={source.id} className={`p-2 rounded flex gap-3 items-center cursor-pointer ${selectedSourceIds.includes(source.id) ? 'bg-blue-900' : 'hover:bg-slate-700'}`}>
                       <ImageGallery source={source} onEditSource={onEditSource} />                      
                       <div onClick={() => handleSelectionChange(source.id)} className="flex-grow">
-                        <div className="font-bold text-gray-700 text-sm">
+                        <div className="font-bold text-slate-200 text-sm">
                           {source.archive} {source.volume}
                           {yearRange ? ` (${yearRange})` : ''}
                         </div>
-                        <div className="text-xs text-gray-600">
+                        <div className="text-xs text-slate-400">
                           {source.imagePage}{pageNumber ? `/sid ${pageNumber}` : ''}
                           {aid ? ` (${aid})` : ''}
                         </div>
                       </div>
-                      <button type="button" className="ml-2 px-2 py-1 text-xs bg-gray-200 rounded hover:bg-gray-300" onClick={(e) => { e.stopPropagation(); if (onEditSource) onEditSource(source.id); }}>
+                      <button type="button" className="ml-2 px-2 py-1 text-xs bg-slate-700 text-slate-200 rounded hover:bg-slate-600" onClick={(e) => { e.stopPropagation(); if (onEditSource) onEditSource(source.id); }}>
                         Redigera
                       </button>
                     </div>
@@ -140,11 +140,11 @@ function AttachSourceModal({ allSources, allPeople, onAttach, onCreateNew, onClo
             <button type="button" onClick={() => onCreateNew(searchTerm)} className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">Skapa ny källa...</button>
           </div>
           <div className="w-1/2">
-            <h4 className="font-semibold mb-2">Välj händelser</h4>
-            <div className="space-y-2 max-h-72 overflow-y-auto border rounded p-2 mb-4">
+            <h4 className="font-semibold mb-2 text-slate-200">Välj händelser</h4>
+            <div className="space-y-2 max-h-72 overflow-y-auto border border-slate-700 bg-slate-800 rounded p-2 mb-4">
               {relevantPeople.map(person => (
                 <div key={person.id}>
-                  <div className="font-bold text-gray-700 text-xs mb-1">REF: {person.refNumber} {person.firstName} {person.lastName}</div>
+                  <div className="font-bold text-slate-300 text-xs mb-1">REF: {person.refNumber} {person.firstName} {person.lastName}</div>
                   {person.events?.map(event => (
                     <label key={event.id} className="flex items-center gap-2 text-xs mb-1">
                       <input
@@ -161,7 +161,7 @@ function AttachSourceModal({ allSources, allPeople, onAttach, onCreateNew, onClo
           </div>
         </div>
         <div className="flex justify-end items-center mt-6 gap-2">
-          <button type="button" onClick={onClose} className="px-4 py-2 border rounded hover:bg-gray-50">Avbryt</button>
+          <button type="button" onClick={onClose} className="px-4 py-2 border border-slate-600 rounded hover:bg-slate-700">Avbryt</button>
           <button
             type="button"
             onClick={() => onAttach(selectedSourceIds, selectedEventIds)}

@@ -1,0 +1,437 @@
+/* ============================================================================
+   WESTFAMILYTREE - DESIGN TOKENS & COLOR SYSTEM
+   
+   Konsistent färgschema för hela appen baserat på MediaManagerModal-designen
+   
+   ANVÄNDARGUIDE:
+   - Använd CSS-variabler för färger (var(--color-*))
+   - Använd Tailwind-klasserna när möjligt (se mappning nedan)
+   - För custom styling, kopiera färgvärdena från :root
+   
+   ============================================================================ */
+
+:root {
+  /* ===== PRIMARY COLORS ===== */
+  /* Blå används för primär interaktion, fokus, och aktiva element */
+  --color-primary-50: #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-200: #bfdbfe;
+  --color-primary-300: #93c5fd;
+  --color-primary-400: #60a5fa;
+  --color-primary-500: #3b82f6;    /* Primary Blue */
+  --color-primary-600: #2563eb;    /* Primary Blue Dark */
+  --color-primary-700: #1d4ed8;
+  --color-primary-800: #1e40af;
+  --color-primary-900: #1e3a8a;
+  --color-primary-950: #172554;
+
+  /* ===== NEUTRAL/SLATE COLORS ===== */
+  /* Grå/Slate används för bakgrund, text, och borders */
+  --color-neutral-50: #f9fafb;
+  --color-neutral-100: #f3f4f6;
+  --color-neutral-200: #e5e7eb;
+  --color-neutral-300: #d1d5db;
+  --color-neutral-400: #9ca3af;
+  --color-neutral-500: #6b7280;
+  --color-neutral-600: #4b5563;
+  --color-neutral-700: #374151;
+  --color-neutral-800: #1f2937;
+  --color-neutral-900: #111827;
+  --color-neutral-950: #030712;
+
+  /* Slate - Mörk variant för ui-element */
+  --color-slate-50: #f8fafc;
+  --color-slate-100: #f1f5f9;
+  --color-slate-200: #e2e8f0;
+  --color-slate-300: #cbd5e1;
+  --color-slate-400: #94a3b8;
+  --color-slate-500: #64748b;
+  --color-slate-600: #475569;
+  --color-slate-700: #334155;
+  --color-slate-800: #1e293b;    /* Dark BG */
+  --color-slate-850: #1a202c;    /* Darker BG */
+  --color-slate-900: #0f172a;    /* Darkest BG */
+  --color-slate-950: #020617;
+
+  /* ===== ACCENT COLORS ===== */
+  /* Röd för destruktiva åtgärder */
+  --color-red-50: #fef2f2;
+  --color-red-100: #fee2e2;
+  --color-red-200: #fecaca;
+  --color-red-300: #fca5a5;
+  --color-red-400: #f87171;
+  --color-red-500: #ef4444;
+  --color-red-600: #dc2626;
+  --color-red-700: #b91c1c;
+  --color-red-800: #7f1d1d;
+  --color-red-900: #5f1717;
+
+  /* Gul för varningar/okopplade objekt */
+  --color-yellow-50: #fffbeb;
+  --color-yellow-100: #fef3c7;
+  --color-yellow-200: #fde68a;
+  --color-yellow-300: #fcd34d;
+  --color-yellow-400: #fbbf24;
+  --color-yellow-500: #f59e0b;
+  --color-yellow-600: #d97706;
+  --color-yellow-700: #b45309;
+  --color-yellow-800: #92400e;
+  --color-yellow-900: #78350f;
+
+  /* Grön för bekräftelse */
+  --color-green-50: #f0fdf4;
+  --color-green-100: #dcfce7;
+  --color-green-200: #bbf7d0;
+  --color-green-300: #86efac;
+  --color-green-400: #4ade80;
+  --color-green-500: #22c55e;
+  --color-green-600: #16a34a;
+  --color-green-700: #15803d;
+  --color-green-800: #166534;
+  --color-green-900: #145231;
+
+  /* ===== SEMANTIC COLORS ===== */
+  --color-success: var(--color-green-500);
+  --color-warning: var(--color-yellow-500);
+  --color-error: var(--color-red-500);
+  --color-info: var(--color-primary-500);
+
+  /* ===== BACKGROUND COLORS ===== */
+  --color-bg-primary: var(--color-slate-900);      /* #0f172a */
+  --color-bg-secondary: var(--color-slate-850);    /* #1a202c */
+  --color-bg-tertiary: var(--color-slate-800);     /* #1e293b */
+  --color-bg-hover: var(--color-slate-700);        /* #334155 */
+  --color-bg-selected: rgba(59, 130, 246, 0.1);    /* Blue transparent */
+  --color-bg-light: var(--color-neutral-50);
+
+  /* ===== TEXT COLORS ===== */
+  --color-text-primary: #ffffff;
+  --color-text-secondary: var(--color-slate-300);   /* #cbd5e1 */
+  --color-text-tertiary: var(--color-slate-400);    /* #94a3b8 */
+  --color-text-muted: var(--color-slate-500);       /* #64748b */
+  --color-text-light: var(--color-neutral-700);
+
+  /* ===== BORDER COLORS ===== */
+  --color-border-primary: var(--color-slate-700);    /* #334155 */
+  --color-border-secondary: var(--color-slate-600);  /* #475569 */
+  --color-border-light: var(--color-slate-500);      /* #64748b */
+
+  /* ===== SHADOW COLORS ===== */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+
+  /* ===== RADIUS ===== */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-full: 9999px;
+
+  /* ===== SPACING ===== */
+  --space-xs: 2px;
+  --space-sm: 4px;
+  --space-md: 8px;
+  --space-lg: 12px;
+  --space-xl: 16px;
+  --space-2xl: 24px;
+  --space-3xl: 32px;
+
+  /* ===== TYPOGRAPHY ===== */
+  --font-family-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  --font-size-xs: 10px;
+  --font-size-sm: 12px;
+  --font-size-base: 14px;
+  --font-size-md: 16px;
+  --font-size-lg: 18px;
+  --font-size-xl: 20px;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-bold: 700;
+}
+
+/* ============================================================================
+   KOMPONENT-SPECIFIKA FÄRGER
+   ============================================================================ */
+
+/* ===== BUTTONS ===== */
+.btn-primary {
+  background-color: var(--color-primary-600);
+  color: var(--color-text-primary);
+}
+
+.btn-primary:hover {
+  background-color: var(--color-primary-500);
+}
+
+.btn-primary:active {
+  background-color: var(--color-primary-700);
+}
+
+.btn-secondary {
+  background-color: var(--color-slate-700);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border-primary);
+}
+
+.btn-secondary:hover {
+  background-color: var(--color-slate-600);
+}
+
+.btn-danger {
+  background-color: var(--color-red-600);
+  color: var(--color-text-primary);
+}
+
+.btn-danger:hover {
+  background-color: var(--color-red-700);
+}
+
+/* ===== INPUTS & FORMS ===== */
+input,
+textarea,
+select {
+  background-color: var(--color-slate-900);
+  border: 1px solid var(--color-border-primary);
+  color: var(--color-text-primary);
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--color-primary-500);
+  outline: none;
+}
+
+input::placeholder {
+  color: var(--color-text-muted);
+}
+
+/* ===== MODALS ===== */
+.modal-bg {
+  background-color: var(--color-slate-900);
+  border: 1px solid var(--color-border-primary);
+}
+
+.modal-header {
+  background-color: var(--color-slate-800);
+  border-bottom: 1px solid var(--color-border-secondary);
+  color: var(--color-text-secondary);
+}
+
+.modal-content {
+  background-color: var(--color-slate-800);
+}
+
+.modal-footer {
+  background-color: var(--color-slate-900);
+  border-top: 1px solid var(--color-border-primary);
+}
+
+/* ===== CARDS & PANELS ===== */
+.card {
+  background-color: var(--color-slate-800);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-lg);
+}
+
+.card:hover {
+  border-color: var(--color-border-secondary);
+}
+
+/* ===== TABS ===== */
+.tab-button {
+  color: var(--color-text-muted);
+  border-color: transparent;
+}
+
+.tab-button:hover {
+  color: var(--color-primary-500);
+  border-color: var(--color-border-light);
+}
+
+.tab-button.active {
+  color: var(--color-primary-600);
+  border-color: var(--color-primary-600);
+  background-color: rgba(37, 99, 235, 0.05);
+}
+
+/* ===== NAVIGATION ===== */
+nav {
+  background-color: var(--color-slate-900);
+  border-bottom: 1px solid var(--color-slate-700);
+}
+
+.nav-item {
+  color: var(--color-slate-300);
+}
+
+.nav-item:hover {
+  color: var(--color-primary-400);
+}
+
+.nav-item.active {
+  color: var(--color-primary-600);
+  border-bottom: 2px solid var(--color-primary-600);
+  background-color: var(--color-slate-800);
+}
+
+/* ===== BADGES & TAGS ===== */
+.badge {
+  background-color: var(--color-slate-700);
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-full);
+}
+
+.badge-primary {
+  background-color: var(--color-primary-600);
+  color: var(--color-text-primary);
+}
+
+.badge-success {
+  background-color: var(--color-green-600);
+  color: var(--color-text-primary);
+}
+
+.badge-warning {
+  background-color: var(--color-yellow-600);
+  color: var(--color-text-primary);
+}
+
+.badge-error {
+  background-color: var(--color-red-600);
+  color: var(--color-text-primary);
+}
+
+/* ===== SCROLLBARS ===== */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: var(--color-bg-primary);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--color-border-primary);
+  border-radius: var(--radius-md);
+  border: 2px solid var(--color-bg-primary);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border-secondary);
+}
+
+/* ===== UTILITY CLASSES ===== */
+
+/* Backgrounds */
+.bg-dark {
+  background-color: var(--color-bg-primary);
+}
+
+.bg-darker {
+  background-color: var(--color-bg-secondary);
+}
+
+.bg-darkest {
+  background-color: var(--color-bg-tertiary);
+}
+
+/* Text Colors */
+.text-primary {
+  color: var(--color-text-primary);
+}
+
+.text-secondary {
+  color: var(--color-text-secondary);
+}
+
+.text-muted {
+  color: var(--color-text-muted);
+}
+
+.text-success {
+  color: var(--color-success);
+}
+
+.text-warning {
+  color: var(--color-warning);
+}
+
+.text-error {
+  color: var(--color-error);
+}
+
+/* Borders */
+.border-dark {
+  border-color: var(--color-border-primary);
+}
+
+.border-darker {
+  border-color: var(--color-border-secondary);
+}
+
+/* Shadows */
+.shadow-sm {
+  box-shadow: var(--shadow-sm);
+}
+
+.shadow-md {
+  box-shadow: var(--shadow-md);
+}
+
+.shadow-lg {
+  box-shadow: var(--shadow-lg);
+}
+
+.shadow-xl {
+  box-shadow: var(--shadow-xl);
+}
+
+/* ============================================================================
+   TAILWIND MAPPING GUIDE (för referens vid utveckling)
+   
+   Använd dessa Tailwind-klasser i stället för custom CSS när möjligt:
+   
+   BACKGROUNDS:
+   - bg-slate-900     → var(--color-bg-primary)
+   - bg-slate-850     → var(--color-bg-secondary) [behöver arbitrary]
+   - bg-slate-800     → var(--color-bg-tertiary)
+   - bg-blue-600      → var(--color-primary-600)
+   
+   TEXT:
+   - text-white       → var(--color-text-primary)
+   - text-slate-300   → var(--color-text-secondary)
+   - text-slate-400   → var(--color-text-tertiary)
+   - text-slate-500   → var(--color-text-muted)
+   
+   BORDERS:
+   - border-slate-700 → var(--color-border-primary)
+   - border-slate-600 → var(--color-border-secondary)
+   
+   HOVER:
+   - hover:bg-slate-700   → var(--color-bg-hover)
+   - hover:bg-blue-500    → var(--color-primary-500)
+   - hover:text-white     → var(--color-text-primary)
+   
+   ============================================================================ */
+
+/* ============================================================================
+   DARK MODE SUPPORT (om behövs i framtiden)
+   ============================================================================ */
+
+@media (prefers-color-scheme: dark) {
+  /* Redan optimerad för dark mode - ingen förändring behövs */
+}
+
+@media (prefers-color-scheme: light) {
+  /* Om light mode stöds senare, lägg till här */
+  :root {
+    --color-bg-primary: var(--color-neutral-50);
+    --color-bg-secondary: var(--color-neutral-100);
+    --color-text-primary: var(--color-neutral-900);
+    --color-text-secondary: var(--color-neutral-600);
+  }
+}

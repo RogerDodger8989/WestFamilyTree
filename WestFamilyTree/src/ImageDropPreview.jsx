@@ -50,12 +50,12 @@ export default function ImageDropPreview({ source }) {
   }, [source]);
 
   return (
-    <div id="image-drop-preview" className="flex flex-col items-center justify-center h-[110px] w-[90px] border-2 border-dashed border-gray-300 rounded bg-gray-50 text-gray-400 text-xs select-none" style={{ cursor: 'pointer' }}>
+    <div id="image-drop-preview" className="flex flex-col items-center justify-center h-[110px] w-[90px] border-2 border-dashed border-slate-600 rounded bg-slate-800 text-slate-400 text-xs select-none" style={{ cursor: 'pointer' }}>
       <span className="mb-1">Ingen bild</span>
       <span className="text-[10px]">Klistra in (Ctrl+V)</span>
       <span className="text-[10px]">eller dra in bild</span>
-      <span className="text-[10px] mt-1 text-gray-500">Filnamn: {previewName}</span>
-      {previewSize && <span className="text-[10px] text-gray-400">Storlek: {previewSize} kB</span>}
+      <span className="text-[10px] mt-1 text-slate-400">Filnamn: {previewName}</span>
+      {previewSize && <span className="text-[10px] text-slate-400">Storlek: {previewSize} kB</span>}
     </div>
   );
 }

@@ -59,14 +59,14 @@ export default function PlaceEditModal({ place, onClose, onSave }) {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
       <div 
-        className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto m-4"
+        className="bg-slate-800 border border-slate-700 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto m-4"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-gray-800">Redigera Plats</h2>
+        <div className="sticky top-0 bg-slate-700 border-b border-slate-600 px-6 py-4 flex items-center justify-between">
+          <h2 className="text-xl font-bold text-slate-200">Redigera Plats</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+            className="text-slate-400 hover:text-slate-300 text-2xl leading-none"
           >
             ×
           </button>
@@ -75,7 +75,7 @@ export default function PlaceEditModal({ place, onClose, onSave }) {
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {/* Namn */}
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">
+            <label className="block text-sm font-bold text-slate-300 mb-1">
               Namn <span className="text-red-500">*</span>
             </label>
             <input
@@ -84,20 +84,20 @@ export default function PlaceEditModal({ place, onClose, onSave }) {
               value={formData.name}
               onChange={handleChange}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-slate-600 rounded bg-slate-900 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
           {/* Typ */}
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">
+            <label className="block text-sm font-bold text-slate-300 mb-1">
               Typ
             </label>
             <select
               name="type"
               value={formData.type}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-slate-600 rounded bg-slate-900 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               {PLACE_TYPE_OPTIONS.map(option => (
                 <option key={option.value} value={option.value}>
@@ -110,7 +110,7 @@ export default function PlaceEditModal({ place, onClose, onSave }) {
           {/* Koordinater */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1">
+              <label className="block text-sm font-bold text-slate-300 mb-1">
                 Latitud
               </label>
               <input
@@ -120,11 +120,11 @@ export default function PlaceEditModal({ place, onClose, onSave }) {
                 value={formData.latitude}
                 onChange={handleChange}
                 placeholder="55.6050"
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-slate-600 rounded bg-slate-900 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1">
+              <label className="block text-sm font-bold text-slate-300 mb-1">
                 Longitud
               </label>
               <input
@@ -134,14 +134,14 @@ export default function PlaceEditModal({ place, onClose, onSave }) {
                 value={formData.longitude}
                 onChange={handleChange}
                 placeholder="13.0038"
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-slate-600 rounded bg-slate-900 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
 
           {/* Notering */}
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">
+            <label className="block text-sm font-bold text-slate-300 mb-1">
               Notering
             </label>
             <textarea
@@ -149,7 +149,7 @@ export default function PlaceEditModal({ place, onClose, onSave }) {
               value={formData.note}
               onChange={handleChange}
               rows={4}
-              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-slate-600 rounded bg-slate-900 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
@@ -166,7 +166,7 @@ export default function PlaceEditModal({ place, onClose, onSave }) {
           )}
 
           {/* Knappar */}
-          <div className="flex gap-3 pt-4 border-t border-gray-200">
+          <div className="flex gap-3 pt-4 border-t border-slate-700">
             <button
               type="submit"
               disabled={saving}
@@ -178,7 +178,7 @@ export default function PlaceEditModal({ place, onClose, onSave }) {
               type="button"
               onClick={onClose}
               disabled={saving}
-              className="px-4 py-2 bg-gray-200 text-gray-700 font-semibold rounded hover:bg-gray-300 disabled:opacity-50"
+              className="px-4 py-2 bg-slate-600 text-slate-200 font-semibold rounded hover:bg-slate-500 disabled:opacity-50"
             >
               Avbryt
             </button>

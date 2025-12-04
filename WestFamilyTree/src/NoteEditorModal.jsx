@@ -96,7 +96,7 @@ function NoteEditorModal({ isOpen, initialHtml = '', onClose, onSave }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={handleOverlayClick}>
-      <div className="w-[90%] max-w-3xl bg-white rounded shadow-lg overflow-hidden" onClick={e => e.stopPropagation()}>
+      <div className="w-[90%] max-w-3xl bg-slate-800 border border-slate-700 rounded shadow-lg overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between p-3 border-b">
           <div className="font-semibold">Redigera notering</div>
           <div className="flex items-center gap-2">

@@ -61,22 +61,22 @@ export default function SuggestionsPanel({ allPeople = [], onOpenPair }) {
   }, [allPeople, dbData]);
 
   return (
-    <div className="card p-3 bg-white" style={{ minHeight: 220 }}>
-      <div className="font-medium mb-2">Förslag</div>
-      <div className="text-xs text-gray-500 mb-2">Automatch baserat på namn, födelseår och efternamn</div>
+    <div className="card p-3 bg-slate-800 border border-slate-700" style={{ minHeight: 220 }}>
+      <div className="font-medium mb-2 text-slate-200">Förslag</div>
+      <div className="text-xs text-slate-400 mb-2">Automatch baserat på namn, födelseår och efternamn</div>
       <div style={{ maxHeight: 440, overflow: 'auto' }}>
-        {suggestions.length === 0 && <div className="text-sm text-gray-400">Inga förslag</div>}
+        {suggestions.length === 0 && <div className="text-sm text-slate-400">Inga förslag</div>}
         {suggestions.map((s, i) => (
-          <div key={i} className="p-2 border-b hover:bg-gray-50 cursor-pointer" onClick={() => onOpenPair && onOpenPair(s.pair)}>
+          <div key={i} className="p-2 border-b border-slate-600 hover:bg-slate-700 cursor-pointer" onClick={() => onOpenPair && onOpenPair(s.pair)}>
             <div className="flex justify-between">
               <div>
-                <div className="font-semibold">{s.pair[0].firstName} {s.pair[0].lastName} ↔ {s.pair[1].firstName} {s.pair[1].lastName}</div>
-                <div className="text-xs text-gray-500">REF: {s.pair[0].refNumber} · {s.pair[1].refNumber}</div>
+                <div className="font-semibold text-slate-200">{s.pair[0].firstName} {s.pair[0].lastName} ↔ {s.pair[1].firstName} {s.pair[1].lastName}</div>
+                <div className="text-xs text-slate-400">REF: {s.pair[0].refNumber} · {s.pair[1].refNumber}</div>
                 {s.breakdown && (
-                  <div className="text-xs text-gray-400 mt-1">Namn: {Math.round(s.breakdown.name*100)}% · Liv: {Math.round(s.breakdown.life*100)}% · Plats: {Math.round(s.breakdown.place*100)}% · Källor: {Math.round(s.breakdown.sources*100)}%</div>
+                  <div className="text-xs text-slate-400 mt-1">Namn: {Math.round(s.breakdown.name*100)}% · Liv: {Math.round(s.breakdown.life*100)}% · Plats: {Math.round(s.breakdown.place*100)}% · Källor: {Math.round(s.breakdown.sources*100)}%</div>
                 )}
               </div>
-              <div className="text-sm text-gray-600">{Math.round(s.score * 100)}%</div>
+              <div className="text-sm text-slate-300">{Math.round(s.score * 100)}%</div>
             </div>
           </div>
         ))}

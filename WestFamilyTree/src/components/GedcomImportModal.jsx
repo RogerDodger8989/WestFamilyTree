@@ -168,7 +168,7 @@ export default function GedcomImportModal({ open, onClose }) {
 
   return (
     <div className="gedcom-modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
-      <div className="gedcom-modal" style={{ width: 760, maxWidth: '95%', background: '#fff', borderRadius: 8, padding: 16 }}>
+      <div className="gedcom-modal" style={{ width: 760, maxWidth: '95%', background: '#1e293b', color: '#e2e8f0', borderRadius: 8, padding: 16 }}>
         <h3>Importera GEDCOM</h3>
         <div style={{ marginBottom: 8 }}>
           <button onClick={pickFile}>Välj GEDCOM-fil...</button>
@@ -260,7 +260,7 @@ export default function GedcomImportModal({ open, onClose }) {
           </div>
         )}
         {appliedResult && (
-          <div style={{ marginTop: 12, background: '#f6f6f6', padding: 8 }}>
+          <div style={{ marginTop: 12, background: '#0f172a', padding: 8, color: '#e2e8f0' }}>
             <strong>Importresultat:</strong>
             <div style={{ marginTop: 8 }}>
               {/* concise summary */}

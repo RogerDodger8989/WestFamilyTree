@@ -410,7 +410,7 @@ export default function GedcomReviewPanel({ onClose }) {
                 {s.images && s.images.length > 0 && (
                   <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     {s.images.slice(0,6).map((im, i) => (
-                      <div key={i} style={{ width: 120, height: 90, border: '1px solid #ccc', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fafafa' }}>
+                      <div key={i} style={{ width: 120, height: 90, border: '1px solid #475569', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#1e293b' }}>
                         <div style={{ fontSize: 11, padding: 6, textAlign: 'center' }}>{String(im).split(/[\\/]/).pop()}</div>
                       </div>
                     ))}
@@ -426,7 +426,7 @@ export default function GedcomReviewPanel({ onClose }) {
       </div>
       {rawModal.open && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ width: '80%', maxHeight: '80%', overflow: 'auto', background: 'white', padding: 12 }}>
+          <div style={{ width: '80%', maxHeight: '80%', overflow: 'auto', background: '#1e293b', color: '#e2e8f0', padding: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h4>{rawModal.title}</h4>
               <button onClick={() => setRawModal({ open: false, content: null, title: '' })}>Stäng</button>
@@ -440,12 +440,12 @@ export default function GedcomReviewPanel({ onClose }) {
           <h4>Audit‑resultat från {auditResults.file}</h4>
           <div style={{ maxHeight: 240, overflow: 'auto', border: '1px solid #ddd', padding: 8 }}>
             <div><strong>Människor (upp till 50):</strong></div>
-            {auditResults.peopleMatches.length === 0 && <div className="text-sm text-gray-500">Inga personer matchade.</div>}
+            {auditResults.peopleMatches.length === 0 && <div className="text-sm text-slate-400">Inga personer matchade.</div>}
             {auditResults.peopleMatches.map((p, i) => (
               <div key={i} style={{ padding: 6, borderBottom: '1px solid #eee' }}>{(p.firstName||'') + ' ' + (p.lastName||'')} · xref: {p.xref || p.pointer || ''}</div>
             ))}
             <div style={{ marginTop: 8 }}><strong>Källor (upp till 50):</strong></div>
-            {auditResults.sourceMatches.length === 0 && <div className="text-sm text-gray-500">Inga källor matchade.</div>}
+            {auditResults.sourceMatches.length === 0 && <div className="text-sm text-slate-400">Inga källor matchade.</div>}
             {auditResults.sourceMatches.map((ss, i) => (
               <div key={i} style={{ padding: 6, borderBottom: '1px solid #eee' }}>{(ss.title||ss.archive||'(utan titel)')} · id: {ss.id || ss.xref || ''}</div>
             ))}

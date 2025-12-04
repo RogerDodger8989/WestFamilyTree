@@ -21,6 +21,7 @@ import RelationSettings from './RelationSettings.jsx';
 import GedcomImporter from './GedcomImporter.jsx';
 import DraggableModal from './DraggableModal.jsx';
 import LinkPersonModal from './LinkPersonModal.jsx';
+import { MediaManagerModal } from './MediaManagerModal.jsx';
 import Button from './Button.jsx'; 
 
 function App() {
@@ -411,11 +412,11 @@ function App() {
           <Button onClick={() => setIsMergeModalOpen(true)} variant="secondary" size="sm">Slå ihop</Button>
           <Button onClick={() => setIsMergesPanelOpen(true)} variant="secondary" size="sm">Merges</Button>
         </div>
-        <div className="text-xs text-gray-400"><span>{fileHandle ? `Öppen fil: ${fileHandle.name}` : 'Ny namnlös databas'}</span></div>
+        <div className="text-xs text-slate-400"><span>{fileHandle ? `Öppen fil: ${fileHandle.name}` : 'Ny namnlös databas'}</span></div>
       </div>
       
       {/* SETTINGS MODAL */}
-      {showSettings && (<div className="modal" style={{display: 'block'}}><div className="modal-content card bg-white p-8 max-w-2xl"><div className="flex justify-between items-center mb-6"><h2 className="text-xl font-bold">Inställningar</h2><button onClick={() => setShowSettings(false)} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button></div><div><div className="text-gray-600 mb-4"><div className="mb-2">Audit-backup-mapp (valfritt):</div><div className="flex items-center gap-2"><input type="text" value={auditBackupDir} onChange={(e) => setAuditBackupDirState(e.target.value)} placeholder="Sökväg till mapp eller lämna tomt för standard" className="flex-1 border rounded px-2 py-1" /><Button onClick={chooseAuditBackupDir} variant="secondary" size="sm">Välj...</Button><Button onClick={() => setAuditBackupDirState('')} variant="danger" size="sm">Rensa</Button></div></div><div className="flex flex-col gap-2 mt-8"><div className="flex gap-2 justify-end"><Button onClick={handleExportZip} variant="primary" size="sm">Exportera allt som zip</Button><Button onClick={handleImportZip} variant="secondary" size="sm">Importera zip-backup</Button><Button onClick={() => setShowRelationSettings(true)} variant="secondary" size="sm">Relationsinställningar</Button><Button onClick={() => { setAuditBackupDir(auditBackupDir); setShowSettings(false); showStatus('Inställningar sparade.'); }} variant="success" size="sm">Spara</Button></div>{showRelationSettings && (<div className="mt-4 p-4 border rounded bg-gray-50"><RelationSettings inline={true} onClose={() => setShowRelationSettings(false)} /></div>)}{ ((personDrawer && personDrawer._isPlaceholder) || (personDrawerEditContext && personDrawer && personDrawerEditContext.id === personDrawer.id)) && (<div className="p-3 border-t bg-white flex justify-end gap-2"><Button onClick={() => cancelPersonCreation(personDrawer.id)} variant="danger" size="sm">Avbryt</Button><Button onClick={handlePersonDrawerSave} variant="success" size="sm">Spara ändringar</Button></div>)}</div></div></div></div>)}
+      {showSettings && (<div className="modal" style={{display: 'block'}}><div className="modal-content card bg-slate-800 border border-slate-700 p-8 max-w-2xl"><div className="flex justify-between items-center mb-6"><h2 className="text-xl font-bold text-slate-200">Inställningar</h2><button onClick={() => setShowSettings(false)} className="text-slate-400 hover:text-slate-300 text-2xl">&times;</button></div><div><div className="text-slate-400 mb-4"><div className="mb-2">Audit-backup-mapp (valfritt):</div><div className="flex items-center gap-2"><input type="text" value={auditBackupDir} onChange={(e) => setAuditBackupDirState(e.target.value)} placeholder="Sökväg till mapp eller lämna tomt för standard" className="flex-1 border rounded px-2 py-1" /><Button onClick={chooseAuditBackupDir} variant="secondary" size="sm">Välj...</Button><Button onClick={() => setAuditBackupDirState('')} variant="danger" size="sm">Rensa</Button></div></div><div className="flex flex-col gap-2 mt-8"><div className="flex gap-2 justify-end"><Button onClick={handleExportZip} variant="primary" size="sm">Exportera allt som zip</Button><Button onClick={handleImportZip} variant="secondary" size="sm">Importera zip-backup</Button><Button onClick={() => setShowRelationSettings(true)} variant="secondary" size="sm">Relationsinställningar</Button><Button onClick={() => { setAuditBackupDir(auditBackupDir); setShowSettings(false); showStatus('Inställningar sparade.'); }} variant="success" size="sm">Spara</Button></div>{showRelationSettings && (<div className="mt-4 p-4 border border-slate-700 rounded bg-slate-900"><RelationSettings inline={true} onClose={() => setShowRelationSettings(false)} /></div>)}{ ((personDrawer && personDrawer._isPlaceholder) || (personDrawerEditContext && personDrawer && personDrawerEditContext.id === personDrawer.id)) && (<div className="p-3 border-t border-slate-700 bg-slate-800 flex justify-end gap-2"><Button onClick={() => cancelPersonCreation(personDrawer.id)} variant="danger" size="sm">Avbryt</Button><Button onClick={handlePersonDrawerSave} variant="success" size="sm">Spara ändringar</Button></div>)}</div></div></div></div>)}
       
       {/* OTHER MODALS */}
       {isMergeModalOpen && <MergeModal isOpen={isMergeModalOpen} onClose={(mergeId) => { setIsMergeModalOpen(false); if (mergeId) showStatus(`Merge klart (${mergeId})`); }} />}
@@ -425,12 +426,12 @@ function App() {
       {/* NY MODAL: Koppla Person */}
       <LinkPersonModal isOpen={linkPersonModal.isOpen} onClose={() => setLinkPersonModal({ isOpen: false, preSelectedPersonId: null })} people={visiblePeople} onLink={handleLinkSourceToPerson} initialPersonId={linkPersonModal.preSelectedPersonId} />
 
-      {isHistoryOpen && (<div className="modal" style={{display: 'block'}} onClick={handleShowHistory}><div className="modal-content card bg-white p-4 max-w-md" onClick={(e) => e.stopPropagation()}><div className="flex justify-between items-center mb-4"><h3 className="text-lg font-bold">Historik</h3><button onClick={handleShowHistory} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button></div><div className="text-sm text-gray-700 max-h-64 overflow-y-auto"><ul className="space-y-2">{historyState.past.map((h, idx) => (<li key={idx} onClick={() => applyHistoryEntry(h)} className="p-2 border rounded hover:bg-gray-50 cursor-pointer"><div className="font-semibold">Flik: <b>{h.tab}</b></div></li>))}</ul></div></div></div>)}
+      {isHistoryOpen && (<div className="modal" style={{display: 'block'}} onClick={handleShowHistory}><div className="modal-content card bg-slate-800 border border-slate-700 p-4 max-w-md" onClick={(e) => e.stopPropagation()}><div className="flex justify-between items-center mb-4"><h3 className="text-lg font-bold text-slate-200">Historik</h3><button onClick={handleShowHistory} className="text-slate-400 hover:text-slate-300 text-2xl">&times;</button></div><div className="text-sm text-slate-300 max-h-64 overflow-y-auto"><ul className="space-y-2">{historyState.past.map((h, idx) => (<li key={idx} onClick={() => applyHistoryEntry(h)} className="p-2 border border-slate-700 rounded hover:bg-slate-700 cursor-pointer"><div className="font-semibold">Flik: <b>{h.tab}</b></div></li>))}</ul></div></div></div>)}
 
       <div className="status-bar shrink-0"><span>{isDirty ? 'Redo med osparade ändringar' : 'Redo'}</span>{isDirty && <span className="text-amber-600 font-bold">● Osparade ändringar</span>}</div>
 
-      <div id="app" className="flex-grow p-6 flex flex-col bg-gray-100 overflow-hidden min-h-0">
-        <div className="w-full mb-4 border-b border-gray-300 bg-gray-100 shrink-0">
+      <div id="app" className="flex-grow p-6 flex flex-col bg-slate-900 overflow-hidden min-h-0">
+        <div className="w-full mb-4 border-b border-slate-700 bg-slate-900 shrink-0">
           <nav className="-mb-px flex space-x-2 md:space-x-4 lg:space-x-8">
             {/* Tab config: (Oförändrad) */}
             {[
@@ -484,12 +485,19 @@ function App() {
                 ),
                 badge: null // Example: could be a count or warning
               },
+              {
+                label: 'Media',
+                value: 'media',
+                icon: (
+                  <svg className="w-5 h-5 mr-1 inline-block align-text-bottom" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path strokeLinecap="round" strokeLinejoin="round" d="M21 15l-5-5L5 21" /></svg>
+                ),
+              },
             ].map(tab => (
               <button
                 key={tab.value}
                 onClick={() => onLocalTabChange(tab.value)}
                 className={`whitespace-nowrap py-2 px-2 md:px-3 border-b-2 font-medium text-sm tab-btn flex items-center gap-1 relative transition-colors duration-150
-                  ${activeTab === tab.value ? 'border-blue-600 text-blue-600 bg-blue-50 rounded-t' : 'border-transparent text-gray-500 hover:text-blue-700 hover:border-gray-300'}`}
+                  ${activeTab === tab.value ? 'border-blue-500 text-white bg-slate-700 rounded-t' : 'border-transparent text-white hover:bg-slate-800'}`}
                 style={{ minWidth: 0 }}
               >
                 {tab.icon}
@@ -512,7 +520,7 @@ function App() {
             <div className="tab-content max-w-6xl mx-auto w-full">
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <PersonAddForm newFirstName={newFirstName} setNewFirstName={setNewFirstName} newLastName={newLastName} setNewLastName={setNewLastName} onAddPerson={handleAddPerson} />
-                <div className="flex items-center justify-between w-full mb-2"><div /><div className="flex items-center gap-3"><label className="text-sm text-gray-600 flex items-center gap-2"><input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} /><span className="select-none">Visa arkiverade</span></label></div></div>
+                <div className="flex items-center justify-between w-full mb-2"><div /><div className="flex items-center gap-3"><label className="text-sm text-slate-400 flex items-center gap-2"><input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} /><span className="select-none">Visa arkiverade</span></label></div></div>
                 <PersonList people={visiblePeople} onOpenEditModal={handleOpenEditModal} onOpenRelationModal={handleViewInFamilyTree} onDeletePerson={handleDeletePerson} focusPair={focusPair} onSetFocusPair={handleSetFocusPair} bookmarks={bookmarks} />
                 <div className="lg:col-span-1"><SuggestionsPanel allPeople={visiblePeople} onOpenPair={(pair) => { setMergeInitialPair(pair); setShowDuplicateMerge(true); }} /></div>
               </div>
@@ -521,6 +529,7 @@ function App() {
 
           {activeTab === 'orphanArchive' && (<OrphanArchiveView people={dbData.people || []} allSources={dbData.sources || []} onOpenPerson={handleOpenEditModal} onViewInFamilyTree={handleViewInFamilyTree} />)}
           {activeTab === 'audit' && ( <AuditPanel /> )}
+          {activeTab === 'media' && ( <MediaManagerModal isOpen={activeTab === 'media'} onClose={() => {}} /> )}
 
           {/* STANDARDVISNING AV KÄLLKATALOG (EJ EDIT) */}
 
@@ -636,10 +645,10 @@ function App() {
 
       {isGedcomImporterOpen && (
         <div className="modal" style={{display: 'block', zIndex: 3000}}>
-          <div className="modal-content card bg-white shadow-2xl rounded-xl border-0 max-w-5xl">
-            <div className="flex justify-between items-center border-b p-4 bg-gray-50 rounded-t-xl">
-              <h3 className="text-lg font-bold text-gray-800">Importera GEDCOM (NY)</h3>
-              <button onClick={() => setIsGedcomImporterOpen(false)} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+          <div className="modal-content card bg-slate-800 border border-slate-700 shadow-2xl rounded-xl max-w-5xl">
+            <div className="flex justify-between items-center border-b border-slate-700 p-4 bg-slate-700 rounded-t-xl">
+              <h3 className="text-lg font-bold text-slate-200">Importera GEDCOM (NY)</h3>
+              <button onClick={() => setIsGedcomImporterOpen(false)} className="text-slate-400 hover:text-slate-300 text-2xl\">&times;</button>
             </div>
             <div className="p-6">
               <GedcomImporter onImport={(imported) => {

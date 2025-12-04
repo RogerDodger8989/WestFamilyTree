@@ -77,20 +77,20 @@ export default function LinkPersonModal({
                     </div>
                 )}
 
-                <div className="flex-1 overflow-y-auto border rounded bg-gray-50">
+                <div className="flex-1 overflow-y-auto border rounded bg-slate-800 border-slate-700">
                     {filteredPeople.length === 0 && searchTerm && (
-                        <div className="p-4 text-gray-500 text-center">Inga personer hittades.</div>
+                        <div className="p-4 text-slate-400 text-center">Inga personer hittades.</div>
                     )}
                     {filteredPeople.map(person => (
-                        <div key={person.id} className="border-b bg-white">
+                        <div key={person.id} className="border-b border-slate-700 bg-slate-900">
                             <div 
-                                className="p-3 cursor-pointer hover:bg-blue-50 flex justify-between items-center"
+                                className="p-3 cursor-pointer hover:bg-slate-700 flex justify-between items-center"
                                 onClick={() => onLink(person.id)}
                             >
-                                <div className="font-bold text-gray-800 text-sm">
+                                <div className="font-bold text-slate-200 text-sm">
                                     {person.firstName} {person.lastName} 
-                                    <span className="text-gray-500 font-normal ml-2">{getLifeRange(person)}</span>
-                                    <span className="text-gray-400 font-normal text-xs ml-2">(Ref: {person.refNumber})</span>
+                                    <span className="text-slate-400 font-normal ml-2">{getLifeRange(person)}</span>
+                                    <span className="text-slate-500 font-normal text-xs ml-2">(Ref: {person.refNumber})</span>
                                 </div>
                             </div>
                         </div>

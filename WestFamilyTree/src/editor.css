@@ -1,6 +1,8 @@
 .rsw-editor {
-  border: 1px solid #e5e7eb; /* light gray */
+  border: 1px solid #475569; /* slate-600 */
   border-radius: 4px;
+  background: #0f172a; /* slate-900 */
+  color: #e2e8f0; /* slate-200 */
 }
 
 .rsw-ce {
@@ -19,6 +21,6 @@
   display: flex;
   gap: 6px;
   padding: 6px;
-  border-bottom: 1px solid #eee;
-  background: #fafafa;
+  border-bottom: 1px solid #334155; /* slate-700 */
+  background: #1e293b; /* slate-800 */
 }

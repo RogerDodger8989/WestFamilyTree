@@ -16,11 +16,11 @@ function EventDiff({ selectedPair, targetIsA, choices, setChoices }) {
             <div style={{ fontWeight: 700, marginBottom: 8 }}>Händelse-sammanslagning</div>
             <div style={{ maxHeight: 220, overflow: 'auto' }}>
                 {pairs.map((pr, idx) => (
-                    <div key={idx} style={{ padding: 8, borderBottom: '1px solid #f3f4f6' }}>
+                    <div key={idx} style={{ padding: 8, borderBottom: '1px solid #334155' }}>
                         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                             <div style={{ flex: 1 }}>
                                 <div style={{ fontSize: 13, fontWeight: 700 }}>{(pr.a ? (pr.a.type || 'Händelse') : (pr.b ? pr.b.type : 'Händelse'))}</div>
-                                <div style={{ fontSize: 12, color: '#374151' }}>{pr.a ? `${pr.a.date || ''} ${pr.a.place || ''}` : ''}</div>
+                                <div style={{ fontSize: 12, color: '#94a3b8' }}>{pr.a ? `${pr.a.date || ''} ${pr.a.place || ''}` : ''}</div>
                             </div>
                             <div style={{ width: 340, display: 'flex', gap: 8, alignItems: 'center' }}>
                                 <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}><input type="radio" name={`evt_${idx}`} checked={choices[pr.a?.id] === 'keep-target'} onChange={() => setChoices(c => ({ ...c, [pr.a?.id || pr.b?.id]: 'keep-target' }))} /> Behåll mål</label>
@@ -147,14 +147,14 @@ function MergeSummary({ selectedPair, targetIsA, fieldChoices, eventChoices, dbD
 
     return (
         <div className="fixed inset-0 z-100 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.35)' }}>
-            <div className="bg-white rounded shadow-lg" style={{ width: 'min(900px, 94%)', maxHeight: '80vh', overflow: 'auto' }}>
+            <div className="bg-slate-800 rounded shadow-lg border border-slate-700" style={{ width: 'min(900px, 94%)', maxHeight: '80vh', overflow: 'auto' }}>
                 <div className="p-4 border-b flex justify-between items-center">
                     <div>
                         <div className="text-lg font-semibold">Sammanfognings-sammanfattning</div>
-                        <div className="text-sm text-gray-600">Granska ändringar innan du bekräftar.</div>
+                        <div className="text-sm text-slate-300">Granska ändringar innan du bekräftar.</div>
                     </div>
                     <div>
-                        <button onClick={() => setShowSummary(false)} className="text-gray-400 hover:text-gray-600 text-2xl px-2 py-1" aria-label="Stäng">×</button>
+                        <button onClick={() => setShowSummary(false)} className="text-slate-500 hover:text-slate-300 text-2xl px-2 py-1" aria-label="Stäng">×</button>
                     </div>
                 </div>
                 <div className="p-4">
@@ -162,30 +162,30 @@ function MergeSummary({ selectedPair, targetIsA, fieldChoices, eventChoices, dbD
                     <div className="mb-3"><b>Källa:</b> {source.firstName} {source.lastName} ({source.id})</div>
                     <div className="mb-3">
                         <div className="font-medium">Fältändringar (justera i förhandsgranskning)</div>
-                        <div className="p-3 border rounded bg-gray-50 mt-2">
+                        <div className="p-3 border border-slate-700 rounded bg-slate-900 mt-2">
                             <div className="grid grid-cols-2 gap-2">
                                 <div>
-                                    <div className="text-xs text-gray-500">Förnamn</div>
-                                    <input value={mergedPreview.firstName || ''} onChange={(e) => setMergedPreview(prev => ({ ...prev, firstName: e.target.value }))} className="w-full border border-gray-200 rounded px-2 py-1 text-sm" />
+                                    <div className="text-xs text-slate-400">Förnamn</div>
+                                    <input value={mergedPreview.firstName || ''} onChange={(e) => setMergedPreview(prev => ({ ...prev, firstName: e.target.value }))} className="w-full border border-slate-600 rounded px-2 py-1 text-sm bg-slate-900 text-slate-200 focus:border-blue-500 focus:outline-none" />
                                 </div>
                                 <div>
-                                    <div className="text-xs text-gray-500">Efternamn</div>
-                                    <input value={mergedPreview.lastName || ''} onChange={(e) => setMergedPreview(prev => ({ ...prev, lastName: e.target.value }))} className="w-full border border-gray-200 rounded px-2 py-1 text-sm" />
+                                    <div className="text-xs text-slate-400">Efternamn</div>
+                                    <input value={mergedPreview.lastName || ''} onChange={(e) => setMergedPreview(prev => ({ ...prev, lastName: e.target.value }))} className="w-full border border-slate-600 rounded px-2 py-1 text-sm bg-slate-900 text-slate-200 focus:border-blue-500 focus:outline-none" />
                                 </div>
                                 <div>
-                                    <div className="text-xs text-gray-500">Kön</div>
-                                    <select value={mergedPreview.gender || ''} onChange={(e) => setMergedPreview(prev => ({ ...prev, gender: e.target.value }))} className="w-full border border-gray-200 rounded px-2 py-1 text-sm">
+                                    <div className="text-xs text-slate-400">Kön</div>
+                                    <select value={mergedPreview.gender || ''} onChange={(e) => setMergedPreview(prev => ({ ...prev, gender: e.target.value }))} className="w-full border border-slate-600 rounded px-2 py-1 text-sm bg-slate-900 text-slate-200 focus:border-blue-500 focus:outline-none">
                                         <option value="">(okänt)</option>
                                         <option value="M">M</option>
                                         <option value="K">K</option>
                                     </select>
                                 </div>
                                 <div>
-                                    <div className="text-xs text-gray-500">Anteckningar</div>
-                                    <input value={mergedPreview.notes || ''} onChange={(e) => setMergedPreview(prev => ({ ...prev, notes: e.target.value }))} className="w-full border border-gray-200 rounded px-2 py-1 text-sm" />
+                                    <div className="text-xs text-slate-400">Anteckningar</div>
+                                    <input value={mergedPreview.notes || ''} onChange={(e) => setMergedPreview(prev => ({ ...prev, notes: e.target.value }))} className="w-full border border-slate-600 rounded px-2 py-1 text-sm bg-slate-900 text-slate-200" />
                                 </div>
                                 <div className="col-span-2">
-                                    <div className="text-xs text-gray-500">Födelsedatum (YYYY eller YYYY-MM-DD)</div>
+                                    <div className="text-xs text-slate-400">Födelsedatum (YYYY eller YYYY-MM-DD)</div>
                                     <input value={(mergedPreview.events || []).find(ev => ev.type && ev.type.toString().toLowerCase().includes('födel'))?.date || ''} onChange={(e) => {
                                         const v = e.target.value;
                                         setMergedPreview(prev => {
@@ -194,7 +194,7 @@ function MergeSummary({ selectedPair, targetIsA, fieldChoices, eventChoices, dbD
                                             if (idx >= 0) { copy.events[idx].date = v; } else { if (v) copy.events.push({ id: `ev_${Date.now()}_${Math.random().toString(36).slice(2,6)}`, type: 'Födelse', date: v }); }
                                             return copy;
                                         });
-                                    }} className={`w-full border rounded px-2 py-1 text-sm ${/\d{4}(-\d{2}(-\d{2})?)?/.test((mergedPreview.events || []).find(ev => ev.type && ev.type.toString().toLowerCase().includes('födel'))?.date || '') ? 'border-gray-200' : 'border-red-300 bg-red-50'}`} />
+                                    }} className={`w-full border rounded px-2 py-1 text-sm bg-slate-900 text-slate-200 focus:border-blue-500 focus:outline-none ${/\d{4}(-\d{2}(-\d{2})?)?/.test((mergedPreview.events || []).find(ev => ev.type && ev.type.toString().toLowerCase().includes('födel'))?.date || '') ? 'border-slate-600' : 'border-red-600 bg-red-900 bg-opacity-20'}`} />
                                 </div>
                             </div>
                         </div>
@@ -208,7 +208,7 @@ function MergeSummary({ selectedPair, targetIsA, fieldChoices, eventChoices, dbD
                             <button onClick={() => setShowSummary(false)} className="px-3 py-1 border rounded">Avbryt</button>
                             <button onClick={confirmAndApply} className="px-3 py-1 bg-red-600 text-white rounded">Bekräfta och slå ihop</button>
                         </div>
-                        <div className="mt-2 text-xs text-gray-500">Obs: efter genomförd sammanfogning kan du ångra via toastens ångra-knapp.</div>
+                        <div className="mt-2 text-xs text-slate-400">Obs: efter genomförd sammanfogning kan du ångra via toastens ångra-knapp.</div>
                     </div>
                 </div>
             </div>
@@ -253,14 +253,14 @@ export default function DuplicateMergePanel({ allPeople = [], onClose, initialPa
 
     const content = (
         <div className="fixed inset-0 z-[9999] flex items-start justify-center" style={{ paddingTop: 64 }}>
-            <div className="bg-white rounded shadow-lg" style={{ width: '94%', maxWidth: 1100, maxHeight: '84vh', overflow: 'auto' }}>
+            <div className="bg-slate-800 rounded shadow-lg border border-slate-700" style={{ width: '94%', maxWidth: 1100, maxHeight: '84vh', overflow: 'auto' }}>
                 <div className="flex items-center justify-between p-4 border-b">
                     <div>
                         <div className="text-lg font-semibold">Föreslagna dubbletter</div>
-                        <div className="text-sm text-gray-600">Grupperade efter normaliserat namn och födelseår</div>
+                        <div className="text-sm text-slate-300">Grupperade efter normaliserat namn och födelseear</div>
                     </div>
                     <div>
-                        <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl px-2 py-1" aria-label="Stäng">×</button>
+                        <button onClick={onClose} className="text-slate-500 hover:text-slate-300 text-2xl px-2 py-1" aria-label="Stäng">×</button>
                     </div>
                 </div>
                 <div style={{ display: 'flex', gap: 12 }}>
@@ -270,19 +270,19 @@ export default function DuplicateMergePanel({ allPeople = [], onClose, initialPa
                             {suggestions.map((item, idx) => {
                                 const pair = item.pair;
                                 return (
-                                    <div key={`${pair[0].id}-${pair[1].id}`} style={{ padding: 8, borderBottom: '1px solid #f3f4f6', cursor: 'pointer', background: selectedPair && selectedPair[0].id === pair[0].id && selectedPair[1].id === pair[1].id ? '#f8fafc' : 'transparent' }} onClick={() => { setSelectedPair(pair); setTargetIsA(true); }}>
+                                    <div key={`${pair[0].id}-${pair[1].id}`} style={{ padding: 8, borderBottom: '1px solid #334155', cursor: 'pointer', background: selectedPair && selectedPair[0].id === pair[0].id && selectedPair[1].id === pair[1].id ? '#334155' : 'transparent' }} onClick={() => { setSelectedPair(pair); setTargetIsA(true); }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                             <div style={{ fontWeight: 700 }}>{pair[0].firstName} {pair[0].lastName}</div>
-                                            <div style={{ fontSize: 12, color: '#6b7280' }}>{Math.round((item.score||0) * 100)}%</div>
+                                            <div style={{ fontSize: 12, color: '#cbd5e1' }}>{Math.round((item.score||0) * 100)}%</div>
                                         </div>
-                                        <div style={{ color: '#374151' }}>{pair[1].firstName} {pair[1].lastName}</div>
+                                        <div style={{ color: '#e2e8f0' }}>{pair[1].firstName} {pair[1].lastName}</div>
                                     </div>
                                 );
                             })}
                         </div>
                     </div>
                     <div style={{ flex: 1, padding: 12 }}>
-                        {!selectedPair && <div className="text-sm text-gray-600">Välj ett par till vänster för att se en förhandsgranskning av sammanslagning.</div>}
+                        {!selectedPair && <div className="text-sm text-slate-400">Välj ett par till vänster för att se en förhandsgranskningav sammanslagning.</div>}
                         {selectedPair && (
                             <div>
                                 <div className="mb-3">
@@ -296,7 +296,7 @@ export default function DuplicateMergePanel({ allPeople = [], onClose, initialPa
                                 <EventDiff selectedPair={selectedPair} targetIsA={targetIsA} choices={eventChoices} setChoices={setEventChoices} />
                                 <div className="mb-3">
                                     <div className="text-sm font-medium">Preview</div>
-                                    {!preview && <div className="text-sm text-gray-500">Ingen förhandsgranskning tillgänglig.</div>}
+                                    {!preview && <div className="text-sm text-slate-400">Ingen förhandsgranskning tillgänglig.</div>}
                                     {preview && (
                                         <div style={{ marginTop: 8 }}>
                                             <div className="text-sm">Total events i källor: {preview.totalEvents}</div>

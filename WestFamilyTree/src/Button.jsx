@@ -11,15 +11,15 @@ export default function Button({
 }) {
   
   // 1. Grundläggande stil som alla knappar har (rundade hörn, font, shadow, etc)
-  const baseStyle = "rounded font-bold shadow-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed";
+  const baseStyle = "rounded font-medium shadow-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-2 focus:outline-blue-400 focus:outline-offset-2";
 
-  // 2. Varianter (Färger)
+  // 2. Varianter (Färger) - Matchad med design-systemet
   const variants = {
-    primary: "bg-blue-600 text-white hover:bg-blue-700", // Spara, Ny, Koppla
-    danger: "bg-red-600 text-white hover:bg-red-700",   // Ta bort
-    success: "bg-green-600 text-white hover:bg-green-700", // Bekräfta, Klart
-    secondary: "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50", // Avbryt
-    ghost: "bg-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-100 border-transparent shadow-none" // Enkla textknappar
+    primary: "bg-blue-600 text-white hover:bg-blue-500 active:bg-blue-700", // Primär åtgärd
+    danger: "bg-red-600 text-white hover:bg-red-500 active:bg-red-700",     // Destruktiv åtgärd
+    success: "bg-green-600 text-white hover:bg-green-500 active:bg-green-700", // Bekräftelse
+    secondary: "bg-slate-700 text-slate-300 border border-slate-600 hover:bg-slate-600 active:bg-slate-800", // Sekundär
+    ghost: "bg-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-700/30 border-transparent shadow-none" // Enkla textknappar
   };
 
   // 3. Storlekar

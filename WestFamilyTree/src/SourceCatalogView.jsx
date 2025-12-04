@@ -10,7 +10,7 @@ function StarRating({ value, onChange }) {
           key={i}
           type="button"
           className={
-            'text-2xl ' + (i < value ? 'text-yellow-400' : 'text-gray-300')
+            'text-2xl ' + (i < value ? 'text-yellow-400' : 'text-slate-600')
           }
           onClick={() => onChange(i + 1)}
           aria-label={`Sätt trovärdighet till ${i + 1}`}
@@ -39,11 +39,11 @@ export default function SourceCatalogView({
 }) {
   // Layout: vänster träd, höger detaljpanel
   return (
-    <div className="flex h-full w-full bg-gray-50">
+    <div className="flex h-full w-full bg-slate-800">
       {/* Vänster: Trädstruktur */}
-      <aside className="w-80 border-r bg-white overflow-y-auto p-2 flex flex-col">
+      <aside className="w-80 border-r border-slate-700 bg-slate-800 overflow-y-auto p-2 flex flex-col">
         <div className="flex items-center justify-between mb-2">
-          <h2 className="font-bold text-lg">Central Källkatalog</h2>
+          <h2 className="font-bold text-lg text-slate-200">Central Källkatalog</h2>
           <button
             className="ml-2 px-3 py-1 bg-blue-600 text-white rounded text-sm font-semibold"
             onClick={onAddSource}
@@ -65,40 +65,40 @@ export default function SourceCatalogView({
         {/* Fält för källa */}
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div>
-            <label className="block text-sm font-medium">Arkiv</label>
-            <input className="w-full border rounded px-2 py-1" name="archive" />
+            <label className="block text-sm font-medium text-slate-300">Arkiv</label>
+            <input className="w-full border border-slate-600 bg-slate-900 text-slate-200 rounded px-2 py-1" name="archive" />
           </div>
           <div>
-            <label className="block text-sm font-medium">Bok</label>
-            <input className="w-full border rounded px-2 py-1" name="volume" />
+            <label className="block text-sm font-medium text-slate-300">Bok</label>
+            <input className="w-full border border-slate-600 bg-slate-900 text-slate-200 rounded px-2 py-1" name="volume" />
           </div>
           <div>
-            <label className="block text-sm font-medium">Bild</label>
-            <input className="w-full border rounded px-2 py-1" name="imagePage" />
+            <label className="block text-sm font-medium text-slate-300">Bild</label>
+            <input className="w-full border border-slate-600 bg-slate-900 text-slate-200 rounded px-2 py-1" name="imagePage" />
           </div>
           <div>
-            <label className="block text-sm font-medium">Sida</label>
-            <input className="w-full border rounded px-2 py-1" name="page" />
+            <label className="block text-sm font-medium text-slate-300">Sida</label>
+            <input className="w-full border border-slate-600 bg-slate-900 text-slate-200 rounded px-2 py-1" name="page" />
           </div>
           <div>
-            <label className="block text-sm font-medium">AID</label>
-            <input className="w-full border rounded px-2 py-1" name="aid" />
+            <label className="block text-sm font-medium text-slate-300">AID</label>
+            <input className="w-full border border-slate-600 bg-slate-900 text-slate-200 rounded px-2 py-1" name="aid" />
           </div>
           <div>
-            <label className="block text-sm font-medium">NAD</label>
-            <input className="w-full border rounded px-2 py-1" name="nad" />
+            <label className="block text-sm font-medium text-slate-300">NAD</label>
+            <input className="w-full border border-slate-600 bg-slate-900 text-slate-200 rounded px-2 py-1" name="nad" />
           </div>
         </div>
         {/* Bild och notering */}
         <div className="flex gap-6 mb-4">
           <div className="flex flex-col items-center">
-            <div className="w-48 h-48 border-2 border-dashed flex items-center justify-center mb-2 bg-white cursor-pointer">
-              <span className="text-gray-400 text-center">Klicka eller Klistra in bild (Ctrl+V)</span>
+            <div className="w-48 h-48 border-2 border-dashed border-slate-600 flex items-center justify-center mb-2 bg-slate-900 cursor-pointer">
+              <span className="text-slate-400 text-center">Klicka eller Klistra in bild (Ctrl+V)</span>
             </div>
             <button className="text-xs text-red-600 mt-1">Ta bort bild</button>
           </div>
           <div className="flex-1">
-            <label className="block text-sm font-medium">Notering</label>
+            <label className="block text-sm font-medium text-slate-300">Notering</label>
             <Editor
               value={selectedNode?.note || ''}
               onChange={(e) => {
@@ -113,26 +113,26 @@ export default function SourceCatalogView({
             />
             <div className="mt-4 flex items-center gap-4">
               <div>
-                <label className="block text-sm font-medium">Trovärdighet</label>
+                <label className="block text-sm font-medium text-slate-300">Trovärdighet</label>
                 <StarRating value={0} onChange={() => {}} />
               </div>
               <div>
-                <label className="block text-sm font-medium">Taggar</label>
-                <input className="w-48 border rounded px-2 py-1" name="tags" placeholder="tagg1, tagg2" />
+                <label className="block text-sm font-medium text-slate-300">Taggar</label>
+                <input className="w-48 border border-slate-600 bg-slate-900 text-slate-200 rounded px-2 py-1" name="tags" placeholder="tagg1, tagg2" />
               </div>
               <div>
-                <label className="block text-sm font-medium">Datum</label>
-                <input className="w-32 border rounded px-2 py-1" name="date" type="date" />
+                <label className="block text-sm font-medium text-slate-300">Datum</label>
+                <input className="w-32 border border-slate-600 bg-slate-900 text-slate-200 rounded px-2 py-1" name="date" type="date" />
               </div>
             </div>
           </div>
         </div>
         {/* Kopplade personer */}
         <div className="mb-4">
-          <label className="block text-sm font-medium mb-1">Kopplade personer</label>
-          <table className="w-full border text-sm bg-white">
+          <label className="block text-sm font-medium text-slate-300 mb-1">Kopplade personer</label>
+          <table className="w-full border border-slate-700 text-sm bg-slate-900">
             <thead>
-              <tr className="bg-gray-100">
+              <tr className="bg-slate-700">
                 <th className="border px-2 py-1">Händelse</th>
                 <th className="border px-2 py-1">Ref</th>
                 <th className="border px-2 py-1">Förnamn</th>

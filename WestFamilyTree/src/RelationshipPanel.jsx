@@ -25,14 +25,14 @@ export default function RelationshipPanel({ focusPair, allPeople, onClearFocus, 
     const relationship = calculateRelationship(personA.id, personB.id, allPeople, getPersonRelations);
 
     return (
-        <div className="fixed bottom-0 left-0 right-0 bg-gray-800 text-white p-4 shadow-2xl z-50 flex items-center justify-between animate-slide-in-bottom">
+        <div className="fixed bottom-0 left-0 right-0 bg-slate-800 text-slate-200 p-4 shadow-2xl z-50 flex items-center justify-between animate-slide-in-bottom border-t border-slate-700">
             <div className="flex items-center gap-6">
                 {/* Person A */}
                 <div className="flex items-center gap-2">
                     <span className="text-yellow-400 text-2xl" title="Primär Fokusperson">★</span>
                     <div>
                         <div className="font-bold">{personA.firstName} {personA.lastName}</div>
-                        <div className="text-xs text-gray-400">{getLifeSpanString(personA)}</div>
+                        <div className="text-xs text-slate-400">{getLifeSpanString(personA)}</div>
                     </div>
                 </div>
 
@@ -43,7 +43,7 @@ export default function RelationshipPanel({ focusPair, allPeople, onClearFocus, 
                     <span className="text-blue-500 text-2xl" title="Sekundär Fokusperson">★</span>
                     <div>
                         <div className="font-bold">{personB.firstName} {personB.lastName}</div>
-                        <div className="text-xs text-gray-400">{getLifeSpanString(personB)}</div>
+                        <div className="text-xs text-slate-400">{getLifeSpanString(personB)}</div>
                     </div>
                 </div>
             </div>
@@ -52,7 +52,7 @@ export default function RelationshipPanel({ focusPair, allPeople, onClearFocus, 
                 <div className="text-lg font-bold">{relationship}</div>
             </div>
 
-            <button onClick={onClearFocus} className="text-gray-400 hover:text-white text-2xl" title="Rensa fokuspersoner">&times;</button>
+            <button onClick={onClearFocus} className="text-slate-400 hover:text-slate-200 text-2xl" title="Rensa fokuspersoner">&times;</button>
         </div>
     );
 }

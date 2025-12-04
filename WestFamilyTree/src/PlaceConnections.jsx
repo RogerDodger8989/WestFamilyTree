@@ -30,12 +30,12 @@ export default function PlaceConnections({ place, allPeople, onPersonClick }) {
 
     return (
         <div className="mt-6">
-            <h4 className="text-lg font-semibold text-gray-800 border-b pb-2 mb-2">Personer & Händelser på denna plats</h4>
+            <h4 className="text-lg font-semibold text-slate-200 border-b pb-2 mb-2">Personer & Händelser på denna plats</h4>
             <ul className="space-y-2">
                 {connectedPeople.map(({ person, event }, index) => (
-                    <li key={`${person.id}-${event.id}-${index}`} className="text-sm p-2 bg-gray-50 rounded-md">
+                    <li key={`${person.id}-${event.id}-${index}`} className="text-sm p-2 bg-slate-800 rounded-md border border-slate-700">
                         <span className="font-bold cursor-pointer hover:underline" onClick={() => onPersonClick(person.id)}>{person.firstName} {person.lastName}</span>
-                        <span className="text-gray-600"> - {event.type} ({event.date || 'Okänt datum'})</span>
+                        <span className="text-slate-400"> - {event.type} ({event.date || 'Okänt datum'})</span>
                     </li>
                 ))}
             </ul>

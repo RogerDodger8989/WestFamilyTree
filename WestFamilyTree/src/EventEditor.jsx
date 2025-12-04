@@ -120,7 +120,7 @@ export default function EventEditor({ event, index, onEventChange, allPeople, al
                 <select
                     value={event.partnerId || ''}
                     onChange={(e) => handleFieldChange('partnerId', e.target.value)}
-                    className="flex-grow p-1 border rounded text-sm bg-white"
+                    className="flex-grow p-1 border border-slate-600 bg-slate-900 text-slate-200 rounded text-sm"
                 >
                     <option value="">Välj partner...</option>
                     {allPeople.map(p => (

@@ -38,7 +38,7 @@ export default function ContextMenu({ visible, x = 0, y = 0, items = [], onClose
     top: y,
     zIndex: 9999,
     minWidth: 160,
-    background: '#ffffff',
+    background: '#1e293b',
     border: '1px solid rgba(0,0,0,0.08)',
     borderRadius: 6,
     boxShadow: '0 6px 18px rgba(0,0,0,0.12)',

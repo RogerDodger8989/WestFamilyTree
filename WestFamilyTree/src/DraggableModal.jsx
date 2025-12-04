@@ -103,16 +103,16 @@ const DraggableModal = ({
     <div className="fixed inset-0 pointer-events-none" style={{ zIndex: modalZ }}>
       <div 
         ref={modalRef}
-        className="absolute bg-white shadow-2xl border border-gray-500 rounded-lg flex flex-col pointer-events-auto overflow-hidden"
+        className="absolute bg-slate-800 shadow-2xl border border-slate-700 rounded-lg flex flex-col pointer-events-auto overflow-hidden"
         style={{ left: bounds.x, top: bounds.y, width: bounds.w, height: bounds.h, maxWidth: '100vw', maxHeight: '100vh' }}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className="bg-gray-200 border-b border-gray-300 p-2 flex justify-between items-center cursor-move select-none h-10 shrink-0" onMouseDown={handleMouseDownHeader}>
-          <h3 className="font-bold text-gray-800 pl-2 text-sm">{title}</h3>
-          <button onClick={doClose} className="text-gray-500 hover:text-red-600 font-bold px-3 py-1 text-lg leading-none">×</button>
+        <div className="bg-slate-700 border-b border-slate-600 p-2 flex justify-between items-center cursor-move select-none h-10 shrink-0" onMouseDown={handleMouseDownHeader}>
+          <h3 className="font-bold text-slate-200 pl-2 text-sm">{title}</h3>
+          <button onClick={doClose} className="text-slate-400 hover:text-red-600 font-bold px-3 py-1 text-lg leading-none">×</button>
         </div>
-        <div className="flex-1 overflow-hidden relative bg-gray-50">{children}</div>
-        <div className="bg-gray-100 border-t p-3 flex justify-end items-center select-none shrink-0 h-14 relative">
+        <div className="flex-1 overflow-hidden relative bg-slate-900">{children}</div>
+        <div className="bg-slate-700 border-t border-slate-600 p-3 flex justify-end items-center select-none shrink-0 h-14 relative">
           {/* EditPersonModal-knappar */}
           {title === 'Dennis Persson' || title === 'Redigera person' || title === 'Person' || (typeof title === 'string' && title.toLowerCase().includes('person')) ? (
             <>
@@ -122,7 +122,7 @@ const DraggableModal = ({
             </>
           ) : (
             <>
-              <button onClick={doCancel} className="px-4 py-1 border border-gray-300 bg-white text-gray-700 rounded hover:bg-gray-50 text-sm font-medium shadow-sm">Avbryt</button>
+              <button onClick={doCancel} className="px-4 py-1 border border-slate-600 bg-slate-700 text-slate-200 rounded hover:bg-slate-600 text-sm font-medium shadow-sm">Avbryt</button>
               <div className="flex gap-3 mr-4">
                 {showLinkButton && (<button onClick={doLink} className="px-5 py-1.5 bg-blue-700 text-white rounded hover:bg-blue-800 text-sm font-bold shadow">Koppla vald källa</button>)}
                 {showConfirm && (<button onClick={doConfirm} className="px-5 py-1.5 bg-green-600 text-white rounded hover:bg-green-700 text-sm font-bold shadow">Bekräfta</button>)}

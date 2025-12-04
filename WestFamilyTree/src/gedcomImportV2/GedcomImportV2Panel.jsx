@@ -97,7 +97,7 @@ export default function GedcomImportV2Panel({ onImport }) {
       <button
         onClick={handleImportClick}
         disabled={!isReady || isLoading}
-        style={{ marginTop: 12, padding: '8px 20px', background: isReady ? '#2563eb' : '#ccc', color: 'white', border: 'none', borderRadius: 4, cursor: isReady ? 'pointer' : 'not-allowed' }}
+        style={{ marginTop: 12, padding: '8px 20px', background: isReady ? '#2563eb' : '#475569', color: 'white', border: 'none', borderRadius: 4, cursor: isReady ? 'pointer' : 'not-allowed' }}
       >
         {isLoading ? 'Importerar...' : 'Importera'}
       </button>

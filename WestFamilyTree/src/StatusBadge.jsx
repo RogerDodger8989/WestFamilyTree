@@ -7,7 +7,7 @@ export default function StatusBadge({ label = 'Kopplad', variant = 'success', ic
     case 'success': bgClass = 'bg-green-600'; textClass = 'text-white'; break;
     case 'warn': bgClass = 'bg-yellow-500'; textClass = 'text-black'; break;
     case 'error': bgClass = 'bg-red-600'; textClass = 'text-white'; break;
-    default: bgClass = 'bg-gray-200'; textClass = 'text-gray-800';
+    default: bgClass = 'bg-slate-700'; textClass = 'text-slate-200';
   }
 
   return (

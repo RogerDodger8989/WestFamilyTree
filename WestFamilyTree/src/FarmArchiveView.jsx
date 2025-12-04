@@ -189,8 +189,8 @@ export default function FarmArchiveView({ places, people, allSources = [], onSav
   return (
     <div className="flex h-full">
       {/* Lista över gårdar/torp */}
-      <aside className="w-80 border-r bg-white p-2 overflow-y-auto">
-        <h2 className="font-bold text-lg mb-2">Gårdsarkivet</h2>
+      <aside className="w-80 border-r border-slate-700 bg-slate-800 p-2 overflow-y-auto">
+        <h2 className="font-bold text-lg mb-2 text-slate-200">Gårdsarkivet</h2>
         <ul>
           {farms.map(farm => (
             <li key={farm.id} className="flex items-center justify-between">
@@ -212,19 +212,19 @@ export default function FarmArchiveView({ places, people, allSources = [], onSav
         {selectedFarm ? (
           <>
             <div className="flex items-start gap-4 mb-4">
-              <div className="w-48 h-36 bg-gray-100 rounded border flex items-center justify-center overflow-hidden">
+              <div className="w-48 h-36 bg-slate-700 rounded border border-slate-600 flex items-center justify-center overflow-hidden">
                 {farmImage ? (
                   <img src={farmImage} alt="Gårdsbild" className="object-cover w-full h-full" />
                 ) : (
-                  <div className="text-sm text-gray-400 p-2">Ingen bild</div>
+                  <div className="text-sm text-slate-400 p-2">Ingen bild</div>
                 )}
               </div>
               <div className="flex-1">
                 <h3 className="text-xl font-bold">{selectedFarm.specific || selectedFarm.village || selectedFarm.parish || selectedFarm.country}</h3>
-                <div className="mb-2 text-gray-600">Platskategori: {PLACE_TYPES[selectedFarm.placeType]?.label || (selectedFarm.placeType || '').replace(/_/g, ' ')}</div>
-                <div className="mb-2 text-sm text-gray-500">ID: {selectedFarm.id}</div>
+                <div className="mb-2 text-slate-400">Platskategori: {PLACE_TYPES[selectedFarm.placeType]?.label || (selectedFarm.placeType || '').replace(/_/g, ' ')}</div>
+                <div className="mb-2 text-sm text-slate-400">ID: {selectedFarm.id}</div>
                 <div className="flex gap-2 mt-2">
-                  <label className="p-2 bg-gray-200 rounded cursor-pointer text-sm">
+                  <label className="p-2 bg-slate-700 rounded cursor-pointer text-sm text-slate-200">
                     Ladda upp bild
                     <input type="file" accept="image/*" className="hidden" onChange={e => handleImageFile(e.target.files?.[0])} />
                   </label>
@@ -236,8 +236,8 @@ export default function FarmArchiveView({ places, people, allSources = [], onSav
             </div>
 
             <div className="mb-4">
-              <label className="block text-xs font-bold text-gray-500 mb-1">Gårdsanteckning</label>
-              <textarea value={editableNote} onChange={e => setEditableNote(e.target.value)} className="w-full p-2 border rounded h-24" placeholder="Skriv anteckningar eller berättelser om gården..."></textarea>
+              <label className="block text-xs font-bold text-slate-300 mb-1">Gårdsanteckning</label>
+              <textarea value={editableNote} onChange={e => setEditableNote(e.target.value)} className="w-full p-2 border border-slate-600 rounded h-24 bg-slate-900 text-slate-200" placeholder="Skriv anteckningar eller berättelser om gården..."></textarea>
               <div className="mt-2 text-right">
                 <button className="px-4 py-2 bg-blue-600 text-white rounded" onClick={handleSaveNote}>Spara anteckning</button>
               </div>
@@ -246,10 +246,10 @@ export default function FarmArchiveView({ places, people, allSources = [], onSav
             {actionPromptPerson && (
               <div className="fixed inset-0 z-50 flex items-center justify-center">
                 <div className="absolute inset-0 bg-black opacity-30" onClick={() => setActionPromptPerson(null)}></div>
-                <div className="bg-white rounded shadow-lg p-4 z-10 w-96">
-                  <div className="font-bold mb-3">Vad vill du göra med {actionPromptPerson.firstName} {actionPromptPerson.lastName}?</div>
+                <div className="bg-slate-800 rounded shadow-lg p-4 z-10 w-96 border border-slate-700">
+                  <div className="font-bold mb-3 text-slate-200">Vad vill du göra med {actionPromptPerson.firstName} {actionPromptPerson.lastName}?</div>
                   <div className="flex justify-end gap-2">
-                    <button className="px-3 py-2 bg-gray-200 rounded" onClick={() => setActionPromptPerson(null)}>Avbryt</button>
+                    <button className="px-3 py-2 bg-slate-700 rounded text-slate-200 hover:bg-slate-600" onClick={() => setActionPromptPerson(null)}>Avbryt</button>
                     <button className="px-3 py-2 bg-blue-600 text-white rounded" onClick={() => { onViewInFamilyTree(actionPromptPerson.id); setActionPromptPerson(null); }}>Visa i släktträd</button>
                     <button className="px-3 py-2 bg-green-600 text-white rounded" onClick={() => { onOpenPerson(actionPromptPerson.id); setActionPromptPerson(null); }}>Redigera personen</button>
                   </div>
@@ -260,15 +260,15 @@ export default function FarmArchiveView({ places, people, allSources = [], onSav
             {/* Filterpanel och export */}
             <div className="flex flex-wrap gap-4 mb-6 items-end">
               <div>
-                <label className="block text-xs font-bold text-gray-500 mb-1">Filtrera efternamn</label>
+                <label className="block text-xs font-bold text-slate-400 mb-1">Filtrera efternamn</label>
                 <input type="text" value={filterSurname} onChange={e => setFilterSurname(e.target.value)} className="p-2 border rounded w-32" placeholder="Efternamn..." />
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-500 mb-1">Filtrera årtal</label>
+                <label className="block text-xs font-bold text-slate-400 mb-1">Filtrera årtal</label>
                 <input type="text" value={filterYear} onChange={e => setFilterYear(e.target.value)} className="p-2 border rounded w-24" placeholder="Årtal..." />
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-500 mb-1">Händelsetyp</label>
+                <label className="block text-xs font-bold text-slate-400 mb-1">Händelsetyp</label>
                 <select value={filterEventType} onChange={e => setFilterEventType(e.target.value)} className="p-2 border rounded w-32">
                   <option value="">Alla</option>
                   <option value="Född">Född</option>
@@ -280,10 +280,10 @@ export default function FarmArchiveView({ places, people, allSources = [], onSav
               </div>
               {timelineYears.length > 0 && (
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 mb-1">Hoppa till år</label>
+                  <label className="block text-xs font-bold text-slate-400 mb-1">Hoppa till år</label>
                   <div className="flex gap-1 flex-wrap">
                     {timelineYears.map(year => (
-                      <button key={year} className="px-2 py-1 text-xs bg-gray-200 rounded hover:bg-blue-200" onClick={() => { setFilterYear(year); scrollToYear(year); }}>{year}</button>
+                      <button key={year} className="px-2 py-1 text-xs bg-slate-700 rounded hover:bg-blue-600 text-slate-300" onClick={() => { setFilterYear(year); scrollToYear(year); }}>{year}</button>
                     ))}
                   </div>
                 </div>
@@ -301,15 +301,15 @@ export default function FarmArchiveView({ places, people, allSources = [], onSav
             </div>
             <div className="flex flex-wrap gap-4 mb-6 items-end">
               <div>
-                <label className="block text-xs font-bold text-gray-500 mb-1">Filtrera efternamn</label>
+                <label className="block text-xs font-bold text-slate-400 mb-1">Filtrera efternamn</label>
                 <input type="text" value={filterSurname} onChange={e => setFilterSurname(e.target.value)} className="p-2 border rounded w-32" placeholder="Efternamn..." />
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-500 mb-1">Filtrera årtal</label>
+                <label className="block text-xs font-bold text-slate-400 mb-1">Filtrera årtal</label>
                 <input type="text" value={filterYear} onChange={e => setFilterYear(e.target.value)} className="p-2 border rounded w-24" placeholder="Årtal..." />
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-500 mb-1">Händelsetyp</label>
+                <label className="block text-xs font-bold text-slate-400 mb-1">Händelsetyp</label>
                 <select value={filterEventType} onChange={e => setFilterEventType(e.target.value)} className="p-2 border rounded w-32">
                   <option value="">Alla</option>
                   <option value="Född">Född</option>
@@ -321,10 +321,10 @@ export default function FarmArchiveView({ places, people, allSources = [], onSav
               </div>
               {timelineYears.length > 0 && (
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 mb-1">Hoppa till år</label>
+                  <label className="block text-xs font-bold text-slate-400 mb-1">Hoppa till år</label>
                   <div className="flex gap-1 flex-wrap">
                     {timelineYears.map(year => (
-                      <button key={year} className="px-2 py-1 text-xs bg-gray-200 rounded hover:bg-blue-200" onClick={() => { setFilterYear(year); scrollToYear(year); }}>{year}</button>
+                      <button key={year} className="px-2 py-1 text-xs bg-slate-700 rounded hover:bg-blue-600 text-slate-300" onClick={() => { setFilterYear(year); scrollToYear(year); }}>{year}</button>
                     ))}
                   </div>
                 </div>
@@ -340,8 +340,8 @@ export default function FarmArchiveView({ places, people, allSources = [], onSav
                     return (
                       <div key={person.id + event.id} className="min-w-[220px] max-w-xs bg-blue-50 border border-blue-200 rounded-lg p-3 flex-shrink-0 relative" data-year={year}>
                         <button className="font-semibold text-blue-900 text-left" onClick={() => setActionPromptPerson(person)}>{person.firstName} {person.lastName}</button>
-                        <div className="text-xs text-gray-600 mb-1">{event.type} {event.date ? '(' + event.date + ')' : ''}</div>
-                        {event.description && <div className="text-xs text-gray-500 mb-1">{event.description}</div>}
+                        <div className="text-xs text-slate-400 mb-1">{event.type} {event.date ? '(' + event.date + ')' : ''}</div>
+                        {event.description && <div className="text-xs text-slate-500 mb-1">{event.description}</div>}
                         {/* Visa källor */}
                         {getSourcesForEvent(event).length > 0 && (
                           <div className="text-xs text-blue-700 mt-1">
@@ -361,7 +361,7 @@ export default function FarmArchiveView({ places, people, allSources = [], onSav
                         )}
                         {/* Visa släktrelationer till andra boende på gården */}
                         {relationshipsByPerson[person.id] && (
-                          <div className="text-xs text-gray-700 mt-2">
+                          <div className="text-xs text-slate-300 mt-2">
                             {relationshipsByPerson[person.id].parents.length > 0 && (
                               <div>Förälder: {relationshipsByPerson[person.id].parents.map(p => (
                                 <span key={p.id} className="inline-flex items-center mr-2">
@@ -394,25 +394,25 @@ export default function FarmArchiveView({ places, people, allSources = [], onSav
                             )}
                           </div>
                         )}
-                        <div className="absolute top-2 right-2 text-xs text-gray-400">{year}</div>
+                        <div className="absolute top-2 right-2 text-xs text-slate-500">{year}</div>
                       </div>
                     );
                   })}
                 </div>
               ) : (
-                <div className="text-gray-400 italic">Ingen boendehändelse matchar filtren.</div>
+                <div className="text-slate-400 italic">Ingen boendehändelse matchar filtren.</div>
               )}
             </div>
 
             {/* Klassisk lista under tidslinjen */}
             <h4 className="font-bold mb-2">Boende (lista):</h4>
-            {filteredResidents.length === 0 && <div className="text-gray-400 italic">Ingen boendehändelse registrerad.</div>}
+            {filteredResidents.length === 0 && <div className="text-slate-400 italic">Ingen boendehändelse registrerad.</div>}
             <ul className="space-y-2">
                   {filteredResidents.map(({ person, event }, i) => (
                 <li key={person.id + event.id} className="border-b pb-2">
                   <div className="font-semibold"><button className="text-left" onClick={() => setActionPromptPerson(person)}>{person.firstName} {person.lastName}</button></div>
-                  <div className="text-sm text-gray-600">{event.type} {event.date ? '(' + event.date + ')' : ''}</div>
-                  {event.description && <div className="text-xs text-gray-500">{event.description}</div>}
+                  <div className="text-sm text-slate-400">{event.type} {event.date ? '(' + event.date + ')' : ''}</div>
+                  {event.description && <div className="text-xs text-slate-500">{event.description}</div>}
                   {/* Visa källor */}
                   {getSourcesForEvent(event).length > 0 && (
                     <div className="text-xs text-blue-700 mt-1">
@@ -432,7 +432,7 @@ export default function FarmArchiveView({ places, people, allSources = [], onSav
                   )}
                       {/* Släktrelationer i listan */}
                       {relationshipsByPerson[person.id] && (
-                        <div className="text-xs text-gray-700 mt-1">
+                        <div className="text-xs text-slate-300 mt-1">
                           {relationshipsByPerson[person.id].parents.length > 0 && <div>Förälder: {relationshipsByPerson[person.id].parents.map(p => (
                             <span key={p.id} className="inline-flex items-center mr-2">
                               <button className="underline text-blue-700 hover:text-blue-900 mr-1 text-xs" onClick={() => onOpenPerson(p.id)}>{p.firstName} {p.lastName}</button>
@@ -464,7 +464,7 @@ export default function FarmArchiveView({ places, people, allSources = [], onSav
             </ul>
           </>
         ) : (
-          <div className="text-gray-400 italic mt-32">Välj en gård/torp till vänster för att se tidslinjen.</div>
+          <div className="text-slate-400 italic mt-32">Välj en gård/torp till vänster för att se tidslinjen.</div>
         )}
       </main>
     </div>

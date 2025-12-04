@@ -185,15 +185,15 @@ function UnmatchedPlacesPanel() {
 
     const [showLinksFor, setShowLinksFor] = useState(null);
     return (
-        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded mb-6 flex flex-col h-[60vh] min-h-[300px] max-h-[80vh]">
-            <h3 className="font-bold text-lg mb-2 text-yellow-800">
+        <div className="p-4 bg-slate-800 border border-slate-700 rounded mb-6 flex flex-col h-[60vh] min-h-[300px] max-h-[80vh]">
+            <h3 className="font-bold text-lg mb-2 text-amber-400">
                 Platser att rätta (slask)
                 {filteredUnmatched.length > 0 && (
-                    <span className="ml-2 bg-red-200 text-red-800 rounded-full px-2 py-0.5 text-xs align-middle">{filteredUnmatched.length}</span>
+                    <span className="ml-2 bg-red-900 text-red-200 rounded-full px-2 py-0.5 text-xs align-middle">{filteredUnmatched.length}</span>
                 )}
             </h3>
             <div className="mb-2">
-                <label className="text-xs text-gray-500">Sök i platser:</label>
+                <label className="text-xs text-slate-400">Sök i platser:</label>
                 <input
                     type="text"
                     placeholder="Fritextsökning..."
@@ -205,7 +205,7 @@ function UnmatchedPlacesPanel() {
             <div className="flex-1 min-h-0">
                 {loading ? <div>Laddar...</div> : (
                     <ul className="space-y-2 h-full max-h-full overflow-y-auto pr-2">
-                        {filteredUnmatched.length === 0 && <li className="text-gray-500">Inga omatchade platser 🎉</li>}
+                        {filteredUnmatched.length === 0 && <li className="text-slate-400">Inga omatchade platser 🎉</li>}
                         {filteredUnmatched.map(place => {
                             const parsed = getParsedInfo(place);
                             const hasLinks = Array.isArray(place.links) && place.links.length > 0;
@@ -230,7 +230,7 @@ function UnmatchedPlacesPanel() {
                                 </div>
                                 {/* Visa kopplade personer/händelser i en liten lista vid klick */}
                                 {hasLinks && showLinksFor === place.id && (
-                                    <div className="ml-2 mt-1 text-xs text-gray-700 bg-blue-50 border border-blue-200 rounded p-2 max-w-md">
+                                    <div className="ml-2 mt-1 text-xs text-slate-300 bg-blue-900 border border-blue-700 rounded p-2 max-w-md">
                                         <div className="font-semibold text-blue-900 mb-1">Kopplade personer/händelser:</div>
                                         <ul className="list-disc ml-4">
                                             {place.links.map(link => (
@@ -241,17 +241,17 @@ function UnmatchedPlacesPanel() {
                                                 </li>
                                             ))}
                                         </ul>
-                                        <button onClick={() => setShowLinksFor(null)} className="mt-2 px-2 py-1 text-xs bg-gray-200 rounded">Stäng</button>
+                                        <button onClick={() => setShowLinksFor(null)} className="mt-2 px-2 py-1 text-xs bg-slate-700 rounded text-slate-200 hover:bg-slate-600">Stäng</button>
                                     </div>
                                 )}
                                 {/* Visa parser-info för platsen */}
                                 {parsed && (
-                                    <div className="ml-2 mt-1 text-xs text-gray-600">
+                                    <div className="ml-2 mt-1 text-xs text-slate-400">
                                         <span className="font-semibold">Parser:</span> {parsed.type || 'okänd'} {parsed.countryCode && `(${parsed.countryCode})`} {parsed.usedHeuristics && <span className="text-orange-600">(heuristik)</span>}
                                         {parsed.parts && parsed.parts.length > 0 && (
                                             <span className="ml-2">[
                                                 {parsed.parts.map((part, idx) => (
-                                                    <span key={idx} className="bg-gray-100 rounded px-2 py-0.5 mx-0.5">{part}</span>
+                                                    <span key={idx} className="bg-slate-700 rounded px-2 py-0.5 mx-0.5 text-slate-200">{part}</span>
                                                 ))}
                                             ]</span>
                                         )}
@@ -259,7 +259,7 @@ function UnmatchedPlacesPanel() {
                                 )}
                                 {/* Visa kopplade personer/händelser */}
                                 {Array.isArray(place.links) && place.links.length > 0 && (
-                                    <div className="ml-2 mt-1 text-xs text-gray-700">
+                                    <div className="ml-2 mt-1 text-xs text-slate-300">
                                         <span className="font-semibold text-blue-900">Kopplingar:</span>
                                         <ul className="list-disc ml-4">
                                             {place.links.map(link => (
@@ -440,19 +440,19 @@ function LazyPlaceTreeView({ lan, children, loading, expanded, setExpanded, load
             {/* Sverige som toppnod, nu som riktig nod */}
             <div key="sverige-root">
                 <div
-                    className="flex items-center gap-2 font-bold cursor-pointer bg-gray-100 rounded p-1 mb-1"
+                    className="flex items-center gap-2 font-bold cursor-pointer bg-slate-700 rounded p-1 mb-1 text-slate-200"
                     style={{ fontSize: '1.1em' }}
                 >
                     <span>{LEVEL_ICONS.sverige}</span>
                     <span className="font-semibold">Sverige</span>
-                    <span className="text-xs text-gray-500">({LEVEL_LABELS.sverige})</span>
+                    <span className="text-xs text-slate-400">({LEVEL_LABELS.sverige})</span>
                 </div>
                 <div className="ml-4">
-                    {lan.length === 0 && <div className="text-xs text-gray-400">Inga län funna</div>}
+                    {lan.length === 0 && <div className="text-xs text-slate-400">Inga län funna</div>}
                     {lan.filter(lanObj => lanObj.lansnamn && lanObj.lansnamn.trim() !== '').map(lanObj => (
                         <div key={`lan-${lanObj.lanskod}-${lanObj.lansnamn}`}> 
                             <div
-                                className="flex items-center gap-2 font-semibold cursor-pointer hover:bg-gray-100 rounded p-1"
+                                className="flex items-center gap-2 font-semibold cursor-pointer hover:bg-slate-700 rounded p-1"
                                 onClick={() => {
                                     setExpanded(lanObj.lanskod);
                                     if (!children[lanObj.lanskod]) loadChildren('lan', lanObj.lanskod);
@@ -466,18 +466,18 @@ function LazyPlaceTreeView({ lan, children, loading, expanded, setExpanded, load
                                 <span>{LEVEL_ICONS.lan}</span>
                                 <span className="font-semibold">{lanObj.lansnamn}</span>
                                 {lanObj.lanskod && (
-                                    <span className="text-xs text-gray-500">({lanObj.lanskod})</span>
+                                    <span className="text-xs text-slate-400">({lanObj.lanskod})</span>
                                 )}
-                                <span className="text-xs text-gray-500">({LEVEL_LABELS.lan})</span>
+                                <span className="text-xs text-slate-400">({LEVEL_LABELS.lan})</span>
                             </div>
                             {expanded[lanObj.lanskod] && (
                                 <div className="ml-4">
-                                    {loading[lanObj.lanskod] ? <div className="text-xs text-gray-400">Laddar kommuner...</div> : (
+                                    {loading[lanObj.lanskod] ? <div className="text-xs text-slate-400">Laddar kommuner...</div> : (
                                         (children[lanObj.lanskod] && children[lanObj.lanskod].length > 0) ? (
                                             children[lanObj.lanskod].filter(kommun => kommun.kommunnamn && kommun.kommunnamn.trim() !== '').map(kommun => (
                                                 <div key={`kommun-${kommun.ommunkod}-${kommun.kommunnamn}-${lanObj.lanskod}`}> 
                                                     <div
-                                                        className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 rounded p-1"
+                                                        className="flex items-center gap-2 cursor-pointer hover:bg-slate-700 rounded p-1"
                                                         onClick={() => {
                                                             setExpanded(kommun.ommunkod);
                                                             if (!children[kommun.ommunkod]) loadChildren('kommun', kommun.ommunkod);
@@ -486,16 +486,16 @@ function LazyPlaceTreeView({ lan, children, loading, expanded, setExpanded, load
                                                         {expanded[kommun.ommunkod] ? <span>▼</span> : <span>▶</span>}
                                                         <span>{LEVEL_ICONS.kommun}</span>
                                                         <span>{kommun.kommunnamn} {lanObj.lanskod ? `(${lanObj.lanskod})` : ''}</span>
-                                                        <span className="text-xs text-gray-500">({LEVEL_LABELS.kommun})</span>
+                                                        <span className="text-xs text-slate-400">({LEVEL_LABELS.kommun})</span>
                                                     </div>
                                                     {expanded[kommun.ommunkod] && (
                                                         <div className="ml-4">
-                                                            {loading[kommun.ommunkod] ? <div className="text-xs text-gray-400">Laddar församlingar...</div> : (
+                                                            {loading[kommun.ommunkod] ? <div className="text-xs text-slate-400">Laddar församlingar...</div> : (
                                                                 (children[kommun.ommunkod] && children[kommun.ommunkod].length > 0) ? (
                                                                     children[kommun.ommunkod].filter(forsamling => forsamling.sockenstadnamn && forsamling.sockenstadnamn.trim() !== '').map(forsamling => (
                                                                         <div key={`forsamling-${forsamling.sockenstadkod}-${forsamling.sockenstadnamn}-${kommun.ommunkod}-${lanObj.lanskod}`}> 
                                                                             <div
-                                                                                className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 rounded p-1"
+                                                                                className="flex items-center gap-2 cursor-pointer hover:bg-slate-700 rounded p-1 text-slate-300"
                                                                                 onClick={() => {
                                                                                     setExpanded(forsamling.sockenstadkod);
                                                                                     if (!children[forsamling.sockenstadkod]) loadChildren('forsamling', forsamling.sockenstadkod);
@@ -507,7 +507,7 @@ function LazyPlaceTreeView({ lan, children, loading, expanded, setExpanded, load
                                                                             </div>
                                                                             {expanded[forsamling.sockenstadkod] && (
                                                                                 <div className="ml-4">
-                                                                                    {loading[forsamling.sockenstadkod] ? <div className="text-xs text-gray-400">Laddar orter...</div> : (
+                                                                                    {loading[forsamling.sockenstadkod] ? <div className="text-xs text-slate-400">Laddar orter...</div> : (
                                                                                         (children[forsamling.sockenstadkod] && children[forsamling.sockenstadkod].length > 0) ? (
                                                                                             children[forsamling.sockenstadkod].filter(ort => ort.ortnamn && ort.ortnamn.trim() !== '').map(ort => (
                                                                                                 <div key={`ort-${ort.id}-${ort.ortnamn}-${forsamling.sockenstadkod}-${kommun.ommunkod}-${lanObj.lanskod}`} className="flex items-center gap-2 cursor-pointer hover:bg-blue-50 p-1 rounded" onClick={() => setSelectedPlaceId(ort.id)}>
@@ -516,7 +516,7 @@ function LazyPlaceTreeView({ lan, children, loading, expanded, setExpanded, load
                                                                                                 </div>
                                                                                             ))
                                                                                         ) : (
-                                                                                            <div className="text-xs text-gray-400 italic">Inga orter funna</div>
+                                                                                            <div className="text-xs text-slate-400 italic">Inga orter funna</div>
                                                                                         )
                                                                                     )}
                                                                                 </div>
@@ -524,7 +524,7 @@ function LazyPlaceTreeView({ lan, children, loading, expanded, setExpanded, load
                                                                         </div>
                                                                     ))
                                                                 ) : (
-                                                                    <div className="text-xs text-gray-400 italic">Inga församlingar funna</div>
+                                                                    <div className="text-xs text-slate-400 italic">Inga församlingar funna</div>
                                                                 )
                                                             )}
                                                         </div>
@@ -532,7 +532,7 @@ function LazyPlaceTreeView({ lan, children, loading, expanded, setExpanded, load
                                                 </div>
                                             ))
                                         ) : (
-                                            <div className="text-xs text-gray-400 italic">Inga kommuner funna</div>
+                                            <div className="text-xs text-slate-400 italic">Inga kommuner funna</div>
                                         )
                                     )}
                                 </div>
@@ -570,11 +570,11 @@ function PlaceEditPanel({ place, onSave, allPeople, allSources, onPersonClick, o
         <div className="space-y-4">
             <h3 className="text-xl font-bold">Redigera Plats</h3>
             {place?.id && (
-                <div className="text-xs text-gray-500 mb-2 select-all">Plats-ID: <span className="font-mono">{place.id}</span></div>
+                <div className="text-xs text-slate-400 mb-2 select-all">Plats-ID: <span className="font-mono">{place.id}</span></div>
             )}
             {/* NYTT: Dropdown för att välja platstyp */}
             <div>
-                <label className="block text-sm font-bold text-gray-700">Typ av plats</label>
+                <label className="block text-sm font-bold text-slate-300">Typ av plats</label>
                 <select name="placeType" value={fields.placeType || 'default'} onChange={handleChange} className="w-full p-2 border rounded mt-1">
                     {Object.entries(PLACE_TYPES).map(([key, { icon, label }]) => (
                         <option key={key} value={key}>
@@ -585,20 +585,20 @@ function PlaceEditPanel({ place, onSave, allPeople, allSources, onPersonClick, o
             </div>
             {HIERARCHY_LEVELS.map(level => (
                 <div key={level}>
-                    <label className="block text-sm font-bold text-gray-700 capitalize">{SWEDISH_LABELS[level] || level}</label>
+                    <label className="block text-sm font-bold text-slate-300 capitalize">{SWEDISH_LABELS[level] || level}</label>
                     <input type="text" name={level} value={fields[level] || ''} onChange={handleChange} className="w-full p-2 border rounded mt-1" />
                 </div>
             ))}
             <div>
-                <label className="block text-sm font-bold text-gray-700">Länsbokstav</label>
+                <label className="block text-sm font-bold text-slate-300">Länsbokstav</label>
                 <input type="text" name="countyLetter" value={fields.countyLetter || ''} onChange={handleChange} className="w-full p-2 border rounded mt-1" />
             </div>
             <div>
-                <label className="block text-sm font-bold text-gray-700">Koordinater (Lat, Long)</label>
+                <label className="block text-sm font-bold text-slate-300">Koordinater (Lat, Long)</label>
                 <input type="text" name="coordinates" value={fields.coordinates || ''} onChange={handleChange} className="w-full p-2 border rounded mt-1" placeholder="t.ex. 55.99, 13.50" />
             </div>
             <div>
-                <label className="block text-sm font-bold text-gray-700">Notering</label>
+                <label className="block text-sm font-bold text-slate-300">Notering</label>
                 <Editor
                     value={fields.note || ''}
                     onChange={(e) => handleChange({ target: { name: 'note', value: e.target.value } })}
@@ -692,7 +692,7 @@ export default function PlaceCatalog({ catalogState, setCatalogState }) {
                 nodes = [];
             }
         }
-        if (!nodes || nodes.length === 0) return <div className="text-xs text-gray-400">Inga platser funna</div>;
+        if (!nodes || nodes.length === 0) return <div className="text-xs text-slate-400">Inga platser funna</div>;
         // Filtrera bort noder med '(okänd)' eller tomma namn
         const filteredNodes = nodes.filter(node => {
             if (level === 'lan') return node.lansnamn && !node.lansnamn.toLowerCase().includes('okänd');
@@ -773,7 +773,7 @@ export default function PlaceCatalog({ catalogState, setCatalogState }) {
                                     onClick={() => node.id && setSelectedPlaceId(node.id)}
                                     title={node.id ? 'Visa/Redigera plats' : ''}
                                 >{label}</span>
-                                <span className="text-xs text-gray-500">({level})</span>
+                                <span className="text-xs text-slate-400">({level})</span>
                             </div>
                             {hasChildren && isExpanded && (
                                 <div className="ml-4">
@@ -852,24 +852,24 @@ export default function PlaceCatalog({ catalogState, setCatalogState }) {
 
     // --- UI ---
     return (
-        <div className="flex flex-col w-full h-full bg-gray-50">
+        <div className="flex flex-col w-full h-full bg-slate-900">
             {/* Modal för att skapa ny plats */}
             <PlaceCreateModal
                 isOpen={showCreateModal}
                 onClose={() => setCatalogState(prev => ({ ...prev, showCreateModal: false }))}
                 onCreate={handleCreatePlace}
             />
-            <div className="flex flex-col w-full h-full max-w-full mx-auto bg-white rounded-lg shadow-lg border border-gray-200" style={{marginBottom: 32, marginTop: 8, marginLeft: 8, marginRight: 8, minHeight: 0}}>
-                <div className="flex border-b bg-white rounded-t-lg shadow-sm mb-2">
+            <div className="flex flex-col w-full h-full max-w-full mx-auto bg-slate-800 rounded-lg shadow-lg border border-slate-700" style={{marginBottom: 32, marginTop: 8, marginLeft: 8, marginRight: 8, minHeight: 0}}>
+                <div className="flex border-b border-slate-700 bg-slate-800 rounded-t-lg shadow-sm mb-2">
                     <button
-                        className={`relative px-5 py-2 text-sm font-semibold flex items-center gap-2 border-b-2 ${activeTab === 'register' ? 'border-blue-600 text-blue-700 bg-white shadow -mb-px' : 'border-transparent text-gray-600 bg-gray-100'} focus:outline-none`}
+                        className={`relative px-5 py-2 text-sm font-semibold flex items-center gap-2 border-b-2 ${activeTab === 'register' ? 'border-blue-500 text-blue-300 bg-slate-900 shadow -mb-px' : 'border-transparent text-slate-400 bg-slate-700'} focus:outline-none`}
                         onClick={() => setActiveTab('register')}
                     >
                         <span className="text-lg" role="img" aria-label="Platsregister">📍</span>
                         Platsregister
                     </button>
                     <button
-                        className={`relative px-5 py-2 text-sm font-semibold flex items-center gap-2 border-b-2 ${activeTab === 'unmatched' ? 'border-yellow-500 text-yellow-800 bg-white shadow -mb-px' : 'border-transparent text-gray-600 bg-gray-100'} focus:outline-none`}
+                        className={`relative px-5 py-2 text-sm font-semibold flex items-center gap-2 border-b-2 ${activeTab === 'unmatched' ? 'border-yellow-500 text-yellow-400 bg-slate-900 shadow -mb-px' : 'border-transparent text-slate-400 bg-slate-700'} focus:outline-none`}
                         onClick={() => setActiveTab('unmatched')}
                     >
                         <span className="text-lg" role="img" aria-label="Rätta">🛠️</span>
@@ -879,7 +879,7 @@ export default function PlaceCatalog({ catalogState, setCatalogState }) {
                 <div className="flex w-full h-full" style={{minHeight: 0}}>
                     {activeTab === 'register' ? (
                         <div style={{display: 'flex', width: '100%', height: '100%'}}>
-                            <aside className="w-96 border-r bg-white p-2 flex flex-col" style={{overflow: 'hidden'}}>
+                            <aside className="w-96 border-r border-slate-700 bg-slate-800 p-2 flex flex-col" style={{overflow: 'hidden'}}>
                                 <div className="mb-4">
                                     <div className="flex items-center justify-between mb-2">
                                         <h2 className="font-bold text-lg">Platsregister</h2>
@@ -900,7 +900,7 @@ export default function PlaceCatalog({ catalogState, setCatalogState }) {
                                             onChange={e => setSearchTerm(e.target.value)}
                                         />
                                         <button
-                                            className="px-2 py-1 bg-gray-200 rounded text-gray-700 hover:bg-gray-300 flex items-center"
+                                            className="px-2 py-1 bg-slate-700 rounded text-slate-200 hover:bg-slate-600 flex items-center"
                                             title="Filter"
                                             onClick={() => setShowFilterPanel(true)}
                                         >
@@ -908,16 +908,16 @@ export default function PlaceCatalog({ catalogState, setCatalogState }) {
                                         </button>
                                     </div>
                                     {showFilterPanel && (
-                                        <div className="absolute z-10 bg-white border rounded shadow p-4 top-16 left-4 w-80">
+                                        <div className="absolute z-10 bg-slate-800 border border-slate-700 rounded shadow p-4 top-16 left-4 w-80">
                                             <div className="font-bold mb-2">Filter (kommer snart)</div>
                                             <button className="px-2 py-1 bg-blue-600 text-white rounded" onClick={() => setShowFilterPanel(false)}>Stäng</button>
                                         </div>
                                     )}
                                 </div>
                                 <div className="flex-grow overflow-y-auto">
-                                    {error && <div className="text-red-500">Fel: {error}</div>}
+                                    {error && <div className="text-red-400">Fel: {error}</div>}
                                     {loading ? (
-                                        <div className="text-gray-400 text-center mt-8">Laddar platser...</div>
+                                        <div className="text-slate-400 text-center mt-8">Laddar platser...</div>
                                     ) : searchTerm.trim() !== '' ? (
                                         <ul className="space-y-1">
                                             {searchResults.length > 0 ? (
@@ -981,35 +981,35 @@ export default function PlaceCatalog({ catalogState, setCatalogState }) {
                                                         >
                                                             <span className="text-lg" title={row.label}>{row.icon}</span>
                                                             <span className="font-semibold">{row.value}</span>
-                                                            <span className="text-xs text-gray-600">{row.label}</span>
+                                                            <span className="text-xs text-slate-400">{row.label}</span>
                                                         </li>
                                                     ));
                                                 })()
                                             ) : (
-                                                <div className="text-gray-400 text-center mt-8">Inga träffar.</div>
+                                                <div className="text-slate-400 text-center mt-8">Inga träffar.</div>
                                             )}
                                         </ul>
                                     ) : (
                                         <div>
-                                            <div className="flex items-center gap-2 font-bold cursor-pointer bg-gray-100 rounded p-1 mb-1" style={{ fontSize: '1.1em' }}>
+                                            <div className="flex items-center gap-2 font-bold cursor-pointer bg-slate-700 rounded p-1 mb-1" style={{ fontSize: '1.1em' }}>
                                                 <span>{LEVEL_ICONS.sverige}</span>
                                                 <span className="font-semibold">Sverige</span>
-                                                <span className="text-xs text-gray-500">(Land)</span>
+                                                <span className="text-xs text-slate-400">(Land)</span>
                                             </div>
                                             <div className="ml-4">
                                                         {error ? (
-                                                            <div className="text-red-500">Fel vid laddning av platsregister: {error}</div>
+                                                            <div className="text-red-400">Fel vid laddning av platsregister: {error}</div>
                                                 ) : Array.isArray(tree) && tree.length > 0 ? (
                                                     renderTree(tree, 'lan', expanded, setExpanded, setSelectedPlaceId)
                                                 ) : (
-                                                    <div className="text-gray-400">Inga platser funna eller datan är trasig.</div>
+                                                    <div className="text-slate-400">Inga platser funna eller datan är trasig.</div>
                                                 )}
                                             </div>
                                         </div>
                                     )}
                                 </div>
                             </aside>
-                            <main className="flex-1 p-6 h-full overflow-y-auto bg-white rounded-b-lg shadow-lg" style={{marginBottom: 24}}>
+                            <main className="flex-1 p-6 h-full overflow-y-auto bg-slate-900 rounded-b-lg shadow-lg" style={{marginBottom: 24}}>
                                 {selectedPlaceId ? (
                                     <OfficialPlaceEditPanel
                                         place={selectedPlace}
@@ -1026,7 +1026,7 @@ export default function PlaceCatalog({ catalogState, setCatalogState }) {
                                         }}
                                     />
                                 ) : (
-                                    <div className="text-gray-400 italic text-center mt-32">Välj en plats i listan för att visa detaljer.</div>
+                                    <div className="text-slate-400 italic text-center mt-32">Välj en plats i listan för att visa detaljer.</div>
                                 )}
                             </main>
                         </div>
@@ -1135,14 +1135,14 @@ function OfficialPlaceEditPanel({ place, onSave }) {
             <h3 className="text-xl font-bold flex items-center gap-2">
                 <span className="text-2xl" title={typeLabel}>{typeIcon}</span>
                 Redigera Officiell Plats
-                <span className="text-xs text-gray-500">({typeLabel})</span>
+                <span className="text-xs text-slate-400">({typeLabel})</span>
             </h3>
-            <div className="text-xs text-gray-500 mb-2">
+            <div className="text-xs text-slate-400 mb-2">
                 <div className="flex flex-col gap-1">
                     {codeRows.map(row => (
                         <div key={row.label} className="flex flex-row items-center gap-2">
                             <span>{row.label}:</span>
-                            <span className="font-mono bg-gray-100 px-1 rounded">{row.value}</span>
+                            <span className="font-mono bg-slate-700 px-1 rounded text-slate-200">{row.value}</span>
                             <button
                                 type="button"
                                 className="px-2 py-0.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 font-semibold ml-1"
@@ -1159,24 +1159,24 @@ function OfficialPlaceEditPanel({ place, onSave }) {
                 {type === 'ort' && (
                     <>
                         <div>
-                            <label className="block text-sm font-bold text-gray-700">Ortnamn</label>
+                            <label className="block text-sm font-bold text-slate-300">Ortnamn</label>
                             <input type="text" name="ortnamn" value={editingFields.ortnamn || ''} onChange={handleChange} className="w-full p-2 border rounded mt-1" />
                         </div>
                         <div>
-                            <label className="block text-sm font-bold text-gray-700">Kommun</label>
+                            <label className="block text-sm font-bold text-slate-300">Kommun</label>
                             <input type="text" name="kommunnamn" value={editingFields.kommunnamn || ''} onChange={handleChange} className="w-full p-2 border rounded mt-1" />
                         </div>
                         <div>
-                            <label className="block text-sm font-bold text-gray-700">Län</label>
+                            <label className="block text-sm font-bold text-slate-300">Län</label>
                             <input type="text" name="lansnamn" value={editingFields.lansnamn || ''} onChange={handleChange} className="w-full p-2 border rounded mt-1" />
                         </div>
                         <div>
-                            <label className="block text-sm font-bold text-gray-700">Typ</label>
+                            <label className="block text-sm font-bold text-slate-300">Typ</label>
                             <select
                                 name="detaljtyp"
                                 value={editingFields.detaljtyp || (place && place.ortnamn ? 'city' : '')}
                                 onChange={handleChange}
-                                className="w-full p-2 border rounded mt-1 bg-white"
+                                className="w-full p-2 border rounded mt-1 bg-slate-900 border-slate-700 text-slate-200"
                             >
                                 {PLACE_TYPE_OPTIONS.map(opt => (
                                     <option key={opt.value} value={opt.value}>
@@ -1186,11 +1186,11 @@ function OfficialPlaceEditPanel({ place, onSave }) {
                             </select>
                         </div>
                         <div>
-                            <label className="block text-sm font-bold text-gray-700">Latitud</label>
+                            <label className="block text-sm font-bold text-slate-300">Latitud</label>
                             <input type="number" step="any" name="latitude" value={editingFields.latitude || ''} onChange={handleChange} className="w-full p-2 border rounded mt-1" />
                         </div>
                         <div>
-                            <label className="block text-sm font-bold text-gray-700">Longitud</label>
+                            <label className="block text-sm font-bold text-slate-300">Longitud</label>
                             <input type="number" step="any" name="longitude" value={editingFields.longitude || ''} onChange={handleChange} className="w-full p-2 border rounded mt-1" />
                         </div>
                     </>
@@ -1198,24 +1198,24 @@ function OfficialPlaceEditPanel({ place, onSave }) {
                 {type === 'forsamling' && (
                     <>
                         <div>
-                            <label className="block text-sm font-bold text-gray-700">Församlingsnamn</label>
+                            <label className="block text-sm font-bold text-slate-300">Församlingsnamn</label>
                             <input type="text" name="forsamlingnamn" value={editingFields.forsamlingnamn || editingFields.sockenstadnamn || ''} onChange={handleChange} className="w-full p-2 border rounded mt-1" />
                         </div>
                         <div>
-                            <label className="block text-sm font-bold text-gray-700">Kommun</label>
+                            <label className="block text-sm font-bold text-slate-300">Kommun</label>
                             <input type="text" name="kommunnamn" value={editingFields.kommunnamn || ''} onChange={handleChange} className="w-full p-2 border rounded mt-1" />
                         </div>
                         <div>
-                            <label className="block text-sm font-bold text-gray-700">Län</label>
+                            <label className="block text-sm font-bold text-slate-300">Län</label>
                             <input type="text" name="lansnamn" value={editingFields.lansnamn || ''} onChange={handleChange} className="w-full p-2 border rounded mt-1" />
                         </div>
                         <div>
-                            <label className="block text-sm font-bold text-gray-700">Typ</label>
+                            <label className="block text-sm font-bold text-slate-300">Typ</label>
                             <select
                                 name="detaljtyp"
                                 value={editingFields.detaljtyp || ''}
                                 onChange={handleChange}
-                                className="w-full p-2 border rounded mt-1 bg-white"
+                                className="w-full p-2 border rounded mt-1 bg-slate-900 border-slate-600 text-slate-200"
                             >
                                 {PLACE_TYPE_OPTIONS.map(opt => (
                                     <option key={opt.value} value={opt.value}>
@@ -1225,11 +1225,11 @@ function OfficialPlaceEditPanel({ place, onSave }) {
                             </select>
                         </div>
                         <div>
-                            <label className="block text-sm font-bold text-gray-700">Latitud</label>
+                            <label className="block text-sm font-bold text-slate-300">Latitud</label>
                             <input type="number" step="any" name="latitude" value={editingFields.latitude || ''} onChange={handleChange} className="w-full p-2 border rounded mt-1" />
                         </div>
                         <div>
-                            <label className="block text-sm font-bold text-gray-700">Longitud</label>
+                            <label className="block text-sm font-bold text-slate-300">Longitud</label>
                             <input type="number" step="any" name="longitude" value={editingFields.longitude || ''} onChange={handleChange} className="w-full p-2 border rounded mt-1" />
                         </div>
                     </>
@@ -1237,25 +1237,25 @@ function OfficialPlaceEditPanel({ place, onSave }) {
                 {type === 'kommun' && (
                     <>
                         <div>
-                            <label className="block text-sm font-bold text-gray-700">Kommunnamn</label>
+                            <label className="block text-sm font-bold text-slate-300">Kommunnamn</label>
                             <input type="text" name="kommunnamn" value={editingFields.kommunnamn || ''} onChange={handleChange} className="w-full p-2 border rounded mt-1" />
                         </div>
                         <div>
-                            <label className="block text-sm font-bold text-gray-700">Län</label>
+                            <label className="block text-sm font-bold text-slate-300">Län</label>
                             <input type="text" name="lansnamn" value={editingFields.lansnamn || ''} onChange={handleChange} className="w-full p-2 border rounded mt-1" />
                         </div>
                     </>
                 )}
                 {type === 'lan' && (
                     <div>
-                        <label className="block text-sm font-bold text-gray-700">Län</label>
+                        <label className="block text-sm font-bold text-slate-300">Län</label>
                         <input type="text" name="lansnamn" value={editingFields.lansnamn || ''} onChange={handleChange} className="w-full p-2 border rounded mt-1" />
                     </div>
                 )}
             </div>
             <div className="flex gap-2 mt-4">
                 <button type="submit" className="px-6 py-2 bg-blue-600 text-white font-bold rounded hover:bg-blue-700">Spara ändringar</button>
-                <button type="button" onClick={handleCancel} className="px-6 py-2 bg-gray-200 text-gray-800 font-bold rounded hover:bg-gray-300 border border-gray-300">Avbryt</button>
+                <button type="button" onClick={handleCancel} className="px-6 py-2 bg-slate-700 text-slate-200 font-bold rounded hover:bg-slate-600 border border-slate-600">Avbryt</button>
             </div>
         </form>
     );

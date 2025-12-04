@@ -114,49 +114,49 @@ export default function ImagePickerModal({ isOpen, allSources, alreadyLinkedImag
 
   return (
     <div className={`fixed inset-0 z-50 flex items-center justify-center bg-black/40`} tabIndex={0}>
-      <div className="bg-white rounded-lg shadow-lg p-6 max-w-2xl w-full">
+      <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-lg p-6 max-w-2xl w-full">
         <h2 className="text-lg font-bold mb-4">Välj bilder att koppla</h2>
         <div
-          className={`border-2 border-dashed rounded-lg overflow-y-auto p-4 transition-colors relative min-h-[300px] ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-gray-50'}`}
+          className={`border-2 border-dashed rounded-lg overflow-y-auto p-4 transition-colors relative min-h-[300px] ${isDragging ? 'border-blue-500 bg-blue-900' : 'border-slate-600 bg-slate-800'}`}
           onDrop={onDrop}
           onDragOver={onDragOver}
           onDragLeave={onDragLeave}
           onPaste={onPaste}
         >
           {images.length === 0 && !uploading && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 pointer-events-none select-none">
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 pointer-events-none select-none">
               <div className="flex flex-col items-center mb-4">
                 <span className="text-3xl">+</span>
                 <span className="text-base font-medium">+ lägg till</span>
-                <span className="text-xs text-gray-400 mt-1">ctrl+v</span>
+                <span className="text-xs text-slate-400 mt-1">ctrl+v</span>
               </div>
               <div className="text-lg font-semibold">Dra och släpp bilder här</div>
               <div className="text-sm">eller klistra in (Ctrl+V)</div>
             </div>
           )}
           {uploading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
+            <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 z-10">
               <p className="text-blue-600 font-bold animate-pulse">Sparar bilder...</p>
             </div>
           )}
           <div className="flex flex-wrap gap-3">
             {/* Add button always visible */}
-            <label className="cursor-pointer border-2 border-dashed border-gray-300 rounded flex flex-col items-center justify-center aspect-square w-32 h-32 hover:bg-white hover:border-blue-400 transition-colors bg-gray-50 mb-2">
-              <span className="text-3xl text-gray-300 mb-1">+</span>
-              <span className="text-xs text-gray-500 font-medium">+ lägg till</span>
-              <span className="text-xs text-gray-400 mt-1">ctrl+v</span>
+            <label className="cursor-pointer border-2 border-dashed border-slate-600 rounded flex flex-col items-center justify-center aspect-square w-32 h-32 hover:bg-slate-700 hover:border-blue-400 transition-colors bg-slate-800 mb-2">
+              <span className="text-3xl text-slate-300 mb-1">+</span>
+              <span className="text-xs text-slate-400 font-medium">+ lägg till</span>
+              <span className="text-xs text-slate-400 mt-1">ctrl+v</span>
               <input type="file" multiple accept="image/*" className="hidden" ref={fileInputRef} onChange={e => handleFileUpload(e.target.files)} />
             </label>
             {images.map(img => (
-              <div key={img.id || img.src} className={`border rounded p-2 flex flex-col items-center w-32 ${selected.includes(img.id || img.src) ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'} cursor-pointer relative`}
+              <div key={img.id || img.src} className={`border rounded p-2 flex flex-col items-center w-32 ${selected.includes(img.id || img.src) ? 'border-blue-500 bg-blue-900' : 'border-slate-700 bg-slate-900'} cursor-pointer relative`}
                    onClick={() => handleToggle(img.id || img.src)}>
                 {previews[img.src] ? (
                   <img src={previews[img.src]} alt={img.title || ''} className="w-24 h-24 object-cover rounded mb-2" />
                 ) : (
-                  <div className="w-24 h-24 flex items-center justify-center text-gray-400 bg-gray-100 rounded mb-2">🖼️</div>
+                  <div className="w-24 h-24 flex items-center justify-center text-slate-400 bg-slate-700 rounded mb-2">🖼️</div>
                 )}
-                <div className="text-xs text-gray-700 truncate w-full text-center">{img.title || img.src.split('/').pop()}</div>
-                <div className="text-[10px] text-gray-400">{img.sourceTitle}</div>
+                <div className="text-xs text-slate-300 truncate w-full text-center">{img.title || img.src.split('/').pop()}</div>
+                <div className="text-[10px] text-slate-400">{img.sourceTitle}</div>
                 {alreadyLinkedImageIds.includes(img.id || img.src) && <div className="text-green-600 text-xs font-bold mt-1">Redan kopplad</div>}
                 {selected.includes(img.id || img.src) && <div className="absolute top-1 right-1 w-5 h-5 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs">✓</div>}
               </div>
@@ -164,7 +164,7 @@ export default function ImagePickerModal({ isOpen, allSources, alreadyLinkedImag
           </div>
         </div>
         <div className="flex justify-end gap-2 mt-6">
-          <button onClick={onClose} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">Avbryt</button>
+          <button onClick={onClose} className="px-4 py-2 bg-slate-700 text-slate-200 rounded hover:bg-slate-600">Avbryt</button>
           <button onClick={handleConfirm} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700" disabled={selected.length === 0}>Koppla valda</button>
         </div>
       </div>

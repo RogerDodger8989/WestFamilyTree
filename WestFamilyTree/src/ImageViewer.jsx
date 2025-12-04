@@ -379,7 +379,7 @@ export default function ImageViewer({
                 initialHeight={800}
                 zIndex={2000}
             >
-                <div className="flex flex-col h-full bg-gray-900 relative">
+                <div className="flex flex-col h-full bg-slate-900 relative">
                     <div 
                         className="flex-1 flex overflow-hidden relative" 
                         onMouseUp={handleMouseUp}
@@ -444,14 +444,14 @@ export default function ImageViewer({
                         
                         {/* HÖGER: SIDOPANEL MED TAGGAR */}
                         {taggedPeopleWithDetails.length > 0 && (
-                            <div className="w-64 bg-gray-800 p-4 shrink-0 overflow-y-auto text-white border-l border-gray-700">
-                                <h4 className="text-sm font-bold border-b border-gray-700 pb-2 mb-2">
+                            <div className="w-64 bg-slate-800 p-4 shrink-0 overflow-y-auto text-white border-l border-slate-700">
+                                <h4 className="text-sm font-bold border-b border-slate-700 pb-2 mb-2">
                                     Taggade personer ({taggedPeopleWithDetails.length})
                                 </h4>
                                 <ul className="space-y-3 text-xs">
                                     {taggedPeopleWithDetails.map((person, idx) => (
-                                        <li key={idx} className="pb-3 border-b border-gray-700">
-                                            <div className="text-gray-400">Ref {person.refNumber}</div>
+                                        <li key={idx} className="pb-3 border-b border-slate-700">
+                                            <div className="text-slate-400">Ref {person.refNumber}</div>
                                             <button 
                                                 className="text-blue-300 hover:text-blue-100 hover:underline font-bold text-left block"
                                                 onClick={() => onOpenEditModal && onOpenEditModal(person.id)}
@@ -459,7 +459,7 @@ export default function ImageViewer({
                                             >
                                                 {person.firstName} {person.lastName}
                                             </button>
-                                            <div className="text-gray-500">{person.lifeRange}</div>
+                                            <div className="text-slate-400">{person.lifeRange}</div>
                                         </li>
                                     ))}
                                 </ul>
@@ -468,8 +468,8 @@ export default function ImageViewer({
                     </div>
 
                     {/* VERKTYGSFÄLT (Oförändrad) */}
-                    <div className="bg-gray-800 p-3 border-t border-gray-700 flex justify-between items-center shrink-0">
-                        <div className="text-gray-400 text-xs flex gap-4">
+                    <div className="bg-slate-800 p-3 border-t border-slate-700 flex justify-between items-center shrink-0">
+                        <div className="text-slate-400 text-xs flex gap-4">
                             {isDrawing ? "Klicka och dra en ruta för att tagga en person." : `${regions.length} personer taggade.`}
                             {zoomLevel > 1 && <span className="text-sm text-white">Zoom: {Math.round(zoomLevel * 100)}%</span>}
                         </div>

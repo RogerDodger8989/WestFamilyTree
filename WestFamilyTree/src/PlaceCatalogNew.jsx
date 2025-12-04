@@ -56,15 +56,15 @@ const TreeNode = ({
     const parts = text.split(new RegExp(`(${highlightTerm})`, 'gi'));
     return parts.map((part, i) => 
       part.toLowerCase() === highlightTerm.toLowerCase() ? 
-        <mark key={i} className="bg-yellow-200">{part}</mark> : part
+        <mark key={i} className="bg-amber-700 text-amber-100">{part}</mark> : part
     );
   };
 
   return (
     <div>
       <div 
-        className={`flex items-center py-1 px-2 cursor-pointer select-none hover:bg-gray-200 ${
-          isSelected ? 'bg-blue-100 border-l-4 border-blue-600' : ''
+        className={`flex items-center py-1 px-2 cursor-pointer select-none hover:bg-slate-700 transition-colors ${
+          isSelected ? 'bg-blue-600 border-l-4 border-blue-400' : ''
         }`}
         style={{ paddingLeft: `${level * 20 + 8}px` }}
         onClick={() => onSelect(node)}
@@ -72,7 +72,7 @@ const TreeNode = ({
         onContextMenu={(e) => onContextMenu(e, node)}
       >
         <div 
-          className="mr-1 text-gray-500 hover:text-gray-800"
+          className="mr-1 text-slate-500 hover:text-slate-300 transition-colors"
           onClick={(e) => {
             e.stopPropagation();
             if (hasChildren) toggleExpand(node.id);
@@ -94,7 +94,7 @@ const TreeNode = ({
           className="mr-2 text-base"
         />
         
-        <span className="text-sm text-gray-800">{highlightText(node.name)}</span>
+        <span className="text-sm text-slate-200">{highlightText(node.name)}</span>
       </div>
 
       {hasChildren && isExpanded && (
@@ -149,16 +149,16 @@ const ContextMenu = ({ x, y, node, onClose, onAction }) => {
   return (
     <div
       ref={menuRef}
-      className="fixed bg-white border border-gray-300 rounded shadow-lg py-1 z-50"
+      className="fixed bg-slate-800 border border-slate-700 rounded shadow-lg py-1 z-50"
       style={{ top: y, left: x }}
     >
       {menuItems.map((item, idx) => 
         item.action === 'separator' ? (
-          <div key={idx} className="border-t border-gray-200 my-1" />
+          <div key={idx} className="border-t border-slate-700 my-1" />
         ) : (
           <button
             key={idx}
-            className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center gap-2"
+            className="w-full text-left px-4 py-2 text-sm hover:bg-slate-700 flex items-center gap-2 text-slate-200 transition-colors"
             onClick={() => {
               onAction(item.action, node);
               onClose();
@@ -709,24 +709,24 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
   displayTree = sortTree(displayTree);
 
   return (
-    <div className="flex flex-col h-full bg-gray-50 overflow-hidden">
+    <div className="flex flex-col h-full bg-slate-900 overflow-hidden">
       {/* Toolbar */}
-      <div className="bg-white border-b border-gray-300 px-4 py-2 flex items-center gap-2 shadow-sm">
+      <div className="bg-slate-800 border-b border-slate-700 px-4 py-2 flex items-center gap-2 shadow-sm">
         <button 
-          className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+          className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-500 font-medium"
           onClick={() => setCreatingParent(selectedNode || tree[0])}
         >
           ➕ Ny
         </button>
         <button 
-          className="px-3 py-1 bg-gray-200 text-gray-700 text-sm rounded hover:bg-gray-300"
+          className="px-3 py-1 bg-slate-700 text-slate-300 text-sm rounded hover:bg-slate-600 font-medium"
           onClick={() => editingPlace ? setEditingPlace(null) : (selectedNode && setEditingPlace(selectedNode))}
           disabled={!selectedNode}
         >
           ✏️ Redigera
         </button>
         <button 
-          className="px-3 py-1 bg-red-100 text-red-700 text-sm rounded hover:bg-red-200"
+          className="px-3 py-1 bg-red-600 text-red-100 text-sm rounded hover:bg-red-700 font-medium"
           onClick={() => alert('Radera (kommer snart)')}
           disabled={!selectedNode}
         >
@@ -740,13 +740,13 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
           placeholder="Sök plats..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="border border-gray-300 rounded px-3 py-1 text-sm w-64"
+          className="border border-slate-700 bg-slate-900 text-white rounded px-3 py-1 text-sm w-64 focus:border-blue-500 focus:outline-none"
         />
         
         <select
           value={sortOrder}
           onChange={(e) => setSortOrder(e.target.value)}
-          className="border border-gray-300 rounded px-3 py-1 text-sm"
+          className="border border-slate-700 bg-slate-900 text-white rounded px-3 py-1 text-sm focus:border-blue-500 focus:outline-none"
         >
           <option value="name-asc">Namn (A-Ö)</option>
           <option value="name-desc">Namn (Ö-A)</option>
@@ -754,13 +754,13 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
         </select>
         
         <button 
-          className="px-3 py-1 bg-green-100 text-green-700 text-sm rounded hover:bg-green-200"
+          className="px-3 py-1 bg-green-600 text-green-100 text-sm rounded hover:bg-green-500 font-medium"
           onClick={() => fileInputRef.current?.click()}
         >
           📥 Importera
         </button>
         <button 
-          className="px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded hover:bg-blue-200"
+          className="px-3 py-1 bg-blue-600 text-blue-100 text-sm rounded hover:bg-blue-500 font-medium"
           onClick={() => selectedNode && exportPlace(selectedNode)}
           disabled={!selectedNode}
         >
@@ -779,17 +779,17 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left: Tree View */}
-        <div className="w-1/3 min-w-[300px] border-r border-gray-300 flex flex-col bg-white">
-          <div className="p-2 bg-gray-100 border-b border-gray-200 text-xs font-bold uppercase text-gray-600">
+        <div className="w-1/3 min-w-[300px] border-r border-slate-700 flex flex-col bg-slate-850">
+          <div className="p-2 bg-slate-800 border-b border-slate-700 text-xs font-bold uppercase text-slate-300">
             Platsstruktur
           </div>
           <div className="flex-1 overflow-y-auto py-2">
             {loading ? (
-              <div className="text-center text-gray-500 mt-8">Laddar platser...</div>
+              <div className="text-center text-slate-500 mt-8">Laddar platser...</div>
             ) : error ? (
               <div className="text-center text-red-500 mt-8">Fel: {error}</div>
             ) : displayTree.length === 0 ? (
-              <div className="text-center text-gray-500 mt-8">Inga platser funna</div>
+              <div className="text-center text-slate-500 mt-8">Inga platser funna</div>
             ) : (
               displayTree.map(node => (
                 <TreeNode 
@@ -810,18 +810,18 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
         </div>
 
         {/* Right: Details Panel */}
-        <div className="flex-1 bg-white flex flex-col overflow-hidden">
+        <div className="flex-1 bg-slate-800 flex flex-col overflow-hidden">
           {selectedNode ? (
             <div className="flex-1 overflow-y-auto p-6">
-              <h1 className="text-2xl font-semibold text-gray-800 mb-1">{selectedNode.name}</h1>
-              <p className="text-gray-500 italic mb-6">
+              <h1 className="text-2xl font-semibold text-white mb-1">{selectedNode.name}</h1>
+              <p className="text-slate-400 italic mb-6">
                 {PLACE_TYPE_LABELS[selectedNode.type] || 'Platsinformation saknas'}
               </p>
 
               {selectedNode.metadata?.latitude && selectedNode.metadata?.longitude && (
                 <div className="mb-6">
-                  <h3 className="text-sm font-bold text-gray-600 uppercase mb-1">WGS 84 decimal (lat, lon)</h3>
-                  <p className="font-mono text-gray-800 bg-gray-100 inline-block px-2 py-1 rounded">
+                  <h3 className="text-sm font-bold text-slate-300 uppercase mb-1">WGS 84 decimal (lat, lon)</h3>
+                  <p className="font-mono text-slate-200 bg-slate-900 inline-block px-2 py-1 rounded border border-slate-700">
                     {selectedNode.metadata.latitude}, {selectedNode.metadata.longitude}
                   </p>
                 </div>
@@ -829,28 +829,28 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
 
               {selectedNode.metadata?.note && (
                 <div className="mb-6">
-                  <h3 className="text-sm font-bold text-gray-600 uppercase mb-1">Notering</h3>
-                  <p className="text-gray-700 leading-relaxed text-sm">
+                  <h3 className="text-sm font-bold text-slate-300 uppercase mb-1">Notering</h3>
+                  <p className="text-slate-200 leading-relaxed text-sm">
                     {selectedNode.metadata.note}
                   </p>
                 </div>
               )}
 
               {/* Kopplade Personer */}
-              <div className="mt-8 border-t border-gray-300 pt-4">
+              <div className="mt-8 border-t border-slate-700 pt-4">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-bold text-gray-600 uppercase">Kopplade Personer</h3>
-                  <span className="text-xs text-gray-500">{linkedPeople.length} {linkedPeople.length === 1 ? 'person' : 'personer'}</span>
+                  <h3 className="text-sm font-bold text-slate-300 uppercase">Kopplade Personer</h3>
+                  <span className="text-xs text-slate-400">{linkedPeople.length} {linkedPeople.length === 1 ? 'person' : 'personer'}</span>
                 </div>
                 
-                <div className="bg-gray-50 rounded-md border border-gray-200 overflow-hidden">
+                <div className="bg-slate-900 rounded-md border border-slate-700 overflow-hidden">
                   {linkedPeople.length > 0 ? (
                     linkedPeople.map((link, idx) => (
-                      <div key={`${link.personId}-${link.eventId}`} className="flex items-center p-3 border-b border-gray-200 last:border-0 hover:bg-gray-100 transition-colors cursor-pointer">
-                        <span className="mr-3 text-gray-400">👤</span>
+                      <div key={`${link.personId}-${link.eventId}`} className="flex items-center p-3 border-b border-slate-700 last:border-0 hover:bg-slate-800 transition-colors cursor-pointer">
+                        <span className="mr-3 text-slate-500">👤</span>
                         <div className="flex-1">
-                          <div className="text-sm text-gray-800 font-medium">{link.personName}</div>
-                          <div className="text-xs text-gray-500">
+                          <div className="text-sm text-slate-100 font-medium">{link.personName}</div>
+                          <div className="text-xs text-slate-400">
                             {link.eventType}
                             {link.eventDate && ` (${link.eventDate})`}
                           </div>
@@ -858,7 +858,7 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
                       </div>
                     ))
                   ) : (
-                    <div className="p-4 text-sm text-gray-500 italic">
+                    <div className="p-4 text-sm text-slate-400 italic">
                       Inga personer kopplade till denna plats.
                     </div>
                   )}
@@ -866,7 +866,7 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
               </div>
             </div>
           ) : (
-            <div className="flex items-center justify-center h-full text-gray-400">
+            <div className="flex items-center justify-center h-full text-slate-500">
               Välj en plats i listan till vänster för att se detaljer.
             </div>
           )}
@@ -875,12 +875,12 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
 
       {/* Footer: Picker actions or Breadcrumbs */}
       {onPick ? (
-        <div className="h-10 bg-gray-100 border-t border-gray-300 flex items-center justify-end gap-2 px-3">
-          <button className="px-3 py-1 bg-gray-200 rounded" onClick={() => onClose && onClose()}>Avbryt</button>
-          <button className="px-3 py-1 bg-blue-600 text-white rounded" disabled={!selectedNode} onClick={() => selectedNode && onPick(selectedNode)}>OK</button>
+        <div className="h-10 bg-slate-800 border-t border-slate-700 flex items-center justify-end gap-2 px-3">
+          <button className="px-3 py-1 bg-slate-700 text-slate-100 rounded hover:bg-slate-600 font-medium" onClick={() => onClose && onClose()}>Avbryt</button>
+          <button className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-500 font-medium disabled:opacity-50" disabled={!selectedNode} onClick={() => selectedNode && onPick(selectedNode)}>OK</button>
         </div>
       ) : (
-        <div className="h-8 bg-gray-800 text-white flex items-center px-4 text-xs border-t border-gray-700">
+        <div className="h-8 bg-slate-900 text-slate-300 flex items-center px-4 text-xs border-t border-slate-700">
           {breadcrumbs.length > 0 ? (
             <span>{breadcrumbs.join(' › ')}</span>
           ) : (

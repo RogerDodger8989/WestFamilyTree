@@ -30,15 +30,15 @@ export default function RelationshipMatrix({ allPeople = [], onClose }) {
 
     return (
         <div className="fixed inset-0 z-60 flex items-start justify-center" style={{ paddingTop: 80 }}>
-            <div className="bg-white rounded-lg shadow-lg" style={{ width: '90%', maxWidth: 1100, maxHeight: '80vh', overflow: 'auto' }}>
+            <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-lg" style={{ width: '90%', maxWidth: 1100, maxHeight: '80vh', overflow: 'auto' }}>
                 <div className="flex items-center justify-between p-4 border-b">
                     <div>
                         <div className="text-lg font-semibold">Relation Matrix</div>
-                        <div className="text-sm text-gray-600">Välj en grupp personer för att visa parvisa relationer</div>
+                        <div className="text-sm text-slate-300">Välj en grupp personer för att visa parvisa relationer</div>
                     </div>
                     <div className="flex items-center gap-2">
                         <input placeholder="Sök namn..." value={query} onChange={(e) => setQuery(e.target.value)} className="p-2 border rounded" />
-                        <button onClick={onClose} className="px-3 py-1 bg-gray-100 rounded">Stäng</button>
+                        <button onClick={onClose} className="px-3 py-1 bg-slate-700 text-slate-200 rounded hover:bg-slate-600">Stäng</button>
                     </div>
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
@@ -58,18 +58,18 @@ export default function RelationshipMatrix({ allPeople = [], onClose }) {
                             <table style={{ borderCollapse: 'collapse', width: '100%' }}>
                                 <thead>
                                     <tr>
-                                        <th style={{ position: 'sticky', top: 0, background: '#fff', borderBottom: '1px solid #e5e7eb', padding: 8 }}></th>
+                                        <th style={{ position: 'sticky', top: 0, background: '#1e293b', borderBottom: '1px solid #475569', padding: 8 }}></th>
                                         {selectedPeople.map(col => (
-                                            <th key={col.id} style={{ position: 'sticky', top: 0, background: '#fff', borderBottom: '1px solid #e5e7eb', padding: 8, textAlign: 'left' }}>{col.firstName} {col.lastName}</th>
+                                            <th key={col.id} style={{ position: 'sticky', top: 0, background: '#1e293b', borderBottom: '1px solid #475569', padding: 8, textAlign: 'left', color: '#e2e8f0' }}>{col.firstName} {col.lastName}</th>
                                         ))}
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {selectedPeople.map(row => (
                                         <tr key={row.id}>
-                                            <td style={{ padding: 8, borderBottom: '1px solid #f3f4f6', fontWeight: 700 }}>{row.firstName} {row.lastName}</td>
+                                            <td style={{ padding: 8, borderBottom: '1px solid #334155', fontWeight: 700, color: '#e2e8f0' }}>{row.firstName} {row.lastName}</td>
                                             {selectedPeople.map(col => (
-                                                <td key={col.id} style={{ padding: 8, borderBottom: '1px solid #f3f4f6' }}>
+                                                <td key={col.id} style={{ padding: 8, borderBottom: '1px solid #334155', color: '#e2e8f0' }}>
                                                     {row.id === col.id ? '—' : (relationBetween(row.id, col.id) || <span style={{ color: '#9ca3af' }}>Ingen</span>)}
                                                 </td>
                                             ))}

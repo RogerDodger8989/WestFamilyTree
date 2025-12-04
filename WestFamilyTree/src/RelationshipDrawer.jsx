@@ -11,19 +11,19 @@ export default function RelationshipDrawer() {
 
   return (
     <div className="fixed left-0 right-0 bottom-0 bg-transparent z-30" style={{ top: 'calc(6rem + 1cm)' }}>
-      <div className="fixed left-0 bottom-0 w-1/2 border-r flex flex-col bg-gray-50 z-40 overflow-y-auto transition-transform duration-200 animate-slide-in-left drawer-inner" role="dialog" aria-modal="true" style={{ top: 'calc(6rem + 1cm)' }}>
-        <div className="flex items-start justify-between p-4 border-b bg-white">
-          <h3 className="text-lg font-bold">Relationer</h3>
+      <div className="fixed left-0 bottom-0 w-1/2 border-r border-slate-700 flex flex-col bg-slate-800 z-40 overflow-y-auto transition-transform duration-200 animate-slide-in-left drawer-inner" role="dialog" aria-modal="true" style={{ top: 'calc(6rem + 1cm)' }}>
+        <div className="flex items-start justify-between p-4 border-b border-slate-700 bg-slate-800">
+          <h3 className="text-lg font-bold text-slate-200">Relationer</h3>
           <div className="flex flex-col items-end gap-2">
-            <button className="text-2xl px-2 py-1 text-gray-600 hover:bg-gray-100 rounded" onClick={() => handleToggleRelationshipDrawer(relationshipCatalogState?.selectedPersonId)} aria-label="Stäng">×</button>
+            <button className="text-2xl px-2 py-1 text-slate-400 hover:bg-slate-700 rounded" onClick={() => handleToggleRelationshipDrawer(relationshipCatalogState?.selectedPersonId)} aria-label="Stäng">×</button>
           </div>
         </div>
-        <div className="p-4 flex-1 overflow-y-auto bg-white">
-          {!person && <div className="text-gray-500">Välj en person för att visa relationer.</div>}
+        <div className="p-4 flex-1 overflow-y-auto bg-slate-800">
+          {!person && <div className="text-slate-400">Öppna en person för att visa relationer.</div>}
           {person && (
             <div>
               <div className="text-sm font-semibold mb-2">{person.firstName} {person.lastName}</div>
-              <div className="text-xs text-gray-600 mb-3">Händelser</div>
+              <div className="text-xs text-slate-400 mb-3">Händelser</div>
               <ul className="text-sm mb-4">
                 {(person.events || []).map(ev => (
                   <li key={ev.id} className="flex justify-between items-center py-1 border-b">
@@ -36,9 +36,9 @@ export default function RelationshipDrawer() {
                 ))}
               </ul>
 
-              <div className="text-xs text-gray-600 mb-2">Relationer</div>
+              <div className="text-xs text-slate-400 mb-2">Relationer</div>
               <ul className="text-sm">
-                {relations.length === 0 && <li className="text-gray-500">Inga relationer hittades.</li>}
+                {relations.length === 0 && <li className="text-slate-400">Inga relationer hittades.</li>}
                 {relations.map(r => (
                   <li key={r.id} className="flex justify-between items-center py-1 border-b">
                     <div>{r.type}: {r.fromPersonId === person.id ? r.toPersonId : r.fromPersonId}</div>

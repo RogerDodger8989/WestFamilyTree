@@ -45,7 +45,7 @@ export default function RelationSettings({ onClose, inline = false }) {
   }
 
   const content = (
-    <div className={inline ? '' : 'bg-white rounded p-6 w-[520px] max-h-[80vh] overflow-y-auto'}>
+    <div className={inline ? '' : 'bg-slate-800 border border-slate-700 rounded p-6 w-[520px] max-h-[80vh] overflow-y-auto'}>
       <h3 className="text-lg font-bold mb-4">Inställningar för relationsförslag</h3>
       <div className="space-y-3 text-sm">
         <div className="grid grid-cols-2 gap-2">

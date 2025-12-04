@@ -37,7 +37,7 @@ export default function RelationshipPath({ startPerson, endPersonId, allPeople }
     }
 
     return (
-        <div className="text-sm text-gray-600 mb-4 flex flex-wrap items-start gap-x-2">
+        <div className="text-sm text-slate-300 mb-4 flex flex-wrap items-start gap-x-2">
             <span className="font-bold">Relationsstig:</span>
             {path.map((person, index) => (
                 <React.Fragment key={person.id}>
@@ -46,13 +46,13 @@ export default function RelationshipPath({ startPerson, endPersonId, allPeople }
                             {person.firstName} {person.lastName}
                         </div>
                         {index > 0 && ( // Visa bara relation för personer efter den första
-                                <div className="text-xs text-gray-500 italic">
+                                <div className="text-xs text-slate-400 italic">
                                 ({getConnectingRelationship(person, path[index - 1], getPersonRelations)})
                             </div>
                         )}
                     </div>
                     {index < path.length - 1 && (
-                        <span className="text-gray-400 font-bold self-center">→</span>
+                        <span className="text-slate-400 font-bold self-center">→</span>
                     )}
                 </React.Fragment>
             ))}

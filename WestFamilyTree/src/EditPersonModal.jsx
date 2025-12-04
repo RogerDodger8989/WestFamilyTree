@@ -185,15 +185,15 @@ const standardizeDate = (input) => {
 // --- SUB-COMPONENTS ---
 
 const EditorToolbar = () => (
-  <div className="flex gap-1 bg-gray-100 p-1 rounded-t border-b border-gray-300 mb-0">
+  <div className="flex gap-1 bg-slate-800 p-1 rounded-t border-b border-slate-700 mb-0">
     {['B', 'I', 'U'].map(cmd => (
-      <button key={cmd} className="w-6 h-6 flex items-center justify-center hover:bg-gray-200 rounded text-xs font-bold text-gray-700">
+      <button key={cmd} className="w-6 h-6 flex items-center justify-center hover:bg-slate-700 rounded text-xs font-bold text-slate-300">
         {cmd}
       </button>
     ))}
-    <div className="w-px h-4 bg-gray-300 mx-1 self-center"></div>
-    <button className="px-2 h-6 flex items-center justify-center hover:bg-gray-200 rounded text-xs text-gray-700">H1</button>
-    <button className="px-2 h-6 flex items-center justify-center hover:bg-gray-200 rounded text-xs text-gray-700">Lista</button>
+    <div className="w-px h-4 bg-slate-600 mx-1 self-center"></div>
+    <button className="px-2 h-6 flex items-center justify-center hover:bg-slate-700 rounded text-xs text-slate-300">H1</button>
+    <button className="px-2 h-6 flex items-center justify-center hover:bg-slate-700 rounded text-xs text-slate-300">Lista</button>
   </div>
 );
 
@@ -261,7 +261,7 @@ const SourceModal = ({ isOpen, onClose, onAdd, eventType }) => {
     <div className="fixed inset-0 z-[4100] flex items-center justify-center bg-black/30">
       <div 
         ref={modalRef}
-        className="bg-white border border-gray-300 rounded-lg shadow-2xl w-full max-w-md p-0 overflow-hidden"
+        className="bg-slate-800 border border-slate-700 rounded-lg shadow-2xl w-full max-w-md p-0 overflow-hidden"
         style={{
           position: 'fixed',
           left: `${position.x}px`,
@@ -270,17 +270,17 @@ const SourceModal = ({ isOpen, onClose, onAdd, eventType }) => {
         }}
         onMouseDown={handleMouseDown}
       >
-        <div className="modal-header bg-gray-50 p-4 border-b border-gray-200 flex justify-between items-center cursor-move">
-          <h3 className="font-bold text-gray-900">Lägg till källa</h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-900"><X size={20}/></button>
+        <div className="modal-header bg-slate-900 p-4 border-b border-slate-700 flex justify-between items-center cursor-move">
+          <h3 className="font-bold text-white">Lägg till källa</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-white"><X size={20}/></button>
         </div>
         <div className="p-6 space-y-4">
           <div>
-            <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Källtyp</label>
+            <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Källtyp</label>
             <select 
               value={source.type} 
               onChange={e => setSource({...source, type: e.target.value})}
-              className="w-full bg-white border border-gray-300 rounded p-2 text-gray-900 focus:border-blue-500 focus:outline-none"
+              className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:border-blue-500 focus:outline-none"
             >
               <option>Arkiv</option>
               <option>Bok</option>
@@ -291,61 +291,61 @@ const SourceModal = ({ isOpen, onClose, onAdd, eventType }) => {
             </select>
           </div>
           <div>
-            <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Titel</label>
+            <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Titel</label>
             <input 
               type="text"
               value={source.title}
               onChange={e => setSource({...source, title: e.target.value})}
-              className="w-full bg-white border border-gray-300 rounded p-2 text-gray-900 focus:border-blue-500 focus:outline-none"
+              className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:border-blue-500 focus:outline-none"
               placeholder="Källans titel"
             />
           </div>
           <div>
-            <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Författare</label>
+            <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Författare</label>
             <input 
               type="text"
               value={source.author}
               onChange={e => setSource({...source, author: e.target.value})}
-              className="w-full bg-white border border-gray-300 rounded p-2 text-gray-900 focus:border-blue-500 focus:outline-none"
+              className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:border-blue-500 focus:outline-none"
               placeholder="Namn"
             />
           </div>
           <div>
-            <label className="block text-xs font-bold text-gray-600 uppercase mb-1">År</label>
+            <label className="block text-xs font-bold text-slate-300 uppercase mb-1">År</label>
             <input 
               type="text"
               value={source.year}
               onChange={e => setSource({...source, year: e.target.value})}
-              className="w-full bg-white border border-gray-300 rounded p-2 text-gray-900 focus:border-blue-500 focus:outline-none"
+              className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-slate-200 focus:border-blue-500 focus:outline-none"
               placeholder="ÅÅÅÅ"
             />
           </div>
           <div>
-            <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Citat/Referens</label>
+            <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Citat/Referens</label>
             <textarea
               value={source.citation}
               onChange={e => setSource({...source, citation: e.target.value})}
-              className="w-full bg-white border border-gray-300 rounded p-2 text-gray-900 focus:border-blue-500 focus:outline-none resize-none"
+              className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-slate-200 focus:border-blue-500 focus:outline-none resize-none"
               rows="3"
               placeholder="Relevanta citat eller sidnummer"
             />
           </div>
           <div>
-            <label className="block text-xs font-bold text-gray-600 uppercase mb-1">URL (valfritt)</label>
+            <label className="block text-xs font-bold text-slate-300 uppercase mb-1">URL (valfritt)</label>
             <input 
               type="url"
               value={source.url}
               onChange={e => setSource({...source, url: e.target.value})}
-              className="w-full bg-white border border-gray-300 rounded p-2 text-gray-900 focus:border-blue-500 focus:outline-none"
+              className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-slate-200 focus:border-blue-500 focus:outline-none"
               placeholder="https://..."
             />
           </div>
         </div>
-        <div className="bg-gray-50 p-4 border-t border-gray-200 flex justify-end gap-3">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900">Avbryt</button>
+        <div className="bg-slate-900 p-4 border-t border-slate-700 flex justify-end gap-3">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-slate-400 hover:text-white">Avbryt</button>
           <button 
             onClick={handleAdd}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-bold"
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded text-sm font-medium transition-colors"
           >
             Lägg till källa
           </button>
@@ -745,7 +745,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
       {/* MODAL CONTAINER */}
       <div
         ref={modalRef}
-        className="w-full max-w-5xl h-[85vh] bg-white border border-gray-300 rounded-xl shadow-xl flex flex-col overflow-hidden"
+        className="w-full max-w-5xl h-[85vh] bg-slate-800 border border-slate-700 rounded-xl shadow-xl flex flex-col overflow-hidden"
         style={{
           left: `${position.x}px`,
           top: `${position.y}px`,
@@ -756,20 +756,20 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
         }}
         onMouseDown={handleMouseDown}
       >        {/* HEADER */}
-        <div className="modal-header h-16 bg-gray-50 border-b border-gray-200 flex items-center justify-between px-6 shrink-0 cursor-move">
+        <div className="modal-header h-16 bg-slate-700 border-b border-slate-600 flex items-center justify-between px-6 shrink-0 cursor-move">
           <div className="flex items-center gap-4 select-none">
-            <div className="w-10 h-10 rounded-full bg-gray-300 overflow-hidden border-2 border-gray-400 pointer-events-none">
+            <div className="w-10 h-10 rounded-full bg-slate-600 overflow-hidden border-2 border-slate-500 pointer-events-none">
               {person.media?.length > 0 ? (
                 <img src={person.media[0].url} alt="Profil" className="w-full h-full object-cover" />
               ) : (
-                <User className="w-full h-full p-1 text-gray-500" />
+                <User className="w-full h-full p-1 text-slate-400" />
               )}
             </div>
             <div>
-              <h1 className="text-lg font-bold text-gray-900 leading-tight">
+              <h1 className="text-lg font-bold text-slate-200 leading-tight">
                 {person.firstName} {person.lastName}
               </h1>
-              <p className="text-xs text-gray-600">
+              <p className="text-xs text-slate-400">
                 {(() => {
                   const { birthYear, deathYear, lifeSpan } = getLifeInfo(person);
                   if (birthYear && deathYear && lifeSpan !== null) {
@@ -786,7 +786,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
             </div>
           </div>
           <div className="flex items-center gap-3">
-             <nav className="flex bg-gray-100 p-1 rounded-lg mr-4">
+             <nav className="flex bg-slate-700 p-1 rounded-lg mr-4">
                 {[
                   { id: 'info', icon: User, label: 'Info' },
                   { id: 'relations', icon: Users, label: 'Relationer' },
@@ -801,19 +801,19 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                     className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm transition-all ${
                       activeTab === tab.id 
                       ? 'bg-blue-600 text-white shadow-md' 
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-600'
                     }`}
                   >
                     <tab.icon size={14} /> {tab.label}
                   </button>
                 ))}
              </nav>
-             <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full text-gray-600 hover:text-gray-900 cursor-pointer"><X size={20}/></button>
+             <button onClick={onClose} className="p-2 hover:bg-slate-600 rounded-full text-slate-400 hover:text-slate-200 cursor-pointer"><X size={20}/></button>
           </div>
         </div>
 
         {/* CONTENT AREA */}
-        <div className="flex-1 overflow-hidden flex bg-white relative">
+        <div className="flex-1 overflow-hidden flex bg-slate-900 relative">
           <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
             
             {/* FLIK: INFO */}
@@ -823,11 +823,11 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                 {/* Grunddata */}
                 <div className="grid grid-cols-12 gap-6">
                   <div className="col-span-2">
-                    <div className="aspect-[3/4] bg-gray-100 rounded-lg border border-gray-300 flex items-center justify-center relative group cursor-pointer overflow-hidden">
+                    <div className="aspect-[3/4] bg-slate-700 rounded-lg border border-slate-600 flex items-center justify-center relative group cursor-pointer overflow-hidden">
                        {person.media?.length > 0 ? (
                          <img src={person.media[0].url} alt="Profil" className="w-full h-full object-cover" />
                        ) : (
-                         <User size={40} className="text-gray-400" />
+                         <User size={40} className="text-slate-400" />
                        )}
                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                          <Camera size={20} className="text-white" />
@@ -836,24 +836,24 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                   </div>
                   <div className="col-span-10 grid grid-cols-2 gap-4 content-start">
                     <div>
-                      <label className="text-xs uppercase font-bold text-gray-600">Förnamn</label>
-                      <input type="text" value={person.firstName} onChange={e => setPerson({...person, firstName: e.target.value})} className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none" />
+                      <label className="text-xs uppercase font-bold text-slate-300">Förnamn</label>
+                      <input type="text" value={person.firstName} onChange={e => setPerson({...person, firstName: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-slate-200 focus:border-blue-500 focus:outline-none" />
                     </div>
                     <div>
-                      <label className="text-xs uppercase font-bold text-gray-600">Efternamn</label>
-                      <input type="text" value={person.lastName} onChange={e => setPerson({...person, lastName: e.target.value})} className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none" />
+                      <label className="text-xs uppercase font-bold text-slate-300">Efternamn</label>
+                      <input type="text" value={person.lastName} onChange={e => setPerson({...person, lastName: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-slate-200 focus:border-blue-500 focus:outline-none" />
                     </div>
                     <div>
-                      <label className="text-xs uppercase font-bold text-gray-600">Kön</label>
-                      <select value={person.sex} onChange={e => setPerson({...person, sex: e.target.value})} className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none">
+                      <label className="text-xs uppercase font-bold text-slate-300">Kön</label>
+                      <select value={person.sex} onChange={e => setPerson({...person, sex: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-slate-200 focus:border-blue-500 focus:outline-none">
                         <option value="M">Man</option>
                         <option value="K">Kvinna</option>
                         <option value="U">Okänd</option>
                       </select>
                     </div>
                     <div>
-                      <label className="text-xs uppercase font-bold text-gray-600">Ref Nr</label>
-                      <input type="text" value={person.refId} onChange={e => setPerson({...person, refId: e.target.value})} className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none" />
+                      <label className="text-xs uppercase font-bold text-slate-300">Ref Nr</label>
+                      <input type="text" value={person.refId} onChange={e => setPerson({...person, refId: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-slate-200 focus:border-blue-500 focus:outline-none" />
                     </div>
                   </div>
                 </div>
@@ -861,7 +861,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                 {/* Livshändelser */}
                 <div>
                   <div className="flex justify-between items-center mb-3">
-                    <h3 className="text-md font-bold text-gray-900 uppercase tracking-wide flex items-center gap-2">
+                    <h3 className="text-md font-bold text-slate-200 uppercase tracking-wide flex items-center gap-2">
                       <Activity size={16} className="text-blue-600"/> Livshändelser
                     </h3>
                     <button 
@@ -872,9 +872,9 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                     </button>
                   </div>
                   
-                  <div className="bg-white rounded-lg border border-gray-300 overflow-hidden">
+                  <div className="bg-slate-900 rounded-lg border border-slate-700 overflow-hidden">
                     <table className="w-full text-sm text-left">
-                      <thead className="bg-gray-50 text-gray-700 text-xs uppercase">
+                      <thead className="bg-slate-800 text-slate-300 text-xs uppercase">
                         <tr>
                           <th className="p-3">Ålder</th>
                           <th className="p-3">Typ</th>
@@ -896,13 +896,13 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                   setSelectedEventIndex(selectedEventIndex === idx ? null : idx);
                                 }
                               }}
-                              className={`hover:bg-gray-50 transition-colors group cursor-pointer ${
+                              className={`hover:bg-slate-800 transition-colors group cursor-pointer ${
                                 selectedEventIndex === idx && editingEventIndex === null ? 'bg-blue-50 border-l-4 border-blue-600' : ''
                               }`}
                             >
-                              <td className="p-3 text-gray-700">{age !== null ? `${age} år` : '-'}</td>
-                              <td className="p-3 font-medium text-gray-900">{evt.type}</td>
-                              <td className="p-3 font-mono text-gray-700">{evt.date || '-'}</td>
+                              <td className="p-3 text-slate-300">{age !== null ? `${age} år` : '-'}</td>
+                              <td className="p-3 font-medium text-slate-200">{evt.type}</td>
+                              <td className="p-3 font-mono text-slate-300">{evt.date || '-'}</td>
                               <td 
                                 className="p-3 text-blue-600 hover:underline cursor-pointer flex items-center gap-1"
                                 title={getPlaceHierarchy(evt)}
@@ -910,22 +910,22 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                  <MapPin size={12} /> {evt.place || '-'}
                               </td>
                               <td className="p-3">
-                                <div className="flex justify-center gap-3 text-xs text-gray-600">
+                                <div className="flex justify-center gap-3 text-xs text-slate-400">
                                   <span 
-                                    className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${evt.sources?.length > 0 ? 'text-gray-900' : ''}`}
+                                    className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${evt.sources?.length > 0 ? 'text-slate-200' : ''}`}
                                     onClick={(e) => { e.stopPropagation(); setSelectedEventIndex(idx); }}
                                   >
                                     <LinkIcon size={12}/> {evt.sources?.length || 0}
                                   </span>
                                   <span 
-                                    className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${evt.notes ? 'text-gray-900' : ''}`}
+                                    className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${evt.notes ? 'text-slate-200' : ''}`}
                                     onClick={(e) => { e.stopPropagation(); }}
                                     title={evt.notes || ''}
                                   >
                                     <FileText size={12}/> {evt.notes ? 1 : 0}
                                   </span>
                                   <span 
-                                    className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${evt.images > 0 ? 'text-gray-900' : ''}`}
+                                    className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${evt.images > 0 ? 'text-slate-200' : ''}`}
                                     onClick={(e) => { e.stopPropagation(); }}
                                   >
                                     <ImageIcon size={12}/> {evt.images || 0}
@@ -933,10 +933,10 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                 </div>
                               </td>
                               <td className="p-3 text-right flex gap-2 justify-end">
-                                <button onClick={(e) => { e.stopPropagation(); handleEditEvent(idx); }} className="text-gray-600 hover:text-gray-900 p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onClick={(e) => { e.stopPropagation(); handleEditEvent(idx); }} className="text-slate-400 hover:text-slate-300 p-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                   <Edit3 size={14} />
                                 </button>
-                                <button onClick={(e) => { e.stopPropagation(); handleDeleteEvent(idx); }} className="text-gray-600 hover:text-red-600 p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onClick={(e) => { e.stopPropagation(); handleDeleteEvent(idx); }} className="text-slate-400 hover:text-red-600 p-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                   <Trash2 size={14} />
                                 </button>
                               </td>
@@ -945,7 +945,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                         })}
                         {(!person.events || person.events.length === 0) && (
                           <tr>
-                            <td colSpan="5" className="p-4 text-center text-gray-600 text-sm">Inga händelser tillagda än</td>
+                            <td colSpan="5" className="p-4 text-center text-slate-400 text-sm">Inga händelser tillagda än</td>
                           </tr>
                         )}
                       </tbody>
@@ -959,71 +959,71 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
             {activeTab === 'relations' && (
               <div className="space-y-8 animate-in fade-in duration-300">
                 {/* Föräldrar */}
-                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <div className="bg-slate-800 p-4 rounded-lg border border-slate-700">
                    <div className="flex justify-between mb-2">
-                      <h4 className="text-sm font-bold text-gray-900 uppercase">Föräldrar</h4>
+                      <h4 className="text-sm font-bold text-slate-200 uppercase">Föräldrar</h4>
                       <button className="text-blue-600 hover:text-blue-800 text-xs flex items-center gap-1"><Plus size={12}/> Lägg till</button>
                    </div>
                    {person.relations?.parents?.length > 0 ? (
                      person.relations.parents.map((p, idx) => (
-                       <div key={idx} className="flex items-center justify-between bg-white p-2 rounded mb-2 border border-gray-200">
+                       <div key={idx} className="flex items-center justify-between bg-slate-700 p-2 rounded mb-2 border border-slate-600">
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600"><User size={16}/></div>
-                            <span className="text-gray-900 font-medium">{p.name}</span>
+                            <div className="w-8 h-8 rounded-full bg-slate-600 flex items-center justify-center text-slate-400"><User size={16}/></div>
+                            <span className="text-slate-200 font-medium">{p.name}</span>
                           </div>
-                          <select className="bg-white border border-gray-300 text-xs rounded px-2 py-1 text-gray-900">
+                          <select className="bg-slate-900 border border-slate-600 text-xs rounded px-2 py-1 text-slate-200">
                             {RELATION_TYPES.parent.map(r => <option key={r}>{r}</option>)}
                           </select>
                        </div>
                      ))
                    ) : (
-                     <p className="text-xs text-gray-600">Ingen förälder tillagd</p>
+                     <p className="text-xs text-slate-400">Ingen förälder tillagd</p>
                    )}
                 </div>
 
                 {/* Partners */}
-                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <div className="bg-slate-800 p-4 rounded-lg border border-slate-700">
                    <div className="flex justify-between mb-2">
-                      <h4 className="text-sm font-bold text-gray-900 uppercase">Partner</h4>
+                      <h4 className="text-sm font-bold text-slate-200 uppercase">Partner</h4>
                       <button className="text-blue-600 hover:text-blue-800 text-xs flex items-center gap-1"><Plus size={12}/> Lägg till</button>
                    </div>
                    {person.relations?.partners?.length > 0 ? (
                      person.relations.partners.map((p, idx) => (
-                       <div key={idx} className="flex items-center justify-between bg-white p-2 rounded mb-2 border border-gray-200">
+                       <div key={idx} className="flex items-center justify-between bg-slate-700 p-2 rounded mb-2 border border-slate-600">
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600"><User size={16}/></div>
-                            <span className="text-gray-900 font-medium">{p.name}</span>
+                            <div className="w-8 h-8 rounded-full bg-slate-600 flex items-center justify-center text-slate-400"><User size={16}/></div>
+                            <span className="text-slate-200 font-medium">{p.name}</span>
                           </div>
-                          <select className="bg-white border border-gray-300 text-xs rounded px-2 py-1 text-gray-900">
+                          <select className="bg-slate-900 border border-slate-600 text-xs rounded px-2 py-1 text-slate-200">
                             {RELATION_TYPES.partner.map(r => <option key={r}>{r}</option>)}
                           </select>
                        </div>
                      ))
                    ) : (
-                     <p className="text-xs text-gray-600">Ingen partner tillagd</p>
+                     <p className="text-xs text-slate-400">Ingen partner tillagd</p>
                    )}
                 </div>
 
                 {/* Barn */}
-                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <div className="bg-slate-800 p-4 rounded-lg border border-slate-700">
                    <div className="flex justify-between mb-2">
-                      <h4 className="text-sm font-bold text-gray-900 uppercase">Barn</h4>
+                      <h4 className="text-sm font-bold text-slate-200 uppercase">Barn</h4>
                       <button className="text-blue-600 hover:text-blue-800 text-xs flex items-center gap-1"><Plus size={12}/> Lägg till</button>
                    </div>
                    {person.relations?.children?.length > 0 ? (
                      person.relations.children.map((c, idx) => (
-                       <div key={idx} className="flex items-center justify-between bg-white p-2 rounded mb-2 border border-gray-200">
+                       <div key={idx} className="flex items-center justify-between bg-slate-900 p-2 rounded mb-2 border border-slate-700">
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600"><User size={16}/></div>
-                            <span className="text-gray-900 font-medium">{c.name}</span>
+                            <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-slate-400"><User size={16}/></div>
+                            <span className="text-slate-200 font-medium">{c.name}</span>
                           </div>
-                          <select className="bg-white border border-gray-300 text-xs rounded px-2 py-1 text-gray-900">
+                          <select className="bg-slate-900 border border-slate-600 text-xs rounded px-2 py-1 text-slate-200">
                              {RELATION_TYPES.child.map(r => <option key={r}>{r}</option>)}
                           </select>
                        </div>
                      ))
                    ) : (
-                     <p className="text-xs text-gray-600">Inget barn tillagd</p>
+                     <p className="text-xs text-slate-400">Inget barn tillagd</p>
                    )}
                 </div>
               </div>
@@ -1033,24 +1033,24 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
             {activeTab === 'media' && (
               <div className="animate-in fade-in duration-300 h-full flex flex-col">
                 <div className="flex justify-between items-center mb-4">
-                  <p className="text-xs text-gray-600">Dra och släpp filer här eller klistra in (Ctrl+V).</p>
+                  <p className="text-xs text-slate-400">Dra och släpp filer här eller klistra in (Ctrl+V).</p>
                 </div>
                 
-                <div className="flex-1 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 flex flex-wrap content-start p-4 gap-4 overflow-y-auto">
+                <div className="flex-1 border-2 border-dashed border-slate-600 rounded-lg bg-slate-800 flex flex-wrap content-start p-4 gap-4 overflow-y-auto">
                    {person.media?.map(m => (
                      <div key={m.id} className="w-32 group relative">
-                       <div className="aspect-square bg-gray-200 rounded border border-gray-300 overflow-hidden relative">
+                       <div className="aspect-square bg-slate-700 rounded border border-slate-600 overflow-hidden relative">
                          <img src={m.url} alt={m.name} className="w-full h-full object-cover" />
                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition-opacity">
-                           <button className="p-1 bg-gray-600 rounded hover:bg-blue-600 text-white"><Edit3 size={12}/></button>
-                           <button className="p-1 bg-gray-600 rounded hover:bg-red-600 text-white"><Trash2 size={12}/></button>
+                           <button className="p-1 bg-slate-600 rounded hover:bg-blue-600 text-white"><Edit3 size={12}/></button>
+                           <button className="p-1 bg-slate-600 rounded hover:bg-red-600 text-white"><Trash2 size={12}/></button>
                          </div>
                        </div>
-                       <p className="text-xs text-center mt-1 truncate text-gray-700">{m.name}</p>
+                       <p className="text-xs text-center mt-1 truncate text-slate-300">{m.name}</p>
                      </div>
                    ))}
                    
-                   <div className="w-32 aspect-square flex flex-col items-center justify-center border-2 border-gray-300 border-dashed rounded hover:border-gray-400 hover:bg-gray-100 transition-colors cursor-pointer text-gray-600 hover:text-gray-900">
+                   <div className="w-32 aspect-square flex flex-col items-center justify-center border-2 border-slate-600 border-dashed rounded hover:border-slate-500 hover:bg-slate-700 transition-colors cursor-pointer text-slate-400 hover:text-slate-300">
                       <Plus size={24} />
                       <span className="text-xs mt-2">Lägg till</span>
                    </div>
@@ -1062,7 +1062,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
             {activeTab === 'research' && (
               <div className="animate-in fade-in duration-300">
                 <div className="flex justify-between mb-4">
-                   <h3 className="text-md font-bold text-gray-900 uppercase">Forskningsuppgifter</h3>
+                   <h3 className="text-md font-bold text-slate-200 uppercase">Forskningsuppgifter</h3>
                    <button className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded flex items-center gap-1">
                      <Plus size={14}/> Ny uppgift
                    </button>
@@ -1072,28 +1072,28 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                    {person.research?.map((task, idx) => {
                      const prio = PRIORITY_LEVELS.find(p => p.level === task.priority) || PRIORITY_LEVELS[0];
                      return (
-                       <div key={idx} className="bg-white border border-gray-300 rounded-lg p-4 hover:border-gray-400 transition-colors">
+                       <div key={idx} className="bg-slate-900 border border-slate-700 rounded-lg p-4 hover:border-slate-600 transition-colors">
                           <div className="flex justify-between items-start mb-2">
                              <div className="flex-1">
-                               <input type="text" defaultValue={task.task} className="bg-transparent font-medium text-gray-900 w-full focus:outline-none focus:border-b border-blue-500" />
+                               <input type="text" defaultValue={task.task} className="bg-transparent font-medium text-slate-200 w-full focus:outline-none focus:border-b border-blue-500" />
                              </div>
                              <div className="flex gap-2 ml-4">
                                <select 
-                                 className={`bg-white border border-gray-300 text-xs rounded px-2 py-1 text-gray-900 ${prio.color}`}
+                                 className={`bg-slate-900 border border-slate-700 text-xs rounded px-2 py-1 text-slate-200 ${prio.color}`}
                                  defaultValue={task.priority}
                                >
                                  {PRIORITY_LEVELS.map(p => (
                                    <option key={p.level} value={p.level}>{p.level} - {p.label}</option>
                                  ))}
                                </select>
-                               <button className="text-gray-600 hover:text-red-600"><Trash2 size={16}/></button>
+                               <button className="text-slate-400 hover:text-red-600"><Trash2 size={16}/></button>
                              </div>
                           </div>
                           
-                          <div className="bg-gray-50 rounded border border-gray-200 mt-2">
+                          <div className="bg-slate-800 rounded border border-slate-700 mt-2">
                             <EditorToolbar />
                             <textarea 
-                              className="w-full bg-transparent text-sm text-gray-900 p-2 focus:outline-none min-h-[60px] resize-y"
+                              className="w-full bg-transparent text-sm text-slate-200 p-2 focus:outline-none min-h-[60px] resize-y"
                               defaultValue={task.notes}
                             />
                           </div>
@@ -1107,17 +1107,17 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
             {/* FLIK: TAGGAR */}
             {activeTab === 'tags' && (
               <div className="animate-in fade-in duration-300">
-                <label className="block text-xs font-bold text-gray-600 uppercase mb-2">Hantera Taggar</label>
+                <label className="block text-xs font-bold text-slate-300 uppercase mb-2">Hantera Taggar</label>
                 <div className="flex items-center gap-2 mb-4">
                   <input 
                     type="text" 
-                    className="bg-white border border-gray-300 rounded px-3 py-2 text-sm text-gray-900 w-64 focus:outline-none focus:border-blue-500"
+                    className="bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-slate-200 w-64 focus:outline-none focus:border-blue-500"
                     placeholder="Skriv tagg och tryck Enter..."
                     value={tagInput}
                     onChange={e => setTagInput(e.target.value)}
                     onKeyDown={addTag}
                   />
-                  <p className="text-xs text-gray-600">Separera med komma eller enter.</p>
+                  <p className="text-xs text-slate-400">Separera med komma eller enter.</p>
                 </div>
 
                 <div className="flex flex-wrap gap-2">
@@ -1138,16 +1138,16 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                     <button className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded flex items-center gap-1"><Plus size={14}/> Ny notering</button>
                  </div>
                  {person.notes?.map((note, idx) => (
-                   <div key={idx} className="bg-white border border-gray-300 rounded-lg overflow-hidden">
-                      <div className="bg-gray-50 p-2 border-b border-gray-200 flex justify-between items-center">
-                         <input type="text" defaultValue={note.title} className="bg-transparent font-bold text-sm text-gray-900 focus:outline-none" />
+                   <div key={idx} className="bg-slate-900 border border-slate-700 rounded-lg overflow-hidden">
+                      <div className="bg-slate-800 p-2 border-b border-slate-700 flex justify-between items-center">
+                         <input type="text" defaultValue={note.title} className="bg-transparent font-bold text-sm text-slate-200 focus:outline-none" />
                          <div className="flex gap-2">
-                           <button className="text-gray-600 hover:text-red-600"><Trash2 size={14}/></button>
+                           <button className="text-slate-400 hover:text-red-600"><Trash2 size={14}/></button>
                          </div>
                       </div>
                       <EditorToolbar />
                       <textarea 
-                        className="w-full bg-gray-50 text-sm text-gray-900 p-3 focus:outline-none min-h-[150px] resize-y"
+                        className="w-full bg-slate-800 text-sm text-slate-200 p-3 focus:outline-none min-h-[150px] resize-y"
                         defaultValue={note.content}
                       />
                    </div>
@@ -1160,27 +1160,27 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
 
         {/* DETAIL BLOCK - visa källa-info för vald händelse */}
         {selectedEventIndex !== null && editingEventIndex === null && person.events?.[selectedEventIndex] && (
-          <div className="bg-white border-t border-gray-200 p-4 max-h-40 overflow-y-auto">
-            <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200">
-              <h4 className="text-sm font-bold text-gray-900">
+          <div className="bg-slate-800 border-t border-slate-700 p-4 max-h-40 overflow-y-auto">
+            <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-700">
+              <h4 className="text-sm font-bold text-slate-200">
                 {person.events[selectedEventIndex].type} 
                 {person.events[selectedEventIndex].date && ` - ${person.events[selectedEventIndex].date}`}
               </h4>
               {/* INFO-rad kopiad från livshändelser */}
-              <div className="flex gap-3 text-xs text-gray-600">
+              <div className="flex gap-3 text-xs text-slate-400">
                 <span 
-                  className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${person.events[selectedEventIndex].sources?.length > 0 ? 'text-gray-900' : ''}`}
+                  className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${person.events[selectedEventIndex].sources?.length > 0 ? 'text-slate-200' : ''}`}
                 >
                   <LinkIcon size={12}/> {person.events[selectedEventIndex].sources?.length || 0}
                 </span>
                 <span 
-                  className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${person.events[selectedEventIndex].notes ? 'text-gray-900' : ''}`}
+                  className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${person.events[selectedEventIndex].notes ? 'text-slate-200' : ''}`}
                   title={person.events[selectedEventIndex].notes || ''}
                 >
                   <FileText size={12}/> {person.events[selectedEventIndex].notes ? 1 : 0}
                 </span>
                 <span 
-                  className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${person.events[selectedEventIndex].images > 0 ? 'text-gray-900' : ''}`}
+                  className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${person.events[selectedEventIndex].images > 0 ? 'text-slate-200' : ''}`}
                 >
                   <ImageIcon size={12}/> {person.events[selectedEventIndex].images || 0}
                 </span>
@@ -1217,7 +1217,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                   });
                   
                   return (
-                    <div key={sourceId} className="bg-gray-50 p-2 rounded border border-gray-200 flex items-start gap-3">
+                    <div key={sourceId} className="bg-slate-800 p-2 rounded border border-slate-700 flex items-start gap-3">
                       {/* Thumbnails */}
                       <div className="flex gap-1 items-start">
                         {displaySource.images && displaySource.images.length > 0 ? (
@@ -1226,19 +1226,19 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                               <img 
                                 src={img.url || img.thumbnail || img} 
                                 alt="Thumbnail" 
-                                className="h-8 w-8 object-cover rounded cursor-pointer border border-gray-300 hover:border-blue-500"
+                                className="h-8 w-8 object-cover rounded cursor-pointer border border-slate-600 hover:border-blue-500"
                                 onClick={() => {
                                   const fullUrl = img.url || img;
                                   window.open(fullUrl, '_blank');
                                 }}
                               />
-                              <div className="absolute hidden group-hover:block z-50 bg-white border border-gray-300 rounded shadow-lg p-1 left-0 top-10">
+                              <div className="absolute hidden group-hover:block z-50 bg-slate-900 border border-slate-600 rounded shadow-lg p-1 left-0 top-10">
                                 <img src={img.url || img} alt="Preview" className="h-32 w-32 object-cover rounded" />
                               </div>
                             </div>
                           ))
                         ) : (
-                          <div className="h-8 w-8 bg-gray-200 rounded flex items-center justify-center text-gray-400">
+                          <div className="h-8 w-8 bg-slate-700 rounded flex items-center justify-center text-slate-400">
                             <ImageIcon size={12} />
                           </div>
                         )}
@@ -1246,7 +1246,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                       
                       {/* Source info */}
                       <div className="flex-1 text-xs">
-                        <div className="font-semibold text-gray-900 mb-1">
+                        <div className="font-semibold text-slate-200 mb-1">
                           {displaySource.title || 'Ingen titel'}
                           {displaySource.location && ` (${displaySource.location})`}
                           {displaySource.volume && ` vol. ${displaySource.volume}`}
@@ -1257,18 +1257,18 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                         
                         {/* Trovärdighet - Stjärnor */}
                         <div className="flex gap-0.5 mt-1 items-center">
-                          <span className="text-xs text-gray-500 mr-1">Trovärdighet:</span>
+                          <span className="text-xs text-slate-400 mr-1">Trovärdighet:</span>
                           {[...Array(5)].map((_, i) => (
-                            <span key={i} className={i < (displaySource.credibility || 0) ? "text-yellow-500" : "text-gray-300"}>★</span>
+                            <span key={i} className={i < (displaySource.credibility || 0) ? "text-yellow-500" : "text-slate-600"}>★</span>
                           ))}
-                          {displaySource.credibilityLabel && <span className="ml-1 text-gray-700 text-xs">{displaySource.credibilityLabel}</span>}
+                          {displaySource.credibilityLabel && <span className="ml-1 text-slate-300 text-xs">{displaySource.credibilityLabel}</span>}
                         </div>
                         
                         {/* Trovärdighetsikoner */}
                         <div className="flex gap-2 mt-1">
                           {/* AD - Arkivdigital */}
                           <button 
-                            className={`px-2 py-0.5 rounded text-xs font-semibold ${displaySource.aid ? 'bg-green-100 text-green-700 hover:bg-green-200 cursor-pointer' : 'bg-gray-100 text-gray-400 cursor-default'}`}
+                            className={`px-2 py-0.5 rounded text-xs font-semibold ${displaySource.aid ? 'bg-green-100 text-green-700 hover:bg-green-200 cursor-pointer' : 'bg-slate-700 text-slate-500 cursor-default'}`}
                             title={displaySource.aid ? `AID: ${displaySource.aid}` : 'Inte länkat till Arkivdigital'}
                             onClick={() => displaySource.aid && window.open(`https://sok.riksarkivet.se/bildvisning/${displaySource.aid}`, '_blank')}
                           >
@@ -1277,7 +1277,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                           
                           {/* RA - Riksarkivet */}
                           <button 
-                            className={`px-2 py-0.5 rounded text-xs font-semibold ${displaySource.bildId ? 'bg-green-100 text-green-700 hover:bg-green-200 cursor-pointer' : 'bg-gray-100 text-gray-400 cursor-default'}`}
+                            className={`px-2 py-0.5 rounded text-xs font-semibold ${displaySource.bildId ? 'bg-green-100 text-green-700 hover:bg-green-200 cursor-pointer' : 'bg-slate-700 text-slate-500 cursor-default'}`}
                             title={displaySource.bildId ? `BILDID: ${displaySource.bildId}` : 'Inte länkat till Riksarkivet'}
                             onClick={() => displaySource.bildId && window.open(`https://www.riksarkivet.se/bildvisning/${displaySource.bildId}`, '_blank')}
                           >
@@ -1286,7 +1286,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                           
                           {/* NAD - Näringsliv Arkiv Digital */}
                           <button 
-                            className={`px-2 py-0.5 rounded text-xs font-semibold ${displaySource.nad ? 'bg-green-100 text-green-700 hover:bg-green-200 cursor-pointer' : 'bg-gray-100 text-gray-400 cursor-default'}`}
+                            className={`px-2 py-0.5 rounded text-xs font-semibold ${displaySource.nad ? 'bg-green-100 text-green-700 hover:bg-green-200 cursor-pointer' : 'bg-slate-700 text-slate-500 cursor-default'}`}
                             title={displaySource.nad ? `NAD: ${displaySource.nad}` : 'Inte länkat till NAD'}
                             onClick={() => displaySource.nad && window.open(`https://nad.ra.se/${displaySource.nad}`, '_blank')}
                           >
@@ -1295,7 +1295,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                         </div>
                         
                         {displaySource.notes && (
-                          <div className="mt-1 text-gray-600 text-xs italic line-clamp-1">
+                          <div className="mt-1 text-slate-400 text-xs italic line-clamp-1">
                             {displaySource.notes}
                           </div>
                         )}
@@ -1307,15 +1307,15 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                         {displaySource.notes && (
                           <div className="relative group">
                             <button 
-                              className="text-gray-600 hover:text-blue-600 p-1 flex items-center gap-0.5"
+                              className="text-slate-400 hover:text-blue-600 p-1 flex items-center gap-0.5"
                               title="Noter"
                             >
                               <FileText size={12} />
-                              <span className="text-gray-600">1</span>
+                              <span className="text-slate-400">1</span>
                             </button>
-                            <div className="absolute hidden group-hover:block z-50 bg-gray-900 text-white text-xs rounded shadow-lg p-2 right-0 top-6 min-w-max max-w-xs whitespace-normal">
+                            <div className="absolute hidden group-hover:block z-50 bg-slate-900 text-white text-xs rounded shadow-lg p-2 right-0 top-6 min-w-max max-w-xs whitespace-normal">
                               {displaySource.notes}
-                              <div className="absolute top-0 right-2 transform -translate-y-1 w-2 h-2 bg-gray-900 rotate-45"></div>
+                              <div className="absolute top-0 right-2 transform -translate-y-1 w-2 h-2 bg-slate-900 rotate-45"></div>
                             </div>
                           </div>
                         )}
@@ -1323,11 +1323,11 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                         {/* Bild-ikon */}
                         {displaySource.images && displaySource.images.length > 0 && (
                           <button 
-                            className="text-gray-600 hover:text-blue-600 p-1 flex items-center gap-0.5"
+                            className="text-slate-400 hover:text-blue-600 p-1 flex items-center gap-0.5"
                             title={`${displaySource.images.length} bilder`}
                           >
                             <ImageIcon size={12} />
-                            <span className="text-gray-600">{displaySource.images.length}</span>
+                            <span className="text-slate-400">{displaySource.images.length}</span>
                           </button>
                         )}
                         
@@ -1340,7 +1340,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                               console.log('Opening source drawer to edit source:', sourceId);
                             }
                           }}
-                          className="text-gray-600 hover:text-blue-600 p-1"
+                          className="text-slate-400 hover:text-blue-600 p-1"
                           title="Redigera källa"
                         >
                           <Edit3 size={14} />
@@ -1353,7 +1353,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                             );
                             setPerson({ ...person, events: updatedEvents });
                           }}
-                          className="text-gray-600 hover:text-red-600 p-1"
+                          className="text-slate-400 hover:text-red-600 p-1"
                           title="Ta bort källa"
                         >
                           <Trash2 size={14} />
@@ -1364,18 +1364,18 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                 })}
               </div>
             ) : (
-              <p className="text-xs text-gray-600">Ingen källa kopplad till denna händelse</p>
+              <p className="text-xs text-slate-400">Ingen källa kopplad till denna händelse</p>
             )}
           </div>
         )}
 
         {/* FOOTER */}
-        <div className="h-16 bg-gray-50 border-t border-gray-200 flex items-center justify-between px-6 shrink-0">
-          <div className="text-xs text-gray-600">
+        <div className="h-16 bg-slate-900 border-t border-slate-700 flex items-center justify-between px-6 shrink-0">
+          <div className="text-xs text-slate-400">
             Senast ändrad: {new Date().toISOString().split('T')[0]}
           </div>
           <div className="flex gap-3">
-            <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">Avbryt</button>
+            <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-400 hover:text-white transition-colors">Avbryt</button>
             <button onClick={handleSave} className="flex items-center gap-2 px-6 py-2 bg-green-600 hover:bg-green-500 text-white rounded font-medium shadow-lg transition-all transform hover:scale-[1.02]">
               <Save size={18} /> Spara Ändringar
             </button>
@@ -1388,7 +1388,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
         <div className="fixed inset-0 z-[4050] flex items-center justify-center bg-black/30">
            <div 
              ref={eventModalRef}
-             className="bg-white border border-gray-300 rounded-lg shadow-2xl w-full max-w-lg p-0 overflow-hidden"
+             className="bg-slate-800 border border-slate-700 rounded-lg shadow-2xl w-full max-w-lg p-0 overflow-hidden"
              style={{
                position: 'fixed',
                left: `${eventModalPosition.x}px`,
@@ -1397,16 +1397,16 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
              }}
              onMouseDown={handleEventModalMouseDown}
            >
-              <div className="modal-header bg-gray-50 p-4 border-b border-gray-200 flex justify-between items-center cursor-move">
-                <h3 className="font-bold text-gray-900">{editingEventIndex !== null ? 'Redigera' : 'Lägg till'} händelse</h3>
+              <div className="modal-header bg-slate-900 p-4 border-b border-slate-700 flex justify-between items-center cursor-move">
+                <h3 className="font-bold text-white">{editingEventIndex !== null ? 'Redigera' : 'Lägg till'} händelse</h3>
                 <button onClick={() => {
                   setEventModalOpen(false);
                   setEditingEventIndex(null);
-                }} className="text-gray-600 hover:text-gray-900"><X size={20}/></button>
+                }} className="text-slate-400 hover:text-white"><X size={20}/></button>
               </div>
               <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
                 <div ref={eventTypeSearchRef} className="relative">
-                  <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Händelsetyp</label>
+                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Händelsetyp</label>
                   <div className="relative">
                     <input
                       type="text"
@@ -1421,10 +1421,10 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                       }}
                       onKeyDown={handleEventTypeSearchKeyDown}
                       placeholder="Sök händelsetyp..."
-                      className="w-full bg-white border border-gray-300 rounded p-2 text-gray-900 focus:border-blue-500 focus:outline-none"
+                      className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-slate-200 focus:border-blue-500 focus:outline-none"
                     />
                     {eventTypeSearchOpen && (
-                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded shadow-lg max-h-60 overflow-y-auto">
+                      <div className="absolute z-10 w-full mt-1 bg-slate-900 border border-slate-600 rounded shadow-lg max-h-60 overflow-y-auto">
                         {getFilteredEventTypes().map((eventType, index) => {
                           const isDisabled = eventType.unique && 
                                            editingEventIndex === null && 
@@ -1435,7 +1435,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                               key={eventType.value}
                               onClick={() => !isDisabled && handleEventTypeSelect(eventType.value)}
                               className={`px-3 py-2 cursor-pointer flex items-center gap-2 ${
-                                isSelected ? 'bg-blue-500 text-white' : 'hover:bg-gray-100'
+                                isSelected ? 'bg-blue-500 text-white' : 'hover:bg-slate-800'
                               } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
                               <span>{eventType.icon}</span>
@@ -1445,7 +1445,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                           );
                         })}
                         {getFilteredEventTypes().length === 0 && (
-                          <div className="px-3 py-2 text-gray-500 text-sm">
+                          <div className="px-3 py-2 text-slate-400 text-sm">
                             Inga matchande händelsetyper
                           </div>
                         )}
@@ -1460,22 +1460,22 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                    <div>
-                      <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Datum</label>
+                      <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Datum</label>
                       <div className="relative">
-                        <Calendar size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500"/>
+                        <Calendar size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400"/>
                         <input 
                           type="text" 
                           placeholder="t.ex. 21 nov 1980, från 1950, ca 1920"
                           value={newEvent.date}
                           onChange={(e) => setNewEvent({...newEvent, date: e.target.value})}
-                          className="w-full bg-white border border-gray-300 rounded pl-9 p-2 text-gray-900 focus:border-blue-500 focus:outline-none"
+                          className="w-full bg-slate-900 border border-slate-600 rounded pl-9 p-2 text-slate-200 focus:border-blue-500 focus:outline-none"
                           onBlur={(e) => setNewEvent({...newEvent, date: parseAndFormatDate(e.target.value)})}
                         />
                       </div>
-                      <p className="text-xs text-gray-500 mt-1">Format: ÅÅÅÅ-MM-DD, eller skriv naturligt</p>
+                      <p className="text-xs text-slate-400 mt-1">Format: ÅÅÅÅ-MM-DD, eller skriv naturligt</p>
                    </div>
                    <div>
-                      <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Plats</label>
+                      <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Plats</label>
                       <PlacePicker
                         value={newEvent.placeId || ''}
                         displayValue={newEvent.place || ''}
@@ -1491,7 +1491,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                 {/* Källor */}
                 <div>
                   <div className="flex justify-between items-center mb-2">
-                    <label className="block text-xs font-bold text-gray-600 uppercase">Källor</label>
+                    <label className="block text-xs font-bold text-slate-300 uppercase">Källor</label>
                     <button 
                       onClick={() => {
                         // Öppna source drawer UTAN att spara personen
@@ -1513,7 +1513,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                           setSourceModalOpen(true);
                         }
                       }}
-                      className="text-xs bg-gray-200 hover:bg-gray-300 text-blue-600 px-2 py-1 rounded flex items-center gap-1"
+                      className="text-xs bg-slate-700 hover:bg-slate-600 text-blue-400 px-2 py-1 rounded flex items-center gap-1"
                     >
                       <Plus size={12}/> Lägg till källa
                     </button>
@@ -1526,9 +1526,9 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                         if (!source) return null;
                         
                         return (
-                          <div key={sourceId} className="bg-gray-50 p-3 rounded text-sm border border-gray-200 flex justify-between items-start">
+                          <div key={sourceId} className="bg-slate-800 p-3 rounded text-sm border border-slate-700 flex justify-between items-start">
                             <div className="flex-1">
-                              <p className="font-semibold text-gray-900 mb-1">
+                              <p className="font-semibold text-slate-200 mb-1">
                                 {source.title || 'Ingen titel'}
                                 {source.location && ` / ${source.location}`}
                                 {source.volume && ` vol. ${source.volume}`}
@@ -1552,7 +1552,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                   ...newEvent, 
                                   sources: newEvent.sources.filter(id => id !== sourceId)
                                 })}
-                                className="text-gray-600 hover:text-red-600 p-1"
+                                className="text-slate-400 hover:text-red-600 p-1"
                                 title="Ta bort källa"
                               >
                                 <Trash2 size={14}/>
@@ -1563,27 +1563,27 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                       })}
                     </div>
                   ) : (
-                    <p className="text-xs text-gray-600">Ingen källa tillagd</p>
+                    <p className="text-xs text-slate-400">Ingen källa tillagd</p>
                   )}
                 </div>
                 
                 {/* Noteringar */}
                 <div>
-                  <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Noteringar</label>
+                  <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Noteringar</label>
                   <textarea
                     value={newEvent.notes}
                     onChange={(e) => setNewEvent({...newEvent, notes: e.target.value})}
-                    className="w-full bg-white border border-gray-300 rounded p-2 text-gray-900 focus:border-blue-500 focus:outline-none text-sm resize-none"
+                    className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-slate-200 focus:border-blue-500 focus:outline-none text-sm resize-none"
                     rows="3"
                     placeholder="Lägg till noter för denna händelse..."
                   />
                 </div>
               </div>
-              <div className="bg-gray-50 p-4 border-t border-gray-200 flex justify-end gap-3">
+              <div className="bg-slate-800 p-4 border-t border-slate-700 flex justify-end gap-3">
                  <button onClick={() => {
                    setEventModalOpen(false);
                    setEditingEventIndex(null);
-                 }} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900">Avbryt</button>
+                 }} className="px-4 py-2 text-sm text-slate-400 hover:text-white">Avbryt</button>
                  <button 
                    onClick={handleSaveEvent}
                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-bold"

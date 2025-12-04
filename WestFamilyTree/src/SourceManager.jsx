@@ -46,7 +46,7 @@ function SourceManager({ event, allSources, onLinkSource, onUnlinkSource, onTogg
         <div className="source-manager mt-2">
             <div className="flex flex-wrap items-center gap-2">
                 
-                <span className="text-xs font-bold text-gray-500 uppercase mr-1">Källor:</span>
+                <span className="text-xs font-bold text-slate-400 uppercase mr-1">Källor:</span>
 
                 {(event.sources || []).map((sourceEntry, index) => {
                     // Hantera både objekt och strängar
@@ -86,7 +86,7 @@ function SourceManager({ event, allSources, onLinkSource, onUnlinkSource, onTogg
 
                             {/* Visa sidhänvisning (PAGE) direkt i pillret om det finns plats, annars bara i tooltip */}
                             {citationPage && (
-                                <span className="text-gray-500 mr-1 border-l border-gray-300 pl-1">
+                                <span className="text-slate-400 mr-1 border-l border-slate-600 pl-1">
                                     {citationPage}
                                 </span>
                             )}
@@ -108,7 +108,7 @@ function SourceManager({ event, allSources, onLinkSource, onUnlinkSource, onTogg
                                     e.stopPropagation(); 
                                     onUnlinkSource(sourceId); 
                                 }}
-                                className="flex items-center justify-center w-5 h-5 ml-1 bg-white text-red-500 rounded-full hover:bg-red-500 hover:text-white border border-red-100 transition-colors"
+                                className="flex items-center justify-center w-5 h-5 ml-1 bg-slate-700 text-red-400 rounded-full hover:bg-red-600 hover:text-white border border-red-700 transition-colors"
                                 title="Ta bort koppling"
                             >
                                 ×
@@ -119,7 +119,7 @@ function SourceManager({ event, allSources, onLinkSource, onUnlinkSource, onTogg
 
                 <button 
                     onClick={onToggleDrawer}
-                    className="text-xs text-blue-600 hover:text-blue-800 bg-white border border-dashed border-blue-300 rounded-full px-3 py-1 hover:bg-blue-50 hover:border-blue-400 transition-colors"
+                    className="text-xs text-blue-400 hover:text-blue-300 bg-slate-700 border border-dashed border-blue-600 rounded-full px-3 py-1 hover:bg-slate-600 hover:border-blue-500 transition-colors"
                 >
                     + Lägg till källa
                 </button>
