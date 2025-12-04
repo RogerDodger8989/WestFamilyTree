@@ -523,6 +523,12 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
 
   const [tagInput, setTagInput] = useState('');
   const [selectedEventIndex, setSelectedEventIndex] = useState(null);
+  const [sourceRefreshKey, setSourceRefreshKey] = useState(0);
+
+  // Re-render detail block när allSources ändras
+  useEffect(() => {
+    setSourceRefreshKey(prev => prev + 1);
+  }, [allSources]);
 
   // Kontrollera om en händelsetyp redan finns (för unique events)
   const canAddEventType = (eventType) => {
@@ -578,6 +584,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
       setPerson({ ...person, events: [...person.events, newEvent] });
     }
     setEventModalOpen(false);
+    setEditingEventIndex(null);
     setNewEvent({ 
       id: `evt_${Date.now()}`,
       type: 'Födelse', 
@@ -884,6 +891,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                             <tr 
                               key={evt.id || idx} 
                               onClick={() => {
+                                console.log('Livshändelse clicked:', {editingEventIndex, selectedEventIndex, idx});
                                 if (editingEventIndex === null) {
                                   setSelectedEventIndex(selectedEventIndex === idx ? null : idx);
                                 }
@@ -1180,17 +1188,40 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
             </div>
             
             {person.events[selectedEventIndex].sources && person.events[selectedEventIndex].sources.length > 0 ? (
-              <div className="space-y-2">
+              <div className="space-y-2" key={`sources-${sourceRefreshKey}`}>
                 {person.events[selectedEventIndex].sources.map((sourceId) => {
-                  const source = allSources?.find(s => s.id === sourceId);
+                  // Hämta källan från allSources
+                  let source = allSources?.find(s => s.id === sourceId);
+                  
                   if (!source) return null;
+                  
+                  // Mappa database-fältnamn till display-namn
+                  // Database uses: date, imagePage, page, trust
+                  // Display uses: year, image, page, credibility
+                  const displaySource = {
+                    ...source,
+                    year: source.date || source.year,
+                    image: source.imagePage || source.image,
+                    credibility: source.trust || source.credibility
+                  };
+                  
+                  console.log('🔍 SOURCE FOR DISPLAY (mapped):', {
+                    sourceId,
+                    title: displaySource.title,
+                    volume: displaySource.volume,
+                    year: displaySource.year,
+                    image: displaySource.image,
+                    page: displaySource.page,
+                    credibility: displaySource.credibility,
+                    allSourcesLength: allSources?.length
+                  });
                   
                   return (
                     <div key={sourceId} className="bg-gray-50 p-2 rounded border border-gray-200 flex items-start gap-3">
                       {/* Thumbnails */}
                       <div className="flex gap-1 items-start">
-                        {source.images && source.images.length > 0 ? (
-                          source.images.slice(0, 3).map((img, idx) => (
+                        {displaySource.images && displaySource.images.length > 0 ? (
+                          displaySource.images.slice(0, 3).map((img, idx) => (
                             <div key={idx} className="relative group">
                               <img 
                                 src={img.url || img.thumbnail || img} 
@@ -1215,26 +1246,57 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                       
                       {/* Source info */}
                       <div className="flex-1 text-xs">
-                        <div className="font-semibold text-gray-900">
-                          {source.title || 'Ingen titel'}
-                          {source.location && ` / ${source.location}`}
-                          {source.volume && ` vol. ${source.volume}`}
-                          {source.year && ` (${source.year})`}
+                        <div className="font-semibold text-gray-900 mb-1">
+                          {displaySource.title || 'Ingen titel'}
+                          {displaySource.location && ` (${displaySource.location})`}
+                          {displaySource.volume && ` vol. ${displaySource.volume}`}
+                          {displaySource.year && ` (${displaySource.year})`}
+                          {displaySource.image && ` Bild ${displaySource.image}`}
+                          {displaySource.page && ` / Sida ${displaySource.page}`}
                         </div>
-                        {source.aid && (
-                          <a 
-                            href={`https://sok.riksarkivet.se/bildvisning/${source.aid}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-800 underline text-xs"
-                            onClick={(e) => e.stopPropagation()}
+                        
+                        {/* Trovärdighet - Stjärnor */}
+                        <div className="flex gap-0.5 mt-1 items-center">
+                          <span className="text-xs text-gray-500 mr-1">Trovärdighet:</span>
+                          {[...Array(5)].map((_, i) => (
+                            <span key={i} className={i < (displaySource.credibility || 0) ? "text-yellow-500" : "text-gray-300"}>★</span>
+                          ))}
+                          {displaySource.credibilityLabel && <span className="ml-1 text-gray-700 text-xs">{displaySource.credibilityLabel}</span>}
+                        </div>
+                        
+                        {/* Trovärdighetsikoner */}
+                        <div className="flex gap-2 mt-1">
+                          {/* AD - Arkivdigital */}
+                          <button 
+                            className={`px-2 py-0.5 rounded text-xs font-semibold ${displaySource.aid ? 'bg-green-100 text-green-700 hover:bg-green-200 cursor-pointer' : 'bg-gray-100 text-gray-400 cursor-default'}`}
+                            title={displaySource.aid ? `AID: ${displaySource.aid}` : 'Inte länkat till Arkivdigital'}
+                            onClick={() => displaySource.aid && window.open(`https://sok.riksarkivet.se/bildvisning/${displaySource.aid}`, '_blank')}
                           >
-                            AID: {source.aid}
-                          </a>
-                        )}
-                        {source.notes && (
+                            AD
+                          </button>
+                          
+                          {/* RA - Riksarkivet */}
+                          <button 
+                            className={`px-2 py-0.5 rounded text-xs font-semibold ${displaySource.bildId ? 'bg-green-100 text-green-700 hover:bg-green-200 cursor-pointer' : 'bg-gray-100 text-gray-400 cursor-default'}`}
+                            title={displaySource.bildId ? `BILDID: ${displaySource.bildId}` : 'Inte länkat till Riksarkivet'}
+                            onClick={() => displaySource.bildId && window.open(`https://www.riksarkivet.se/bildvisning/${displaySource.bildId}`, '_blank')}
+                          >
+                            RA
+                          </button>
+                          
+                          {/* NAD - Näringsliv Arkiv Digital */}
+                          <button 
+                            className={`px-2 py-0.5 rounded text-xs font-semibold ${displaySource.nad ? 'bg-green-100 text-green-700 hover:bg-green-200 cursor-pointer' : 'bg-gray-100 text-gray-400 cursor-default'}`}
+                            title={displaySource.nad ? `NAD: ${displaySource.nad}` : 'Inte länkat till NAD'}
+                            onClick={() => displaySource.nad && window.open(`https://nad.ra.se/${displaySource.nad}`, '_blank')}
+                          >
+                            NAD
+                          </button>
+                        </div>
+                        
+                        {displaySource.notes && (
                           <div className="mt-1 text-gray-600 text-xs italic line-clamp-1">
-                            {source.notes}
+                            {displaySource.notes}
                           </div>
                         )}
                       </div>
@@ -1242,7 +1304,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                       {/* Action buttons */}
                       <div className="flex gap-1 ml-2 items-center text-xs">
                         {/* Noter-ikon */}
-                        {source.notes && (
+                        {displaySource.notes && (
                           <div className="relative group">
                             <button 
                               className="text-gray-600 hover:text-blue-600 p-1 flex items-center gap-0.5"
@@ -1252,27 +1314,31 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                               <span className="text-gray-600">1</span>
                             </button>
                             <div className="absolute hidden group-hover:block z-50 bg-gray-900 text-white text-xs rounded shadow-lg p-2 right-0 top-6 min-w-max max-w-xs whitespace-normal">
-                              {source.notes}
+                              {displaySource.notes}
                               <div className="absolute top-0 right-2 transform -translate-y-1 w-2 h-2 bg-gray-900 rotate-45"></div>
                             </div>
                           </div>
                         )}
                         
                         {/* Bild-ikon */}
-                        {source.images && source.images.length > 0 && (
+                        {displaySource.images && displaySource.images.length > 0 && (
                           <button 
                             className="text-gray-600 hover:text-blue-600 p-1 flex items-center gap-0.5"
-                            title={`${source.images.length} bilder`}
+                            title={`${displaySource.images.length} bilder`}
                           >
                             <ImageIcon size={12} />
-                            <span className="text-gray-600">{source.images.length}</span>
+                            <span className="text-gray-600">{displaySource.images.length}</span>
                           </button>
                         )}
                         
                         <button 
                           onClick={() => {
-                            // TODO: Redigera källa
-                            console.log('Edit source:', source);
+                            // Öppna Source Drawer för att redigera källan
+                            if (onOpenSourceDrawer) {
+                              onOpenSourceDrawer(person.id, null);
+                              // Navigera till källan (detta kan behöva justeras beroende på hur SourceDrawer hanterar navigation)
+                              console.log('Opening source drawer to edit source:', sourceId);
+                            }
                           }}
                           className="text-gray-600 hover:text-blue-600 p-1"
                           title="Redigera källa"
@@ -1333,7 +1399,10 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
            >
               <div className="modal-header bg-gray-50 p-4 border-b border-gray-200 flex justify-between items-center cursor-move">
                 <h3 className="font-bold text-gray-900">{editingEventIndex !== null ? 'Redigera' : 'Lägg till'} händelse</h3>
-                <button onClick={() => setEventModalOpen(false)} className="text-gray-600 hover:text-gray-900"><X size={20}/></button>
+                <button onClick={() => {
+                  setEventModalOpen(false);
+                  setEditingEventIndex(null);
+                }} className="text-gray-600 hover:text-gray-900"><X size={20}/></button>
               </div>
               <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
                 <div ref={eventTypeSearchRef} className="relative">
@@ -1479,16 +1548,6 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                             </div>
                             <div className="flex gap-2 ml-3">
                               <button 
-                                onClick={() => {
-                                  // TODO: Öppna redigera källa modal
-                                  console.log('Edit source:', source);
-                                }}
-                                className="text-gray-600 hover:text-blue-600 p-1"
-                                title="Redigera källa"
-                              >
-                                <Edit3 size={14}/>
-                              </button>
-                              <button 
                                 onClick={() => setNewEvent({
                                   ...newEvent, 
                                   sources: newEvent.sources.filter(id => id !== sourceId)
@@ -1521,7 +1580,10 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                 </div>
               </div>
               <div className="bg-gray-50 p-4 border-t border-gray-200 flex justify-end gap-3">
-                 <button onClick={() => setEventModalOpen(false)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900">Avbryt</button>
+                 <button onClick={() => {
+                   setEventModalOpen(false);
+                   setEditingEventIndex(null);
+                 }} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900">Avbryt</button>
                  <button 
                    onClick={handleSaveEvent}
                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-bold"
