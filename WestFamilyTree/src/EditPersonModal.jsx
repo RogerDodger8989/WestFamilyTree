@@ -406,6 +406,38 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
     });
   };
 
+  // Helper: Bygg platshierarki från placeId eller placeData
+  const getPlaceHierarchy = (evt) => {
+    // Försök först använda placeData om den finns (nyare events)
+    let place = evt?.placeData;
+    
+    // Annars försök hitta i allPlaces
+    if (!place && evt?.placeId && allPlaces) {
+      place = allPlaces.find(p => p.id === evt.placeId);
+    }
+    
+    if (!place) return evt?.place || '';
+    
+    // Bygg hierarki från minst till störst
+    const parts = [
+      place.gard,
+      place.by,
+      place.specific,
+      place.village,
+      place.socken,
+      place.sockenstadnamn,
+      place.parish,
+      place.kommunnamn,
+      place.municipality,
+      place.lansnamn,
+      place.region,
+      place.land,
+      place.country
+    ].filter(Boolean);
+    
+    return parts.length > 0 ? parts.join(', ') : place.name || place.ortnamn || '';
+  };
+
   const handleMouseDown = (e) => {
     // Bara drag från header
     if (e.target.closest('.modal-header')) {
@@ -524,6 +556,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
       date: '', 
       place: '',
       placeId: '',
+      placeData: null,
       sources: [],
       images: 0,
       notes: ''
@@ -551,6 +584,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
       date: '', 
       place: '',
       placeId: '',
+      placeData: null,
       sources: [],
       images: 0,
       notes: ''
@@ -861,7 +895,10 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                               <td className="p-3 text-gray-700">{age !== null ? `${age} år` : '-'}</td>
                               <td className="p-3 font-medium text-gray-900">{evt.type}</td>
                               <td className="p-3 font-mono text-gray-700">{evt.date || '-'}</td>
-                              <td className="p-3 text-blue-600 hover:underline cursor-pointer flex items-center gap-1">
+                              <td 
+                                className="p-3 text-blue-600 hover:underline cursor-pointer flex items-center gap-1"
+                                title={getPlaceHierarchy(evt)}
+                              >
                                  <MapPin size={12} /> {evt.place || '-'}
                               </td>
                               <td className="p-3">
@@ -1376,7 +1413,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                         allPlaces={allPlaces || []}
                         onChange={(placeId, placeObject) => {
                           const placeName = placeObject ? (placeObject.name || placeObject.ortnamn || placeObject.sockenstadnamn || '') : '';
-                          setNewEvent({...newEvent, placeId, place: placeName});
+                          setNewEvent({...newEvent, placeId, place: placeName, placeData: placeObject});
                         }}
                       />
                    </div>
