@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import DraggableModal from './DraggableModal';
-import { RotateCw, ZoomIn, ZoomOut, Maximize2, Save } from 'lucide-react';
+import { WindowFrame } from './WindowFrame';
+import { RotateCw, ZoomIn, ZoomOut, Maximize2, Save, Image as ImageIcon } from 'lucide-react';
 
 const ImageEditorModal = ({ isOpen, onClose, imageUrl, imageName, onSave }) => {
   const canvasRef = useRef(null);
@@ -170,12 +170,12 @@ const ImageEditorModal = ({ isOpen, onClose, imageUrl, imageName, onSave }) => {
   if (!isOpen) return null;
 
   return (
-    <DraggableModal
+    <WindowFrame
       title={`Redigera: ${imageName}`}
+      icon={ImageIcon}
       onClose={onClose}
       initialWidth={Math.min(1400, window.innerWidth * 0.9)}
       initialHeight={Math.min(900, window.innerHeight * 0.9)}
-      showConfirm={false}
     >
       <div className="flex flex-col h-full bg-slate-900">
         {/* Toolbar */}
@@ -245,7 +245,7 @@ const ImageEditorModal = ({ isOpen, onClose, imageUrl, imageName, onSave }) => {
           Tips: Scrolla för zoom, dubbelklick för zoom in, dra för att flytta bilden
         </div>
       </div>
-    </DraggableModal>
+    </WindowFrame>
   );
 };
 

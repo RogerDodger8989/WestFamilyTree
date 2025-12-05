@@ -217,9 +217,10 @@ ipcMain.on('show-person-context-menu', (event, personId) => {
 app.whenReady().then(() => {
   // Registrera custom protocol för media-bilder
   protocol.registerFileProtocol('media', (request, callback) => {
-    const fileName = request.url.replace('media://', '');
+    const encodedName = request.url.replace('media://', '');
+    const fileName = decodeURIComponent(encodedName);
     const filePath = path.join(IMAGE_ROOT, fileName);
-    console.log('[media protocol] Loading:', fileName, '->', filePath);
+    console.log('[media protocol] Loading:', encodedName, '->', filePath);
     callback({ path: filePath });
   });
   

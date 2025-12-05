@@ -662,9 +662,11 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
       }
       
       // Generera thumbnail och läs bilddimensioner
+      // Använd media:// URL (URL-encoded) om filen sparades, annars blob
+      const safeFileName = finalFilePath ? finalFilePath.split(/[/\\]/).pop() : file.name;
+      const mediaUrl = success ? `media://${encodeURIComponent(safeFileName)}` : URL.createObjectURL(file);
       try {
         const img = new Image();
-        const objectUrl = URL.createObjectURL(file);
         
         await new Promise((resolve, reject) => {
           img.onload = () => {
@@ -694,11 +696,14 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
             ctx.drawImage(img, 0, 0, width, height);
             thumbnail = canvas.toDataURL('image/jpeg', 0.8);
             
-            URL.revokeObjectURL(objectUrl);
+            // Rensa bara blob URLs, inte media://
+            if (!success && mediaUrl.startsWith('blob:')) {
+              URL.revokeObjectURL(mediaUrl);
+            }
             resolve();
           };
           img.onerror = reject;
-          img.src = objectUrl;
+          img.src = mediaUrl;
         });
       } catch (error) {
         console.error('[MediaManager] Error generating thumbnail:', error);
@@ -706,8 +711,8 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
       
       const newItem = {
         id: Date.now() + Math.random(),
-        url: success ? `media://${finalFilePath}` : URL.createObjectURL(file),
-        filePath: finalFilePath,
+        url: mediaUrl,
+        filePath: safeFileName,
         name: file.name,
         date: new Date().toISOString().split('T')[0],
         libraryId: activeLib === 'all' ? 'gallery' : activeLib,
@@ -727,7 +732,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
       // Läs EXIF data i bakgrunden (om Electron)
       if (success && window.electronAPI && window.electronAPI.readExif) {
         console.log('[MediaManager] Reading EXIF for:', finalFilePath);
-        window.electronAPI.readExif(finalFilePath)
+        window.electronAPI.readExif(safeFileName)
           .then(exifResult => {
             console.log('[MediaManager] EXIF loaded for', finalFilePath, ':', exifResult);
             
@@ -758,8 +763,9 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                 }
                 
                 // Använd EXIF datum om det finns
-                if (exifResult.metadata && exifResult.metadata.datetime) {
-                  updatedItem.date = exifResult.metadata.datetime.split(' ')[0].replace(/:/g, '-');
+                if (exifResult.metadata && (exifResult.metadata.datetime || exifResult.metadata.date_taken)) {
+                  const raw = exifResult.metadata.datetime || exifResult.metadata.date_taken;
+                  updatedItem.date = raw.split(' ')[0].replace(/:/g, '-');
                 }
                 
                 return updatedItem;
@@ -831,6 +837,20 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
         if (!data.error) {
           console.log('[MediaManager] EXIF loaded:', data);
           setExifData(data);
+          // Uppdatera item med EXIF info (keywords -> tags, faces -> faces)
+          if (data.keywords || data.face_tags) {
+            updateMedia(prev => prev.map(item => {
+              if (item.id !== selectedImage.id) return item;
+              const updated = { ...item };
+              if (data.keywords && data.keywords.length) {
+                updated.tags = [...new Set([...(item.tags || []), ...data.keywords])];
+              }
+              if (data.face_tags && data.face_tags.length) {
+                updated.faces = data.face_tags;
+              }
+              return updated;
+            }));
+          }
         }
       } catch (error) {
         console.warn('[MediaManager] Auto EXIF load failed:', error);
@@ -901,7 +921,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                     // Skapa media items från importerade filer
                     const newItems = result.files.map(file => ({
                       id: Date.now() + Math.random(),
-                      url: `media://${file.fileName}`, // Speciell protokoll för media-bilder
+                      url: `media://${encodeURIComponent(file.fileName)}`, // Speciell protokoll för media-bilder
                       filePath: file.filePath,
                       name: file.fileName,
                       date: new Date().toISOString().split('T')[0],

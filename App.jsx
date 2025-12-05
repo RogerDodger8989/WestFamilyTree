@@ -21,7 +21,7 @@ import SuggestionsPanel from './SuggestionsPanel.jsx';
 import DuplicateMergePanel from './DuplicateMergePanel.jsx';
 import RelationSettings from './RelationSettings.jsx';
 import GedcomImporter from './GedcomImporter.jsx';
-import DraggableModal from './DraggableModal.jsx';
+import { WindowFrame } from './WindowFrame.jsx';
 
 function ApiPersonList() {
   const [people, setPeople] = useState([]);
@@ -733,21 +733,10 @@ function App() {
       {/* ====================================================== */}
       
       {isSourceDrawerOpen && (
-        <DraggableModal
+        <WindowFrame
           title="Källkatalog"
+          icon={null}
           onClose={forceCloseSourceModal}
-          onCancel={forceCloseSourceModal}
-          onConfirm={forceCloseSourceModal}
-          
-          showLinkButton={!!(sourceCatalogState.selectedSourceId && sourcingEventInfo?.eventId)}
-          onLink={() => {
-              if (sourceCatalogState.selectedSourceId && sourcingEventInfo?.personId) {
-                  handleLinkSourceFromDrawer(sourceCatalogState.selectedSourceId);
-              } else {
-                  alert("Ingen källa vald eller ingen händelse aktiv.");
-              }
-          }}
-
           initialWidth={1100}
           initialHeight={700}
         >
@@ -766,7 +755,7 @@ function App() {
             sourcingEventInfo={sourcingEventInfo}
             alreadyLinkedIds={alreadyLinkedIds}
           />
-        </DraggableModal>
+        </WindowFrame>
       )}
 
       {/* Övriga modaler */}
