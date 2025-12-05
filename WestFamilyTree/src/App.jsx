@@ -596,7 +596,7 @@ function App() {
           )}
 
           {/* HÄR VISAS SLÄKTTRÄDET ÄVEN NÄR EDITINGPERSON ÄR TRUE */}
-          {activeTab === 'familyTree' && (<FamilyTreeView allPeople={visiblePeople} focusPersonId={familyTreeFocusPersonId} onSetFocus={(personId) => setFamilyTreeFocusPersonId(personId)} onOpenEditModal={handleOpenEditModal} onOpenPersonDrawer={openPersonDrawer} onSave={handleSaveRelations} onCreatePersonAndLink={createPersonAndLink} onOpenContextMenu={showContextMenu} highlightPlaceholderId={personDrawerEditContext?.id || (personDrawer && personDrawer._isPlaceholder ? personDrawer.id : null)} onRequestOpenDuplicateMerge={() => setShowDuplicateMerge(true)} />)}
+          {activeTab === 'familyTree' && (<FamilyTreeView allPeople={visiblePeople} focusPersonId={familyTreeFocusPersonId} onSetFocus={(personId) => setFamilyTreeFocusPersonId(personId)} onOpenEditModal={handleOpenEditModal} onOpenPersonDrawer={openPersonDrawer} onSave={handleSaveRelations} onCreatePersonAndLink={createPersonAndLink} onOpenContextMenu={showContextMenu} onDeletePerson={handleDeletePerson} highlightPlaceholderId={personDrawerEditContext?.id || (personDrawer && personDrawer._isPlaceholder ? personDrawer.id : null)} onRequestOpenDuplicateMerge={() => setShowDuplicateMerge(true)} />)}
           
           {activeTab === 'farmArchive' && (<FarmArchiveView places={dbData.places || []} people={visiblePeople} allSources={dbData.sources || []} onSavePlace={handleSavePlace} onOpenPerson={handleOpenEditModal} onViewInFamilyTree={handleViewInFamilyTree} onNavigateToSource={handleNavigateToSource} onOpenSourceDrawer={handleToggleSourceDrawer} onNavigateToPlace={handleNavigateToPlace} onOpenPlaceDrawer={handleTogglePlaceDrawer} onOpenSourceInDrawer={handleOpenSourceInDrawer} />)}
 
