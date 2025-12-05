@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ImageViewer from './ImageViewer.jsx';
+import ImageEditorModal from './ImageEditorModal.jsx';
 import { 
   Search, Image as ImageIcon, Grid, List, Tag, User, 
   MapPin, Calendar, Plus, Trash2, AlertCircle, UploadCloud, 
@@ -245,6 +246,10 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {}, media
   const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
   const [contextMenuItemId, setContextMenuItemId] = useState(null);
   
+  // Image Editor State
+  const [isImageEditorOpen, setIsImageEditorOpen] = useState(false);
+  const [editingImage, setEditingImage] = useState(null);
+  
   // Data State - Use media from database, fallback to INITIAL_MEDIA for demo
   const [mediaItems, setMediaItems] = useState(initialMedia.length > 0 ? initialMedia : INITIAL_MEDIA);
   
@@ -274,8 +279,12 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {}, media
         setImageViewerOpen(true);
         break;
       case 'rotate':
-        // Rotate image (would need image manipulation)
-        alert('Rotera funktion kommer snart!');
+        // Open image editor for rotation
+        const rotateItem = mediaItems.find(m => m.id === contextMenuItemId);
+        if (rotateItem) {
+          setEditingImage(rotateItem);
+          setIsImageEditorOpen(true);
+        }
         break;
       case 'delete':
         if (confirm(`Radera "${item.name}" permanent?`)) {
@@ -284,6 +293,47 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {}, media
         break;
     }
     setContextMenuOpen(false);
+  };
+
+  // Open image editor on double click
+  const handleImageDoubleClick = (item, e) => {
+    e.stopPropagation();
+    setEditingImage(item);
+    setIsImageEditorOpen(true);
+  };
+
+  // Handle saving edited image
+  const handleSaveEditedImage = (blob, createCopy) => {
+    if (!editingImage) return;
+
+    // Convert blob to data URL
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const newImageUrl = reader.result;
+
+      if (createCopy) {
+        // Create new copy with new ID
+        const newId = Date.now();
+        const newImage = {
+          ...editingImage,
+          id: newId,
+          url: newImageUrl,
+          name: `${editingImage.name.replace(/\.[^/.]+$/, '')}_redigerad.jpg`
+        };
+        updateMedia([...mediaItems, newImage]);
+      } else {
+        // Overwrite original
+        updateMedia(mediaItems.map(m => 
+          m.id === editingImage.id 
+            ? { ...m, url: newImageUrl }
+            : m
+        ));
+      }
+
+      setEditingImage(null);
+      setIsImageEditorOpen(false);
+    };
+    reader.readAsDataURL(blob);
   };
   
   const [customLibraries, setCustomLibraries] = useState([
@@ -600,6 +650,7 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {}, media
               {filteredMedia.map(item => (
               <div key={item.id} 
                   onClick={(e) => handleImageClick(item, e)}
+                  onDoubleClick={(e) => handleImageDoubleClick(item, e)}
                   onContextMenu={(e) => handleContextMenu(e, item.id)}
                   draggable
                   onDragStart={(e) => handleItemDragStart(e, item.id)}
@@ -628,7 +679,12 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {}, media
           ) : (
           <div className="flex flex-col gap-1">
               {filteredMedia.map(item => (
-                  <div key={item.id} onClick={(e) => handleImageClick(item, e)} draggable onDragStart={(e) => handleItemDragStart(e, item.id)} className={`flex items-center gap-4 p-2 rounded border cursor-pointer ${selectedIds.has(item.id) ? 'bg-blue-900/30 border-blue-500' : (selectedImage?.id === item.id ? 'bg-slate-800 border-blue-500' : 'bg-slate-800/30 border-slate-700 hover:bg-slate-800')}`}>
+                  <div key={item.id} 
+                      onClick={(e) => handleImageClick(item, e)} 
+                      onDoubleClick={(e) => handleImageDoubleClick(item, e)}
+                      draggable 
+                      onDragStart={(e) => handleItemDragStart(e, item.id)} 
+                      className={`flex items-center gap-4 p-2 rounded border cursor-pointer ${selectedIds.has(item.id) ? 'bg-blue-900/30 border-blue-500' : (selectedImage?.id === item.id ? 'bg-slate-800 border-blue-500' : 'bg-slate-800/30 border-slate-700 hover:bg-slate-800')}`}>
                       <div className="w-8 flex justify-center">
                           {(isSelectMode || selectedIds.has(item.id)) && (selectedIds.has(item.id) ? <CheckSquare size={18} className="text-blue-500"/> : <Square size={18} className="text-slate-500"/>)}
                       </div>
@@ -673,40 +729,6 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {}, media
               <h3 className="text-sm font-bold text-white truncate w-64">{selectedImage.name}</h3>
               <button onClick={() => setSelectedImage(null)} className="text-slate-400 hover:text-white"><X size={18}/></button>
           </div>
-          <div 
-              className="aspect-video bg-black/50 relative overflow-hidden cursor-grab active:cursor-grabbing border-b border-slate-700 group"
-              onWheel={handleWheel} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}
-              onDoubleClick={() => setTransform({x:0, y:0, scale:1, rotate:0})}
-          >
-              <div style={{ transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale}) rotate(${transform.rotate}deg)`, transition: isPanning ? 'none' : 'transform 0.1s', transformOrigin: 'center', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <img src={selectedImage.url} className="max-w-full max-h-full object-contain pointer-events-none" />
-                  <FaceOverlay faces={selectedImage.faces} />
-              </div>
-              
-              <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                  <button className="flex items-center gap-1 px-2 py-1 bg-black/60 backdrop-blur rounded text-xs text-white hover:bg-blue-600 transition-colors" onClick={(e) => { e.stopPropagation(); handleTagFace(); }} title="Tagga ansikte">
-                      <ScanFace size={14}/> <span className="font-medium">Tagga</span>
-                  </button>
-              </div>
-
-              <div className="absolute bottom-2 left-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button onClick={() => setTransform(p => ({...p, scale: Math.max(0.5, p.scale - 0.5)}))} className="p-1.5 bg-black/60 rounded text-white hover:bg-blue-600 transition-colors"><ZoomOut size={14}/></button>
-              <button onClick={() => setTransform({x:0, y:0, scale:1, rotate: 0})} className="p-1.5 bg-black/60 rounded text-white hover:bg-blue-600 transition-colors"><Maximize size={14}/></button>
-              <button onClick={() => setTransform(p => ({...p, scale: Math.min(5, p.scale + 0.5)}))} className="p-1.5 bg-black/60 rounded text-white hover:bg-blue-600 transition-colors"><ZoomIn size={14}/></button>
-              </div>
-          </div>
-          
-          <div className="grid grid-cols-3 gap-1 p-2 border-b border-slate-700 bg-slate-800/50">
-              <button onClick={handleTagFace} className="flex flex-col items-center justify-center p-2 rounded hover:bg-slate-700 text-slate-400 hover:text-white text-[10px] gap-1 transition-colors">
-                  <ScanFace size={16}/> Tagga
-              </button>
-              <button onClick={handleRotate} className="flex flex-col items-center justify-center p-2 rounded hover:bg-slate-700 text-slate-400 hover:text-white text-[10px] gap-1 transition-colors">
-                  <RotateCw size={16}/> Rotera
-              </button>
-              <button onClick={handleCrop} className="flex flex-col items-center justify-center p-2 rounded hover:bg-slate-700 text-slate-400 hover:text-white text-[10px] gap-1 transition-colors">
-                  <Crop size={16}/> Beskär
-              </button>
-          </div>
           
           <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar bg-slate-800">
               <div className="space-y-3">
@@ -737,9 +759,6 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {}, media
                   <label className="text-[10px] uppercase font-bold text-slate-500 block mb-1">Bildtext / Beskrivning</label>
                   <div className="bg-slate-900 border border-slate-600 rounded p-2">
                       <textarea className="w-full bg-transparent text-sm text-white focus:outline-none resize-y min-h-[60px]" placeholder="Skriv en beskrivning..." defaultValue={selectedImage.description} />
-                      <div className="flex justify-end mt-1">
-                          <button className="text-slate-500 hover:text-white" title="Tala in memo"><Mic size={14}/></button>
-                      </div>
                   </div>
               </div>
 
@@ -837,6 +856,18 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {}, media
         }}
         people={allPeople}
         onOpenEditModal={onOpenEditModal}
+      />
+
+      {/* IMAGE EDITOR MODAL */}
+      <ImageEditorModal
+        isOpen={isImageEditorOpen}
+        onClose={() => {
+          setIsImageEditorOpen(false);
+          setEditingImage(null);
+        }}
+        imageUrl={editingImage?.url}
+        imageName={editingImage?.name}
+        onSave={handleSaveEditedImage}
       />
 
       {/* Context Menu */}
