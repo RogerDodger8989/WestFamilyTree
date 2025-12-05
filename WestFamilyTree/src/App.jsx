@@ -38,11 +38,14 @@ function App() {
     handleDeletePerson, handleOpenEditModal, handleCloseEditModal, handleSavePersonDetails, 
     handleEditFormChange, handleTabChange, handleDeleteEvent, handleViewInFamilyTree,
     handleSaveRelations, handleToggleSourceDrawer, handleLinkSourceFromDrawer, handleUnlinkSourceFromDrawer,
+    handleLinkSourceToMedia, handleLinkPlaceToMedia, linkingMediaInfo,
+    openSourceDrawerForSelection,
     handleCreateAndEditPerson, handleOpenSourceModal, handleCloseSourceModal, handleSourceFormChange,
     handleParseSource, handleSaveSource, handleSaveEditedSource, handleUndo, handleDeleteSource,
     addRelation, getPersonRelations,
     handleSetFocusPair, handleToggleBookmark, handleAddNewPlace, handleSavePlace, isAttachingSource, handleAttachSources, handleSwitchToCreateSource, handleNavigateToPlace,
     handleTogglePlaceDrawer,
+    openPlaceDrawerForSelection,
     applyHistoryEntry,
     setAuditBackupDir,
     isRelationshipDrawerOpen, relationshipCatalogState, setRelationshipCatalogState, handleToggleRelationshipDrawer,
@@ -548,6 +551,8 @@ function App() {
                 setDbData(prev => ({ ...prev, media: updatedMedia }));
                 setIsDirty(true);
               }}
+              setIsSourceDrawerOpen={openSourceDrawerForSelection}
+              setIsPlaceDrawerOpen={openPlaceDrawerForSelection}
             /> 
           )}
 
@@ -649,13 +654,34 @@ function App() {
             onCreateNewPerson={handleCreateAndEditPerson}
             onOpenEditModal={handleOpenEditModal}
             isDrawerMode={true}
-            onLinkSource={handleLinkSourceFromDrawer}
+            onLinkSource={linkingMediaInfo ? handleLinkSourceToMedia : handleLinkSourceFromDrawer}
             onUnlinkSource={handleUnlinkSourceFromDrawer}
             sourcingEventInfo={sourcingEventInfo}
             alreadyLinkedIds={alreadyLinkedIds}
             onAddSource={handleAddSource} 
             onOpenLinkPersonModal={handleOpenLinkPersonModal} 
             onUnlinkSourceFromEvent={handleUnlinkSourceFromPerson}
+          />
+        </WindowFrame>
+      )}
+
+      {/* ====================================================== */}
+      {/* FLYTTBAR PLATSKATALOG (MODAL) */}
+      {/* ====================================================== */}
+      
+      {isPlaceDrawerOpen && (
+        <WindowFrame
+          title="Platsregister"
+          onClose={() => handleTogglePlaceDrawer(placeCatalogState?.selectedPlaceId)}
+          initialWidth={1100}
+          initialHeight={700}
+          zIndex={9998}
+        >
+          <PlaceCatalog
+            catalogState={placeCatalogState}
+            setCatalogState={setPlaceCatalogState}
+            isDrawerMode={!!linkingMediaInfo}
+            onLinkPlace={handleLinkPlaceToMedia}
           />
         </WindowFrame>
       )}

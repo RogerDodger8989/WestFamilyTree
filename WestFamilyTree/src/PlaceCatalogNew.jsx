@@ -174,7 +174,7 @@ const ContextMenu = ({ x, y, node, onClose, onAction }) => {
   );
 };
 
-export default function PlaceCatalog({ catalogState, setCatalogState, onPick, onClose }) {
+export default function PlaceCatalog({ catalogState, setCatalogState, onPick, onClose, isDrawerMode = false, onLinkPlace }) {
   const { recordAudit, showStatus } = useApp();
   const [tree, setTree] = useState([]);
   const [flatPlaces, setFlatPlaces] = useState([]);
@@ -879,6 +879,16 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
         <div className="h-10 bg-slate-800 border-t border-slate-700 flex items-center justify-end gap-2 px-3">
           <button className="px-3 py-1 bg-slate-700 text-slate-100 rounded hover:bg-slate-600 font-medium" onClick={() => onClose && onClose()}>Avbryt</button>
           <button className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-500 font-medium disabled:opacity-50" disabled={!selectedNode} onClick={() => selectedNode && onPick(selectedNode)}>OK</button>
+        </div>
+      ) : isDrawerMode && onLinkPlace ? (
+        <div className="h-10 bg-slate-800 border-t border-slate-700 flex items-center justify-end gap-2 px-3">
+          <button 
+            className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-500 font-medium disabled:opacity-50 disabled:bg-green-900" 
+            disabled={!selectedNode} 
+            onClick={() => selectedNode && onLinkPlace(selectedNode)}
+          >
+            ✓ Koppla plats
+          </button>
         </div>
       ) : (
         <div className="h-8 bg-slate-900 text-slate-300 flex items-center px-4 text-xs border-t border-slate-700">

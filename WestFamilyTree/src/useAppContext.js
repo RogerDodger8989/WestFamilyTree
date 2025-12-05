@@ -74,6 +74,7 @@ export default function useAppContext() {
 
     // State för käll-modalen
     const [sourcingEventInfo, setSourcingEventInfo] = useState(null);
+    const [linkingMediaInfo, setLinkingMediaInfo] = useState(null); // För att länka källor/platser till media
     const [isAttachingSource, setIsAttachingSource] = useState(false);
     const [isSourceDrawerOpen, setSourceDrawerOpen] = useState(false);
     // NYTT: State för plats-drawer
@@ -266,6 +267,20 @@ export default function useAppContext() {
             try { pushHistory({ tab: activeTab, editingPersonId: editingPerson?.id || null, selectedPlaceId: placeId }); } catch (e) {}
         }
     }
+
+    // Öppna platsDrawern utan att länka till en specifik event (för MediaManager)
+    const openPlaceDrawerForSelection = (mediaItem = null) => {
+        setPlaceDrawerOpen(true);
+        setSourceDrawerOpen(false);
+        setPlaceCatalogState(prev => ({ ...prev, selectedPlaceId: null, pendingLink: null }));
+        if (mediaItem && typeof mediaItem === 'object') {
+            setLinkingMediaInfo({ mediaId: mediaItem.id, mediaItem, type: 'place' });
+        } else if (mediaItem) {
+            setLinkingMediaInfo({ mediaId: mediaItem, type: 'place' });
+        } else {
+            setLinkingMediaInfo(null);
+        }
+    };
 
     // NYTT: Hantera relations-drawer
     function handleToggleRelationshipDrawer(personId = null) {
@@ -665,6 +680,115 @@ export default function useAppContext() {
         showUndoToast("Relationer har uppdaterats.", () => setDbData(originalDbData));
     };
 
+    // Länka källa till media
+    const handleLinkSourceToMedia = (sourceId) => {
+        if (!linkingMediaInfo || linkingMediaInfo.type !== 'source') {
+            console.log('❌ No media linking context for source');
+            return;
+        }
+        
+        const { mediaId } = linkingMediaInfo;
+        const source = dbData.sources?.find(s => s.id === sourceId);
+        if (!source) {
+            console.log('❌ Source not found:', sourceId);
+            return;
+        }
+        
+        setDbData(prev => {
+            const currentMedia = Array.isArray(prev.media) ? prev.media : [];
+            return {
+                ...prev,
+                media: currentMedia.map(item => {
+                    if (item.id !== mediaId) return item;
+                    const existingSources = Array.isArray(item.connections?.sources) ? item.connections.sources : [];
+                    if (existingSources.some(s => s.id === sourceId)) {
+                        console.log('⚠️ Source already linked to media');
+                        return item;
+                    }
+                    return {
+                        ...item,
+                        connections: {
+                            ...item.connections,
+                            sources: [...existingSources, source]
+                        }
+                    };
+                })
+            };
+        });
+        
+        setIsDirty(true);
+        showStatus('Källa kopplad till bild!');
+        setSourceDrawerOpen(false);
+        setLinkingMediaInfo(null);
+    };
+
+    // Länka plats till media
+    const handleLinkPlaceToMedia = (placeNode) => {
+        console.log('🔗 handleLinkPlaceToMedia called with:', placeNode);
+        console.log('🔗 linkingMediaInfo:', linkingMediaInfo);
+        
+        if (!linkingMediaInfo || linkingMediaInfo.type !== 'place') {
+            console.log('❌ No media linking context for place');
+            return;
+        }
+        
+        const { mediaId } = linkingMediaInfo;
+        console.log('🔗 Linking to mediaId:', mediaId);
+        
+        // placeNode kommer från PlaceCatalogNew och har strukturen: { id, name, type, metadata }
+        if (!placeNode || !placeNode.id) {
+            console.error('❌ Invalid place node:', placeNode);
+            showStatus('Ogiltig plats', 'error');
+            return;
+        }
+        
+        const placeData = {
+            id: placeNode.id,
+            name: placeNode.name,
+            type: placeNode.type || 'Plats'
+        };
+        console.log('🔗 Place data to link:', placeData);
+        
+        setDbData(prev => {
+            const currentMedia = Array.isArray(prev.media) ? prev.media : [];
+            const found = currentMedia.some(m => m.id === mediaId);
+
+            const mediaBase = found
+                ? currentMedia
+                : linkingMediaInfo?.mediaItem
+                  ? [...currentMedia, linkingMediaInfo.mediaItem]
+                  : currentMedia;
+
+            console.log('🔍 Current media items:', mediaBase.length, 'foundMedia?', found);
+            const updatedMedia = mediaBase.map(item => {
+                if (item.id !== mediaId) return item;
+
+                const existingPlaces = Array.isArray(item.connections?.places) ? item.connections.places : [];
+                if (existingPlaces.some(p => p.id === placeNode.id)) {
+                    console.log('⚠️ Place already linked to media');
+                    showStatus('Platsen är redan kopplad', 'warning');
+                    return item;
+                }
+
+                return {
+                    ...item,
+                    connections: {
+                        ...item.connections,
+                        places: [...existingPlaces, placeData]
+                    }
+                };
+            });
+
+            return { ...prev, media: updatedMedia };
+        });
+        
+        setIsDirty(true);
+        showStatus('Plats kopplad till bild!');
+        setPlaceDrawerOpen(false);
+        setLinkingMediaInfo(null);
+        console.log('✅ handleLinkPlaceToMedia completed');
+    };
+
     const handleNavigateToSource = (sourceId) => {
         setSourceCatalogState(prev => ({ ...prev, selectedSourceId: sourceId }));
         if (editingPerson) {
@@ -673,6 +797,14 @@ export default function useAppContext() {
             setActiveTab('sources');
         }
         try { pushHistory({ tab: editingPerson ? activeTab : 'sources', editingPersonId: editingPerson?.id || null, selectedSourceId: sourceId }); } catch (e) {}
+    };
+
+    // Öppna källDrawern utan att länka till en specifik event (för MediaManager)
+    const openSourceDrawerForSelection = (mediaId = null) => {
+        setSourceDrawerOpen(true);
+        setPlaceDrawerOpen(false);
+        setSourcingEventInfo(null); // Ingen specifik event-kontext
+        setLinkingMediaInfo(mediaId ? { mediaId, type: 'source' } : null);
     };
 
     const handleToggleSourceDrawer = (personId, eventId) => {
@@ -1472,13 +1604,16 @@ export default function useAppContext() {
         showSettings, setShowSettings, editingPerson, activeTab, focusPair, bookmarks,
         sourceCatalogState, setSourceCatalogState, placeCatalogState, setPlaceCatalogState,
         familyTreeFocusPersonId, setFamilyTreeFocusPersonId,
-        editingRelationsForPerson, setEditingRelationsForPerson, sourcingEventInfo, isAttachingSource,
+        editingRelationsForPerson, setEditingRelationsForPerson, sourcingEventInfo, linkingMediaInfo, isAttachingSource,
         isSourceDrawerOpen, isPlaceDrawerOpen, isCreatingSource, sourceState, undoState, statusToast,
         handleNewFile, handleOpenFile, handleSaveFile, handleSaveFileAs, handleAddPerson,
         handleDeletePerson, handleOpenEditModal, handleCloseEditModal, handleSavePersonDetails,
         handleEditFormChange, handleTabChange, handleDeleteEvent, handleViewInFamilyTree,
         handleSaveRelations, handleNavigateToSource, handleNavigateToPlace, handleToggleSourceDrawer, handleLinkSourceFromDrawer, handleUnlinkSourceFromDrawer,
+        handleLinkSourceToMedia, handleLinkPlaceToMedia,
+        openSourceDrawerForSelection,
         handleTogglePlaceDrawer,
+        openPlaceDrawerForSelection,
         handleCreateAndEditPerson, handleOpenSourceModal, handleCloseSourceModal, handleSourceFormChange,
         handleParseSource, handleSaveSource, handleSaveEditedSource, handleUndo, handleDeleteSource,
         handleSetFocusPair, handleToggleBookmark, handleSwapFocus, handleClearFocus,

@@ -234,7 +234,7 @@ const LibraryButton = ({ lib, isActive, onClick, onDrop, onDelete }) => {
     );
 };
 
-export function MediaManager({ allPeople = [], onOpenEditModal = () => {}, mediaItems: initialMedia = [], onUpdateMedia = () => {} }) {
+export function MediaManager({ allPeople = [], onOpenEditModal = () => {}, mediaItems: initialMedia = [], onUpdateMedia = () => {}, setIsSourceDrawerOpen = () => {}, setIsPlaceDrawerOpen = () => {} }) {
   // UI State
   const [viewMode, setViewMode] = useState('grid'); 
   const [activeLib, setActiveLib] = useState('all');
@@ -256,6 +256,20 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {}, media
   
   // Data State - Use media from database, fallback to INITIAL_MEDIA for demo
   const [mediaItems, setMediaItems] = useState(initialMedia.length > 0 ? initialMedia : INITIAL_MEDIA);
+  
+  // Synka mediaItems med initialMedia prop när den ändras
+  useEffect(() => {
+    setMediaItems(initialMedia.length > 0 ? initialMedia : INITIAL_MEDIA);
+  }, [initialMedia]);
+  
+  // Get all available sources and places (after mediaItems is defined)
+  const allSources = mediaItems
+    .flatMap(m => m.connections.sources || [])
+    .filter((s, i, arr) => arr.findIndex(x => x.id === s.id) === i); // Unique by id
+  
+  const allPlaces = mediaItems
+    .flatMap(m => m.connections.places || [])
+    .filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i); // Unique by id
   
   // Helper to update media and notify parent
   const updateMedia = (newMedia) => {
@@ -745,11 +759,16 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
             // Uppdatera item med EXIF data
             updateMedia(prevItems => prevItems.map(item => {
               if (item.filePath === finalFilePath) {
-                const updatedItem = { ...item };
+                // Behåll ALLA befintliga fält, lägg bara till EXIF-data
+                const updatedItem = {
+                  ...item,
+                  // Bevara connections explicit
+                  connections: item.connections || { people: [], places: [], sources: [] }
+                };
                 
-                // Lägg till keywords som tags
+                // Lägg till keywords som tags (behåll befintliga)
                 if (exifResult.keywords && exifResult.keywords.length > 0) {
-                  updatedItem.tags = [...new Set([...item.tags, ...exifResult.keywords])];
+                  updatedItem.tags = [...new Set([...(item.tags || []), ...exifResult.keywords])];
                 }
 
                 // Sätt beskrivning om tom och EXIF har titel/beskrivning
@@ -759,20 +778,23 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                   else if (md.description) updatedItem.description = md.description;
                 }
                 
-                // Lägg till GPS om det finns
-                if (exifResult.gps) {
+                // Lägg till GPS om det finns (behåll befintligt om det finns)
+                if (exifResult.gps && !updatedItem.gps) {
                   updatedItem.gps = exifResult.gps;
                 }
                 
-                // Lägg till kameradadata
-                if (exifResult.camera) {
+                // Lägg till kameradadata (behåll befintligt om det finns)
+                if (exifResult.camera && !updatedItem.camera) {
                   updatedItem.camera = exifResult.camera;
                 }
                 
-                // Använd EXIF datum om det finns
+                // Använd EXIF datum om det finns OCH nuvarande datum är dagens datum (dvs. inte ändrat)
                 if (exifResult.metadata && (exifResult.metadata.datetime || exifResult.metadata.date_taken)) {
-                  const raw = exifResult.metadata.datetime || exifResult.metadata.date_taken;
-                  updatedItem.date = raw.split(' ')[0].replace(/:/g, '-');
+                  const today = new Date().toISOString().split('T')[0];
+                  if (updatedItem.date === today) {
+                    const raw = exifResult.metadata.datetime || exifResult.metadata.date_taken;
+                    updatedItem.date = raw.split(' ')[0].replace(/:/g, '-');
+                  }
                 }
                 
                 return updatedItem;
@@ -890,6 +912,16 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
     
     loadExif();
   }, [selectedImage]);
+
+  // Synka selectedImage med mediaItems när connections uppdateras
+  useEffect(() => {
+    if (selectedImage && selectedImage.id) {
+      const updatedImage = mediaItems.find(m => m.id === selectedImage.id);
+      if (updatedImage && JSON.stringify(updatedImage) !== JSON.stringify(selectedImage)) {
+        setSelectedImage(updatedImage);
+      }
+    }
+  }, [mediaItems]);
 
   useEffect(() => setTransform({ x: 0, y: 0, scale: 1, rotate: 0 }), [selectedImage]);
   const handleWheel = (e) => { e.preventDefault(); const s = -e.deltaY * 0.001; setTransform(p => ({ ...p, scale: Math.min(Math.max(0.5, p.scale + s), 5) })); };
@@ -1178,7 +1210,12 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                               <button className="text-slate-500 hover:text-red-400"><X size={12}/></button>
                           </div>
                       ))}
-                      <button className="w-full py-1.5 border border-dashed border-slate-600 text-slate-400 text-xs rounded hover:text-white hover:border-slate-500 hover:bg-slate-700 transition-colors flex items-center justify-center gap-1"><Link size={12}/> Koppla källa</button>
+                      <button 
+                          onClick={() => setIsSourceDrawerOpen(selectedImage.id)}
+                          className="w-full py-1.5 border border-dashed border-slate-600 text-slate-400 text-xs rounded hover:text-white hover:border-slate-500 hover:bg-slate-700 transition-colors flex items-center justify-center gap-1"
+                      >
+                          <Link size={12}/> Koppla källa
+                      </button>
                   </div>
 
                   <div className="space-y-2">
@@ -1188,10 +1225,31 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                       {selectedImage.connections.places.map(p => (
                           <div key={p.id} className="flex items-center justify-between bg-slate-900 p-2 rounded border border-slate-700 text-xs">
                               <div><span className="text-slate-200 font-medium block">{p.name}</span><span className="text-[10px] text-slate-500">{p.type}</span></div>
-                              <button className="text-slate-500 hover:text-red-400"><X size={12}/></button>
+                              <button 
+                                onClick={() => {
+                                  updateMedia(prev => prev.map(item => {
+                                    if (item.id !== selectedImage.id) return item;
+                                    return {
+                                      ...item,
+                                      connections: {
+                                        ...item.connections,
+                                        places: item.connections.places.filter(place => place.id !== p.id)
+                                      }
+                                    };
+                                  }));
+                                }}
+                                className="text-slate-500 hover:text-red-400"
+                              >
+                                <X size={12}/>
+                              </button>
                           </div>
                       ))}
-                      <button className="w-full py-1.5 border border-dashed border-slate-600 text-slate-400 text-xs rounded hover:text-white hover:border-slate-500 hover:bg-slate-700 transition-colors flex items-center justify-center gap-1"><MapPin size={12}/> Koppla plats</button>
+                        <button 
+                          onClick={() => setIsPlaceDrawerOpen(selectedImage)}
+                          className="w-full py-1.5 border border-dashed border-slate-600 text-slate-400 text-xs rounded hover:text-white hover:border-slate-500 hover:bg-slate-700 transition-colors flex items-center justify-center gap-1"
+                      >
+                          <MapPin size={12}/> Koppla plats
+                      </button>
                   </div>
               </div>
 
@@ -1207,233 +1265,154 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
 
               {/* EXIF & METADATA SEKTION */}
               <div className="space-y-3 border-t border-slate-700 pt-4">
-                  <div className="flex justify-between items-center">
-                      <h4 className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-2">
-                          <Camera size={12}/> EXIF & Metadata
-                      </h4>
-                      <button 
-                          onClick={() => setExifExpanded(!exifExpanded)}
-                          className="text-xs text-blue-400 hover:text-blue-300"
-                      >
-                          {exifExpanded ? 'Dölj' : 'Visa'}
-                      </button>
-                  </div>
+                  <h4 className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-2">
+                      <Camera size={12}/> EXIF & Metadata
+                  </h4>
 
-                  {exifExpanded && (
+                  {exifData ? (
                       <div className="space-y-3">
-                          <div className="flex gap-2">
-                              <button 
-                                  onClick={async () => {
-                                      setLoadingExif(true);
-                                      try {
-                                          // Bestäm vilken väg vi ska använda
-                                          let pathToUse = selectedImage.filePath || selectedImage.name;
-                                          
-                                          // Om det är en blob URL eller http URL, använd bara filnamnet
-                                          if (pathToUse.startsWith('blob:') || pathToUse.startsWith('http')) {
-                                              pathToUse = selectedImage.name;
-                                              console.log('[EXIF] Blob/HTTP URL detected, using filename:', pathToUse);
-                                          }
-                                          
-                                          // Om filePath innehåller /, ta bara filnamnet
-                                          if (pathToUse.includes('/') || pathToUse.includes('\\')) {
-                                              const parts = pathToUse.replace(/\\/g, '/').split('/');
-                                              pathToUse = parts[parts.length - 1];
-                                              console.log('[EXIF] Path contains slashes, extracted filename:', pathToUse);
-                                          }
-                                          
-                                          // Om pathToUse är konstigt (t.ex. "Media/Manager.jsx"), använd bara bildnamnet
-                                          if (!pathToUse.match(/\.(jpg|jpeg|png|gif|bmp|tiff)$/i)) {
-                                              pathToUse = selectedImage.name;
-                                              console.log('[EXIF] Invalid path detected, using image name:', pathToUse);
-                                          }
-                                          
-                                          // Använd Electron API om det finns, annars direkt fetch
-                                          let data;
-                                          if (window.electronAPI && window.electronAPI.readExif) {
-                                              // Electron-läge: skicka bildens filväg
-                                              console.log('[EXIF] Reading from path:', pathToUse);
-                                              data = await window.electronAPI.readExif(pathToUse);
-                                          } else {
-                                              // Webbläsarläge: använd direkt fetch
-                                              const response = await fetch('http://localhost:5005/exif/read', {
-                                                  method: 'POST',
-                                                  headers: { 'Content-Type': 'application/json' },
-                                                  body: JSON.stringify({ image_path: pathToUse })
-                                              });
-                                              data = await response.json();
-                                          }
-                                          
-                                          if (data.error) {
-                                              alert(`Kunde inte läsa EXIF-data: ${data.error}\n\nSökväg: ${pathToUse}\n\nOm filen inte finns i media-mappen, kopiera den dit först.`);
-                                          } else {
-                                              setExifData(data);
-                                          }
-                                      } catch (error) {
-                                          console.error('Error loading EXIF:', error);
-                                          alert(`Kunde inte läsa EXIF-data: ${error.message}`);
-                                      } finally {
-                                          setLoadingExif(false);
-                                      }
-                                  }}
-                                  className="flex-1 px-2 py-1.5 bg-slate-900 border border-slate-600 text-slate-300 text-xs rounded hover:border-blue-500 hover:text-white transition-colors flex items-center justify-center gap-1"
-                                  disabled={loadingExif}
-                              >
-                                  {loadingExif ? (
-                                      <><RefreshCw size={12} className="animate-spin"/> Läser...</>
-                                  ) : (
-                                      <><Download size={12}/> Läs från fil</>
-                                  )}
-                              </button>
-                              <button 
-                                  onClick={syncFaceTagsWithPeople}
-                                  className="px-2 py-1.5 bg-blue-600 border border-blue-500 text-white text-xs rounded hover:bg-blue-500 transition-colors flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                                  title="Synka face tags med personer"
-                                  disabled={!exifData || !exifData.face_tags || exifData.face_tags.length === 0}
-                              >
-                                  <Database size={12}/> Synka
-                              </button>
-                          </div>
-
-                          {exifData && (
-                              <>
-                                    {/* Face Tags */}
-                                    {exifData.face_tags && exifData.face_tags.length > 0 ? (
-                                      <div className="space-y-2">
-                                        <label className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
-                                          <ScanFace size={12}/> Face Tags
-                                        </label>
-                                        {exifData.face_tags.map((face, idx) => (
-                                          <div key={idx} className="flex items-center justify-between bg-slate-900 p-2 rounded border border-slate-700 text-xs">
-                                            <div>
-                                              <span className="text-slate-200 font-medium block">{face.name}</span>
-                                              <span className="text-[10px] text-slate-500">{face.source}</span>
-                                            </div>
-                                            <div className="flex gap-1">
-                                              <button className="text-green-400 hover:text-green-300 p-1" title="Länka till person">
-                                                <Link size={12}/>
-                                              </button>
-                                              <button className="text-slate-500 hover:text-red-400 p-1">
-                                                <X size={12}/>
-                                              </button>
-                                            </div>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    ) : (
-                                      <p className="text-[11px] text-slate-500">Inga face tags hittades i EXIF.</p>
-                                    )}
-
-                                  {/* Keywords - dölj om taggar redan finns */}
-                                  {(!mediaItems.find(m => m.id === selectedImage?.id)?.tags?.length) && exifData.keywords && exifData.keywords.length > 0 ? (
-                                    <div className="space-y-2">
-                                      <label className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
-                                        <Tag size={12}/> Keywords (EXIF)
-                                      </label>
-                                      <div className="flex flex-wrap gap-1">
-                                        {exifData.keywords.map((keyword, idx) => (
-                                          <span key={idx} className="bg-blue-900/30 border border-blue-700/50 text-blue-300 text-xs px-2 py-0.5 rounded flex items-center gap-1">
-                                            {keyword}
-                                            <button className="hover:text-white">
-                                              <X size={10}/>
-                                            </button>
-                                          </span>
-                                        ))}
-                                      </div>
-                                      <button className="w-full py-1 border border-dashed border-slate-600 text-slate-400 text-xs rounded hover:text-white hover:border-slate-500 hover:bg-slate-700 transition-colors">
-                                          + Lägg till keyword
-                                      </button>
-                                    </div>
-                                  ) : (
-                                    <p className="text-[11px] text-slate-500">Inga keywords hittades i EXIF.</p>
-                                  )}
-
-                                  {/* Camera Info */}
-                                  {exifData.camera && Object.keys(exifData.camera).length > 0 && (
-                                      <div className="space-y-1">
-                                          <label className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
-                                              <Camera size={12}/> Kamera
-                                          </label>
-                                          <div className="bg-slate-900 border border-slate-700 rounded p-2 text-xs space-y-1">
-                                              {exifData.camera.make && exifData.camera.model && (
-                                                  <div className="text-slate-300">{exifData.camera.make} {exifData.camera.model}</div>
-                                              )}
-                                              {exifData.camera.lens && (
-                                                  <div className="text-slate-400 text-[10px]">{exifData.camera.lens}</div>
-                                              )}
-                                              <div className="flex gap-2 text-slate-400 text-[10px]">
-                                                  {exifData.camera.aperture && <span>{exifData.camera.aperture}</span>}
-                                                  {exifData.camera.shutter_speed && <span>{exifData.camera.shutter_speed}s</span>}
-                                                  {exifData.camera.iso && <span>ISO {exifData.camera.iso}</span>}
-                                                  {exifData.camera.focal_length && <span>{exifData.camera.focal_length}</span>}
-                                              </div>
-                                          </div>
-                                      </div>
-                                  )}
-
-                                  {/* GPS */}
-                                  {exifData.gps && (
-                                      <div className="space-y-1">
-                                          <label className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
-                                              <MapPin size={12}/> GPS-koordinater
-                                          </label>
-                                          <div className="bg-slate-900 border border-slate-700 rounded p-2 text-xs">
-                                              <div className="text-slate-300 font-mono">
-                                                  {exifData.gps.latitude.toFixed(6)}, {exifData.gps.longitude.toFixed(6)}
-                                              </div>
-                                              {exifData.gps.altitude && (
-                                                  <div className="text-slate-400 text-[10px] mt-1">
-                                                      Höjd: {exifData.gps.altitude.toFixed(0)}m
-                                                  </div>
-                                              )}
-                                          </div>
-                                      </div>
-                                  )}
-
-                                  {/* Metadata */}
-                                  {exifData.metadata && Object.keys(exifData.metadata).length > 0 && (
-                                      <div className="space-y-1">
-                                          <label className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
-                                              <Info size={12}/> Metadata
-                                          </label>
-                                          <div className="bg-slate-900 border border-slate-700 rounded p-2 text-xs space-y-1">
-                                              {exifData.metadata.date_taken && (
-                                                  <div><span className="text-slate-500">Datum:</span> <span className="text-slate-300">{exifData.metadata.date_taken}</span></div>
-                                              )}
-                                              {exifData.metadata.description && (
-                                                  <div><span className="text-slate-500">Beskrivning:</span> <span className="text-slate-300">{exifData.metadata.description}</span></div>
-                                              )}
-                                              {exifData.metadata.artist && (
-                                                  <div><span className="text-slate-500">Artist:</span> <span className="text-slate-300">{exifData.metadata.artist}</span></div>
-                                              )}
-                                          </div>
-                                      </div>
-                                  )}
-
-                                  <div className="flex gap-2 pt-2">
-                                      <button className="flex-1 px-2 py-1.5 bg-slate-900 border border-slate-600 text-slate-300 text-xs rounded hover:border-slate-500 hover:text-white transition-colors flex items-center justify-center gap-1">
-                                          <Upload size={12}/> Spara EXIF
-                                      </button>
-                                      <button className="px-2 py-1.5 bg-red-900/30 border border-red-700/50 text-red-300 text-xs rounded hover:bg-red-900/50 transition-colors flex items-center gap-1" title="Ta bort all metadata">
-                                          <Trash2 size={12}/>
-                                      </button>
+                          {/* Face Tags */}
+                          {exifData.face_tags && exifData.face_tags.length > 0 ? (
+                            <div className="space-y-2">
+                              <label className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                                <ScanFace size={12}/> Face Tags
+                              </label>
+                              {exifData.face_tags.map((face, idx) => (
+                                <div key={idx} className="flex items-center justify-between bg-slate-900 p-2 rounded border border-slate-700 text-xs">
+                                  <div>
+                                    <span className="text-slate-200 font-medium block">{face.name}</span>
+                                    <span className="text-[10px] text-slate-500">{face.source}</span>
                                   </div>
-                              </>
+                                  <div className="flex gap-1">
+                                    <button className="text-green-400 hover:text-green-300 p-1" title="Länka till person">
+                                      <Link size={12}/>
+                                    </button>
+                                    <button className="text-slate-500 hover:text-red-400 p-1">
+                                      <X size={12}/>
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-[11px] text-slate-500">Inga face tags hittades i EXIF.</p>
                           )}
 
-                          {!exifData && !loadingExif && (
-                              <div className="text-center py-4 text-slate-500 text-xs">
-                                  Klicka på "Läs från fil" för att hämta EXIF-data
+                          {/* Keywords - dölj om taggar redan finns */}
+                          {(!mediaItems.find(m => m.id === selectedImage?.id)?.tags?.length) && exifData.keywords && exifData.keywords.length > 0 ? (
+                            <div className="space-y-2">
+                              <label className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                                <Tag size={12}/> Keywords (EXIF)
+                              </label>
+                              <div className="flex flex-wrap gap-1">
+                                {exifData.keywords.map((keyword, idx) => (
+                                  <span key={idx} className="bg-blue-900/30 border border-blue-700/50 text-blue-300 text-xs px-2 py-0.5 rounded flex items-center gap-1">
+                                    {keyword}
+                                    <button className="hover:text-white">
+                                      <X size={10}/>
+                                    </button>
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-[11px] text-slate-500">Inga keywords hittades i EXIF.</p>
+                          )}
+
+                          {/* Metadata */}
+                          {exifData.metadata && Object.keys(exifData.metadata).length > 0 && (
+                              <div className="space-y-1">
+                                  <label className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                                      <Info size={12}/> Metadata
+                                  </label>
+                                  <div className="bg-slate-900 border border-slate-700 rounded p-2 text-xs space-y-1">
+                                      {exifData.metadata.date_taken && (
+                                          <div><span className="text-slate-500">Datum:</span> <span className="text-slate-300">{exifData.metadata.date_taken}</span></div>
+                                      )}
+                                      {exifData.metadata.title && (
+                                          <div><span className="text-slate-500">Titel:</span> <span className="text-slate-300">{exifData.metadata.title}</span></div>
+                                      )}
+                                      {exifData.metadata.description && (
+                                          <div><span className="text-slate-500">Beskrivning:</span> <span className="text-slate-300">{exifData.metadata.description}</span></div>
+                                      )}
+                                      {exifData.metadata.artist && (
+                                          <div><span className="text-slate-500">Artist:</span> <span className="text-slate-300">{exifData.metadata.artist}</span></div>
+                                      )}
+                                  </div>
                               </div>
                           )}
+
+                          {/* GPS */}
+                          {exifData.gps && (
+                              <div className="space-y-1">
+                                  <label className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                                      <MapPin size={12}/> GPS-koordinater
+                                  </label>
+                                  <div className="bg-slate-900 border border-slate-700 rounded p-2 text-xs">
+                                      <div className="text-slate-300 font-mono">
+                                          {exifData.gps.latitude.toFixed(6)}, {exifData.gps.longitude.toFixed(6)}
+                                      </div>
+                                      {exifData.gps.altitude && (
+                                          <div className="text-slate-400 text-[10px] mt-1">
+                                              Höjd: {exifData.gps.altitude.toFixed(0)}m
+                                          </div>
+                                      )}
+                                  </div>
+                              </div>
+                          )}
+                      </div>
+                  ) : (
+                      <div className="text-center py-4 text-slate-500 text-xs">
+                          Laddar EXIF-data automatiskt...
                       </div>
                   )}
               </div>
           </div>
           
           <div className="p-4 border-t border-slate-700 bg-slate-900 flex justify-between items-center">
-              <button className="text-red-400 hover:text-red-300 text-xs flex items-center gap-1 transition-colors"><Trash2 size={14}/> Ta bort fil</button>
-              <button className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded text-xs font-bold flex items-center gap-1 shadow-lg shadow-blue-900/20 transition-all hover:scale-[1.02]"><Save size={14}/> Spara</button>
+              <button 
+                  onClick={() => {
+                      if (selectedImage && confirm(`Är du säker på att du vill ta bort "${selectedImage.name}"?`)) {
+                          updateMedia(prev => prev.filter(item => item.id !== selectedImage.id));
+                          setSelectedImage(null);
+                      }
+                  }}
+                  className="px-3 py-1.5 bg-red-900/30 border border-red-700/50 text-red-300 text-xs rounded hover:bg-red-900/50 hover:border-red-600 transition-colors flex items-center gap-1 font-medium"
+              >
+                  <Trash2 size={14}/> Ta bort fil
+              </button>
+              <button 
+                  onClick={() => {
+                      if (selectedImage) {
+                          // Samla all data från formuläret
+                          const dateInput = document.querySelector('input[type="text"][value*="' + (selectedImage.date || '') + '"]')?.value || selectedImage.date;
+                          const descriptionInput = document.querySelector('textarea[placeholder="Skriv en beskrivning..."]')?.value || selectedImage.description;
+                          
+                          // Uppdatera media item
+                          updateMedia(prev => prev.map(item => {
+                              if (item.id !== selectedImage.id) return item;
+                              return {
+                                  ...item,
+                                  date: dateInput,
+                                  description: descriptionInput
+                              };
+                          }));
+                          
+                          console.log('[MediaManager] Sparade:', {
+                              name: selectedImage.name,
+                              date: dateInput,
+                              description: descriptionInput,
+                              tags: selectedImage.tags,
+                              faces: selectedImage.faces
+                          });
+                          
+                          alert('Bilden sparad!');
+                      }
+                  }}
+                  className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded text-xs font-bold flex items-center gap-1 shadow-lg shadow-blue-900/20 transition-all hover:scale-[1.02]"
+              >
+                  <Save size={14}/> Spara
+              </button>
           </div>
       </div>
       ) : null}
@@ -1503,6 +1482,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
           </button>
         </div>
       )}
+
     </div>
   );
 }
