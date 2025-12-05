@@ -240,6 +240,11 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {}, media
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [filterUnlinked, setFilterUnlinked] = useState(false);
   
+  // Context Menu State
+  const [contextMenuOpen, setContextMenuOpen] = useState(false);
+  const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
+  const [contextMenuItemId, setContextMenuItemId] = useState(null);
+  
   // Data State - Use media from database, fallback to INITIAL_MEDIA for demo
   const [mediaItems, setMediaItems] = useState(initialMedia.length > 0 ? initialMedia : INITIAL_MEDIA);
   
@@ -247,6 +252,38 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {}, media
   const updateMedia = (newMedia) => {
     setMediaItems(newMedia);
     onUpdateMedia(newMedia);
+  };
+  
+  // Context Menu Handlers
+  const handleContextMenu = (e, itemId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenuItemId(itemId);
+    setContextMenuPos({ x: e.clientX, y: e.clientY });
+    setContextMenuOpen(true);
+  };
+  
+  const performAction = (action) => {
+    if (!contextMenuItemId) return;
+    const item = mediaItems.find(m => m.id === contextMenuItemId);
+    if (!item) return;
+
+    switch(action) {
+      case 'tag':
+        setSelectedImage(item);
+        setImageViewerOpen(true);
+        break;
+      case 'rotate':
+        // Rotate image (would need image manipulation)
+        alert('Rotera funktion kommer snart!');
+        break;
+      case 'delete':
+        if (confirm(`Radera "${item.name}" permanent?`)) {
+          updateMedia(mediaItems.filter(m => m.id !== item.id));
+        }
+        break;
+    }
+    setContextMenuOpen(false);
   };
   
   const [customLibraries, setCustomLibraries] = useState([
@@ -291,6 +328,29 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {}, media
     const matchesUnlinked = filterUnlinked ? (m.connections.people.length === 0 && m.connections.places.length === 0 && m.connections.sources.length === 0) : true; 
     return matchesLib && matchesSearch && matchesUnlinked;
   });
+
+  // Context menu close handlers
+  useEffect(() => {
+    if (!contextMenuOpen) return;
+
+    const handleClickOutside = (e) => {
+      setContextMenuOpen(false);
+    };
+
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        setContextMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [contextMenuOpen]);
 
   const handleStartCreateLibrary = () => {
     const newId = `lib_${Date.now()}`;
@@ -540,11 +600,12 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {}, media
               {filteredMedia.map(item => (
               <div key={item.id} 
                   onClick={(e) => handleImageClick(item, e)}
+                  onContextMenu={(e) => handleContextMenu(e, item.id)}
                   draggable
                   onDragStart={(e) => handleItemDragStart(e, item.id)}
                   className={`group relative aspect-square rounded-lg border-2 overflow-hidden cursor-pointer transition-all ${selectedIds.has(item.id) ? 'border-blue-500 ring-2 ring-blue-500/30' : (selectedImage?.id === item.id ? 'border-blue-500' : 'border-slate-700 hover:border-slate-500')}`}
               >
-                  <img src={item.url} alt={item.name} className="w-full h-full object-cover pointer-events-none" /> 
+                  <img src={item.url} alt={item.name} className="w-full h-full object-cover" onContextMenu={(e) => handleContextMenu(e, item.id)} /> 
                   {(isSelectMode || selectedIds.has(item.id)) && (
                       <div className="absolute top-2 right-2 z-20" onClick={(e) => { e.stopPropagation(); handleToggleSelect(item.id); }}>
                           {selectedIds.has(item.id) 
@@ -758,7 +819,7 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {}, media
       ) : null}
 
       {/* IMAGE VIEWER FOR FACE TAGGING */}
-      <ImageViewer
+      <ImageViewer 
         isOpen={imageViewerOpen}
         onClose={() => setImageViewerOpen(false)}
         imageSrc={selectedImage?.url}
@@ -777,6 +838,39 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {}, media
         people={allPeople}
         onOpenEditModal={onOpenEditModal}
       />
+
+      {/* Context Menu */}
+      {contextMenuOpen && (
+        <div 
+          className="fixed bg-slate-800 border border-slate-600 rounded-lg shadow-2xl py-1 z-[10000]"
+          style={{ 
+            left: `${contextMenuPos.x}px`, 
+            top: `${contextMenuPos.y}px` 
+          }}
+        >
+          <button
+            onClick={() => performAction('tag')}
+            className="w-full px-4 py-2 text-left text-sm text-white hover:bg-slate-700 flex items-center gap-2"
+          >
+            <ScanFace size={16} />
+            Tagga
+          </button>
+          <button
+            onClick={() => performAction('rotate')}
+            className="w-full px-4 py-2 text-left text-sm text-white hover:bg-slate-700 flex items-center gap-2"
+          >
+            <RotateCw size={16} />
+            Rotera
+          </button>
+          <button
+            onClick={() => performAction('delete')}
+            className="w-full px-4 py-2 text-left text-sm text-white hover:bg-slate-700 flex items-center gap-2"
+          >
+            <Trash2 size={16} />
+            Radera
+          </button>
+        </div>
+      )}
     </div>
   );
 }

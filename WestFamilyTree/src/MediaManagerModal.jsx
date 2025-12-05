@@ -264,9 +264,11 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {} }) {
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [selectedImage, setSelectedImage] = useState(null);
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
-  const [imageViewerOpen, setImageViewerOpen] = useState(false);
   const [lastSelectedId, setLastSelectedId] = useState(null); 
   const [showTranscription, setShowTranscription] = useState(false);
+  const [contextMenuOpen, setContextMenuOpen] = useState(false);
+  const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
+  const [contextMenuItemId, setContextMenuItemId] = useState(null);
 
   // Library Management State
   const [editingLibId, setEditingLibId] = useState(null); 
@@ -294,6 +296,27 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {} }) {
   const allLibraries = [...SYSTEM_LIBRARIES, ...customLibraries];
 
   // --- WINDOW LOGIC ---
+
+  useEffect(() => {
+    const handleClick = (e) => {
+      // Close menu on any click
+      if (contextMenuOpen) {
+        setContextMenuOpen(false);
+      }
+    };
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        setContextMenuOpen(false);
+      }
+    };
+    
+    window.addEventListener('click', handleClick);
+    window.addEventListener('keydown', handleEscape);
+    return () => {
+      window.removeEventListener('click', handleClick);
+      window.removeEventListener('keydown', handleEscape);
+    };
+  });
 
   useEffect(() => {
     const handleMouseMove = (e) => {
@@ -343,6 +366,38 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {} }) {
 
   const toggleMinimize = () => {
     setWinState(prev => ({ ...prev, isMinimized: !prev.isMinimized }));
+  };
+
+  const handleContextMenu = (e, itemId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('CONTEXT MENU TRIGGERED!', itemId); // DEBUG
+    setContextMenuItemId(itemId);
+    setContextMenuPos({ x: e.clientX, y: e.clientY });
+    setContextMenuOpen(true);
+  };
+
+  const performAction = (action) => {
+    if (!contextMenuItemId) return;
+    const item = mediaItems.find(m => m.id === contextMenuItemId);
+    if (!item) return;
+
+    switch(action) {
+      case 'tag':
+        setSelectedImage(item);
+        setImageViewerOpen(true);
+        break;
+      case 'rotate':
+        setSelectedImage(item);
+        setTransform(prev => ({ ...prev, rotate: prev.rotate + 90 }));
+        break;
+      case 'delete':
+        if (confirm(`Radera "${item.name}" permanent?`)) {
+          setMediaItems(prev => prev.filter(m => m.id !== item.id));
+        }
+        break;
+    }
+    setContextMenuOpen(false);
   };
 
   const filteredMedia = mediaItems.filter(m => {
@@ -525,6 +580,13 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {} }) {
       setImageViewerOpen(true);
     }
   };
+  const handleDelete = () => {
+    if (selectedImage && confirm(`Radera "${selectedImage.name}" permanent?`)) {
+      setMediaItems(prev => prev.filter(m => m.id !== selectedImage.id));
+      setSelectedImage(null);
+      setContextMenuOpen(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -649,11 +711,17 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {} }) {
                         {filteredMedia.map(item => (
                         <div key={item.id} 
                             onClick={(e) => handleImageClick(item, e)}
+                            onContextMenu={(e) => handleContextMenu(e, item.id)}
                             draggable
                             onDragStart={(e) => handleItemDragStart(e, item.id)}
                             className={`group relative aspect-square rounded-lg border-2 overflow-hidden cursor-pointer transition-all ${selectedIds.has(item.id) ? 'border-blue-500 ring-2 ring-blue-500/30' : (selectedImage?.id === item.id ? 'border-blue-500' : 'border-slate-700 hover:border-slate-500')}`}
                         >
-                            <img src={item.url} alt={item.name} className="w-full h-full object-cover pointer-events-none" /> 
+                            <img 
+                                src={item.url} 
+                                alt={item.name} 
+                                className="w-full h-full object-cover" 
+                                onContextMenu={(e) => handleContextMenu(e, item.id)}
+                            /> 
                             {(isSelectMode || selectedIds.has(item.id)) && (
                                 <div className="absolute top-2 right-2 z-20" onClick={(e) => { e.stopPropagation(); handleToggleSelect(item.id); }}>
                                     {selectedIds.has(item.id) 
@@ -676,7 +744,13 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {} }) {
                     ) : (
                     <div className="flex flex-col gap-1">
                         {filteredMedia.map(item => (
-                            <div key={item.id} onClick={(e) => handleImageClick(item, e)} draggable onDragStart={(e) => handleItemDragStart(e, item.id)} className={`flex items-center gap-4 p-2 rounded border cursor-pointer ${selectedIds.has(item.id) ? 'bg-blue-900/30 border-blue-500' : (selectedImage?.id === item.id ? 'bg-slate-800 border-blue-500' : 'bg-slate-800/30 border-slate-700 hover:bg-slate-800')}`}>
+                            <div key={item.id} 
+                                onClick={(e) => handleImageClick(item, e)} 
+                                onContextMenu={(e) => handleContextMenu(e, item.id)}
+                                draggable 
+                                onDragStart={(e) => handleItemDragStart(e, item.id)} 
+                                className={`flex items-center gap-4 p-2 rounded border cursor-pointer ${selectedIds.has(item.id) ? 'bg-blue-900/30 border-blue-500' : (selectedImage?.id === item.id ? 'bg-slate-800 border-blue-500' : 'bg-slate-800/30 border-slate-700 hover:bg-slate-800')}`}
+                            >
                                 <div className="w-8 flex justify-center">
                                     {(isSelectMode || selectedIds.has(item.id)) && (selectedIds.has(item.id) ? <CheckSquare size={18} className="text-blue-500"/> : <Square size={18} className="text-slate-500"/>)}
                                 </div>
@@ -694,6 +768,35 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {} }) {
                     </div>
                     )}
                 </div>
+
+                {/* Context Menu */}
+                {contextMenuOpen && (
+                    <div 
+                        className="fixed bg-slate-900 border border-slate-600 rounded-lg shadow-2xl z-[9999] py-1 animate-in fade-in zoom-in-95 duration-100 w-40"
+                        style={{ top: `${contextMenuPos.y}px`, left: `${contextMenuPos.x}px` }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); performAction('tag'); }}
+                            className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700 hover:text-white flex items-center gap-2 whitespace-nowrap"
+                        >
+                            <ScanFace size={16}/> Tagga
+                        </button>
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); performAction('rotate'); }}
+                            className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700 hover:text-white flex items-center gap-2 whitespace-nowrap"
+                        >
+                            <RotateCw size={16}/> Rotera
+                        </button>
+                        <div className="border-t border-slate-700 my-1"></div>
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); performAction('delete'); }}
+                            className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-red-900/20 hover:text-red-300 flex items-center gap-2 whitespace-nowrap"
+                        >
+                            <Trash2 size={16}/> Radera
+                        </button>
+                    </div>
+                )}
 
                 {selectedIds.size > 0 && (
                     <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-slate-800 border border-slate-600 text-white px-2 py-1.5 rounded-full shadow-2xl flex gap-2 items-center animate-in slide-in-from-bottom-4 z-50">
@@ -719,7 +822,40 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {} }) {
                 <div className="w-96 bg-slate-800 border-l border-slate-700 flex flex-col shrink-0 animate-in slide-in-from-right-10 duration-200 z-20 shadow-xl">
                     <div className="p-4 border-b border-slate-700 flex justify-between bg-slate-800">
                         <h3 className="text-sm font-bold text-white truncate w-64">{selectedImage.name}</h3>
-                        <button onClick={() => setSelectedImage(null)} className="text-slate-400 hover:text-white"><X size={18}/></button>
+                        <div className="flex items-center gap-2">
+                            <div className="relative" onClick={(e) => e.stopPropagation()}>
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); setContextMenuOpen(!contextMenuOpen); }} 
+                                    className="text-slate-400 hover:text-white p-1 rounded hover:bg-slate-700"
+                                >
+                                    <MoreVertical size={18}/>
+                                </button>
+                                {contextMenuOpen && (
+                                    <div className="absolute right-0 top-full mt-1 w-48 bg-slate-900 border border-slate-600 rounded-lg shadow-2xl z-[9999] py-1 animate-in fade-in zoom-in-95 duration-100" onClick={(e) => e.stopPropagation()}>
+                                        <button 
+                                            onClick={() => { handleTagFace(); setContextMenuOpen(false); }}
+                                            className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700 hover:text-white flex items-center gap-2"
+                                        >
+                                            <ScanFace size={16}/> Tagga
+                                        </button>
+                                        <button 
+                                            onClick={() => { handleRotate(); setContextMenuOpen(false); }}
+                                            className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700 hover:text-white flex items-center gap-2"
+                                        >
+                                            <RotateCw size={16}/> Rotera
+                                        </button>
+                                        <div className="border-t border-slate-700 my-1"></div>
+                                        <button 
+                                            onClick={() => { handleDelete(); }}
+                                            className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-red-900/20 hover:text-red-300 flex items-center gap-2"
+                                        >
+                                            <Trash2 size={16}/> Radera
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                            <button onClick={() => setSelectedImage(null)} className="text-slate-400 hover:text-white"><X size={18}/></button>
+                        </div>
                     </div>
                     <div 
                         className="aspect-video bg-black/50 relative overflow-hidden cursor-grab active:cursor-grabbing border-b border-slate-700 group"
