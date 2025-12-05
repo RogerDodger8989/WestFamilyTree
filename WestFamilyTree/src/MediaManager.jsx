@@ -751,6 +751,13 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                 if (exifResult.keywords && exifResult.keywords.length > 0) {
                   updatedItem.tags = [...new Set([...item.tags, ...exifResult.keywords])];
                 }
+
+                // Sätt beskrivning om tom och EXIF har titel/beskrivning
+                if (!updatedItem.description) {
+                  const md = exifResult.metadata || {};
+                  if (md.title) updatedItem.description = md.title;
+                  else if (md.description) updatedItem.description = md.description;
+                }
                 
                 // Lägg till GPS om det finns
                 if (exifResult.gps) {
@@ -837,17 +844,39 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
         if (!data.error) {
           console.log('[MediaManager] EXIF loaded:', data);
           setExifData(data);
-          // Uppdatera item med EXIF info (keywords -> tags, faces -> faces)
-          if (data.keywords || data.face_tags) {
+          // Uppdatera item med EXIF info (keywords -> tags, faces -> faces, date, description)
+          if (data.keywords || data.face_tags || data.metadata) {
             updateMedia(prev => prev.map(item => {
               if (item.id !== selectedImage.id) return item;
               const updated = { ...item };
+              
+              // Keywords -> tags
               if (data.keywords && data.keywords.length) {
                 updated.tags = [...new Set([...(item.tags || []), ...data.keywords])];
               }
+              
+              // Face tags
               if (data.face_tags && data.face_tags.length) {
                 updated.faces = data.face_tags;
               }
+              
+              // Metadata (datum och beskrivning)
+              if (data.metadata) {
+                // Fyll i datum från EXIF om tomt
+                if (!updated.date && data.metadata.date_taken) {
+                  updated.date = data.metadata.date_taken;
+                }
+                
+                // Fyll i beskrivning från EXIF titel eller beskrivning om tomt
+                if (!updated.description) {
+                  if (data.metadata.title) {
+                    updated.description = data.metadata.title;
+                  } else if (data.metadata.description) {
+                    updated.description = data.metadata.description;
+                  }
+                }
+              }
+              
               return updated;
             }));
           }
@@ -1268,51 +1297,55 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
 
                           {exifData && (
                               <>
-                                  {/* Face Tags */}
-                                  {exifData.face_tags && exifData.face_tags.length > 0 && (
+                                    {/* Face Tags */}
+                                    {exifData.face_tags && exifData.face_tags.length > 0 ? (
                                       <div className="space-y-2">
-                                          <label className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
-                                              <ScanFace size={12}/> Face Tags
-                                          </label>
-                                          {exifData.face_tags.map((face, idx) => (
-                                              <div key={idx} className="flex items-center justify-between bg-slate-900 p-2 rounded border border-slate-700 text-xs">
-                                                  <div>
-                                                      <span className="text-slate-200 font-medium block">{face.name}</span>
-                                                      <span className="text-[10px] text-slate-500">{face.source}</span>
-                                                  </div>
-                                                  <div className="flex gap-1">
-                                                      <button className="text-green-400 hover:text-green-300 p-1" title="Länka till person">
-                                                          <Link size={12}/>
-                                                      </button>
-                                                      <button className="text-slate-500 hover:text-red-400 p-1">
-                                                          <X size={12}/>
-                                                      </button>
-                                                  </div>
-                                              </div>
-                                          ))}
-                                      </div>
-                                  )}
-
-                                  {/* Keywords */}
-                                  {exifData.keywords && exifData.keywords.length > 0 && (
-                                      <div className="space-y-2">
-                                          <label className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
-                                              <Tag size={12}/> Keywords (EXIF)
-                                          </label>
-                                          <div className="flex flex-wrap gap-1">
-                                              {exifData.keywords.map((keyword, idx) => (
-                                                  <span key={idx} className="bg-blue-900/30 border border-blue-700/50 text-blue-300 text-xs px-2 py-0.5 rounded flex items-center gap-1">
-                                                      {keyword}
-                                                      <button className="hover:text-white">
-                                                          <X size={10}/>
-                                                      </button>
-                                                  </span>
-                                              ))}
+                                        <label className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                                          <ScanFace size={12}/> Face Tags
+                                        </label>
+                                        {exifData.face_tags.map((face, idx) => (
+                                          <div key={idx} className="flex items-center justify-between bg-slate-900 p-2 rounded border border-slate-700 text-xs">
+                                            <div>
+                                              <span className="text-slate-200 font-medium block">{face.name}</span>
+                                              <span className="text-[10px] text-slate-500">{face.source}</span>
+                                            </div>
+                                            <div className="flex gap-1">
+                                              <button className="text-green-400 hover:text-green-300 p-1" title="Länka till person">
+                                                <Link size={12}/>
+                                              </button>
+                                              <button className="text-slate-500 hover:text-red-400 p-1">
+                                                <X size={12}/>
+                                              </button>
+                                            </div>
                                           </div>
-                                          <button className="w-full py-1 border border-dashed border-slate-600 text-slate-400 text-xs rounded hover:text-white hover:border-slate-500 hover:bg-slate-700 transition-colors">
-                                              + Lägg till keyword
-                                          </button>
+                                        ))}
                                       </div>
+                                    ) : (
+                                      <p className="text-[11px] text-slate-500">Inga face tags hittades i EXIF.</p>
+                                    )}
+
+                                  {/* Keywords - dölj om taggar redan finns */}
+                                  {(!mediaItems.find(m => m.id === selectedImage?.id)?.tags?.length) && exifData.keywords && exifData.keywords.length > 0 ? (
+                                    <div className="space-y-2">
+                                      <label className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                                        <Tag size={12}/> Keywords (EXIF)
+                                      </label>
+                                      <div className="flex flex-wrap gap-1">
+                                        {exifData.keywords.map((keyword, idx) => (
+                                          <span key={idx} className="bg-blue-900/30 border border-blue-700/50 text-blue-300 text-xs px-2 py-0.5 rounded flex items-center gap-1">
+                                            {keyword}
+                                            <button className="hover:text-white">
+                                              <X size={10}/>
+                                            </button>
+                                          </span>
+                                        ))}
+                                      </div>
+                                      <button className="w-full py-1 border border-dashed border-slate-600 text-slate-400 text-xs rounded hover:text-white hover:border-slate-500 hover:bg-slate-700 transition-colors">
+                                          + Lägg till keyword
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <p className="text-[11px] text-slate-500">Inga keywords hittades i EXIF.</p>
                                   )}
 
                                   {/* Camera Info */}

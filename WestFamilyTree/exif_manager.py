@@ -9,6 +9,7 @@ import os
 from typing import Dict, List, Optional, Tuple
 import shutil
 from datetime import datetime
+import re
 
 
 class ExifManager:
@@ -27,11 +28,12 @@ class ExifManager:
         """
         try:
             exif_dict = piexif.load(image_path)
+            xmp_data = self._extract_xmp_bytes(image_path)
             
             result = {
-                'face_tags': self._extract_face_tags(exif_dict),
-                'keywords': self._extract_keywords(exif_dict),
-                'metadata': self._extract_metadata(exif_dict),
+                'face_tags': self._extract_face_tags(exif_dict, xmp_data),
+                'keywords': self._extract_keywords(exif_dict, xmp_data),
+                'metadata': self._extract_metadata(exif_dict, xmp_data),
                 'camera': self._extract_camera_info(exif_dict),
                 'gps': self._extract_gps(exif_dict),
                 'raw_exif': self._safe_exif_dict(exif_dict)
@@ -50,57 +52,105 @@ class ExifManager:
                 'error': str(e)
             }
     
-    def _extract_face_tags(self, exif_dict: Dict) -> List[Dict]:
+    def _extract_xmp_bytes(self, image_path: str) -> bytes:
+        """Returnerar XMP-sektionen som råbytes (best-effort)."""
+        try:
+            with open(image_path, 'rb') as f:
+                data = f.read()
+            # XMP brukar ligga mellan <x:xmpmeta ...> ... </x:xmpmeta>
+            match = re.search(br"<x:xmpmeta[\s\S]*?</x:xmpmeta>", data, re.IGNORECASE)
+            return match.group(0) if match else b''
+        except Exception:
+            return b''
+
+    def _decode_xmp_string(self, raw_bytes: bytes) -> str:
+        """
+        Dekoderar XMP-strängar med robust hantering av olika kodningar.
+        XMP ska vara UTF-8 enligt standard.
+        """
+        # XMP är UTF-8 enligt standard
+        try:
+            return raw_bytes.decode('utf-8')
+        except UnicodeDecodeError:
+            pass
+        
+        # Fallback: cp1252 (Windows), sedan latin-1
+        for enc in ('cp1252', 'latin-1'):
+            try:
+                return raw_bytes.decode(enc)
+            except (UnicodeDecodeError, AttributeError):
+                continue
+        
+        # Sista utväg: ersätt ogiltiga tecken
+        return raw_bytes.decode('utf-8', errors='replace')
+    
+    def _extract_face_tags(self, exif_dict: Dict, xmp_bytes: bytes = b"") -> List[Dict]:
         """
         Extraherar face tags från XMP-data
         
         Söker efter:
-        - XMP:PersonInImage
-        - Microsoft Photo Region Info
-        - Face rectangles/coordinates
+        - MWG Regions (mwg-rs:Name)
+        - Microsoft Photo RegionInfo (MPReg:PersonDisplayName)
+        - XMP PersonInImage
         """
         face_tags = []
         
-        # Kolla XMP-data (finns ofta i UserComment eller separata XMP-fält)
+        # Kolla XMP-data
         try:
-            # Försök hitta XMP i UserComment (vanligt för vissa kameror)
-            user_comment = exif_dict.get("Exif", {}).get(piexif.ExifIFD.UserComment, b"")
-            if user_comment:
-                user_comment_str = user_comment.decode('utf-8', errors='ignore')
-                # Sök efter PersonInImage-taggar
-                if 'PersonInImage' in user_comment_str:
-                    # Enkel parsing - kan förbättras med XML-parser
-                    import re
-                    persons = re.findall(r'<rdf:li>([^<]+)</rdf:li>', user_comment_str)
-                    for person in persons:
+            if xmp_bytes:
+                # 1. MWG Regions: mwg-rs:Name="Person Name" (Lightroom, digiKam)
+                for match in re.finditer(br'mwg-rs:Name="([^"]+)"', xmp_bytes):
+                    name_bytes = match.group(1)
+                    person = self._decode_xmp_string(name_bytes)
+                    face_tags.append({
+                        'name': person.strip(),
+                        'source': 'XMP:MWG-Regions'
+                    })
+                
+                # 2. Microsoft Photo: MPReg:PersonDisplayName="Person Name"
+                for match in re.finditer(br'MPReg:PersonDisplayName="([^"]+)"', xmp_bytes):
+                    name_bytes = match.group(1)
+                    person = self._decode_xmp_string(name_bytes)
+                    face_tags.append({
+                        'name': person.strip(),
+                        'source': 'XMP:Microsoft-RegionInfo'
+                    })
+                
+                # 3. Fallback: XMP PersonInImage <rdf:li>Person Name</rdf:li>
+                pi_blocks = re.findall(br'<rdf:Description[^>]*?PersonInImage[^>]*?>(.*?)</rdf:Description>', xmp_bytes, re.DOTALL)
+                for block in pi_blocks:
+                    for pb in re.findall(br'<rdf:li>([^<]+)</rdf:li>', block):
+                        person = self._decode_xmp_string(pb)
                         face_tags.append({
-                            'name': person,
+                            'name': person.strip(),
                             'source': 'XMP:PersonInImage'
                         })
-            
-            # Kolla ImageDescription för face info
-            description = exif_dict.get("0th", {}).get(piexif.ImageIFD.ImageDescription, b"")
-            if description:
-                desc_str = description.decode('utf-8', errors='ignore')
-                if 'Region' in desc_str or 'Face' in desc_str:
-                    # Kan innehålla Microsoft Photo region info
-                    # TODO: Implementera Microsoft Photo region parser
-                    pass
-                    
+
+            # Normalisera: ta bort dubbletter och tagg/kategori-prefix
+            normalized = []
+            seen = set()
+            for ft in face_tags:
+                name = ft['name']
+                # Ta bort tagg/kategori-prefix (Personer/, etc.)
+                if '|' in name or '/' in name:
+                    continue
+                name = name.strip()
+                if name and name not in seen:
+                    seen.add(name)
+                    normalized.append({ 'name': name, 'source': ft['source'] })
+            face_tags = normalized
         except Exception as e:
             print(f"Error extracting face tags: {e}")
         
         return face_tags
     
-    def _extract_keywords(self, exif_dict: Dict) -> List[str]:
-        """Extraherar keywords/taggar från EXIF"""
-        keywords = []
-        
+    def _extract_keywords(self, exif_dict: Dict, xmp_bytes: bytes = b"") -> List[str]:
+        """Extraherar keywords/taggar från EXIF/XMP."""
+        keywords: List[str] = []
         try:
-            # IPTC Keywords (vanligast)
+            # IPTC Keywords
             iptc = exif_dict.get("Iptc", {})
             if iptc:
-                # IPTC Keywords finns ofta på tag 25 (0x0019)
                 for key, value in iptc.items():
                     if isinstance(value, (list, tuple)):
                         for item in value:
@@ -108,26 +158,40 @@ class ExifManager:
                                 keywords.append(item.decode('utf-8', errors='ignore'))
                     elif isinstance(value, bytes):
                         keywords.append(value.decode('utf-8', errors='ignore'))
-            
-            # XMP Keywords (backup)
+
+            # XMP Keywords i UserComment
             user_comment = exif_dict.get("Exif", {}).get(piexif.ExifIFD.UserComment, b"")
             if user_comment and b'<dc:subject>' in user_comment:
-                # Parse XMP keywords
-                import re
                 user_str = user_comment.decode('utf-8', errors='ignore')
-                xmp_keywords = re.findall(r'<rdf:li>([^<]+)</rdf:li>', user_str)
-                keywords.extend(xmp_keywords)
-        
+                keywords.extend(re.findall(r'<rdf:li>([^<]+)</rdf:li>', user_str))
+
+            # XMP i filen
+            if xmp_bytes:
+                blocks = re.findall(br'<dc:subject>\s*<rdf:Bag>(.*?)</rdf:Bag>', xmp_bytes, re.DOTALL)
+                for block in blocks:
+                    for raw_kw in re.findall(br'<rdf:li>([^<]+)</rdf:li>', block):
+                        kw = self._decode_xmp_string(raw_kw)
+                        keywords.append(kw)
         except Exception as e:
             print(f"Error extracting keywords: {e}")
-        
-        # Ta bort dubbletter
-        return list(set(keywords))
+
+        # Ta bort dubbletter och normalisera
+        cleaned: List[str] = []
+        seen = set()
+        for k in keywords:
+            nk = k.strip()
+            if '|' in nk:
+                nk = nk.split('|')[-1].strip()
+            if '/' in nk:
+                nk = nk.split('/')[-1].strip()
+            if nk and nk not in seen:
+                seen.add(nk)
+                cleaned.append(nk)
+        return cleaned
     
-    def _extract_metadata(self, exif_dict: Dict) -> Dict:
+    def _extract_metadata(self, exif_dict: Dict, xmp_bytes: bytes = b"") -> Dict:
         """Extraherar generell metadata"""
         metadata = {}
-        
         try:
             zeroth = exif_dict.get("0th", {})
             exif = exif_dict.get("Exif", {})
@@ -141,6 +205,16 @@ class ExifManager:
             if piexif.ImageIFD.ImageDescription in zeroth:
                 desc = zeroth[piexif.ImageIFD.ImageDescription]
                 metadata['description'] = desc.decode('utf-8', errors='ignore')
+
+            # XMP Titel/Beskrivning
+            if xmp_bytes:
+                for raw, key in (
+                    (re.search(br'<dc:title>\s*<rdf:Alt>\s*<rdf:li[^>]*>([^<]+)</rdf:li>', xmp_bytes, re.DOTALL), 'title'),
+                    (re.search(br'<dc:description>\s*<rdf:Alt>\s*<rdf:li[^>]*>([^<]+)</rdf:li>', xmp_bytes, re.DOTALL), 'description'),
+                ):
+                    if raw:
+                        val = self._decode_xmp_string(raw.group(1))
+                        metadata[key] = val.strip()
             
             # Artist/Copyright
             if piexif.ImageIFD.Artist in zeroth:
