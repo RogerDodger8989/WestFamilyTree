@@ -1,163 +1,251 @@
-import React, { useRef, useState, useEffect } from 'react';
-import ImageEditor from '@toast-ui/react-image-editor';
-import 'tui-image-editor/dist/tui-image-editor.css';
-import { X, Save, Copy } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import DraggableModal from './DraggableModal';
+import { RotateCw, ZoomIn, ZoomOut, Maximize2, Save } from 'lucide-react';
 
 const ImageEditorModal = ({ isOpen, onClose, imageUrl, imageName, onSave }) => {
-  const editorRef = useRef(null);
+  const canvasRef = useRef(null);
+  const containerRef = useRef(null);
+  const [image, setImage] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Transform state
+  const [scale, setScale] = useState(1);
+  const [rotation, setRotation] = useState(0);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  
+  // Pan state
+  const [isPanning, setIsPanning] = useState(false);
+  const panStart = useRef({ x: 0, y: 0 });
 
+  // Load image när modal öppnas
   useEffect(() => {
-    // Rensa editorn när modal stängs
-    return () => {
-      if (editorRef.current) {
-        const editorInstance = editorRef.current.getInstance();
-        if (editorInstance && typeof editorInstance.destroy === 'function') {
-          editorInstance.destroy();
-        }
-      }
+    if (!isOpen || !imageUrl) return;
+    
+    const img = new Image();
+    img.onload = () => {
+      setImage(img);
+      // Anpassa initial scale så bilden passar i fönstret
+      fitToWindow(img);
     };
-  }, []);
+    img.src = imageUrl;
+  }, [isOpen, imageUrl]);
 
-  if (!isOpen) return null;
+  // Rita canvas när transform eller image ändras
+  useEffect(() => {
+    if (!image || !canvasRef.current) return;
+    drawCanvas();
+  }, [image, scale, rotation, position]);
 
-  const handleSave = async (createCopy) => {
-    if (!editorRef.current) return;
+  const fitToWindow = (img = image) => {
+    if (!img || !containerRef.current) return;
+    
+    const container = containerRef.current;
+    const containerW = container.clientWidth;
+    const containerH = container.clientHeight;
+    
+    // Beräkna scale för att passa bilden i containern
+    const scaleX = containerW / img.width;
+    const scaleY = containerH / img.height;
+    const newScale = Math.min(scaleX, scaleY, 1) * 0.9; // 90% av max för padding
+    
+    setScale(newScale);
+    setPosition({ x: 0, y: 0 });
+  };
+
+  const drawCanvas = () => {
+    const canvas = canvasRef.current;
+    if (!canvas || !image) return;
+
+    const ctx = canvas.getContext('2d');
+    
+    // Sätt canvas-storlek till container-storlek
+    canvas.width = containerRef.current.clientWidth;
+    canvas.height = containerRef.current.clientHeight;
+    
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Centrera transformationen
+    const centerX = canvas.width / 2 + position.x;
+    const centerY = canvas.height / 2 + position.y;
+    
+    ctx.save();
+    ctx.translate(centerX, centerY);
+    ctx.rotate((rotation * Math.PI) / 180);
+    ctx.scale(scale, scale);
+    
+    // Rita bilden centrerad
+    ctx.drawImage(image, -image.width / 2, -image.height / 2);
+    
+    ctx.restore();
+  };
+
+  const handleWheel = (e) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+    setScale(s => Math.max(0.1, Math.min(10, s * delta)));
+  };
+
+  const handleMouseDown = (e) => {
+    if (e.button === 0) { // Left click
+      setIsPanning(true);
+      panStart.current = {
+        x: e.clientX - position.x,
+        y: e.clientY - position.y
+      };
+    }
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isPanning) return;
+    setPosition({
+      x: e.clientX - panStart.current.x,
+      y: e.clientY - panStart.current.y
+    });
+  };
+
+  const handleMouseUp = () => {
+    setIsPanning(false);
+  };
+
+  const handleDoubleClick = (e) => {
+    // Dubbelklick: zoom in på musposition
+    const rect = canvasRef.current.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left - rect.width / 2;
+    const mouseY = e.clientY - rect.top - rect.height / 2;
+    
+    setScale(s => Math.min(10, s * 1.5));
+    setPosition(p => ({
+      x: p.x - mouseX * 0.2,
+      y: p.y - mouseY * 0.2
+    }));
+  };
+
+  const handleRotate = () => {
+    setRotation(r => (r + 90) % 360);
+  };
+
+  const handleZoomIn = () => {
+    setScale(s => Math.min(10, s * 1.2));
+  };
+
+  const handleZoomOut = () => {
+    setScale(s => Math.max(0.1, s / 1.2));
+  };
+
+  const handleFitToWindow = () => {
+    fitToWindow();
+  };
+
+  const handleSave = async () => {
+    if (!canvasRef.current || !image) return;
     
     setIsSaving(true);
     try {
-      const editorInstance = editorRef.current.getInstance();
-      const imageDataUrl = editorInstance.toDataURL();
+      // Skapa en ny canvas med bildens ursprungliga dimensioner (efter rotation)
+      const exportCanvas = document.createElement('canvas');
+      const isRotated = rotation === 90 || rotation === 270;
+      exportCanvas.width = isRotated ? image.height : image.width;
+      exportCanvas.height = isRotated ? image.width : image.height;
       
-      // Konvertera data URL till Blob
-      const response = await fetch(imageDataUrl);
-      const blob = await response.blob();
+      const ctx = exportCanvas.getContext('2d');
       
-      onSave(blob, createCopy);
-      onClose();
+      // Rita bilden med rotation
+      ctx.translate(exportCanvas.width / 2, exportCanvas.height / 2);
+      ctx.rotate((rotation * Math.PI) / 180);
+      ctx.drawImage(image, -image.width / 2, -image.height / 2);
+      
+      // Konvertera till blob
+      exportCanvas.toBlob((blob) => {
+        onSave(blob, false); // Spara över original
+        onClose();
+      }, 'image/jpeg', 0.95);
     } catch (error) {
       console.error('Error saving image:', error);
-      alert('Kunde inte spara bilden. Försök igen.');
+      alert('Kunde inte spara bilden: ' + error.message);
     } finally {
       setIsSaving(false);
     }
   };
 
-  const myTheme = {
-    'common.bi.image': '',
-    'common.bisize.width': '0px',
-    'common.bisize.height': '0px',
-    'common.backgroundImage': 'none',
-    'common.backgroundColor': '#1e293b',
-    'common.border': '1px solid #475569',
-
-    // Header
-    'header.backgroundImage': 'none',
-    'header.backgroundColor': '#0f172a',
-    'header.border': '0px',
-
-    // Main icons
-    'menu.normalIcon.color': '#94a3b8',
-    'menu.activeIcon.color': '#3b82f6',
-    'menu.disabledIcon.color': '#475569',
-    'menu.hoverIcon.color': '#cbd5e1',
-    'menu.iconSize.width': '24px',
-    'menu.iconSize.height': '24px',
-
-    // Submenu
-    'submenu.backgroundColor': '#1e293b',
-    'submenu.partition.color': '#475569',
-
-    // Submenu icons
-    'submenu.normalIcon.color': '#94a3b8',
-    'submenu.activeIcon.color': '#3b82f6',
-    'submenu.iconSize.width': '32px',
-    'submenu.iconSize.height': '32px',
-
-    // Submenu labels
-    'submenu.normalLabel.color': '#cbd5e1',
-    'submenu.normalLabel.fontWeight': 'normal',
-    'submenu.activeLabel.color': '#3b82f6',
-    'submenu.activeLabel.fontWeight': 'bold',
-
-    // Checkbox
-    'checkbox.border': '1px solid #475569',
-    'checkbox.backgroundColor': '#0f172a',
-
-    // Range
-    'range.pointer.color': '#3b82f6',
-    'range.bar.color': '#475569',
-    'range.subbar.color': '#3b82f6',
-
-    // Colorpicker
-    'colorpicker.button.border': '1px solid #475569',
-    'colorpicker.title.color': '#cbd5e1'
-  };
+  if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[9999]">
-      <div className="bg-slate-900 rounded-lg shadow-2xl flex flex-col" style={{ width: '90vw', height: '90vh' }}>
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700 bg-slate-800 rounded-t-lg">
-          <h2 className="text-lg font-semibold text-white">Redigera Bild: {imageName}</h2>
+    <DraggableModal
+      title={`Redigera: ${imageName}`}
+      onClose={onClose}
+      initialWidth={Math.min(1400, window.innerWidth * 0.9)}
+      initialHeight={Math.min(900, window.innerHeight * 0.9)}
+      showConfirm={false}
+    >
+      <div className="flex flex-col h-full bg-slate-900">
+        {/* Toolbar */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700 bg-slate-800 shrink-0">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleZoomIn}
+              className="p-2 bg-slate-700 hover:bg-slate-600 text-white rounded transition-colors"
+              title="Zooma in"
+            >
+              <ZoomIn size={18} />
+            </button>
+            <button
+              onClick={handleZoomOut}
+              className="p-2 bg-slate-700 hover:bg-slate-600 text-white rounded transition-colors"
+              title="Zooma ut"
+            >
+              <ZoomOut size={18} />
+            </button>
+            <button
+              onClick={handleFitToWindow}
+              className="p-2 bg-slate-700 hover:bg-slate-600 text-white rounded transition-colors"
+              title="Anpassa till fönster"
+            >
+              <Maximize2 size={18} />
+            </button>
+            <button
+              onClick={handleRotate}
+              className="p-2 bg-slate-700 hover:bg-slate-600 text-white rounded transition-colors"
+              title="Rotera 90°"
+            >
+              <RotateCw size={18} />
+            </button>
+            <div className="text-slate-400 text-sm ml-4">
+              Zoom: {Math.round(scale * 100)}% | Rotation: {rotation}°
+            </div>
+          </div>
           <button
-            onClick={onClose}
-            className="p-1 hover:bg-slate-700 rounded transition-colors text-slate-400 hover:text-white"
-            disabled={isSaving}
-          >
-            <X size={20} />
-          </button>
-        </div>
-
-        {/* Editor Container */}
-        <div className="flex-1 overflow-hidden p-4">
-          <ImageEditor
-            ref={editorRef}
-            includeUI={{
-              loadImage: {
-                path: imageUrl,
-                name: imageName
-              },
-              theme: myTheme,
-              menu: ['crop', 'flip', 'rotate', 'draw', 'shape', 'icon', 'text', 'filter'],
-              initMenu: 'filter',
-              uiSize: {
-                width: '100%',
-                height: '100%'
-              },
-              menuBarPosition: 'bottom'
-            }}
-            cssMaxHeight={window.innerHeight * 0.9 - 150}
-            cssMaxWidth={window.innerWidth * 0.9 - 50}
-            selectionStyle={{
-              cornerSize: 20,
-              rotatingPointOffset: 70
-            }}
-            usageStatistics={false}
-          />
-        </div>
-
-        {/* Footer - Save Buttons */}
-        <div className="flex items-center justify-end gap-3 px-4 py-3 border-t border-slate-700 bg-slate-800 rounded-b-lg">
-          <button
-            onClick={() => handleSave(false)}
+            onClick={handleSave}
             disabled={isSaving}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white rounded transition-colors font-medium"
           >
             <Save size={18} />
-            {isSaving ? 'Sparar...' : 'Spara över original'}
-          </button>
-          <button
-            onClick={() => handleSave(true)}
-            disabled={isSaving}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-green-800 text-white rounded transition-colors font-medium"
-          >
-            <Copy size={18} />
-            {isSaving ? 'Sparar...' : 'Spara som kopia'}
+            {isSaving ? 'Sparar...' : 'Spara'}
           </button>
         </div>
+
+        {/* Canvas Area */}
+        <div 
+          ref={containerRef}
+          className="flex-1 overflow-hidden bg-slate-950 relative cursor-move"
+          onWheel={handleWheel}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          onDoubleClick={handleDoubleClick}
+        >
+          <canvas
+            ref={canvasRef}
+            className="w-full h-full"
+          />
+        </div>
+
+        {/* Info bar */}
+        <div className="px-4 py-2 border-t border-slate-700 bg-slate-800 text-slate-400 text-xs shrink-0">
+          Tips: Scrolla för zoom, dubbelklick för zoom in, dra för att flytta bilden
+        </div>
       </div>
-    </div>
+    </DraggableModal>
   );
 };
 

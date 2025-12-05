@@ -7,7 +7,8 @@ import {
   Crop, RotateCw, ScanFace, ZoomIn, ZoomOut, Maximize,
   FolderPlus, Folder, CheckSquare, Square, MoveRight,
   Check, Edit2, FileWarning, PenTool, Mic, Link,
-  X, Layers, FileText, MoreVertical, Save
+  X, Layers, FileText, MoreVertical, Save, Camera,
+  Download, Upload, RefreshCw, Database, Info
 } from 'lucide-react';
 
 const SYSTEM_LIBRARIES = [
@@ -20,7 +21,8 @@ const SYSTEM_LIBRARIES = [
 const INITIAL_MEDIA = [
   { 
     id: 1, 
-    url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=400&fit=crop', 
+    url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=400&fit=crop',
+    filePath: 'kallor/porträtt_1910.jpg', // Exempel-sökväg
     name: 'Porträtt 1910.jpg', 
     date: '1910-05-20', 
     libraryId: 'gallery',
@@ -248,6 +250,8 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {}, media
   
   // Image Editor State
   const [isImageEditorOpen, setIsImageEditorOpen] = useState(false);
+  
+  // EXIF State - moved to selection state
   const [editingImage, setEditingImage] = useState(null);
   
   // Data State - Use media from database, fallback to INITIAL_MEDIA for demo
@@ -340,12 +344,100 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {}, media
     { id: 'album1', label: 'Okända soldater', icon: Folder, type: 'custom' }
   ]);
   
+  // Helper function: Synka face tags med personer i databasen
+  const syncFaceTagsWithPeople = () => {
+    if (!exifData || !exifData.face_tags || exifData.face_tags.length === 0) {
+      alert('Inga face tags att synka');
+      return;
+    }
+
+    const matchedPeople = [];
+    const unmatchedTags = [];
+
+    exifData.face_tags.forEach(faceTag => {
+      const faceName = faceTag.name.toLowerCase().trim();
+      
+      // Försök matcha med befintliga personer
+      const match = allPeople.find(person => {
+        const personName = person.name.toLowerCase().trim();
+        // Exakt matchning först
+        if (personName === faceName) return true;
+        
+        // Dela upp namn och försök matcha delar
+        const faceNameParts = faceName.split(/\s+/);
+        const personNameParts = personName.split(/\s+/);
+        
+        // Matcha om alla delar av face tag finns i personnamn
+        return faceNameParts.every(part => 
+          personNameParts.some(pPart => pPart.includes(part) || part.includes(pPart))
+        );
+      });
+
+      if (match) {
+        matchedPeople.push({ ...match, faceName: faceTag.name });
+      } else {
+        unmatchedTags.push(faceTag.name);
+      }
+    });
+
+    // Lägg till matchade personer till bildens connections
+    if (matchedPeople.length > 0) {
+      const newPeople = matchedPeople.map(p => ({
+        id: p.id,
+        name: p.name,
+        ref: p.ref || p.id,
+        dates: `${p.birth_year || '?'}–${p.death_year || '?'}`
+      }));
+
+      // Filtrera bort dubbletter
+      const existingIds = new Set(selectedImage.connections.people.map(p => p.id));
+      const peopleToAdd = newPeople.filter(p => !existingIds.has(p.id));
+
+      if (peopleToAdd.length > 0) {
+        updateMedia(mediaItems.map(item => 
+          item.id === selectedImage.id 
+            ? { 
+                ...item, 
+                connections: { 
+                  ...item.connections, 
+                  people: [...item.connections.people, ...peopleToAdd] 
+                }
+              }
+            : item
+        ));
+        setSelectedImage({
+          ...selectedImage,
+          connections: {
+            ...selectedImage.connections,
+            people: [...selectedImage.connections.people, ...peopleToAdd]
+          }
+        });
+      }
+
+      const message = `
+Synkning klar!
+✓ ${matchedPeople.length} personer matchade
+${peopleToAdd.length > 0 ? `  └─ ${peopleToAdd.length} nya kopplingar tillagda` : '  └─ Alla fanns redan kopplade'}
+${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatchedTags.join(', ')}` : ''}
+      `.trim();
+      
+      alert(message);
+    } else {
+      alert(`Inga personer kunde matchas automatiskt.\n\nOmatchade: ${unmatchedTags.join(', ')}`);
+    }
+  };
+  
   // Selection & Interaction State
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [selectedImage, setSelectedImage] = useState(null);
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
   const [lastSelectedId, setLastSelectedId] = useState(null); 
   const [showTranscription, setShowTranscription] = useState(false);
+  
+  // EXIF State - läs automatiskt när bilden väljs
+  const [exifData, setExifData] = useState(null);
+  const [exifExpanded, setExifExpanded] = useState(true);
+  const [loadingExif, setLoadingExif] = useState(false);
 
   // Library Management State
   const [editingLibId, setEditingLibId] = useState(null); 
@@ -519,21 +611,171 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {}, media
       setIsSelectMode(false);
   };
 
-  const handleFiles = (files) => {
-    const newItems = Array.from(files).map(file => ({
-      id: Date.now() + Math.random(),
-      url: URL.createObjectURL(file),
-      name: file.name,
-      date: new Date().toISOString().split('T')[0],
-      libraryId: activeLib === 'all' ? 'gallery' : activeLib,
-      isProfile: false,
-      connections: { people: [], places: [], sources: [] },
-      tags: ['Ny uppladdning'],
-      faces: [],
-      transcription: '',
-      description: ''
-    }));
-    updateMedia([...newItems, ...mediaItems]);
+  const handleFiles = async (files) => {
+    const newItems = [];
+    
+    for (const file of Array.from(files)) {
+      let finalFilePath = file.name;
+      let success = false;
+      let thumbnail = null;
+      let fileSize = file.size;
+      let dimensions = { width: 0, height: 0 };
+      
+      // Om vi kör i Electron, kopiera filen till media-mappen
+      if (window.electronAPI) {
+        try {
+          // Försök först med file.path om det finns (från file dialog)
+          if (file.path && window.electronAPI.copyFileToMedia) {
+            console.log('[MediaManager] Copying file from path:', file.path, '->', file.name);
+            const result = await window.electronAPI.copyFileToMedia(file.path, file.name);
+            if (result.success) {
+              finalFilePath = result.filePath;
+              console.log('[MediaManager] File copied to media folder:', finalFilePath);
+              success = true;
+            }
+          }
+          
+          // Om file.path inte finns (drag-and-drop, paste), läs som buffer
+          if (!success && window.electronAPI.saveFileBufferToMedia) {
+            console.log('[MediaManager] Reading file as buffer:', file.name);
+            const arrayBuffer = await file.arrayBuffer();
+            const uint8Array = new Uint8Array(arrayBuffer);
+            
+            console.log('[MediaManager] Saving buffer to media folder:', file.name, 'Size:', uint8Array.length);
+            const result = await window.electronAPI.saveFileBufferToMedia(uint8Array, file.name);
+            
+            if (result.success) {
+              finalFilePath = result.filePath;
+              console.log('[MediaManager] File buffer saved to media folder:', finalFilePath);
+              success = true;
+            } else {
+              console.error('[MediaManager] Failed to save buffer:', result.error);
+              alert(`Kunde inte spara fil ${file.name}: ${result.error}`);
+              continue;
+            }
+          }
+        } catch (error) {
+          console.error('[MediaManager] Error handling file:', error);
+          alert(`Fel vid hantering av ${file.name}: ${error.message}`);
+          continue;
+        }
+      }
+      
+      // Generera thumbnail och läs bilddimensioner
+      try {
+        const img = new Image();
+        const objectUrl = URL.createObjectURL(file);
+        
+        await new Promise((resolve, reject) => {
+          img.onload = () => {
+            dimensions = { width: img.width, height: img.height };
+            
+            // Skapa canvas för thumbnail
+            const canvas = document.createElement('canvas');
+            const MAX_SIZE = 200;
+            let width = img.width;
+            let height = img.height;
+            
+            if (width > height) {
+              if (width > MAX_SIZE) {
+                height *= MAX_SIZE / width;
+                width = MAX_SIZE;
+              }
+            } else {
+              if (height > MAX_SIZE) {
+                width *= MAX_SIZE / height;
+                height = MAX_SIZE;
+              }
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            thumbnail = canvas.toDataURL('image/jpeg', 0.8);
+            
+            URL.revokeObjectURL(objectUrl);
+            resolve();
+          };
+          img.onerror = reject;
+          img.src = objectUrl;
+        });
+      } catch (error) {
+        console.error('[MediaManager] Error generating thumbnail:', error);
+      }
+      
+      const newItem = {
+        id: Date.now() + Math.random(),
+        url: success ? `media://${finalFilePath}` : URL.createObjectURL(file),
+        filePath: finalFilePath,
+        name: file.name,
+        date: new Date().toISOString().split('T')[0],
+        libraryId: activeLib === 'all' ? 'gallery' : activeLib,
+        isProfile: false,
+        connections: { people: [], places: [], sources: [] },
+        tags: ['Ny uppladdning'],
+        faces: [],
+        transcription: '',
+        description: '',
+        thumbnail: thumbnail,
+        fileSize: fileSize,
+        dimensions: dimensions
+      };
+      
+      newItems.push(newItem);
+      
+      // Läs EXIF data i bakgrunden (om Electron)
+      if (success && window.electronAPI && window.electronAPI.readExif) {
+        console.log('[MediaManager] Reading EXIF for:', finalFilePath);
+        window.electronAPI.readExif(finalFilePath)
+          .then(exifResult => {
+            console.log('[MediaManager] EXIF loaded for', finalFilePath, ':', exifResult);
+            
+            // Kolla om det blev ett fel (servern kör inte?)
+            if (exifResult.error) {
+              console.warn('[MediaManager] EXIF error:', exifResult.error);
+              return; // Skippa uppdatering om fel
+            }
+            
+            // Uppdatera item med EXIF data
+            updateMedia(prevItems => prevItems.map(item => {
+              if (item.filePath === finalFilePath) {
+                const updatedItem = { ...item };
+                
+                // Lägg till keywords som tags
+                if (exifResult.keywords && exifResult.keywords.length > 0) {
+                  updatedItem.tags = [...new Set([...item.tags, ...exifResult.keywords])];
+                }
+                
+                // Lägg till GPS om det finns
+                if (exifResult.gps) {
+                  updatedItem.gps = exifResult.gps;
+                }
+                
+                // Lägg till kameradadata
+                if (exifResult.camera) {
+                  updatedItem.camera = exifResult.camera;
+                }
+                
+                // Använd EXIF datum om det finns
+                if (exifResult.metadata && exifResult.metadata.datetime) {
+                  updatedItem.date = exifResult.metadata.datetime.split(' ')[0].replace(/:/g, '-');
+                }
+                
+                return updatedItem;
+              }
+              return item;
+            }));
+          })
+          .catch(error => {
+            console.error('[MediaManager] Failed to read EXIF (kör Python API-servern?):', error);
+          });
+      }
+    }
+    
+    if (newItems.length > 0) {
+      updateMedia([...newItems, ...mediaItems]);
+    }
   };
 
   useEffect(() => {
@@ -548,6 +790,57 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {}, media
     window.addEventListener('paste', handlePaste);
     return () => window.removeEventListener('paste', handlePaste);
   }, [activeLib]);
+
+  // Automatisk EXIF-läsning när bilden väljs
+  useEffect(() => {
+    if (!selectedImage) {
+      setExifData(null);
+      return;
+    }
+
+    setLoadingExif(true);
+    setExifData(null);
+    
+    const loadExif = async () => {
+      try {
+        let pathToUse = selectedImage.filePath || selectedImage.name;
+        
+        // Rensa upp path-strängen
+        if (pathToUse.startsWith('blob:') || pathToUse.startsWith('http') || pathToUse.startsWith('media://')) {
+          pathToUse = selectedImage.name;
+        }
+        if (pathToUse.includes('/') || pathToUse.includes('\\')) {
+          const parts = pathToUse.replace(/\\/g, '/').split('/');
+          pathToUse = parts[parts.length - 1];
+        }
+        
+        console.log('[MediaManager] Auto-loading EXIF for:', pathToUse);
+        
+        let data;
+        if (window.electronAPI && window.electronAPI.readExif) {
+          data = await window.electronAPI.readExif(pathToUse);
+        } else {
+          const response = await fetch('http://localhost:5005/exif/read', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image_path: pathToUse })
+          });
+          data = await response.json();
+        }
+        
+        if (!data.error) {
+          console.log('[MediaManager] EXIF loaded:', data);
+          setExifData(data);
+        }
+      } catch (error) {
+        console.warn('[MediaManager] Auto EXIF load failed:', error);
+      } finally {
+        setLoadingExif(false);
+      }
+    };
+    
+    loadExif();
+  }, [selectedImage]);
 
   useEffect(() => setTransform({ x: 0, y: 0, scale: 1, rotate: 0 }), [selectedImage]);
   const handleWheel = (e) => { e.preventDefault(); const s = -e.deltaY * 0.001; setTransform(p => ({ ...p, scale: Math.min(Math.max(0.5, p.scale + s), 5) })); };
@@ -598,7 +891,41 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {}, media
       </div>
       <div className="p-4 border-t border-slate-700">
           <input type="file" ref={fileInputRef} className="hidden" multiple accept="image/*" onChange={(e) => handleFiles(e.target.files)}/>
-          <button onClick={() => fileInputRef.current.click()} className="flex items-center justify-center gap-2 w-full bg-blue-600 hover:bg-blue-500 text-white py-2 rounded text-sm transition-colors font-medium">
+          <button 
+            onClick={async () => {
+              // Använd Electron-dialog om tillgänglig
+              if (window.electronAPI && window.electronAPI.importImages) {
+                try {
+                  const result = await window.electronAPI.importImages();
+                  if (!result.canceled && result.success && result.files) {
+                    // Skapa media items från importerade filer
+                    const newItems = result.files.map(file => ({
+                      id: Date.now() + Math.random(),
+                      url: `media://${file.fileName}`, // Speciell protokoll för media-bilder
+                      filePath: file.filePath,
+                      name: file.fileName,
+                      date: new Date().toISOString().split('T')[0],
+                      libraryId: activeLib === 'all' ? 'gallery' : activeLib,
+                      isProfile: false,
+                      connections: { people: [], places: [], sources: [] },
+                      tags: ['Ny uppladdning'],
+                      faces: [],
+                      transcription: '',
+                      description: ''
+                    }));
+                    updateMedia([...newItems, ...mediaItems]);
+                  }
+                } catch (error) {
+                  console.error('[MediaManager] Import error:', error);
+                  alert(`Fel vid import: ${error.message}`);
+                }
+              } else {
+                // Fallback till vanlig file input
+                fileInputRef.current.click();
+              }
+            }}
+            className="flex items-center justify-center gap-2 w-full bg-blue-600 hover:bg-blue-500 text-white py-2 rounded text-sm transition-colors font-medium"
+          >
           <UploadCloud size={16}/> Ladda upp
           </button>
       </div>
@@ -827,6 +1154,227 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {}, media
                       ))}
                       <button className="text-xs text-slate-400 bg-slate-900 border border-slate-700 px-2 py-0.5 rounded-full hover:text-white hover:border-slate-500">+ Tagg</button>
                   </div>
+              </div>
+
+              {/* EXIF & METADATA SEKTION */}
+              <div className="space-y-3 border-t border-slate-700 pt-4">
+                  <div className="flex justify-between items-center">
+                      <h4 className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-2">
+                          <Camera size={12}/> EXIF & Metadata
+                      </h4>
+                      <button 
+                          onClick={() => setExifExpanded(!exifExpanded)}
+                          className="text-xs text-blue-400 hover:text-blue-300"
+                      >
+                          {exifExpanded ? 'Dölj' : 'Visa'}
+                      </button>
+                  </div>
+
+                  {exifExpanded && (
+                      <div className="space-y-3">
+                          <div className="flex gap-2">
+                              <button 
+                                  onClick={async () => {
+                                      setLoadingExif(true);
+                                      try {
+                                          // Bestäm vilken väg vi ska använda
+                                          let pathToUse = selectedImage.filePath || selectedImage.name;
+                                          
+                                          // Om det är en blob URL eller http URL, använd bara filnamnet
+                                          if (pathToUse.startsWith('blob:') || pathToUse.startsWith('http')) {
+                                              pathToUse = selectedImage.name;
+                                              console.log('[EXIF] Blob/HTTP URL detected, using filename:', pathToUse);
+                                          }
+                                          
+                                          // Om filePath innehåller /, ta bara filnamnet
+                                          if (pathToUse.includes('/') || pathToUse.includes('\\')) {
+                                              const parts = pathToUse.replace(/\\/g, '/').split('/');
+                                              pathToUse = parts[parts.length - 1];
+                                              console.log('[EXIF] Path contains slashes, extracted filename:', pathToUse);
+                                          }
+                                          
+                                          // Om pathToUse är konstigt (t.ex. "Media/Manager.jsx"), använd bara bildnamnet
+                                          if (!pathToUse.match(/\.(jpg|jpeg|png|gif|bmp|tiff)$/i)) {
+                                              pathToUse = selectedImage.name;
+                                              console.log('[EXIF] Invalid path detected, using image name:', pathToUse);
+                                          }
+                                          
+                                          // Använd Electron API om det finns, annars direkt fetch
+                                          let data;
+                                          if (window.electronAPI && window.electronAPI.readExif) {
+                                              // Electron-läge: skicka bildens filväg
+                                              console.log('[EXIF] Reading from path:', pathToUse);
+                                              data = await window.electronAPI.readExif(pathToUse);
+                                          } else {
+                                              // Webbläsarläge: använd direkt fetch
+                                              const response = await fetch('http://localhost:5005/exif/read', {
+                                                  method: 'POST',
+                                                  headers: { 'Content-Type': 'application/json' },
+                                                  body: JSON.stringify({ image_path: pathToUse })
+                                              });
+                                              data = await response.json();
+                                          }
+                                          
+                                          if (data.error) {
+                                              alert(`Kunde inte läsa EXIF-data: ${data.error}\n\nSökväg: ${pathToUse}\n\nOm filen inte finns i media-mappen, kopiera den dit först.`);
+                                          } else {
+                                              setExifData(data);
+                                          }
+                                      } catch (error) {
+                                          console.error('Error loading EXIF:', error);
+                                          alert(`Kunde inte läsa EXIF-data: ${error.message}`);
+                                      } finally {
+                                          setLoadingExif(false);
+                                      }
+                                  }}
+                                  className="flex-1 px-2 py-1.5 bg-slate-900 border border-slate-600 text-slate-300 text-xs rounded hover:border-blue-500 hover:text-white transition-colors flex items-center justify-center gap-1"
+                                  disabled={loadingExif}
+                              >
+                                  {loadingExif ? (
+                                      <><RefreshCw size={12} className="animate-spin"/> Läser...</>
+                                  ) : (
+                                      <><Download size={12}/> Läs från fil</>
+                                  )}
+                              </button>
+                              <button 
+                                  onClick={syncFaceTagsWithPeople}
+                                  className="px-2 py-1.5 bg-blue-600 border border-blue-500 text-white text-xs rounded hover:bg-blue-500 transition-colors flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  title="Synka face tags med personer"
+                                  disabled={!exifData || !exifData.face_tags || exifData.face_tags.length === 0}
+                              >
+                                  <Database size={12}/> Synka
+                              </button>
+                          </div>
+
+                          {exifData && (
+                              <>
+                                  {/* Face Tags */}
+                                  {exifData.face_tags && exifData.face_tags.length > 0 && (
+                                      <div className="space-y-2">
+                                          <label className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                                              <ScanFace size={12}/> Face Tags
+                                          </label>
+                                          {exifData.face_tags.map((face, idx) => (
+                                              <div key={idx} className="flex items-center justify-between bg-slate-900 p-2 rounded border border-slate-700 text-xs">
+                                                  <div>
+                                                      <span className="text-slate-200 font-medium block">{face.name}</span>
+                                                      <span className="text-[10px] text-slate-500">{face.source}</span>
+                                                  </div>
+                                                  <div className="flex gap-1">
+                                                      <button className="text-green-400 hover:text-green-300 p-1" title="Länka till person">
+                                                          <Link size={12}/>
+                                                      </button>
+                                                      <button className="text-slate-500 hover:text-red-400 p-1">
+                                                          <X size={12}/>
+                                                      </button>
+                                                  </div>
+                                              </div>
+                                          ))}
+                                      </div>
+                                  )}
+
+                                  {/* Keywords */}
+                                  {exifData.keywords && exifData.keywords.length > 0 && (
+                                      <div className="space-y-2">
+                                          <label className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                                              <Tag size={12}/> Keywords (EXIF)
+                                          </label>
+                                          <div className="flex flex-wrap gap-1">
+                                              {exifData.keywords.map((keyword, idx) => (
+                                                  <span key={idx} className="bg-blue-900/30 border border-blue-700/50 text-blue-300 text-xs px-2 py-0.5 rounded flex items-center gap-1">
+                                                      {keyword}
+                                                      <button className="hover:text-white">
+                                                          <X size={10}/>
+                                                      </button>
+                                                  </span>
+                                              ))}
+                                          </div>
+                                          <button className="w-full py-1 border border-dashed border-slate-600 text-slate-400 text-xs rounded hover:text-white hover:border-slate-500 hover:bg-slate-700 transition-colors">
+                                              + Lägg till keyword
+                                          </button>
+                                      </div>
+                                  )}
+
+                                  {/* Camera Info */}
+                                  {exifData.camera && Object.keys(exifData.camera).length > 0 && (
+                                      <div className="space-y-1">
+                                          <label className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                                              <Camera size={12}/> Kamera
+                                          </label>
+                                          <div className="bg-slate-900 border border-slate-700 rounded p-2 text-xs space-y-1">
+                                              {exifData.camera.make && exifData.camera.model && (
+                                                  <div className="text-slate-300">{exifData.camera.make} {exifData.camera.model}</div>
+                                              )}
+                                              {exifData.camera.lens && (
+                                                  <div className="text-slate-400 text-[10px]">{exifData.camera.lens}</div>
+                                              )}
+                                              <div className="flex gap-2 text-slate-400 text-[10px]">
+                                                  {exifData.camera.aperture && <span>{exifData.camera.aperture}</span>}
+                                                  {exifData.camera.shutter_speed && <span>{exifData.camera.shutter_speed}s</span>}
+                                                  {exifData.camera.iso && <span>ISO {exifData.camera.iso}</span>}
+                                                  {exifData.camera.focal_length && <span>{exifData.camera.focal_length}</span>}
+                                              </div>
+                                          </div>
+                                      </div>
+                                  )}
+
+                                  {/* GPS */}
+                                  {exifData.gps && (
+                                      <div className="space-y-1">
+                                          <label className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                                              <MapPin size={12}/> GPS-koordinater
+                                          </label>
+                                          <div className="bg-slate-900 border border-slate-700 rounded p-2 text-xs">
+                                              <div className="text-slate-300 font-mono">
+                                                  {exifData.gps.latitude.toFixed(6)}, {exifData.gps.longitude.toFixed(6)}
+                                              </div>
+                                              {exifData.gps.altitude && (
+                                                  <div className="text-slate-400 text-[10px] mt-1">
+                                                      Höjd: {exifData.gps.altitude.toFixed(0)}m
+                                                  </div>
+                                              )}
+                                          </div>
+                                      </div>
+                                  )}
+
+                                  {/* Metadata */}
+                                  {exifData.metadata && Object.keys(exifData.metadata).length > 0 && (
+                                      <div className="space-y-1">
+                                          <label className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                                              <Info size={12}/> Metadata
+                                          </label>
+                                          <div className="bg-slate-900 border border-slate-700 rounded p-2 text-xs space-y-1">
+                                              {exifData.metadata.date_taken && (
+                                                  <div><span className="text-slate-500">Datum:</span> <span className="text-slate-300">{exifData.metadata.date_taken}</span></div>
+                                              )}
+                                              {exifData.metadata.description && (
+                                                  <div><span className="text-slate-500">Beskrivning:</span> <span className="text-slate-300">{exifData.metadata.description}</span></div>
+                                              )}
+                                              {exifData.metadata.artist && (
+                                                  <div><span className="text-slate-500">Artist:</span> <span className="text-slate-300">{exifData.metadata.artist}</span></div>
+                                              )}
+                                          </div>
+                                      </div>
+                                  )}
+
+                                  <div className="flex gap-2 pt-2">
+                                      <button className="flex-1 px-2 py-1.5 bg-slate-900 border border-slate-600 text-slate-300 text-xs rounded hover:border-slate-500 hover:text-white transition-colors flex items-center justify-center gap-1">
+                                          <Upload size={12}/> Spara EXIF
+                                      </button>
+                                      <button className="px-2 py-1.5 bg-red-900/30 border border-red-700/50 text-red-300 text-xs rounded hover:bg-red-900/50 transition-colors flex items-center gap-1" title="Ta bort all metadata">
+                                          <Trash2 size={12}/>
+                                      </button>
+                                  </div>
+                              </>
+                          )}
+
+                          {!exifData && !loadingExif && (
+                              <div className="text-center py-4 text-slate-500 text-xs">
+                                  Klicka på "Läs från fil" för att hämta EXIF-data
+                              </div>
+                          )}
+                      </div>
+                  )}
               </div>
           </div>
           

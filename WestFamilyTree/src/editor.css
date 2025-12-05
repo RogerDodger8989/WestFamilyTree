@@ -5,6 +5,44 @@
   color: #e2e8f0; /* slate-200 */
 }
 
+/* Nuclear CSS override for tui-image-editor - force everything to expand */
+.tui-image-editor {
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.tui-image-editor-canvas-container {
+  flex: 1 !important;
+  width: 100% !important;
+  height: 100% !important;
+  overflow: visible !important;
+}
+
+.tui-canvas {
+  max-width: 100% !important;
+  max-height: 100% !important;
+  width: auto !important;
+  height: auto !important;
+}
+
+.tui-canvas-container {
+  flex: 1 !important;
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: visible !important;
+}
+
+/* Remove all max-width/height restrictions */
+.tui-image-editor * {
+  max-width: none !important;
+  max-height: none !important;
+}
+
 .rsw-ce {
   padding: 8px;
   min-height: 120px;

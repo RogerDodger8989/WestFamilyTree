@@ -20,6 +20,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openAuditBackupFolder: (dir) => ipcRenderer.invoke('open-audit-backup-folder', dir),
   // Read latest audit debug JSON (gedcom-debug*.json) from the audit-backups folder
   readLatestAuditDebug: () => ipcRenderer.invoke('read-latest-audit-debug'),
+  
+  // EXIF operations
+  readExif: (filePath) => ipcRenderer.invoke('read-exif', filePath),
+  writeExifKeywords: (filePath, keywords, backup) => ipcRenderer.invoke('write-exif-keywords', filePath, keywords, backup),
+  writeExifFaceTags: (filePath, faceTags, backup) => ipcRenderer.invoke('write-exif-face-tags', filePath, faceTags, backup),
+  
+  // Media operations
+  copyFileToMedia: (sourcePath, fileName) => ipcRenderer.invoke('copy-file-to-media', sourcePath, fileName),
+  saveFileBufferToMedia: (fileBuffer, fileName) => ipcRenderer.invoke('save-file-buffer-to-media', fileBuffer, fileName),
+  importImages: () => ipcRenderer.invoke('import-images'),
 });
 
 // --- Kod för kontextmeny ---

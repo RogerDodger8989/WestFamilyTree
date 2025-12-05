@@ -1,7 +1,8 @@
-const { app, BrowserWindow, ipcMain, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, protocol } = require('electron');
 const path = require('path');
 const openImage = require('./open-image');
-const IMAGE_ROOT = path.normalize(path.resolve('C:/WestFamilyTree/bilder'));
+// Media-mapp i programmets katalog
+const IMAGE_ROOT = path.join(__dirname, '..', 'WestFamilyTree', 'media');
 
 // IPC för att öppna bild i systemets visare
 ipcMain.on('open-image', (event, filePath) => {
@@ -21,39 +22,49 @@ console.log('============================================================');
 
 // Hjälpfunktion: Kombinera rot-mappen med den relativa sökvägen från appen.
 function forceImageRoot(filePath) {
-  // Bombsäker root-strip även i backend
   let relPath = filePath;
+  
   // Dekoda till UTF-8 om det är en Buffer eller felaktigt kodad sträng
   if (Buffer.isBuffer(relPath)) {
     relPath = relPath.toString('utf8');
   }
-  // Extra: försök alltid tolka som utf8
-  try {
-    relPath = Buffer.from(relPath, 'utf8').toString('utf8');
-  } catch (e) {
-    // Ignorera om redan utf8
-  }
+  
+  // Normalisera till forward slashes
   relPath = relPath.replace(/\\/g, '/');
-  if (relPath.includes(':') || relPath.startsWith('C:/')) {
-    // Ta bort allt före och med första /kallor eller /diverse
-    relPath = relPath.replace(/.*\/(kallor|diverse)\//, '$1/');
-    if (!relPath.startsWith('kallor/') && !relPath.startsWith('diverse/')) {
-      const idxK = relPath.indexOf('kallor/');
-      const idxD = relPath.indexOf('diverse/');
-      if (idxK !== -1) relPath = relPath.slice(idxK);
-      else if (idxD !== -1) relPath = relPath.slice(idxD);
-    }
+  
+  // Om det är en absolut Windows-sökväg, extrahera bara filnamnet
+  if (relPath.includes(':')) {
+    // Ta bara filnamnet, inte hela sökvägen
+    relPath = path.basename(relPath);
   }
-  // Hård blockering: måste börja med kallor/ eller diverse/
-  if (!relPath.startsWith('kallor/') && !relPath.startsWith('diverse/')) {
-    console.error('[forceImageRoot] FEL: relPath börjar inte med kallor/ eller diverse/:', relPath);
-    throw new Error('relPath måste börja med kallor/ eller diverse/. relPath: ' + relPath);
+  
+  // Om sökvägen redan börjar med IMAGE_ROOT, ta bara den relativa delen
+  if (relPath.includes('media/')) {
+    const idx = relPath.indexOf('media/');
+    relPath = relPath.slice(idx + 6); // Efter 'media/'
   }
-  console.log('[forceImageRoot] FINAL relPath:', relPath);
-  // Säkerställer att vi inte försöker gå "uppåt" i mappstrukturen (../)
+  
+  // Om det innehåller slashes, ta bara filnamnet
+  if (relPath.includes('/')) {
+    relPath = path.basename(relPath);
+  }
+  
+  console.log('[forceImageRoot] Input:', filePath);
+  console.log('[forceImageRoot] Processed relPath:', relPath);
+  console.log('[forceImageRoot] IMAGE_ROOT:', IMAGE_ROOT);
+  
+  // Säkerställ att vi inte försöker gå "uppåt" i mappstrukturen (../)
   const safeRelativePath = path.normalize(relPath).replace(/^(\.\.[/\\])+/, '');
   const fullPath = path.join(IMAGE_ROOT, safeRelativePath);
-  // Returnera alltid med / (slash) för visning/logg
+  
+  console.log('[forceImageRoot] Final fullPath:', fullPath);
+  
+  // Kolla om filen finns
+  const fs = require('fs');
+  if (!fs.existsSync(fullPath)) {
+    console.error('[forceImageRoot] WARNING: File does not exist at:', fullPath);
+  }
+  
   return fullPath;
 }
 
@@ -203,7 +214,17 @@ ipcMain.on('show-person-context-menu', (event, personId) => {
 });
 
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  // Registrera custom protocol för media-bilder
+  protocol.registerFileProtocol('media', (request, callback) => {
+    const fileName = request.url.replace('media://', '');
+    const filePath = path.join(IMAGE_ROOT, fileName);
+    console.log('[media protocol] Loading:', fileName, '->', filePath);
+    callback({ path: filePath });
+  });
+  
+  createWindow();
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
@@ -348,6 +369,175 @@ ipcMain.handle('gedcom:write', async (event, dbData, options) => {
     console.error('[gedcom:write] error', err);
     return { error: err.message };
   }
+});
+
+// ============================================
+// EXIF HANDLERS
+// ============================================
+
+ipcMain.handle('read-exif', async (event, filePath) => {
+  try {
+    const fullPath = forceImageRoot(filePath);
+    console.log('[read-exif] Reading EXIF from:', fullPath);
+    
+    const fetch = require('node-fetch');
+    const response = await fetch('http://localhost:5005/exif/read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image_path: fullPath })
+    });
+    
+    const data = await response.json();
+    console.log('[read-exif] Success:', Object.keys(data));
+    return data;
+  } catch (error) {
+    console.error('[read-exif] Error:', error);
+    return { error: error.message, face_tags: [], keywords: [], metadata: {}, camera: {}, gps: null };
+  }
+});
+
+ipcMain.handle('write-exif-keywords', async (event, filePath, keywords, backup = true) => {
+  try {
+    const fullPath = forceImageRoot(filePath);
+    console.log('[write-exif-keywords] Writing to:', fullPath, 'Keywords:', keywords);
+    
+    const fetch = require('node-fetch');
+    const response = await fetch('http://localhost:5005/exif/write_keywords', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image_path: fullPath, keywords, backup })
+    });
+    
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('[write-exif-keywords] Error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('write-exif-face-tags', async (event, filePath, faceTags, backup = true) => {
+  try {
+    const fullPath = forceImageRoot(filePath);
+    console.log('[write-exif-face-tags] Writing to:', fullPath, 'Face tags:', faceTags.length);
+    
+    const fetch = require('node-fetch');
+    const response = await fetch('http://localhost:5005/exif/write_face_tags', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image_path: fullPath, face_tags: faceTags, backup })
+    });
+    
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('[write-exif-face-tags] Error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Copy file to media folder
+ipcMain.handle('copy-file-to-media', async (event, sourcePath, fileName) => {
+  try {
+    const fs = require('fs').promises;
+    
+    // Om sourcePath är undefined, betyder det att det är en blob från webbläsare
+    if (!sourcePath) {
+      return { success: false, error: 'No source path provided' };
+    }
+    
+    const destPath = path.join(IMAGE_ROOT, fileName);
+    
+    console.log('[copy-file-to-media] Copying:', sourcePath, '->', destPath);
+    
+    // Skapa media-mappen om den inte finns
+    await fs.mkdir(IMAGE_ROOT, { recursive: true });
+    
+    // Kopiera filen
+    await fs.copyFile(sourcePath, destPath);
+    
+    console.log('[copy-file-to-media] Success!');
+    return { success: true, filePath: fileName };
+  } catch (error) {
+    console.error('[copy-file-to-media] Error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Save file buffer to media folder (för drag-and-drop och paste)
+ipcMain.handle('save-file-buffer-to-media', async (event, fileBuffer, fileName) => {
+  try {
+    const fs = require('fs').promises;
+    
+    const destPath = path.join(IMAGE_ROOT, fileName);
+    
+    console.log('[save-file-buffer-to-media] Saving buffer to:', destPath, 'Size:', fileBuffer.length);
+    
+    // Skapa media-mappen om den inte finns
+    await fs.mkdir(IMAGE_ROOT, { recursive: true });
+    
+    // Skriv buffer till fil
+    await fs.writeFile(destPath, Buffer.from(fileBuffer));
+    
+    console.log('[save-file-buffer-to-media] Success!');
+    return { success: true, filePath: fileName };
+  } catch (error) {
+    console.error('[save-file-buffer-to-media] Error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Import images - dialog + copy to media folder
+ipcMain.handle('import-images', async (event) => {
+  try {
+    const fs = require('fs').promises;
+    
+    // Visa fil-dialog
+    const result = await dialog.showOpenDialog({
+      properties: ['openFile', 'multiSelections'],
+      filters: [
+        { name: 'Bilder', extensions: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff'] }
+      ]
+    });
+    
+    if (result.canceled || !result.filePaths || result.filePaths.length === 0) {
+      return { success: false, canceled: true };
+    }
+    
+    // Skapa media-mappen om den inte finns
+    await fs.mkdir(IMAGE_ROOT, { recursive: true });
+    
+    // Kopiera alla valda filer
+    const importedFiles = [];
+    for (const sourcePath of result.filePaths) {
+      const fileName = path.basename(sourcePath);
+      const destPath = path.join(IMAGE_ROOT, fileName);
+      
+      console.log('[import-images] Copying:', sourcePath, '->', destPath);
+      
+      try {
+        await fs.copyFile(sourcePath, destPath);
+        importedFiles.push({
+          fileName: fileName,
+          filePath: fileName,
+          originalPath: sourcePath
+        });
+      } catch (error) {
+        console.error('[import-images] Failed to copy:', fileName, error);
+      }
+    }
+    
+    return { success: true, files: importedFiles };
+  } catch (error) {
+    console.error('[import-images] Error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Get media file path (för att visa bilder från media-mappen)
+ipcMain.handle('get-media-path', async (event, fileName) => {
+  const fullPath = path.join(IMAGE_ROOT, fileName);
+  return fullPath;
 });
 
 // ✅ NY GEDCOM IMPORT HANDLER
