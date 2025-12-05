@@ -519,6 +519,15 @@ export default function SourceCatalog({
                         {notesCount > 0 && <span className="ml-1 bg-green-900 text-green-200 text-xs font-bold px-2 py-0.5 rounded-full shadow-sm">{notesCount}</span>}
                         {activeRightTab === 'notes' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2 h-2 bg-blue-500 rounded-full" />}
                     </button>
+                    <button
+                        className={`relative px-5 py-2 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors duration-150 focus:outline-none ${activeRightTab === 'connections' ? 'border-blue-500 text-blue-300 bg-slate-800 shadow -mb-px' : 'border-transparent text-slate-400 hover:text-blue-400 hover:bg-slate-700'}`}
+                        onClick={() => setActiveRightTab('connections')}
+                        title="Kopplingar"
+                    >
+                        <span className="text-lg" role="img" aria-label="Kopplingar">👥</span>
+                        Kopplingar
+                        {activeRightTab === 'connections' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2 h-2 bg-blue-500 rounded-full" />}
+                    </button>
                 </div>
             </div>
 
@@ -552,75 +561,6 @@ export default function SourceCatalog({
                            
                            {/* NY TAG INPUT */}
                            <TagInput value={selectedSource.tags || ''} onChange={newValue => handleSave({ tags: newValue })} />
-                        </div>
-                        
-                        <div className="border-t border-slate-700 pt-6">
-                           <div className="flex justify-between items-center mb-4">
-                               <h3 className="text-lg font-bold text-slate-200">Kopplade Människor & Händelser</h3>
-                               {onOpenLinkPersonModal && (
-                                   <Button onClick={() => onOpenLinkPersonModal(null)} variant="primary" size="sm">
-                                       <span>+</span> Koppla person
-                                   </Button>
-                               )}
-                           </div>
-                                                     {linkedData.length === 0 ? (
-                                                         <p className="text-slate-400 text-sm italic text-center py-4">Inga personer är kopplade till denna källa än.</p>
-                                                     ) : (
-                                                         <div className="space-y-6">
-                                                             {linkedData.map((item, index) => (
-                                                                 <div key={index} className="bg-slate-900 border border-slate-700 rounded-md overflow-hidden">
-                                                                     <div className="flex items-center p-3 bg-slate-800 border-b border-slate-700 hover:bg-slate-700 transition-colors">
-                                                                         {/* NYTT: Bild-indikator */}
-                                                                         {item.isLinkedToImageRegion && (
-                                                                             <span className="text-green-600 mr-2" title="Personen är taggad i en bild från denna källa">🖼️</span>
-                                                                         )}
-                                                                         <div className="w-12 text-xs font-mono text-slate-500">#{item.person.refNumber}</div>
-                                                                         <div className="flex-1 font-bold text-blue-400 cursor-pointer hover:underline" onClick={() => onOpenEditModal && onOpenEditModal(item.person.id)}>
-                                                                             {item.person.firstName} {item.person.lastName}
-                                                                             <span className="font-normal text-slate-400 ml-2 text-xs">{getLifeSpan(item.person)}</span>
-                                                                         </div>
-                                                                         <div className="w-48 text-sm font-medium px-2 bg-slate-700 rounded py-0.5 mr-4 flex flex-wrap gap-2 justify-end">
-                                                                             {item.events.map(ev => (
-                                                                                 <span key={ev.id || ev.type} className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-200 text-green-900 rounded text-xs font-semibold">
-                                                                                     {translateEvent(ev.type)}
-                                                                                     {onUnlinkSourceFromEvent && (
-                                                                                         <button
-                                                                                             onClick={() => { if(confirm(`Ta bort koppling?`)) onUnlinkSourceFromEvent(item.person.id, ev.id, selectedSource.id); }}
-                                                                                             className="ml-1 text-green-900 hover:text-white hover:bg-green-600 rounded-full w-4 h-4 flex items-center justify-center transition-colors"
-                                                                                             title={`Ta bort koppling till ${translateEvent(ev.type)}`}
-                                                                                             style={{ lineHeight: 1, fontSize: '13px', padding: 0, border: 'none', background: 'none', cursor: 'pointer' }}
-                                                                                         >
-                                                                                             ×
-                                                                                         </button>
-                                                                                     )}
-                                                                                 </span>
-                                                                             ))}
-                                                                         </div>
-                                                                     </div>
-                                                                     {item.family && item.family.length > 0 && (
-                                                                         <div className="bg-slate-900 p-2 pl-12 border-t border-dashed border-slate-700">
-                                                                             <div className="text-xs font-bold text-slate-400 uppercase mb-2">Relaterade familjemedlemmar (Tips)</div>
-                                                                             <div className="grid grid-cols-1 gap-1">
-                                                                                 {item.family.map((fam, fIndex) => (
-                                                                                     <div key={fIndex} className="flex items-center justify-between group hover:bg-slate-800 p-1 rounded">
-                                                                                         <div className="flex items-center gap-2"><span className="text-xs font-bold text-slate-400 w-16 text-right">{fam.role}:</span><span className="text-slate-300 cursor-pointer hover:text-blue-400" onClick={() => onOpenEditModal && onOpenEditModal(fam.person.id)}>{fam.person.firstName} {fam.person.lastName}</span><span className="text-xs text-slate-500">{getLifeSpan(fam.person)}</span></div>
-                                                                                         {onOpenLinkPersonModal && (
-                                                                                             <button
-                                                                                                 onClick={() => onOpenLinkPersonModal(fam.person.id)}
-                                                                                                 className="opacity-0 group-hover:opacity-100 bg-blue-600 text-blue-100 px-2 py-0.5 rounded text-xs font-semibold hover:bg-blue-500 transition-opacity"
-                                                                                             >
-                                                                                                 Koppla
-                                                                                             </button>
-                                                                                         )}
-                                                                                     </div>
-                                                                                 ))}
-                                                                             </div>
-                                                                         </div>
-                                                                     )}
-                                                                 </div>
-                                                             ))}
-                                                         </div>
-                                                     )}
                         </div>
                     </div>
                 )}
@@ -686,6 +626,77 @@ export default function SourceCatalog({
                             ))}
                             {currentNotes.length === 0 && <div className="text-center text-slate-400 italic py-10">Inga anteckningar än.</div>}
                         </div>
+                    </div>
+                )}
+
+                {/* --- FLIK: KOPPLINGAR --- */}
+                {activeRightTab === 'connections' && (
+                    <div className="max-w-4xl mx-auto">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-bold text-slate-200">Kopplade Människor & Händelser</h3>
+                            {onOpenLinkPersonModal && (
+                                <Button onClick={() => onOpenLinkPersonModal(null)} variant="primary" size="sm">
+                                    <span>+</span> Koppla person
+                                </Button>
+                            )}
+                        </div>
+                        {linkedData.length === 0 ? (
+                            <p className="text-slate-400 text-sm italic text-center py-4">Inga personer är kopplade till denna källa än.</p>
+                        ) : (
+                            <div className="space-y-6">
+                                {linkedData.map((item, index) => (
+                                    <div key={index} className="bg-slate-900 border border-slate-700 rounded-md overflow-hidden">
+                                        <div className="flex items-center p-3 bg-slate-800 border-b border-slate-700 hover:bg-slate-700 transition-colors">
+                                            {item.isLinkedToImageRegion && (
+                                                <span className="text-green-600 mr-2" title="Personen är taggad i en bild från denna källa">🖼️</span>
+                                            )}
+                                            <div className="w-12 text-xs font-mono text-slate-500">#{item.person.refNumber}</div>
+                                            <div className="flex-1 font-bold text-blue-400 cursor-pointer hover:underline" onClick={() => onOpenEditModal && onOpenEditModal(item.person.id)}>
+                                                {item.person.firstName} {item.person.lastName}
+                                                <span className="font-normal text-slate-400 ml-2 text-xs">{getLifeSpan(item.person)}</span>
+                                            </div>
+                                            <div className="w-48 text-sm font-medium px-2 bg-slate-700 rounded py-0.5 mr-4 flex flex-wrap gap-2 justify-end">
+                                                {item.events.map(ev => (
+                                                    <span key={ev.id || ev.type} className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-200 text-green-900 rounded text-xs font-semibold">
+                                                        {translateEvent(ev.type)}
+                                                        {onUnlinkSourceFromEvent && (
+                                                            <button
+                                                                onClick={() => { if(confirm(`Ta bort koppling?`)) onUnlinkSourceFromEvent(item.person.id, ev.id, selectedSource.id); }}
+                                                                className="ml-1 text-green-900 hover:text-white hover:bg-green-600 rounded-full w-4 h-4 flex items-center justify-center transition-colors"
+                                                                title={`Ta bort koppling till ${translateEvent(ev.type)}`}
+                                                                style={{ lineHeight: 1, fontSize: '13px', padding: 0, border: 'none', background: 'none', cursor: 'pointer' }}
+                                                            >
+                                                                ×
+                                                            </button>
+                                                        )}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        {item.family && item.family.length > 0 && (
+                                            <div className="bg-slate-900 p-2 pl-12 border-t border-dashed border-slate-700">
+                                                <div className="text-xs font-bold text-slate-400 uppercase mb-2">Relaterade familjemedlemmar (Tips)</div>
+                                                <div className="grid grid-cols-1 gap-1">
+                                                    {item.family.map((fam, fIndex) => (
+                                                        <div key={fIndex} className="flex items-center justify-between group hover:bg-slate-800 p-1 rounded">
+                                                            <div className="flex items-center gap-2"><span className="text-xs font-bold text-slate-400 w-16 text-right">{fam.role}:</span><span className="text-slate-300 cursor-pointer hover:text-blue-400" onClick={() => onOpenEditModal && onOpenEditModal(fam.person.id)}>{fam.person.firstName} {fam.person.lastName}</span><span className="text-xs text-slate-500">{getLifeSpan(fam.person)}</span></div>
+                                                            {onOpenLinkPersonModal && (
+                                                                <button
+                                                                    onClick={() => onOpenLinkPersonModal(fam.person.id)}
+                                                                    className="opacity-0 group-hover:opacity-100 bg-blue-600 text-blue-100 px-2 py-0.5 rounded text-xs font-semibold hover:bg-blue-500 transition-opacity"
+                                                                >
+                                                                    Koppla
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
 

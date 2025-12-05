@@ -3,6 +3,7 @@ import { useApp } from './AppContext.jsx';
 import WindowFrame from './WindowFrame.jsx';
 import PlaceEditModal from './PlaceEditModal.jsx';
 import PlaceCreateModal from './PlaceCreateModal.jsx';
+import Editor from './MaybeEditor.jsx';
 
 // Ikoner för varje platstyp
 const PLACE_TYPE_ICONS = {
@@ -188,6 +189,9 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
   const [contextMenu, setContextMenu] = useState(null);
   const [editingPlace, setEditingPlace] = useState(null);
   const [creatingParent, setCreatingParent] = useState(null);
+  const [activeRightTab, setActiveRightTab] = useState('info');
+  const [noteDraft, setNoteDraft] = useState('');
+  const [isSavingNote, setIsSavingNote] = useState(false);
   const fileInputRef = useRef(null);
   // Stäng med ESC när i pick-läge
   useEffect(() => {
@@ -223,6 +227,11 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
     } else {
       setLinkedPeople([]);
     }
+  }, [selectedNode]);
+
+  // Uppdatera noteringsutkast när plats byts
+  useEffect(() => {
+    setNoteDraft(selectedNode?.metadata?.note || '');
   }, [selectedNode]);
 
   const loadPlaces = async () => {
@@ -488,6 +497,25 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
         break;
       default:
         break;
+    }
+  };
+
+  const handleSaveNote = async () => {
+    if (!selectedNode?.metadata?.id) return;
+    setIsSavingNote(true);
+    try {
+      const response = await fetch(`http://127.0.0.1:5005/official_places/${selectedNode.metadata.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ note: noteDraft })
+      });
+      if (!response.ok) throw new Error('Kunde inte spara notering');
+      showStatus && showStatus('Notering sparad.');
+      await loadPlaces();
+    } catch (err) {
+      showStatus && showStatus('Kunde inte spara notering.', 'error');
+    } finally {
+      setIsSavingNote(false);
     }
   };
 
@@ -813,57 +841,156 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
         {/* Right: Details Panel */}
         <div className="flex-1 bg-slate-800 flex flex-col overflow-hidden">
           {selectedNode ? (
-            <div className="flex-1 overflow-y-auto p-6">
-              <h1 className="text-2xl font-semibold text-white mb-1">{selectedNode.name}</h1>
-              <p className="text-slate-400 italic mb-6">
-                {PLACE_TYPE_LABELS[selectedNode.type] || 'Platsinformation saknas'}
-              </p>
-
-              {selectedNode.metadata?.latitude && selectedNode.metadata?.longitude && (
-                <div className="mb-6">
-                  <h3 className="text-sm font-bold text-slate-300 uppercase mb-1">WGS 84 decimal (lat, lon)</h3>
-                  <p className="font-mono text-slate-200 bg-slate-900 inline-block px-2 py-1 rounded border border-slate-700">
-                    {selectedNode.metadata.latitude}, {selectedNode.metadata.longitude}
-                  </p>
+            <div className="flex-1 flex flex-col overflow-hidden">
+              <div className="p-6 pb-0">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h1 className="text-2xl font-semibold text-white mb-1">{selectedNode.name}</h1>
+                    <p className="text-slate-400 italic">
+                      {PLACE_TYPE_LABELS[selectedNode.type] || 'Platsinformation saknas'}
+                    </p>
+                  </div>
                 </div>
-              )}
 
-              {selectedNode.metadata?.note && (
-                <div className="mb-6">
-                  <h3 className="text-sm font-bold text-slate-300 uppercase mb-1">Notering</h3>
-                  <p className="text-slate-200 leading-relaxed text-sm">
-                    {selectedNode.metadata.note}
-                  </p>
+                {/* Tabbar */}
+                <div className="flex border-b mt-4 bg-slate-900 rounded-t-lg shadow-sm">
+                  <button
+                    className={`relative px-5 py-2 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors duration-150 focus:outline-none ${activeRightTab === 'info' ? 'border-blue-500 text-blue-300 bg-slate-800 shadow -mb-px' : 'border-transparent text-slate-400 hover:text-blue-400 hover:bg-slate-700'}`}
+                    onClick={() => setActiveRightTab('info')}
+                    title="Information"
+                  >
+                    <span className="text-lg" role="img" aria-label="Info">ℹ️</span>
+                    Info
+                    {activeRightTab === 'info' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2 h-2 bg-blue-500 rounded-full" />}
+                  </button>
+                  <button
+                    className={`relative px-5 py-2 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors duration-150 focus:outline-none ${activeRightTab === 'images' ? 'border-blue-500 text-blue-300 bg-slate-800 shadow -mb-px' : 'border-transparent text-slate-400 hover:text-blue-400 hover:bg-slate-700'}`}
+                    onClick={() => setActiveRightTab('images')}
+                    title="Bilder"
+                  >
+                    <span className="text-lg" role="img" aria-label="Bilder">🖼️</span>
+                    Bilder
+                    {activeRightTab === 'images' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2 h-2 bg-blue-500 rounded-full" />}
+                  </button>
+                  <button
+                    className={`relative px-5 py-2 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors duration-150 focus:outline-none ${activeRightTab === 'notes' ? 'border-blue-500 text-blue-300 bg-slate-800 shadow -mb-px' : 'border-transparent text-slate-400 hover:text-blue-400 hover:bg-slate-700'}`}
+                    onClick={() => setActiveRightTab('notes')}
+                    title="Noteringar"
+                  >
+                    <span className="text-lg" role="img" aria-label="Noteringar">📝</span>
+                    Noteringar
+                    {activeRightTab === 'notes' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2 h-2 bg-blue-500 rounded-full" />}
+                  </button>
+                  <button
+                    className={`relative px-5 py-2 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors duration-150 focus:outline-none ${activeRightTab === 'connections' ? 'border-blue-500 text-blue-300 bg-slate-800 shadow -mb-px' : 'border-transparent text-slate-400 hover:text-blue-400 hover:bg-slate-700'}`}
+                    onClick={() => setActiveRightTab('connections')}
+                    title="Kopplingar"
+                  >
+                    <span className="text-lg" role="img" aria-label="Kopplingar">👥</span>
+                    Kopplingar
+                    {activeRightTab === 'connections' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2 h-2 bg-blue-500 rounded-full" />}
+                  </button>
                 </div>
-              )}
+              </div>
 
-              {/* Kopplade Personer */}
-              <div className="mt-8 border-t border-slate-700 pt-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-bold text-slate-300 uppercase">Kopplade Personer</h3>
-                  <span className="text-xs text-slate-400">{linkedPeople.length} {linkedPeople.length === 1 ? 'person' : 'personer'}</span>
-                </div>
-                
-                <div className="bg-slate-900 rounded-md border border-slate-700 overflow-hidden">
-                  {linkedPeople.length > 0 ? (
-                    linkedPeople.map((link, idx) => (
-                      <div key={`${link.personId}-${link.eventId}`} className="flex items-center p-3 border-b border-slate-700 last:border-0 hover:bg-slate-800 transition-colors cursor-pointer">
-                        <span className="mr-3 text-slate-500">👤</span>
-                        <div className="flex-1">
-                          <div className="text-sm text-slate-100 font-medium">{link.personName}</div>
-                          <div className="text-xs text-slate-400">
-                            {link.eventType}
-                            {link.eventDate && ` (${link.eventDate})`}
-                          </div>
-                        </div>
+              <div className="flex-1 overflow-y-auto p-6">
+                {activeRightTab === 'info' && (
+                  <div className="space-y-6">
+                    {selectedNode.metadata?.latitude && selectedNode.metadata?.longitude && (
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-300 uppercase mb-1">WGS 84 decimal (lat, lon)</h3>
+                        <p className="font-mono text-slate-200 bg-slate-900 inline-block px-2 py-1 rounded border border-slate-700">
+                          {selectedNode.metadata.latitude}, {selectedNode.metadata.longitude}
+                        </p>
                       </div>
-                    ))
-                  ) : (
-                    <div className="p-4 text-sm text-slate-400 italic">
-                      Inga personer kopplade till denna plats.
+                    )}
+
+                    <div className="grid grid-cols-2 gap-4">
+                      {selectedNode.metadata?.lansnamn && (
+                        <div>
+                          <div className="text-xs font-bold text-slate-400 uppercase">Län</div>
+                          <div className="text-slate-200">{selectedNode.metadata.lansnamn}</div>
+                        </div>
+                      )}
+                      {selectedNode.metadata?.kommunnamn && (
+                        <div>
+                          <div className="text-xs font-bold text-slate-400 uppercase">Kommun</div>
+                          <div className="text-slate-200">{selectedNode.metadata.kommunnamn}</div>
+                        </div>
+                      )}
+                      {selectedNode.metadata?.sockenstadnamn && (
+                        <div>
+                          <div className="text-xs font-bold text-slate-400 uppercase">Församling</div>
+                          <div className="text-slate-200">{selectedNode.metadata.sockenstadnamn}</div>
+                        </div>
+                      )}
+                      {selectedNode.metadata?.detaljtyp && (
+                        <div>
+                          <div className="text-xs font-bold text-slate-400 uppercase">Detaljtyp</div>
+                          <div className="text-slate-200">{selectedNode.metadata.detaljtyp}</div>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
+
+                {activeRightTab === 'images' && (
+                  <div className="max-w-3xl mx-auto">
+                    <h3 className="text-lg font-bold text-slate-200 mb-3">Bilder</h3>
+                    <div className="text-sm text-slate-400 italic bg-slate-900 border border-slate-700 rounded p-4">
+                      Inga bilder är kopplade till denna plats ännu.
+                    </div>
+                  </div>
+                )}
+
+                {activeRightTab === 'notes' && (
+                  <div className="max-w-3xl mx-auto space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-bold text-slate-200">Noteringar</h3>
+                      <button
+                        className="px-3 py-1 bg-blue-600 text-blue-100 rounded hover:bg-blue-500 font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                        onClick={handleSaveNote}
+                        disabled={isSavingNote}
+                      >
+                        {isSavingNote ? 'Sparar...' : 'Spara'}
+                      </button>
+                    </div>
+                    <Editor
+                      value={noteDraft}
+                      onChange={(e) => setNoteDraft(e.target.value)}
+                      containerProps={{ style: { minHeight: '200px' } }}
+                    />
+                  </div>
+                )}
+
+                {activeRightTab === 'connections' && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-bold text-slate-300 uppercase">Kopplade Personer</h3>
+                      <span className="text-xs text-slate-400">{linkedPeople.length} {linkedPeople.length === 1 ? 'person' : 'personer'}</span>
+                    </div>
+                    <div className="bg-slate-900 rounded-md border border-slate-700 overflow-hidden">
+                      {linkedPeople.length > 0 ? (
+                        linkedPeople.map((link) => (
+                          <div key={`${link.personId}-${link.eventId}`} className="flex items-center p-3 border-b border-slate-700 last:border-0 hover:bg-slate-800 transition-colors cursor-pointer">
+                            <span className="mr-3 text-slate-500">👤</span>
+                            <div className="flex-1">
+                              <div className="text-sm text-slate-100 font-medium">{link.personName}</div>
+                              <div className="text-xs text-slate-400">
+                                {link.eventType}
+                                {link.eventDate && ` (${link.eventDate})`}
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="p-4 text-sm text-slate-400 italic">
+                          Inga personer kopplade till denna plats.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ) : (
