@@ -272,9 +272,12 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {}, media
     .filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i); // Unique by id
   
   // Helper to update media and notify parent
-  const updateMedia = (newMedia) => {
-    setMediaItems(newMedia);
-    onUpdateMedia(newMedia);
+  const updateMedia = (newMediaOrUpdater) => {
+    setMediaItems(prev => {
+      const newMedia = typeof newMediaOrUpdater === 'function' ? newMediaOrUpdater(prev) : newMediaOrUpdater;
+      onUpdateMedia(newMedia);
+      return newMedia;
+    });
   };
   
   // Context Menu Handlers
@@ -471,6 +474,9 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
 
   const allLibraries = [...SYSTEM_LIBRARIES, ...customLibraries];
 
+  // Läs alltid fresh data från mediaItems - använd selectedImage bara för att hitta ID
+  const displayImage = selectedImage ? (mediaItems.find(m => m.id === selectedImage.id) || selectedImage) : null;
+
   const filteredMedia = mediaItems.filter(m => {
     const matchesLib = activeLib === 'all' || m.libraryId === activeLib;
     const q = search.toLowerCase();
@@ -546,6 +552,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
   };
 
   const handleImageClick = (item, e) => {
+      console.log('🖱️ Image clicked:', { itemId: item.id, itemName: item.name, mediaItemsCount: mediaItems.length });
       let newSelected = new Set(selectedIds);
       if (e.ctrlKey || e.metaKey) {
           if (newSelected.has(item.id)) newSelected.delete(item.id);
@@ -569,8 +576,14 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
       setSelectedIds(newSelected);
       setTransform({ x: 0, y: 0, scale: 1, rotate: 0 });
 
-      if (newSelected.size === 1) setSelectedImage(mediaItems.find(m => m.id === Array.from(newSelected)[0]));
-      else setSelectedImage(newSelected.has(item.id) ? item : null);
+      if (newSelected.size === 1) {
+          const found = mediaItems.find(m => m.id === Array.from(newSelected)[0]);
+          console.log('✅ Setting selectedImage:', { found, findId: Array.from(newSelected)[0] });
+          setSelectedImage(found);
+      } else {
+          console.log('⚠️ Multiple selected, setting to item or null:', newSelected.has(item.id));
+          setSelectedImage(newSelected.has(item.id) ? item : null);
+      }
       setIsSelectMode(newSelected.size > 0);
   };
 
@@ -1131,10 +1144,10 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
       </div>
 
       {/* HÖGER: Detaljpanel */}
-      {selectedImage ? (
+      {displayImage ? (
       <div className="w-96 bg-slate-800 border-l border-slate-700 flex flex-col shrink-0 z-20 shadow-xl">
           <div className="p-4 border-b border-slate-700 flex justify-between bg-slate-800">
-              <h3 className="text-sm font-bold text-white truncate w-64">{selectedImage.name}</h3>
+              <h3 className="text-sm font-bold text-white truncate w-64">{displayImage.name}</h3>
               <button onClick={() => setSelectedImage(null)} className="text-slate-400 hover:text-white"><X size={18}/></button>
           </div>
           
@@ -1144,13 +1157,13 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                       <label className="text-[10px] uppercase font-bold text-slate-500 block mb-1">Datering</label>
                       <div className="flex items-center bg-slate-900 border border-slate-600 rounded px-2 py-1.5">
                           <Calendar size={14} className="text-slate-500 mr-2"/>
-                          <input type="text" defaultValue={selectedImage.date} className="bg-transparent text-sm text-white w-full focus:outline-none" />
+                          <input type="text" defaultValue={displayImage.date} className="bg-transparent text-sm text-white w-full focus:outline-none" />
                       </div>
                   </div>
                   <div>
                       <label className="text-[10px] uppercase font-bold text-slate-500 block mb-1">Bibliotek / Kategori</label>
                       <select 
-                          defaultValue={selectedImage.libraryId}
+                          defaultValue={displayImage.libraryId}
                           className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500"
                       >
                           {SYSTEM_LIBRARIES.filter(l => l.id !== 'all').map(l => (
@@ -1166,11 +1179,11 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
               <div>
                   <label className="text-[10px] uppercase font-bold text-slate-500 block mb-1">Bildtext / Beskrivning</label>
                   <div className="bg-slate-900 border border-slate-600 rounded p-2">
-                      <textarea className="w-full bg-transparent text-sm text-white focus:outline-none resize-y min-h-[60px]" placeholder="Skriv en beskrivning..." defaultValue={selectedImage.description} />
+                      <textarea className="w-full bg-transparent text-sm text-white focus:outline-none resize-y min-h-[60px]" placeholder="Skriv en beskrivning..." defaultValue={displayImage.description} />
                   </div>
               </div>
 
-              {selectedImage.libraryId === 'sources' && (
+              {displayImage.libraryId === 'sources' && (
                   <div className="space-y-2">
                       <div className="flex justify-between items-center">
                           <label className="text-[10px] font-bold text-slate-500 uppercase">Transkribering</label>
@@ -1179,7 +1192,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                           </button>
                       </div>
                       {showTranscription && (
-                          <textarea className="w-full h-32 bg-slate-900 border border-slate-700 rounded p-2 text-sm text-slate-300 focus:outline-none focus:border-blue-500" placeholder="Skriv av texten här..." defaultValue={selectedImage.transcription} />
+                          <textarea className="w-full h-32 bg-slate-900 border border-slate-700 rounded p-2 text-sm text-slate-300 focus:outline-none focus:border-blue-500" placeholder="Skriv av texten här..." defaultValue={displayImage.transcription} />
                       )}
                   </div>
               )}
@@ -1191,7 +1204,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                       <div className="flex justify-between items-center">
                           <label className="text-[10px] font-bold text-slate-400">Personer</label>
                       </div>
-                      {selectedImage.connections.people.map(p => (
+                      {displayImage.connections.people.map(p => (
                           <div key={p.id} className="flex items-center justify-between bg-slate-900 p-2 rounded border border-slate-700 text-xs">
                               <div><span className="text-slate-200 font-medium block">{p.name}</span><span className="text-[10px] text-slate-500">{p.dates}</span></div>
                               <button className="text-slate-500 hover:text-red-400"><X size={12}/></button>
@@ -1204,14 +1217,17 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                       <div className="flex justify-between items-center">
                           <label className="text-[10px] font-bold text-slate-400">Källor</label>
                       </div>
-                      {selectedImage.connections.sources.map(s => (
-                          <div key={s.id} className="flex items-center justify-between bg-slate-900 p-2 rounded border border-slate-700 text-xs">
-                              <div><span className="text-slate-200 font-medium block">{s.name}</span><span className="text-[10px] text-slate-500">{s.ref}</span></div>
+                      {displayImage.connections.sources.map((s, idx) => (
+                          <div key={s.id || idx} className="flex items-center justify-between bg-slate-900 p-2 rounded border border-slate-700 text-xs">
+                              <div>
+                                  <span className="text-slate-200 font-medium block">{s.name || s.title || 'Ingen titel'}</span>
+                                  <span className="text-[10px] text-slate-500">{s.ref || s.reference || 'Ingen ref'}</span>
+                              </div>
                               <button className="text-slate-500 hover:text-red-400"><X size={12}/></button>
                           </div>
                       ))}
-                      <button 
-                          onClick={() => setIsSourceDrawerOpen(selectedImage.id)}
+                        <button 
+                          onClick={() => setIsSourceDrawerOpen(displayImage)}
                           className="w-full py-1.5 border border-dashed border-slate-600 text-slate-400 text-xs rounded hover:text-white hover:border-slate-500 hover:bg-slate-700 transition-colors flex items-center justify-center gap-1"
                       >
                           <Link size={12}/> Koppla källa
@@ -1222,13 +1238,13 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                       <div className="flex justify-between items-center">
                           <label className="text-[10px] font-bold text-slate-400">Platser</label>
                       </div>
-                      {selectedImage.connections.places.map(p => (
+                      {displayImage.connections.places.map(p => (
                           <div key={p.id} className="flex items-center justify-between bg-slate-900 p-2 rounded border border-slate-700 text-xs">
                               <div><span className="text-slate-200 font-medium block">{p.name}</span><span className="text-[10px] text-slate-500">{p.type}</span></div>
                               <button 
                                 onClick={() => {
                                   updateMedia(prev => prev.map(item => {
-                                    if (item.id !== selectedImage.id) return item;
+                                    if (item.id !== displayImage.id) return item;
                                     return {
                                       ...item,
                                       connections: {
@@ -1245,7 +1261,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                           </div>
                       ))}
                         <button 
-                          onClick={() => setIsPlaceDrawerOpen(selectedImage)}
+                          onClick={() => setIsPlaceDrawerOpen(displayImage)}
                           className="w-full py-1.5 border border-dashed border-slate-600 text-slate-400 text-xs rounded hover:text-white hover:border-slate-500 hover:bg-slate-700 transition-colors flex items-center justify-center gap-1"
                       >
                           <MapPin size={12}/> Koppla plats
@@ -1415,7 +1431,11 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
               </button>
           </div>
       </div>
-      ) : null}
+      ) : (
+          <div className="w-96 bg-slate-800 border-l border-slate-700 flex flex-col shrink-0 z-20 shadow-xl p-4">
+              <p className="text-slate-400 text-sm">Välj en bild</p>
+          </div>
+      )}
 
       {/* IMAGE VIEWER FOR FACE TAGGING */}
       <ImageViewer 

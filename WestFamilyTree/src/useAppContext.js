@@ -683,71 +683,14 @@ export default function useAppContext() {
     // Länka källa till media
     const handleLinkSourceToMedia = (sourceId) => {
         if (!linkingMediaInfo || linkingMediaInfo.type !== 'source') {
-            console.log('❌ No media linking context for source');
             return;
         }
         
         const { mediaId } = linkingMediaInfo;
         const source = dbData.sources?.find(s => s.id === sourceId);
         if (!source) {
-            console.log('❌ Source not found:', sourceId);
             return;
         }
-        
-        setDbData(prev => {
-            const currentMedia = Array.isArray(prev.media) ? prev.media : [];
-            return {
-                ...prev,
-                media: currentMedia.map(item => {
-                    if (item.id !== mediaId) return item;
-                    const existingSources = Array.isArray(item.connections?.sources) ? item.connections.sources : [];
-                    if (existingSources.some(s => s.id === sourceId)) {
-                        console.log('⚠️ Source already linked to media');
-                        return item;
-                    }
-                    return {
-                        ...item,
-                        connections: {
-                            ...item.connections,
-                            sources: [...existingSources, source]
-                        }
-                    };
-                })
-            };
-        });
-        
-        setIsDirty(true);
-        showStatus('Källa kopplad till bild!');
-        setSourceDrawerOpen(false);
-        setLinkingMediaInfo(null);
-    };
-
-    // Länka plats till media
-    const handleLinkPlaceToMedia = (placeNode) => {
-        console.log('🔗 handleLinkPlaceToMedia called with:', placeNode);
-        console.log('🔗 linkingMediaInfo:', linkingMediaInfo);
-        
-        if (!linkingMediaInfo || linkingMediaInfo.type !== 'place') {
-            console.log('❌ No media linking context for place');
-            return;
-        }
-        
-        const { mediaId } = linkingMediaInfo;
-        console.log('🔗 Linking to mediaId:', mediaId);
-        
-        // placeNode kommer från PlaceCatalogNew och har strukturen: { id, name, type, metadata }
-        if (!placeNode || !placeNode.id) {
-            console.error('❌ Invalid place node:', placeNode);
-            showStatus('Ogiltig plats', 'error');
-            return;
-        }
-        
-        const placeData = {
-            id: placeNode.id,
-            name: placeNode.name,
-            type: placeNode.type || 'Plats'
-        };
-        console.log('🔗 Place data to link:', placeData);
         
         setDbData(prev => {
             const currentMedia = Array.isArray(prev.media) ? prev.media : [];
@@ -759,13 +702,68 @@ export default function useAppContext() {
                   ? [...currentMedia, linkingMediaInfo.mediaItem]
                   : currentMedia;
 
-            console.log('🔍 Current media items:', mediaBase.length, 'foundMedia?', found);
+            const updatedMedia = mediaBase.map(item => {
+                if (item.id !== mediaId) return item;
+
+                const existingSources = Array.isArray(item.connections?.sources) ? item.connections.sources : [];
+                if (existingSources.some(s => s.id === sourceId)) {
+                    showStatus('Källan är redan kopplad', 'warning');
+                    return item;
+                }
+
+                return {
+                    ...item,
+                    connections: {
+                        ...item.connections,
+                        sources: [...existingSources, source]
+                    }
+                };
+            });
+
+            return { ...prev, media: updatedMedia };
+        });
+        
+        setIsDirty(true);
+        showStatus('Källa kopplad till bild!');
+        setSourceDrawerOpen(false);
+        setLinkingMediaInfo(null);
+    };
+
+    // Länka plats till media
+    const handleLinkPlaceToMedia = (placeNode) => {
+        if (!linkingMediaInfo || linkingMediaInfo.type !== 'place') {
+            return;
+        }
+        
+        const { mediaId } = linkingMediaInfo;
+        
+        // placeNode kommer från PlaceCatalogNew och har strukturen: { id, name, type, metadata }
+        if (!placeNode || !placeNode.id) {
+            showStatus('Ogiltig plats', 'error');
+            return;
+        }
+        
+        const placeData = {
+            id: placeNode.id,
+            name: placeNode.name,
+            type: placeNode.type || 'Plats'
+        };
+        
+        setDbData(prev => {
+            const currentMedia = Array.isArray(prev.media) ? prev.media : [];
+            const found = currentMedia.some(m => m.id === mediaId);
+
+            const mediaBase = found
+                ? currentMedia
+                : linkingMediaInfo?.mediaItem
+                  ? [...currentMedia, linkingMediaInfo.mediaItem]
+                  : currentMedia;
+
             const updatedMedia = mediaBase.map(item => {
                 if (item.id !== mediaId) return item;
 
                 const existingPlaces = Array.isArray(item.connections?.places) ? item.connections.places : [];
                 if (existingPlaces.some(p => p.id === placeNode.id)) {
-                    console.log('⚠️ Place already linked to media');
                     showStatus('Platsen är redan kopplad', 'warning');
                     return item;
                 }
@@ -786,7 +784,6 @@ export default function useAppContext() {
         showStatus('Plats kopplad till bild!');
         setPlaceDrawerOpen(false);
         setLinkingMediaInfo(null);
-        console.log('✅ handleLinkPlaceToMedia completed');
     };
 
     const handleNavigateToSource = (sourceId) => {
@@ -800,11 +797,17 @@ export default function useAppContext() {
     };
 
     // Öppna källDrawern utan att länka till en specifik event (för MediaManager)
-    const openSourceDrawerForSelection = (mediaId = null) => {
+    const openSourceDrawerForSelection = (mediaItem = null) => {
         setSourceDrawerOpen(true);
         setPlaceDrawerOpen(false);
         setSourcingEventInfo(null); // Ingen specifik event-kontext
-        setLinkingMediaInfo(mediaId ? { mediaId, type: 'source' } : null);
+        if (mediaItem && typeof mediaItem === 'object') {
+            setLinkingMediaInfo({ mediaId: mediaItem.id, mediaItem, type: 'source' });
+        } else if (mediaItem) {
+            setLinkingMediaInfo({ mediaId: mediaItem, type: 'source' });
+        } else {
+            setLinkingMediaInfo(null);
+        }
     };
 
     const handleToggleSourceDrawer = (personId, eventId) => {
