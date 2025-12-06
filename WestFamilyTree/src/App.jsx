@@ -22,6 +22,7 @@ import GedcomImporter from './GedcomImporter.jsx';
 import { MediaManager } from './MediaManager.jsx';
 import WindowFrame from './WindowFrame.jsx';
 import LinkPersonModal from './LinkPersonModal.jsx';
+import OAIArchiveHarvesterModal from './OAIArchiveHarvesterModal.jsx';
 import Button from './Button.jsx'; 
 
 function App() {
@@ -74,7 +75,8 @@ function App() {
   const [linkPersonModal, setLinkPersonModal] = useState({ isOpen: false, preSelectedPersonId: null });
   const [showArchived, setShowArchived] = useState(false);
   const [auditBackupDir, setAuditBackupDirState] = useState((dbData?.meta && dbData.meta.auditBackupDir) || '');
-  const [newPersonToEditId, setNewPersonToEditId] = useState(null); 
+  const [newPersonToEditId, setNewPersonToEditId] = useState(null);
+  const [isOAIHarvesterOpen, setIsOAIHarvesterOpen] = useState(false); 
 
   useEffect(() => {
     setAuditBackupDirState((dbData?.meta && dbData.meta.auditBackupDir) || '');
@@ -477,6 +479,13 @@ function App() {
                 ),
               },
               {
+                label: 'Verktyg',
+                value: 'tools',
+                icon: (
+                  <svg className="w-5 h-5 mr-1 inline-block align-text-bottom" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                ),
+              },
+              {
                 label: 'Gårdsarkivet',
                 value: 'farmArchive',
                 icon: (
@@ -554,6 +563,20 @@ function App() {
               setIsSourceDrawerOpen={openSourceDrawerForSelection}
               setIsPlaceDrawerOpen={openPlaceDrawerForSelection}
             /> 
+          )}
+
+          {activeTab === 'tools' && (
+            <div className="tab-content flex items-center justify-center h-full">
+              <Button
+                variant="primary"
+                size="lg"
+                onClick={() => setIsOAIHarvesterOpen(true)}
+                className="flex items-center gap-3 px-8 py-4 text-lg"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                OAI-PMH arkivharvester
+              </Button>
+            </div>
           )}
 
           {/* STANDARDVISNING AV KÄLLKATALOG (EJ EDIT) */}
@@ -692,6 +715,36 @@ function App() {
       <ValidationWarningsModal isOpen={bulkWarningsModal?.isOpen} warnings={bulkWarningsModal?.warnings || []} onClose={() => { try { closeBulkWarningsModal(); } catch (e) {} }} />
 
       {isAttachingSource && <AttachSourceModal allSources={dbData.sources || []} allPeople={visiblePeople} onAttach={handleAttachSources} onCreateNew={handleSwitchToCreateSource} onClose={handleCloseSourceModal} onEditSource={(sourceId) => handleNavigateToSource(sourceId)} />}
+
+      {isOAIHarvesterOpen && (
+        <OAIArchiveHarvesterModal
+          onClose={() => setIsOAIHarvesterOpen(false)}
+          onImportSources={(sources) => {
+            setDbData(prev => ({
+              ...prev,
+              sources: [...(prev.sources || []), ...sources]
+            }));
+            setIsOAIHarvesterOpen(false);
+            setIsDirty(true);
+            showStatus(`${sources.length} kilder importerade från OAI-PMH`);
+            
+            // Öppna SourceCatalog modal med fokus på första källan
+            if (sources.length > 0) {
+              setSourceCatalogState(prev => ({
+                ...prev,
+                selectedSourceId: sources[0].id,
+                searchTerm: '',
+                expanded: { ...prev.expanded, 'Övrigt': true }
+              }));
+              handleToggleSourceDrawer();
+              // Spara automatiskt bara om en fil redan är öppnad (ingen dialog)
+              if (fileHandle) {
+                handleSaveFile();
+              }
+            }
+          }}
+        />
+      )}
 
       {isGedcomImporterOpen && (
         <div className="modal" style={{display: 'block', zIndex: 3000}}>

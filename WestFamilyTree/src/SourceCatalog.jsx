@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useLayoutEffect, useRef } from 'react';
+import React, { useState, useMemo, useLayoutEffect, useEffect, useRef } from 'react';
 import { useApp } from './AppContext';
 import ImageGallery from './ImageGallery.jsx';
 import Editor from './MaybeEditor.jsx';
@@ -405,11 +405,29 @@ export default function SourceCatalog({
                       <span className="truncate flex-1">{src.label}</span>
                       
                       {/* ACTION KNAPPAR */}
-                      <div className="flex gap-1 items-center ml-2 shrink-0">
-                          {src.aid && <Button onClick={(e) => { e.stopPropagation(); window.open(`http://www.arkivdigital.se/aid/show/${src.aid}`, '_blank'); }} variant="ghost" size="xs" title="Öppna AID" className={!src.aid ? "opacity-50" : "text-green-400 hover:bg-green-900 border-green-600 border"}>AD</Button>}
-                          {src.bildid && <Button onClick={(e) => { e.stopPropagation(); window.open(`https://sok.riksarkivet.se/bildvisning/${src.bildid}`, '_blank'); }} variant="ghost" size="xs" title="Öppna RA" className={!src.bildid ? "opacity-50" : "text-green-400 hover:bg-green-900 border-green-600 border"}>RA</Button>}
-                          {src.nad && <Button onClick={(e) => { e.stopPropagation(); window.open(`https://sok.riksarkivet.se/?postid=ArkisRef%20${src.nad}`, '_blank'); }} variant="ghost" size="xs" title="Öppna NAD" className={!src.nad ? "opacity-50" : "text-green-400 hover:bg-green-900 border-green-600 border"}>NAD</Button>}
-                      </div>
+                                            <div className="flex gap-1 items-center ml-2 shrink-0">
+                                                    <Button
+                                                        onClick={(e) => { e.stopPropagation(); src.aid && window.open(`http://www.arkivdigital.se/aid/show/${src.aid}`, '_blank'); }}
+                                                        variant={src.aid ? "success" : "ghost"}
+                                                        size="xs"
+                                                        title={src.aid ? "Öppna AID" : "Ingen AID"}
+                                                        className={src.aid ? "" : "opacity-50 border border-slate-600"}
+                                                    >AD</Button>
+                                                    <Button
+                                                        onClick={(e) => { e.stopPropagation(); src.bildid && window.open(`https://sok.riksarkivet.se/bildvisning/${src.bildid}`, '_blank'); }}
+                                                        variant={src.bildid ? "success" : "ghost"}
+                                                        size="xs"
+                                                        title={src.bildid ? "Öppna RA" : "Ingen RA-länk"}
+                                                        className={src.bildid ? "" : "opacity-50 border border-slate-600"}
+                                                    >RA</Button>
+                                                    <Button
+                                                        onClick={(e) => { e.stopPropagation(); src.nad && window.open(`https://sok.riksarkivet.se/?postid=ArkisRef%20${src.nad}`, '_blank'); }}
+                                                        variant={src.nad ? "success" : "ghost"}
+                                                        size="xs"
+                                                        title={src.nad ? "Öppna NAD" : "Ingen NAD-länk"}
+                                                        className={src.nad ? "" : "opacity-50 border border-slate-600"}
+                                                    >NAD</Button>
+                                            </div>
                       {isLinked && <span className="text-green-400 font-bold ml-1 text-xs">✓</span>}
                     </div>
                 );
@@ -430,6 +448,23 @@ export default function SourceCatalog({
           );
       });
   };
+
+  // Keyboard handler för DEL-tangenten
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Delete' && selectedSourceId) {
+        const selectedSource = sources.find(s => s.id === selectedSourceId);
+        if (selectedSource && onDeleteSource) {
+          if (confirm('Ta bort källa?')) {
+            onDeleteSource(selectedSourceId);
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedSourceId, sources, onDeleteSource]);
 
   return (
     <div className="flex w-full h-full bg-slate-800 overflow-hidden">
