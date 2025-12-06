@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ImageViewer from './ImageViewer.jsx';
 import ImageEditorModal from './ImageEditorModal.jsx';
+import { useApp } from './AppContext.jsx';
 import { 
   Search, Image as ImageIcon, Grid, List, Tag, User, 
   MapPin, Calendar, Plus, Trash2, AlertCircle, UploadCloud, 
@@ -235,6 +236,8 @@ const LibraryButton = ({ lib, isActive, onClick, onDrop, onDelete }) => {
 };
 
 export function MediaManager({ allPeople = [], onOpenEditModal = () => {}, mediaItems: initialMedia = [], onUpdateMedia = () => {}, setIsSourceDrawerOpen = () => {}, setIsPlaceDrawerOpen = () => {} }) {
+  const { showUndoToast, showStatus } = useApp();
+
   // UI State
   const [viewMode, setViewMode] = useState('grid'); 
   const [activeLib, setActiveLib] = useState('all');
@@ -253,6 +256,8 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {}, media
   
   // EXIF State - moved to selection state
   const [editingImage, setEditingImage] = useState(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState(null);
+  const pendingDeleteTimeout = useRef(null);
   
   // Data State - Use media from database, fallback to INITIAL_MEDIA for demo
   const [mediaItems, setMediaItems] = useState(initialMedia.length > 0 ? initialMedia : INITIAL_MEDIA);
@@ -355,6 +360,49 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {}, media
       setIsImageEditorOpen(false);
     };
     reader.readAsDataURL(blob);
+  };
+
+  const handleRequestDeleteEditingImage = () => {
+    if (!editingImage) return;
+
+    // First click: ask for confirmation via status toast
+    if (pendingDeleteId !== editingImage.id) {
+      setPendingDeleteId(editingImage.id);
+      if (pendingDeleteTimeout.current) clearTimeout(pendingDeleteTimeout.current);
+      pendingDeleteTimeout.current = setTimeout(() => setPendingDeleteId(null), 4000);
+      if (typeof showStatus === 'function') showStatus('Klicka "Ta bort" igen för att bekräfta.', 'warn');
+      return;
+    }
+
+    // Confirmed: remove image and offer undo
+    if (pendingDeleteTimeout.current) {
+      clearTimeout(pendingDeleteTimeout.current);
+      pendingDeleteTimeout.current = null;
+    }
+    setPendingDeleteId(null);
+
+    const removedImage = editingImage;
+    const deletionIndex = filteredMedia.findIndex(m => m.id === removedImage.id);
+
+    updateMedia(prev => prev.filter(m => m.id !== removedImage.id));
+    setIsImageEditorOpen(false);
+    setEditingImage(null);
+    setSelectedImage(current => (current && current.id === removedImage.id ? null : current));
+
+    if (typeof showStatus === 'function') showStatus(`"${removedImage.name}" har raderats.`, 'success');
+
+    if (typeof showUndoToast === 'function') {
+      showUndoToast(`"${removedImage.name}" har raderats. Ångra?`, () => {
+        updateMedia(prev => {
+          if (prev.some(m => m.id === removedImage.id)) return prev;
+          const newMedia = [...prev];
+          const insertAt = deletionIndex >= 0 ? Math.min(deletionIndex, newMedia.length) : newMedia.length;
+          newMedia.splice(insertAt, 0, removedImage);
+          return newMedia;
+        });
+        setSelectedImage(removedImage);
+      });
+    }
   };
   
   const [customLibraries, setCustomLibraries] = useState([
@@ -491,6 +539,22 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
     return matchesLib && matchesSearch && matchesUnlinked;
   });
 
+  const editingIndex = editingImage ? filteredMedia.findIndex(m => m.id === editingImage.id) : -1;
+  const prevEditingImage = editingIndex > 0 ? filteredMedia[editingIndex - 1] : null;
+  const nextEditingImage = editingIndex >= 0 && editingIndex < filteredMedia.length - 1 ? filteredMedia[editingIndex + 1] : null;
+
+  const handlePrevEditing = () => {
+    if (!prevEditingImage) return;
+    setEditingImage(prevEditingImage);
+    setSelectedImage(prevEditingImage);
+  };
+
+  const handleNextEditing = () => {
+    if (!nextEditingImage) return;
+    setEditingImage(nextEditingImage);
+    setSelectedImage(nextEditingImage);
+  };
+
   // Context menu close handlers
   useEffect(() => {
     if (!contextMenuOpen) return;
@@ -513,6 +577,13 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
       document.removeEventListener('keydown', handleEscape);
     };
   }, [contextMenuOpen]);
+
+  // Cleanup pending delete timer
+  useEffect(() => () => {
+    if (pendingDeleteTimeout.current) {
+      clearTimeout(pendingDeleteTimeout.current);
+    }
+  }, []);
 
   const handleStartCreateLibrary = () => {
     const newId = `lib_${Date.now()}`;
@@ -1464,10 +1535,17 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
         onClose={() => {
           setIsImageEditorOpen(false);
           setEditingImage(null);
+          setPendingDeleteId(null);
         }}
         imageUrl={editingImage?.url}
         imageName={editingImage?.name}
         onSave={handleSaveEditedImage}
+        onPrev={handlePrevEditing}
+        onNext={handleNextEditing}
+        hasPrev={!!prevEditingImage}
+        hasNext={!!nextEditingImage}
+        onDelete={handleRequestDeleteEditingImage}
+        isConfirmingDelete={pendingDeleteId === editingImage?.id}
       />
 
       {/* Context Menu */}

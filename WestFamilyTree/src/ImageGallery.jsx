@@ -150,6 +150,18 @@ export default function ImageGallery({ source, onEditSource, people, onOpenEditM
   };
 
   const openInternalViewer = () => { if (selectedImageIndex !== null) setViewerOpen(true); };
+  const handlePrev = () => {
+    setSelectedImageIndex((idx) => {
+      if (idx === null) return idx;
+      return Math.max(0, idx - 1);
+    });
+  };
+  const handleNext = () => {
+    setSelectedImageIndex((idx) => {
+      if (idx === null) return idx;
+      return Math.min(images.length - 1, idx + 1);
+    });
+  };
   const selectedImg = selectedImageIndex !== null ? images[selectedImageIndex] : null;
 
   return (
@@ -163,7 +175,11 @@ export default function ImageGallery({ source, onEditSource, people, onOpenEditM
         regions={selectedImg?.regions || []}
         onSaveRegions={(newRegions) => handleImageUpdate('regions', newRegions)}
         people={people}
-        onOpenEditModal={onOpenEditModal} 
+        onOpenEditModal={onOpenEditModal}
+        onPrev={handlePrev}
+        onNext={handleNext}
+        hasPrev={selectedImageIndex > 0}
+        hasNext={selectedImageIndex !== null && selectedImageIndex < images.length - 1}
       />
 
       {/* VÄNSTER: BILDLISTA (Oförändrad) */}

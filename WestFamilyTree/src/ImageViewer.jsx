@@ -175,7 +175,11 @@ export default function ImageViewer({
     regions = [],
     onSaveRegions,
     people,
-    onOpenEditModal 
+    onOpenEditModal,
+    onPrev,
+    onNext,
+    hasPrev = false,
+    hasNext = false
 }) {
     // ... (resten av koden är oförändrad)
     const [blobUrl, setBlobUrl] = useState(null);
@@ -245,6 +249,18 @@ export default function ImageViewer({
             setEditingRegion(null);
         };
     }, [isOpen, imageSrc]);
+
+    // Tangentbordsnavigering: vänster/höger
+    useEffect(() => {
+        if (!isOpen) return;
+        const handleKey = (e) => {
+            if (e.key === 'ArrowLeft' && hasPrev && onPrev) { e.preventDefault(); onPrev(); }
+            if (e.key === 'ArrowRight' && hasNext && onNext) { e.preventDefault(); onNext(); }
+            if (e.key === 'Escape') { onClose && onClose(); }
+        };
+        window.addEventListener('keydown', handleKey);
+        return () => window.removeEventListener('keydown', handleKey);
+    }, [isOpen, hasPrev, hasNext, onPrev, onNext, onClose]);
 
     const handlePanStart = (e) => {
         if (showLinkModal || e.button !== 0 || isDrawing || editingRegion !== null || zoomLevel === 1) return;
@@ -489,23 +505,21 @@ export default function ImageViewer({
                         )}
                     </div>
 
-                    {/* VERKTYGSFÄLT (Oförändrad) */}
+                    {/* VERKTYGSFÄLT */}
                     <div className="bg-slate-800 p-3 border-t border-slate-700 flex justify-between items-center shrink-0">
                         <div className="text-slate-400 text-xs flex gap-4">
                             {isDrawing ? "Klicka och dra en ruta för att tagga en person." : `${regions.length} personer taggade.`}
                             {zoomLevel > 1 && <span className="text-sm text-white">Zoom: {Math.round(zoomLevel * 100)}%</span>}
                         </div>
-                        <div className="flex gap-3">
-                            <Button 
-                                onClick={() => setIsDrawing(s => !s)} 
-                                variant={isDrawing ? "danger" : "primary"}
-                                size="sm"
-                                disabled={editingRegion !== null}
-                            >
+                        <div className="flex gap-2 items-center">
+                            <Button onClick={() => setIsDrawing(s => !s)} variant={isDrawing ? "danger" : "primary"} size="sm" disabled={editingRegion !== null}>
                                 {isDrawing ? "Avbryt Taggning" : "🔍 Tagga ansikten"}
                             </Button>
                             <Button onClick={() => setZoomLevel(1.0)} disabled={zoomLevel === 1.0} variant="secondary" size="sm">Återställ zoom</Button>
-                            <Button onClick={onClose} variant="secondary" size="sm">Stäng</Button>
+                            <Button onClick={onPrev} disabled={!hasPrev} variant="secondary" size="sm">◀</Button>
+                            <Button onClick={onNext} disabled={!hasNext} variant="secondary" size="sm">▶</Button>
+                            <Button onClick={onClose} variant="danger" size="sm">Avbryt</Button>
+                            <Button onClick={onClose} variant="primary" size="sm">OK</Button>
                         </div>
                     </div>
                 </div>
