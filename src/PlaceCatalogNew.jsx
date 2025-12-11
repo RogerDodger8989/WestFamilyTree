@@ -8,10 +8,12 @@ function formatPlaceName(node) {
   }
   function onlyOneKod(name, kod) {
     if (!kod) return name;
+    // Om koden redan finns i namnet, lägg inte till igen
+    if (name.includes(`(${kod})`)) return name;
     // Ta bort alla (K), (O), (N), (B), (M), (D), (G), (S), (T), (U), (W), (C), (F), (H), (E), (A), (P), (R), (L), (I), (Z), (Y), (X) – alla möjliga länsbokstäver
     let n = name.replace(/\s*\([A-ZÅÄÖ]{1}\)/g, '').trim();
     // Ta även bort eventuella dubbla kod på slutet
-    n = n.replace(/\s*\([A-ZÅÄÖ]{1}\)$/, '').trim();
+    n = n.replace(/\s*\([A-ZÅÄÖ]{1}\)$/,'').trim();
     return `${n} (${kod})`;
   }
   if (node.type === 'Län') {
@@ -24,7 +26,12 @@ function formatPlaceName(node) {
   }
   if (node.type === 'Församling') {
     const kod = node.metadata.lanskod;
-    return onlyOneKod(cleanName(node.metadata.sockenstadnamn || node.name), kod);
+    let namn = cleanName(node.metadata.sockenstadnamn || node.name);
+    // Lägg bara till 'församling' om det inte redan slutar på 'församling' eller 'socken'
+    if (!namn.toLowerCase().endsWith('församling') && !namn.toLowerCase().endsWith('socken')) {
+      namn += ' församling';
+    }
+    return onlyOneKod(namn, kod);
   }
   return onlyOneKod(cleanName(node.metadata.ortnamn || node.name), node.metadata.lanskod);
 }
@@ -38,10 +45,10 @@ import Editor from './MaybeEditor.jsx';
 // Ikoner för varje platstyp
 const PLACE_TYPE_ICONS = {
   'Country': '🌍',
-  'Län': '🗺️',
-  'Kommun': '🏛️',
-  'Församling': '⛪',
-  'Ort': '📍',
+  'County': '🗺️',
+  'Municipality': '🏛️',
+  'Parish': '⛪',
+  'Village': '📍',
   'default': '📍'
 };
 
@@ -296,12 +303,21 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
           const församling = place.sockenstadnamn;
           const församlingKod = place.sockenstadkod;
           const ort = place.ortnamn;
+          // Typ-mappning svensk -> engelsk
+          const typeMap = {
+            'Län': 'County',
+            'Kommun': 'Municipality',
+            'Församling': 'Parish',
+            'Ort': 'Village',
+            'Land': 'Country',
+            'root': 'Country'
+          };
           // Län
           if (!länMap[län]) {
             länMap[län] = {
               id: `lan-${län}`,
               name: `${län ? län.replace(/\s*\(K-\d{4}\)/g, '').replace(/\s*\(K\)/gi, '').trim() : ''} län${länKod ? ` (${länKod})` : ''}`,
-              type: 'Län',
+              type: typeMap['Län'],
               children: {},
               metadata: { lansnamn: län, lanskod: länKod }
             };
@@ -311,7 +327,7 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
             länMap[län].children[kommun] = {
               id: `kommun-${kommun}`,
               name: `${kommun ? kommun.replace(/\s*\(K-\d{4}\)/g, '').replace(/\s*\(K\)/gi, '').trim() : ''} kommun${länKod ? ` (${länKod})` : ''}`,
-              type: 'Kommun',
+              type: typeMap['Kommun'],
               children: {},
               metadata: { kommunnamn: kommun, kommunkod: kommunKod, lansnamn: län, lanskod: länKod }
             };
@@ -320,8 +336,14 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
           if (!länMap[län].children[kommun].children[församling]) {
             länMap[län].children[kommun].children[församling] = {
               id: `forsamling-${församling}`,
-              name: `${församling ? församling.replace(/\s*\(K-\d{4}\)/g, '').replace(/\s*\(K\)/gi, '').trim() : ''}${länKod ? ` (${länKod})` : ''}`,
-              type: 'Församling',
+              name: (() => {
+                let namn = församling ? församling.replace(/\s*\(K-\d{4}\)/g, '').replace(/\s*\(K\)/gi, '').trim() : '';
+                if (namn && !namn.toLowerCase().endsWith('församling') && !namn.toLowerCase().endsWith('socken')) {
+                  namn += ' församling';
+                }
+                return namn;
+              })(),
+              type: typeMap['Församling'],
               children: {},
               metadata: { sockenstadnamn: församling, sockenstadkod: församlingKod, kommunnamn: kommun, kommunkod: kommunKod, lansnamn: län, lanskod: länKod }
             };
@@ -330,7 +352,7 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
           länMap[län].children[kommun].children[församling].children[ort + '-' + place.id] = {
             id: place.id,
             name: ort,
-            type: 'Ort',
+            type: typeMap['Ort'],
             children: [],
             metadata: place
           };
@@ -1034,48 +1056,14 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
                   </button>
                 </div>
               </div>
-
               <div className="flex-1 overflow-y-auto p-6">
                 {activeRightTab === 'info' && (
-                  <div className="space-y-6">
-                    {selectedNode.metadata?.latitude && selectedNode.metadata?.longitude && (
-                      <div>
-                        <h3 className="text-sm font-bold text-slate-300 uppercase mb-1">WGS 84 decimal (lat, lon)</h3>
-                        <p className="font-mono text-slate-200 bg-slate-900 inline-block px-2 py-1 rounded border border-slate-700">
-                          {selectedNode.metadata.latitude}, {selectedNode.metadata.longitude}
-                        </p>
-                      </div>
-                    )}
-
-                    <div className="grid grid-cols-2 gap-4">
-                      {selectedNode.metadata?.lansnamn && (
-                        <div>
-                          <div className="text-xs font-bold text-slate-400 uppercase">Län</div>
-                          <div className="text-slate-200">{selectedNode.metadata.lansnamn}</div>
-                        </div>
-                      )}
-                      {selectedNode.metadata?.kommunnamn && (
-                        <div>
-                          <div className="text-xs font-bold text-slate-400 uppercase">Kommun</div>
-                          <div className="text-slate-200">{selectedNode.metadata.kommunnamn}</div>
-                        </div>
-                      )}
-                      {selectedNode.metadata?.sockenstadnamn && (
-                        <div>
-                          <div className="text-xs font-bold text-slate-400 uppercase">Församling</div>
-                          <div className="text-slate-200">{selectedNode.metadata.sockenstadnamn}</div>
-                        </div>
-                      )}
-                      {selectedNode.metadata?.detaljtyp && (
-                        <div>
-                          <div className="text-xs font-bold text-slate-400 uppercase">Detaljtyp</div>
-                          <div className="text-slate-200">{selectedNode.metadata.detaljtyp}</div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  <PlaceEditModal
+                    place={selectedNode}
+                    onClose={() => setSelectedPlaceId(null)}
+                    onSave={handleSavePlace}
+                  />
                 )}
-
                 {activeRightTab === 'images' && (
                   <div className="max-w-3xl mx-auto">
                     <h3 className="text-lg font-bold text-slate-200 mb-3">Bilder</h3>
@@ -1084,7 +1072,6 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
                     </div>
                   </div>
                 )}
-
                 {activeRightTab === 'notes' && (
                   <div className="max-w-3xl mx-auto space-y-3">
                     <div className="flex items-center justify-between">
@@ -1104,7 +1091,6 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
                     />
                   </div>
                 )}
-
                 {activeRightTab === 'connections' && (
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">

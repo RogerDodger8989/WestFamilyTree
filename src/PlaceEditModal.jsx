@@ -12,9 +12,19 @@ const PLACE_TYPE_OPTIONS = [
 ];
 
 export default function PlaceEditModal({ place, onClose, onSave }) {
+  // Hjälpfunktion för att mappa platsens type till rätt value
+  function getTypeValue(place) {
+    if (!place) return 'Village';
+    if (place.type) return place.type;
+    if (place.metadata?.type) return place.metadata.type;
+    // Fallback: gissa utifrån namn
+    if (place.name && place.name.toLowerCase().includes('län')) return 'County';
+    if (place.name && place.name.toLowerCase().includes('kommun')) return 'Municipality';
+    return 'Village';
+  }
   const [formData, setFormData] = useState({
     name: '',
-    type: 'Village',
+    type: getTypeValue(place),
     latitude: '',
     longitude: '',
     note: '',
@@ -26,7 +36,7 @@ export default function PlaceEditModal({ place, onClose, onSave }) {
     if (place) {
       setFormData({
         name: place.name || '',
-        type: place.type || 'Village',
+        type: getTypeValue(place),
         latitude: place.metadata?.latitude || '',
         longitude: place.metadata?.longitude || '',
         note: place.metadata?.note || '',
@@ -124,31 +134,7 @@ export default function PlaceEditModal({ place, onClose, onSave }) {
             </div>
           </div>
 
-          {/* Notering */}
-          <div>
-            <label className="block text-sm font-bold text-slate-300 mb-1">
-              Notering
-            </label>
-            <textarea
-              name="note"
-              value={formData.note}
-              onChange={handleChange}
-              rows={4}
-              className="w-full px-3 py-2 border border-slate-600 rounded bg-slate-900 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
 
-          {/* Info om typ-specifika fält */}
-          {formData.ortnamn && (
-            <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm">
-              <div className="font-semibold text-blue-800 mb-1">Ortinformation</div>
-              <div className="text-blue-700">
-                {formData.ortnamn && <div>Ort: {formData.ortnamn}</div>}
-                {formData.kommunnamn && <div>Kommun: {formData.kommunnamn}</div>}
-                {formData.lansnamn && <div>Län: {formData.lansnamn}</div>}
-              </div>
-            </div>
-          )}
 
           {/* Knappar */}
           <div className="flex gap-3 pt-4 border-t border-slate-700">
