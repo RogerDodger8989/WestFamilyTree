@@ -1,18 +1,29 @@
 // Hjälpfunktion för att formatera namn och kod
 function formatPlaceName(node) {
+  // Hjälpfunktion för att rensa K-xxxx kod ur namn
+  function cleanName(name) {
+    if (!name) return '';
+    // Ta bort (K-xxxx) och extra whitespace
+    return name.replace(/\s*\(K-\d{4}\)/g, '').replace(/\s+/g, ' ').trim();
+  }
+  function onlyOneKod(name, kod) {
+    // Ta bort alla (K) och lägg till en gång sist
+    let n = name.replace(/\s*\(K\)/gi, '').trim();
+    return kod ? `${n} (${kod})` : n;
+  }
   if (node.type === 'Län') {
     const kod = node.metadata.lanskod;
-    return `${node.metadata.lansnamn || node.name}${kod ? ` (${kod})` : ''} län`;
+    return onlyOneKod(cleanName(node.metadata.lansnamn || node.name) + ' län', kod);
   }
   if (node.type === 'Kommun') {
-    const kod = node.metadata.kommunkod;
-    return `${node.metadata.kommunnamn || node.name}${kod ? ` (${kod})` : ''} kommun`;
+    const kod = node.metadata.lanskod;
+    return onlyOneKod(cleanName(node.metadata.kommunnamn || node.name) + ' kommun', kod);
   }
   if (node.type === 'Församling') {
-    const kod = node.metadata.sockenstadkod;
-    return `${node.metadata.sockenstadnamn || node.name}${kod ? ` (${kod})` : ''} församling`;
+    const kod = node.metadata.lanskod;
+    return onlyOneKod(cleanName(node.metadata.sockenstadnamn || node.name), kod);
   }
-  return node.metadata.ortnamn || node.name;
+  return onlyOneKod(cleanName(node.metadata.ortnamn || node.name), node.metadata.lanskod);
 }
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from './AppContext.jsx';
@@ -286,7 +297,7 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
           if (!länMap[län]) {
             länMap[län] = {
               id: `lan-${län}`,
-              name: `${län} (${länKod}) län`,
+              name: `${län ? län.replace(/\s*\(K-\d{4}\)/g, '').replace(/\s*\(K\)/gi, '').trim() : ''} län${länKod ? ` (${länKod})` : ''}`,
               type: 'Län',
               children: {},
               metadata: { lansnamn: län, lanskod: länKod }
@@ -296,7 +307,7 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
           if (!länMap[län].children[kommun]) {
             länMap[län].children[kommun] = {
               id: `kommun-${kommun}`,
-              name: `${kommun} (${kommunKod}) kommun`,
+              name: `${kommun ? kommun.replace(/\s*\(K-\d{4}\)/g, '').replace(/\s*\(K\)/gi, '').trim() : ''} kommun${länKod ? ` (${länKod})` : ''}`,
               type: 'Kommun',
               children: {},
               metadata: { kommunnamn: kommun, kommunkod: kommunKod, lansnamn: län, lanskod: länKod }
@@ -306,7 +317,7 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
           if (!länMap[län].children[kommun].children[församling]) {
             länMap[län].children[kommun].children[församling] = {
               id: `forsamling-${församling}`,
-              name: `${församling} (${församlingKod}) församling`,
+              name: `${församling ? församling.replace(/\s*\(K-\d{4}\)/g, '').replace(/\s*\(K\)/gi, '').trim() : ''}${länKod ? ` (${länKod})` : ''}`,
               type: 'Församling',
               children: {},
               metadata: { sockenstadnamn: församling, sockenstadkod: församlingKod, kommunnamn: kommun, kommunkod: kommunKod, lansnamn: län, lanskod: länKod }
