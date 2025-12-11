@@ -1,0 +1,26 @@
+[
+  {
+    "id": 1,
+    "land": "Sverige",
+    "lan": "Stockholms län",
+    "socken": "Fresta",
+    "by": "Upplands Väsby",
+    "gard": "Norrgården"
+  },
+  {
+    "id": 2,
+    "land": "Sverige",
+    "lan": "Västra Götalands län",
+    "socken": "Göteborg",
+    "by": "Haga",
+    "gard": "Haga Gård"
+  },
+  {
+    "id": 3,
+    "land": "USA",
+    "state": "CA",
+    "county": "Los Angeles",
+    "city": "Los Angeles",
+    "address": "123 Main St"
+  }
+]

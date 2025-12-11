@@ -1,0 +1,120 @@
+.tiptap-wrapper {
+  border: 1px solid #475569; /* slate-600 */
+  border-radius: 4px;
+  background: #0f172a; /* slate-900 */
+  overflow: hidden;
+}
+
+.tiptap-toolbar {
+  display: flex;
+  gap: 4px;
+  padding: 8px;
+  border-bottom: 1px solid #334155; /* slate-700 */
+  background: #1e293b; /* slate-800 */
+  flex-wrap: wrap;
+}
+
+.tiptap-toolbar button {
+  background: #475569; /* slate-600 */
+  color: #e2e8f0; /* slate-200 */
+  border: 1px solid #334155; /* slate-700 */
+  padding: 6px 10px;
+  cursor: pointer;
+  border-radius: 3px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.tiptap-toolbar button:hover:not(:disabled) {
+  background: #64748b; /* slate-500 */
+  border-color: #475569; /* slate-600 */
+}
+
+.tiptap-toolbar button.is-active {
+  background: #3b82f6; /* blue-500 */
+  border-color: #2563eb; /* blue-600 */
+  color: #ffffff;
+}
+
+.tiptap-toolbar button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.toolbar-divider {
+  width: 1px;
+  background: #334155; /* slate-700 */
+  margin: 0 4px;
+}
+
+.tiptap-content {
+  padding: 12px;
+  min-height: 120px;
+  outline: none;
+}
+
+.tiptap-content.ProseMirror {
+  outline: none;
+}
+
+.tiptap-content .ProseMirror {
+  color: #e2e8f0; /* slate-200 */
+  outline: none;
+}
+
+.tiptap-content .ProseMirror p {
+  color: #e2e8f0;
+  margin: 0;
+  padding: 4px 0;
+}
+
+.tiptap-content .ProseMirror ul,
+.tiptap-content .ProseMirror ol {
+  color: #e2e8f0;
+  padding-left: 1.5rem;
+}
+
+.tiptap-content .ProseMirror li {
+  color: #e2e8f0;
+}
+
+.tiptap-content .ProseMirror h1,
+.tiptap-content .ProseMirror h2,
+.tiptap-content .ProseMirror h3,
+.tiptap-content .ProseMirror h4,
+.tiptap-content .ProseMirror h5,
+.tiptap-content .ProseMirror h6 {
+  color: #e2e8f0;
+  margin: 8px 0;
+}
+
+.tiptap-content .ProseMirror blockquote {
+  border-left: 3px solid #475569;
+  color: #cbd5e1; /* slate-300 */
+  padding-left: 12px;
+  margin-left: 0;
+}
+
+.tiptap-content .ProseMirror code {
+  background: #1e293b;
+  color: #e2e8f0;
+  padding: 2px 6px;
+  border-radius: 2px;
+  font-family: monospace;
+}
+
+.tiptap-content .ProseMirror pre {
+  background: #1e293b;
+  color: #e2e8f0;
+  padding: 12px;
+  border-radius: 4px;
+  border: 1px solid #334155;
+  overflow-x: auto;
+}
+
+.tiptap-content .ProseMirror pre code {
+  background: none;
+  color: #e2e8f0;
+  padding: 0;
+}

@@ -1,0 +1,3 @@
+// Backup av PlaceCatalog.jsx (innehåll)
+// ...
+// (Filen är lång, full backup finns i valv-mappen)

@@ -1,0 +1,1 @@
+Backup av place_database_manager.py från projektroten. Återställ vid behov.

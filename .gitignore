@@ -1,0 +1,4 @@
+node_modules/
+.venv/
+WestFamilyTree/.git_disabled/
+.git_disabled/

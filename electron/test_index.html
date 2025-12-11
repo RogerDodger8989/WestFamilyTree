@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <title>Electron Preload Test</title>
+</head>
+<body>
+  <h1>Testar preload.js!</h1>
+  <script>
+    // Testa om electronAPI finns
+    if (window.electronAPI) {
+      document.body.innerHTML += '<p style="color:green">window.electronAPI finns!</p>';
+    } else {
+      document.body.innerHTML += '<p style="color:red">window.electronAPI saknas!</p>';
+    }
+  </script>
+</body>
+</html>

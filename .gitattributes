@@ -1,0 +1,4 @@
+official_places.db filter=lfs diff=lfs merge=lfs -text
+map.geojson filter=lfs diff=lfs merge=lfs -text
+*.mp4 filter=lfs diff=lfs merge=lfs -text
+*.db filter=lfs diff=lfs merge=lfs -text

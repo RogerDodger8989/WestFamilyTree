@@ -1,0 +1,635 @@
+﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Disgen ExportType="PlaceImport" ExportVersion="1" DisgenVersion="2025" FolderName="C:\Users\denni\Disgen\ew">
+<PlaceCount>61</PlaceCount>
+<Place PlaceId="5347" ParentId="10">
+<ShortName>Blekinge län</ShortName>
+<PlaceKind>K</PlaceKind>
+<RSVCode>10</RSVCode>
+<FullName>Blekinge län</FullName>
+<Latitude>56.2145972222222</Latitude>
+<Longitude>14.9972333333333</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+</Place>
+<Place PlaceId="5348" ParentId="5347">
+<ShortName>Olofström</ShortName>
+<PlaceKind>Kommun</PlaceKind>
+<RSVCode>1060</RSVCode>
+<FullName>Olofström</FullName>
+<Latitude>56.2974555555556</Latitude>
+<Longitude>14.5605111111111</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+</Place>
+<Place PlaceId="5349" ParentId="5348">
+<ShortName>Olofströms kbfd (K)</ShortName>
+<RSVCode>106001</RSVCode>
+<FullName>Olofströms kbfd (K)</FullName>
+<Latitude>56.2759916666667</Latitude>
+<Longitude>14.5225944444444</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="5350" ParentId="5348">
+<ShortName>Jämshögs kbfd (K)</ShortName>
+<RSVCode>106002</RSVCode>
+<FullName>Jämshögs kbfd (K)</FullName>
+<Latitude>56.2394055555556</Latitude>
+<Longitude>14.533075</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="5351" ParentId="5348">
+<ShortName>Kyrkhult (K)</ShortName>
+<RSVCode>106003</RSVCode>
+<FullName>Kyrkhult (K)</FullName>
+<Latitude>56.3555027777778</Latitude>
+<Longitude>14.5882416666667</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="5352" ParentId="5347">
+<ShortName>Karlskrona</ShortName>
+<PlaceKind>Kommun</PlaceKind>
+<RSVCode>1080</RSVCode>
+<FullName>Karlskrona</FullName>
+<Latitude>56.20985</Latitude>
+<Longitude>15.65615</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+</Place>
+<Place PlaceId="5353" ParentId="5352">
+<ShortName>Karlskrona stadsförsamling (K)</ShortName>
+<RSVCode>108001</RSVCode>
+<FullName>Karlskrona stadsförsamling (K)</FullName>
+<Latitude>56.1606083333333</Latitude>
+<Longitude>15.5858805555556</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="5355" ParentId="5352">
+<ShortName>Aspö (K)</ShortName>
+<RSVCode>108004</RSVCode>
+<FullName>Aspö (K)</FullName>
+<Latitude>56.113925</Latitude>
+<Longitude>15.5183805555556</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="5356" ParentId="5352">
+<ShortName>Lösen (K)</ShortName>
+<RSVCode>108005</RSVCode>
+<FullName>Lösen (K)</FullName>
+<Latitude>56.197</Latitude>
+<Longitude>15.6881805555556</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="5357" ParentId="5352">
+<ShortName>Augerum (K)</ShortName>
+<RSVCode>108006</RSVCode>
+<FullName>Augerum (K)</FullName>
+<Latitude>56.216725</Latitude>
+<Longitude>15.6754472222222</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="5358" ParentId="5352">
+<ShortName>Flymen (K)</ShortName>
+<RSVCode>108007</RSVCode>
+<FullName>Flymen (K)</FullName>
+<Latitude>56.337875</Latitude>
+<Longitude>15.7401972222222</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="5359" ParentId="5352">
+<ShortName>Kristianopel (K)</ShortName>
+<RSVCode>108008</RSVCode>
+<FullName>Kristianopel (K)</FullName>
+<Latitude>56.2565083333333</Latitude>
+<Longitude>16.0419833333333</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="5360" ParentId="5352">
+<ShortName>Jämjö (K)</ShortName>
+<RSVCode>108009</RSVCode>
+<FullName>Jämjö (K)</FullName>
+<Latitude>56.1921388888889</Latitude>
+<Longitude>15.83155</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="5361" ParentId="5352">
+<ShortName>Torhamn (K)</ShortName>
+<RSVCode>108010</RSVCode>
+<FullName>Torhamn (K)</FullName>
+<Latitude>56.0952527777778</Latitude>
+<Longitude>15.8326777777778</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="5362" ParentId="5352">
+<ShortName>Sturkö (K)</ShortName>
+<RSVCode>108011</RSVCode>
+<FullName>Sturkö (K)</FullName>
+<Latitude>56.0884333333333</Latitude>
+<Longitude>15.6956138888889</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="5363" ParentId="5352">
+<ShortName>Ramdala (K)</ShortName>
+<RSVCode>108012</RSVCode>
+<FullName>Ramdala (K)</FullName>
+<Latitude>56.180325</Latitude>
+<Longitude>15.7679694444444</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="5364" ParentId="5352">
+<ShortName>Rödeby norra kbfd (K)</ShortName>
+<RSVCode>108000</RSVCode>
+<FullName>Rödeby norra kbfd (K)</FullName>
+<Latitude>56.2624138888889</Latitude>
+<Longitude>15.6205277777778</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="5365" ParentId="5352">
+<ShortName>Rödeby södra kbfd (K)</ShortName>
+<RSVCode>108000</RSVCode>
+<FullName>Rödeby södra kbfd (K)</FullName>
+<Latitude>56.2624111111111</Latitude>
+<Longitude>15.620525</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="5366" ParentId="5352">
+<ShortName>Fridlevstad (K)</ShortName>
+<RSVCode>108015</RSVCode>
+<FullName>Fridlevstad (K)</FullName>
+<Latitude>56.2693583333333</Latitude>
+<Longitude>15.5385833333333</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="5367" ParentId="5352">
+<ShortName>Sillhövda (K)</ShortName>
+<RSVCode>108016</RSVCode>
+<FullName>Sillhövda (K)</FullName>
+<Latitude>56.4098305555556</Latitude>
+<Longitude>15.5430694444444</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="5368" ParentId="5352">
+<ShortName>Tving (K)</ShortName>
+<RSVCode>108017</RSVCode>
+<FullName>Tving (K)</FullName>
+<Latitude>56.3091166666667</Latitude>
+<Longitude>15.4653555555556</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="5369" ParentId="5352">
+<ShortName>Nättraby (K)</ShortName>
+<RSVCode>108018</RSVCode>
+<FullName>Nättraby (K)</FullName>
+<Latitude>56.2009083333333</Latitude>
+<Longitude>15.5372083333333</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="5370" ParentId="5352">
+<ShortName>Hasslö (K)</ShortName>
+<RSVCode>108019</RSVCode>
+<FullName>Hasslö (K)</FullName>
+<Latitude>56.1187055555556</Latitude>
+<Longitude>15.4807722222222</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="5371" ParentId="5347">
+<ShortName>Ronneby</ShortName>
+<PlaceKind>Kommun</PlaceKind>
+<RSVCode>1081</RSVCode>
+<FullName>Ronneby</FullName>
+<Latitude>56.2749722222222</Latitude>
+<Longitude>15.2847361111111</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+</Place>
+<Place PlaceId="5372" ParentId="5371">
+<ShortName>Ronneby kbfd (K)</ShortName>
+<RSVCode>108101</RSVCode>
+<FullName>Ronneby kbfd (K)</FullName>
+<Latitude>56.211725</Latitude>
+<Longitude>15.2781527777778</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="5373" ParentId="5371">
+<ShortName>Kallinge kbfd (K)</ShortName>
+<RSVCode>108102</RSVCode>
+<FullName>Kallinge kbfd (K)</FullName>
+<Latitude>56.2426666666667</Latitude>
+<Longitude>15.2901666666667</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="5374" ParentId="5371">
+<ShortName>Backaryd (K)</ShortName>
+<RSVCode>108103</RSVCode>
+<FullName>Backaryd (K)</FullName>
+<Latitude>56.3457</Latitude>
+<Longitude>15.1542777777778</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="5375" ParentId="5371">
+<ShortName>Öljehult (K)</ShortName>
+<RSVCode>108104</RSVCode>
+<FullName>Öljehult (K)</FullName>
+<Latitude>56.4186361111111</Latitude>
+<Longitude>15.0417</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="5376" ParentId="5371">
+<ShortName>Eringsboda (K)</ShortName>
+<RSVCode>108105</RSVCode>
+<FullName>Eringsboda (K)</FullName>
+<Latitude>56.436525</Latitude>
+<Longitude>15.3655416666667</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="5377" ParentId="5371">
+<ShortName>Förkärla (K)</ShortName>
+<RSVCode>108106</RSVCode>
+<FullName>Förkärla (K)</FullName>
+<Latitude>56.1966472222222</Latitude>
+<Longitude>15.4344444444444</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="5378" ParentId="5371">
+<ShortName>Listerby (K)</ShortName>
+<RSVCode>108107</RSVCode>
+<FullName>Listerby (K)</FullName>
+<Latitude>56.1966</Latitude>
+<Longitude>15.4020638888889</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="5379" ParentId="5371">
+<ShortName>Edestad (K)</ShortName>
+<RSVCode>108108</RSVCode>
+<FullName>Edestad (K)</FullName>
+<Latitude>56.2172833333333</Latitude>
+<Longitude>15.3595805555556</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="5380" ParentId="5371">
+<ShortName>Hjortsberga (K)</ShortName>
+<RSVCode>108109</RSVCode>
+<FullName>Hjortsberga (K)</FullName>
+<Latitude>56.2254916666667</Latitude>
+<Longitude>15.4082416666667</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="5381" ParentId="5371">
+<ShortName>Bräkne-Hoby (K)</ShortName>
+<RSVCode>108110</RSVCode>
+<FullName>Bräkne-Hoby (K)</FullName>
+<Latitude>56.2254916666667</Latitude>
+<Longitude>15.1172277777778</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="5382" ParentId="5347">
+<ShortName>Karlshamn</ShortName>
+<PlaceKind>Kommun</PlaceKind>
+<RSVCode>1082</RSVCode>
+<FullName>Karlshamn</FullName>
+<Latitude>56.2117</Latitude>
+<Longitude>14.8501055555556</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+</Place>
+<Place PlaceId="5383" ParentId="5382">
+<ShortName>Karlshamn (K)</ShortName>
+<RSVCode>108201</RSVCode>
+<FullName>Karlshamn (K)</FullName>
+<Latitude>56.1714194444444</Latitude>
+<Longitude>14.8620888888889</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="5384" ParentId="5382">
+<ShortName>Ringamåla (K)</ShortName>
+<RSVCode>108202</RSVCode>
+<FullName>Ringamåla (K)</FullName>
+<Latitude>56.3345583333333</Latitude>
+<Longitude>14.7983388888889</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="5385" ParentId="5382">
+<ShortName>Hällaryd (K)</ShortName>
+<RSVCode>108203</RSVCode>
+<FullName>Hällaryd (K)</FullName>
+<Latitude>56.2064222222222</Latitude>
+<Longitude>14.9474083333333</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="5386" ParentId="5382">
+<ShortName>Åryd (K)</ShortName>
+<RSVCode>108204</RSVCode>
+<FullName>Åryd (K)</FullName>
+<Latitude>56.2073361111111</Latitude>
+<Longitude>15.0088277777778</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="5387" ParentId="5382">
+<ShortName>Asarum (K)</ShortName>
+<RSVCode>108205</RSVCode>
+<FullName>Asarum (K)</FullName>
+<Latitude>56.2057111111111</Latitude>
+<Longitude>14.8335583333333</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+</Place>
+<Place PlaceId="5388" ParentId="5382">
+<ShortName>Mörrum (K)</ShortName>
+<RSVCode>108206</RSVCode>
+<FullName>Mörrum (K)</FullName>
+<Latitude>56.19335</Latitude>
+<Longitude>14.7499944444444</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="5389" ParentId="5382">
+<ShortName>Elleholm (K)</ShortName>
+<RSVCode>108207</RSVCode>
+<FullName>Elleholm (K)</FullName>
+<Latitude>56.1628916666667</Latitude>
+<Longitude>14.7504916666667</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="5390" ParentId="5347">
+<ShortName>Sölvesborg</ShortName>
+<PlaceKind>Kommun</PlaceKind>
+<RSVCode>1083</RSVCode>
+<FullName>Sölvesborg</FullName>
+<Latitude>56.0755472222222</Latitude>
+<Longitude>14.6355</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+</Place>
+<Place PlaceId="5391" ParentId="5390">
+<ShortName>Sölvesborg (K)</ShortName>
+<RSVCode>108301</RSVCode>
+<FullName>Sölvesborg (K)</FullName>
+<Latitude>56.0532555555556</Latitude>
+<Longitude>14.5846527777778</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="5392" ParentId="5390">
+<ShortName>Gammalstorp (K)</ShortName>
+<RSVCode>108302</RSVCode>
+<FullName>Gammalstorp (K)</FullName>
+<Latitude>56.1078111111111</Latitude>
+<Longitude>14.6305833333333</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="5393" ParentId="5390">
+<ShortName>Ysane (K)</ShortName>
+<RSVCode>108303</RSVCode>
+<FullName>Ysane (K)</FullName>
+<Latitude>56.090575</Latitude>
+<Longitude>14.6488777777778</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="5394" ParentId="5390">
+<ShortName>Mjällby (K)</ShortName>
+<RSVCode>108304</RSVCode>
+<FullName>Mjällby (K)</FullName>
+<Latitude>56.0505416666667</Latitude>
+<Longitude>14.6778916666667</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="7499" ParentId="5382">
+<ShortName>Frisholmens kastellförsamling (K)</ShortName>
+<RSVCode>108200</RSVCode>
+<FullName>Frisholmens kastellförsamling (K)</FullName>
+<Latitude>56.1602916666667</Latitude>
+<Longitude>14.8656444444444</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="7744" ParentId="5348">
+<ShortName>Jämshög (K)</ShortName>
+<RSVCode>106071</RSVCode>
+<FullName>Jämshög (K)</FullName>
+<Latitude>56.2394055555556</Latitude>
+<Longitude>14.533075</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="7745" ParentId="5348">
+<ShortName>Jämshög kbfd (K)</ShortName>
+<RSVCode>106000</RSVCode>
+<FullName>Jämshög kbfd (K)</FullName>
+<Latitude>56.2394055555556</Latitude>
+<Longitude>14.533075</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="7778" ParentId="5352">
+<ShortName>Karlskrona Amiralitetsförsamling (K)</ShortName>
+<RSVCode>108002</RSVCode>
+<FullName>Karlskrona Amiralitetsförsamling (K)</FullName>
+<Latitude>56.1567888888889</Latitude>
+<Longitude>15.5910194444444</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="7779" ParentId="5352">
+<ShortName>Karlskrona Fredrika Dorotea Vilhelmina (K)</ShortName>
+<RSVCode>108000</RSVCode>
+<FullName>Karlskrona Fredrika Dorotea Vilhelmina (K)</FullName>
+<Latitude>56.1606083333333</Latitude>
+<Longitude>15.5858805555556</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="7780" ParentId="5352">
+<ShortName>Karlskrona fångförsamling (K)</ShortName>
+<RSVCode>108000</RSVCode>
+<FullName>Karlskrona fångförsamling (K)</FullName>
+<Latitude>56.1606083333333</Latitude>
+<Longitude>15.5858805555556</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="7781" ParentId="5352">
+<ShortName>Karlskrona mosaiska (K)</ShortName>
+<RSVCode>108000</RSVCode>
+<FullName>Karlskrona mosaiska (K)</FullName>
+<Latitude>56.1606083333333</Latitude>
+<Longitude>15.5858805555556</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="7784" ParentId="5352">
+<ShortName>Karlskrona tyska (K)</ShortName>
+<RSVCode>108000</RSVCode>
+<FullName>Karlskrona tyska (K)</FullName>
+<Latitude>56.1606083333333</Latitude>
+<Longitude>15.5858805555556</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="7801" ParentId="5352">
+<ShortName>Kungliga Karlskrona amiralitetsförsamling (K)</ShortName>
+<RSVCode>108002</RSVCode>
+<FullName>Kungliga Karlskrona amiralitetsförsamling (K)</FullName>
+<Latitude>56.1567888888889</Latitude>
+<Longitude>15.5910194444444</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="7947" ParentId="5352">
+<ShortName>Lyckeby (K)</ShortName>
+<RSVCode>108000</RSVCode>
+<FullName>Lyckeby (K)</FullName>
+<Latitude>56.197</Latitude>
+<Longitude>15.6881805555556</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="8158" ParentId="5371">
+<ShortName>Ronneby landsförsamling (K)</ShortName>
+<RSVCode>108100</RSVCode>
+<FullName>Ronneby landsförsamling (K)</FullName>
+<Latitude>56.211725</Latitude>
+<Longitude>15.2781527777778</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="8175" ParentId="5352">
+<ShortName>Rödeby (K)</ShortName>
+<RSVCode>108014</RSVCode>
+<FullName>Rödeby (K)</FullName>
+<Latitude>56.2624138888889</Latitude>
+<Longitude>15.6205277777778</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="8408" ParentId="5390">
+<ShortName>Sölvesborgs landsförsamling (K)</ShortName>
+<RSVCode>108300</RSVCode>
+<FullName>Sölvesborgs landsförsamling (K)</FullName>
+<Latitude>56.0532555555556</Latitude>
+<Longitude>14.5846527777778</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>1</Landskap>
+</Place>
+<Place PlaceId="8422" ParentId="5352">
+<ShortName>Tjurkö (K)</ShortName>
+<RSVCode>108000</RSVCode>
+<FullName>Tjurkö (K)</FullName>
+<Latitude>56.1168416666667</Latitude>
+<Longitude>15.6151194444444</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>1</Landskap>
+</Place>
+<PlaceKind PlaceKindImage="1">K</PlaceKind>
+</Disgen>

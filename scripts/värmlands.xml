@@ -1,0 +1,1330 @@
+﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Disgen ExportType="PlaceImport" ExportVersion="1" DisgenVersion="2025" FolderName="C:\Users\denni\Disgen\ew">
+<PlaceCount>127</PlaceCount>
+<Place PlaceId="6582" ParentId="10">
+<ShortName>Värmlands län</ShortName>
+<PlaceKind>S</PlaceKind>
+<RSVCode>17</RSVCode>
+<FullName>Värmlands län</FullName>
+<Latitude>59.6271694444444</Latitude>
+<Longitude>13.2600305555556</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+</Place>
+<Place PlaceId="6583" ParentId="6582">
+<ShortName>Kil</ShortName>
+<PlaceKind>Kommun</PlaceKind>
+<RSVCode>1715</RSVCode>
+<FullName>Kil</FullName>
+<Latitude>59.5546555555556</Latitude>
+<Longitude>13.1779833333333</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+</Place>
+<Place PlaceId="6584" ParentId="6583">
+<ShortName>Stora Kil (S)</ShortName>
+<RSVCode>171501</RSVCode>
+<FullName>Stora Kil (S)</FullName>
+<Latitude>59.5278611111111</Latitude>
+<Longitude>13.3156611111111</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6585" ParentId="6583">
+<ShortName>Frykerud (S)</ShortName>
+<RSVCode>171502</RSVCode>
+<FullName>Frykerud (S)</FullName>
+<Latitude>59.5669055555556</Latitude>
+<Longitude>13.1643555555556</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6586" ParentId="6583">
+<ShortName>Boda (S)</ShortName>
+<RSVCode>171503</RSVCode>
+<FullName>Boda (S)</FullName>
+<Latitude>59.5690722222222</Latitude>
+<Longitude>13.0537833333333</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6587" ParentId="6582">
+<ShortName>Eda</ShortName>
+<PlaceKind>Kommun</PlaceKind>
+<RSVCode>1730</RSVCode>
+<FullName>Eda</FullName>
+<Latitude>59.7871</Latitude>
+<Longitude>12.1807833333333</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+</Place>
+<Place PlaceId="6588" ParentId="6587">
+<ShortName>Eda (S)</ShortName>
+<RSVCode>173001</RSVCode>
+<FullName>Eda (S)</FullName>
+<Latitude>59.8392222222222</Latitude>
+<Longitude>12.3149444444444</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6589" ParentId="6587">
+<ShortName>Järnskog (S)</ShortName>
+<RSVCode>173003</RSVCode>
+<FullName>Järnskog (S)</FullName>
+<Latitude>59.6890333333333</Latitude>
+<Longitude>12.1474333333333</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6590" ParentId="6587">
+<ShortName>Skillingmark (S)</ShortName>
+<RSVCode>173004</RSVCode>
+<FullName>Skillingmark (S)</FullName>
+<Latitude>59.8177305555556</Latitude>
+<Longitude>12.0142222222222</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6591" ParentId="6587">
+<ShortName>Köla (S)</ShortName>
+<RSVCode>173005</RSVCode>
+<FullName>Köla (S)</FullName>
+<Latitude>59.8022277777778</Latitude>
+<Longitude>12.2467222222222</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6592" ParentId="6582">
+<ShortName>Torsby</ShortName>
+<PlaceKind>Kommun</PlaceKind>
+<RSVCode>1737</RSVCode>
+<FullName>Torsby</FullName>
+<Latitude>60.4510666666667</Latitude>
+<Longitude>12.8649527777778</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+</Place>
+<Place PlaceId="6593" ParentId="6592">
+<ShortName>Fryksände (S)</ShortName>
+<RSVCode>173701</RSVCode>
+<FullName>Fryksände (S)</FullName>
+<Latitude>60.1374611111111</Latitude>
+<Longitude>13.0135916666667</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6594" ParentId="6592">
+<ShortName>Lekvattnet (S)</ShortName>
+<RSVCode>173702</RSVCode>
+<FullName>Lekvattnet (S)</FullName>
+<Latitude>60.1874861111111</Latitude>
+<Longitude>12.67195</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6595" ParentId="6592">
+<ShortName>Vitsand (S)</ShortName>
+<RSVCode>173703</RSVCode>
+<FullName>Vitsand (S)</FullName>
+<Latitude>60.3287777777778</Latitude>
+<Longitude>13.0091527777778</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6596" ParentId="6592">
+<ShortName>Nyskoga (S)</ShortName>
+<RSVCode>173704</RSVCode>
+<FullName>Nyskoga (S)</FullName>
+<Latitude>60.4702027777778</Latitude>
+<Longitude>12.8820111111111</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6597" ParentId="6592">
+<ShortName>Östmark (S)</ShortName>
+<RSVCode>173705</RSVCode>
+<FullName>Östmark (S)</FullName>
+<Latitude>60.2788944444444</Latitude>
+<Longitude>12.7632055555556</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6598" ParentId="6592">
+<ShortName>Norra Finnskoga (S)</ShortName>
+<RSVCode>173706</RSVCode>
+<FullName>Norra Finnskoga (S)</FullName>
+<Latitude>60.8992638888889</Latitude>
+<Longitude>12.5937083333333</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6599" ParentId="6592">
+<ShortName>Södra Finnskoga (S)</ShortName>
+<RSVCode>173707</RSVCode>
+<FullName>Södra Finnskoga (S)</FullName>
+<Latitude>60.7003111111111</Latitude>
+<Longitude>12.5781972222222</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6600" ParentId="6592">
+<ShortName>Dalby (S)</ShortName>
+<RSVCode>173708</RSVCode>
+<FullName>Dalby (S)</FullName>
+<Latitude>60.6493972222222</Latitude>
+<Longitude>12.9946805555556</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6601" ParentId="6592">
+<ShortName>Norra Ny (S)</ShortName>
+<RSVCode>173709</RSVCode>
+<FullName>Norra Ny (S)</FullName>
+<Latitude>60.4061638888889</Latitude>
+<Longitude>13.2724194444444</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6602" ParentId="6582">
+<ShortName>Storfors</ShortName>
+<PlaceKind>Kommun</PlaceKind>
+<RSVCode>1760</RSVCode>
+<FullName>Storfors</FullName>
+<Latitude>59.5001</Latitude>
+<Longitude>14.2665861111111</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+</Place>
+<Place PlaceId="6603" ParentId="6602">
+<ShortName>Storfors (S)</ShortName>
+<RSVCode>176001</RSVCode>
+<FullName>Storfors (S)</FullName>
+<Latitude>59.5335777777778</Latitude>
+<Longitude>14.2802777777778</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6604" ParentId="6602">
+<ShortName>Bjurtjärn (S)</ShortName>
+<RSVCode>176002</RSVCode>
+<FullName>Bjurtjärn (S)</FullName>
+<Latitude>59.4444416666667</Latitude>
+<Longitude>14.3260944444444</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6605" ParentId="6602">
+<ShortName>Lungsund (S)</ShortName>
+<RSVCode>176003</RSVCode>
+<FullName>Lungsund (S)</FullName>
+<Latitude>59.5222444444444</Latitude>
+<Longitude>14.1932555555556</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6606" ParentId="6582">
+<ShortName>Hammarö</ShortName>
+<PlaceKind>Kommun</PlaceKind>
+<RSVCode>1761</RSVCode>
+<FullName>Hammarö</FullName>
+<Latitude>59.3356583333333</Latitude>
+<Longitude>13.5208888888889</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+</Place>
+<Place PlaceId="6607" ParentId="6606">
+<ShortName>Hammarö (S)</ShortName>
+<RSVCode>176101</RSVCode>
+<FullName>Hammarö (S)</FullName>
+<Latitude>59.3356583333333</Latitude>
+<Longitude>13.5208888888889</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6608" ParentId="6582">
+<ShortName>Munkfors</ShortName>
+<PlaceKind>Kommun</PlaceKind>
+<RSVCode>1762</RSVCode>
+<FullName>Munkfors</FullName>
+<Latitude>59.8026777777778</Latitude>
+<Longitude>13.4940694444444</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+</Place>
+<Place PlaceId="6609" ParentId="6608">
+<ShortName>Ransäter (S)</ShortName>
+<RSVCode>176201</RSVCode>
+<FullName>Ransäter (S)</FullName>
+<Latitude>59.769775</Latitude>
+<Longitude>13.4496972222222</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6610" ParentId="6608">
+<ShortName>Munkfors (S)</ShortName>
+<RSVCode>176202</RSVCode>
+<FullName>Munkfors (S)</FullName>
+<Latitude>59.8355694444444</Latitude>
+<Longitude>13.5385333333333</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6611" ParentId="6582">
+<ShortName>Forshaga</ShortName>
+<PlaceKind>Kommun</PlaceKind>
+<RSVCode>1763</RSVCode>
+<FullName>Forshaga</FullName>
+<Latitude>59.6059611111111</Latitude>
+<Longitude>13.4830277777778</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+</Place>
+<Place PlaceId="6612" ParentId="6611">
+<ShortName>Forshaga (S)</ShortName>
+<RSVCode>176301</RSVCode>
+<FullName>Forshaga (S)</FullName>
+<Latitude>59.5260861111111</Latitude>
+<Longitude>13.4820055555556</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6613" ParentId="6611">
+<ShortName>Nedre Ullerud (S)</ShortName>
+<RSVCode>176302</RSVCode>
+<FullName>Nedre Ullerud (S)</FullName>
+<Latitude>59.6049805555556</Latitude>
+<Longitude>13.500125</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6614" ParentId="6611">
+<ShortName>Övre Ullerud (S)</ShortName>
+<RSVCode>176303</RSVCode>
+<FullName>Övre Ullerud (S)</FullName>
+<Latitude>59.6868138888889</Latitude>
+<Longitude>13.4669361111111</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6615" ParentId="6582">
+<ShortName>Grums</ShortName>
+<PlaceKind>Kommun</PlaceKind>
+<RSVCode>1764</RSVCode>
+<FullName>Grums</FullName>
+<Latitude>59.3667</Latitude>
+<Longitude>13.0109916666667</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+</Place>
+<Place PlaceId="6616" ParentId="6615">
+<ShortName>Grums (S)</ShortName>
+<RSVCode>176401</RSVCode>
+<FullName>Grums (S)</FullName>
+<Latitude>59.3712722222222</Latitude>
+<Longitude>13.0943277777778</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6617" ParentId="6615">
+<ShortName>Borgvik (S)</ShortName>
+<RSVCode>176402</RSVCode>
+<FullName>Borgvik (S)</FullName>
+<Latitude>59.3492055555556</Latitude>
+<Longitude>12.959525</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6618" ParentId="6615">
+<ShortName>Ed (S)</ShortName>
+<RSVCode>176403</RSVCode>
+<FullName>Ed (S)</FullName>
+<Latitude>59.2912694444444</Latitude>
+<Longitude>13.0725027777778</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6619" ParentId="6615">
+<ShortName>Värmskog (S)</ShortName>
+<RSVCode>176404</RSVCode>
+<FullName>Värmskog (S)</FullName>
+<Latitude>59.4549888888889</Latitude>
+<Longitude>12.9172694444444</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6620" ParentId="6582">
+<ShortName>Årjäng</ShortName>
+<PlaceKind>Kommun</PlaceKind>
+<RSVCode>1765</RSVCode>
+<FullName>Årjäng</FullName>
+<Latitude>59.4273472222222</Latitude>
+<Longitude>11.9924083333333</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+</Place>
+<Place PlaceId="6621" ParentId="6620">
+<ShortName>Silbodal (S)</ShortName>
+<RSVCode>176501</RSVCode>
+<FullName>Silbodal (S)</FullName>
+<Latitude>59.3861861111111</Latitude>
+<Longitude>12.1239138888889</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6622" ParentId="6620">
+<ShortName>Sillerud (S)</ShortName>
+<RSVCode>176502</RSVCode>
+<FullName>Sillerud (S)</FullName>
+<Latitude>59.3094555555556</Latitude>
+<Longitude>12.310325</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6623" ParentId="6620">
+<ShortName>Karlanda (S)</ShortName>
+<RSVCode>176503</RSVCode>
+<FullName>Karlanda (S)</FullName>
+<Latitude>59.5258138888889</Latitude>
+<Longitude>12.0668</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6624" ParentId="6620">
+<ShortName>Holmedal (S)</ShortName>
+<RSVCode>176504</RSVCode>
+<FullName>Holmedal (S)</FullName>
+<Latitude>59.4736777777778</Latitude>
+<Longitude>11.9599833333333</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6625" ParentId="6620">
+<ShortName>Blomskog (S)</ShortName>
+<RSVCode>176505</RSVCode>
+<FullName>Blomskog (S)</FullName>
+<Latitude>59.2743555555556</Latitude>
+<Longitude>12.0285833333333</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6626" ParentId="6620">
+<ShortName>Trankil (S)</ShortName>
+<RSVCode>176506</RSVCode>
+<FullName>Trankil (S)</FullName>
+<Latitude>59.2819361111111</Latitude>
+<Longitude>11.9032527777778</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6627" ParentId="6620">
+<ShortName>Västra Fågelvik (S)</ShortName>
+<RSVCode>176507</RSVCode>
+<FullName>Västra Fågelvik (S)</FullName>
+<Latitude>59.4496861111111</Latitude>
+<Longitude>11.8475722222222</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6628" ParentId="6620">
+<ShortName>Töcksmark (S)</ShortName>
+<RSVCode>176508</RSVCode>
+<FullName>Töcksmark (S)</FullName>
+<Latitude>59.5085694444444</Latitude>
+<Longitude>11.8299527777778</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6629" ParentId="6620">
+<ShortName>Östervallskog (S)</ShortName>
+<RSVCode>176509</RSVCode>
+<FullName>Östervallskog (S)</FullName>
+<Latitude>59.6356777777778</Latitude>
+<Longitude>11.8591472222222</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6630" ParentId="6582">
+<ShortName>Sunne</ShortName>
+<PlaceKind>Kommun</PlaceKind>
+<RSVCode>1766</RSVCode>
+<FullName>Sunne</FullName>
+<Latitude>59.8522805555556</Latitude>
+<Longitude>13.10885</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+</Place>
+<Place PlaceId="6631" ParentId="6630">
+<ShortName>Sunne (S)</ShortName>
+<RSVCode>176601</RSVCode>
+<FullName>Sunne (S)</FullName>
+<Latitude>59.8376805555556</Latitude>
+<Longitude>13.1542694444444</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6632" ParentId="6630">
+<ShortName>Västra Ämtervik (S)</ShortName>
+<RSVCode>176602</RSVCode>
+<FullName>Västra Ämtervik (S)</FullName>
+<Latitude>59.7292055555556</Latitude>
+<Longitude>13.1407583333333</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6633" ParentId="6630">
+<ShortName>Östra Ämtervik (S)</ShortName>
+<RSVCode>176603</RSVCode>
+<FullName>Östra Ämtervik (S)</FullName>
+<Latitude>59.7335527777778</Latitude>
+<Longitude>13.2001416666667</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6634" ParentId="6630">
+<ShortName>Gräsmark (S)</ShortName>
+<RSVCode>176604</RSVCode>
+<FullName>Gräsmark (S)</FullName>
+<Latitude>59.9462861111111</Latitude>
+<Longitude>12.91605</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6635" ParentId="6630">
+<ShortName>Lysvik (S)</ShortName>
+<RSVCode>176605</RSVCode>
+<FullName>Lysvik (S)</FullName>
+<Latitude>60.0144972222222</Latitude>
+<Longitude>13.1321833333333</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6636" ParentId="6582">
+<ShortName>Karlstad</ShortName>
+<PlaceKind>Kommun</PlaceKind>
+<RSVCode>1780</RSVCode>
+<FullName>Karlstad</FullName>
+<Latitude>59.4549805555556</Latitude>
+<Longitude>13.5400861111111</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+</Place>
+<Place PlaceId="6637" ParentId="6636">
+<ShortName>Karlstads domkyrkoförsamling (S)</ShortName>
+<RSVCode>178001</RSVCode>
+<FullName>Karlstads domkyrkoförsamling (S)</FullName>
+<Latitude>59.3815805555556</Latitude>
+<Longitude>13.5059861111111</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6638" ParentId="6636">
+<ShortName>Norrstrand (S)</ShortName>
+<RSVCode>178002</RSVCode>
+<FullName>Norrstrand (S)</FullName>
+<Latitude>59.3928805555556</Latitude>
+<Longitude>13.5135861111111</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6639" ParentId="6636">
+<ShortName>Östra Fågelvik (S)</ShortName>
+<RSVCode>178003</RSVCode>
+<FullName>Östra Fågelvik (S)</FullName>
+<Latitude>59.4197055555556</Latitude>
+<Longitude>13.731225</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6640" ParentId="6636">
+<ShortName>Väse (S)</ShortName>
+<RSVCode>178004</RSVCode>
+<FullName>Väse (S)</FullName>
+<Latitude>59.4115722222222</Latitude>
+<Longitude>13.8356277777778</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6641" ParentId="6636">
+<ShortName>Älvsbacka (S)</ShortName>
+<RSVCode>178005</RSVCode>
+<FullName>Älvsbacka (S)</FullName>
+<Latitude>59.7192805555556</Latitude>
+<Longitude>13.6649472222222</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6642" ParentId="6636">
+<ShortName>Nyed (S)</ShortName>
+<RSVCode>178006</RSVCode>
+<FullName>Nyed (S)</FullName>
+<Latitude>59.5957805555556</Latitude>
+<Longitude>13.7335777777778</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6643" ParentId="6636">
+<ShortName>Alster (S)</ShortName>
+<RSVCode>178007</RSVCode>
+<FullName>Alster (S)</FullName>
+<Latitude>59.478475</Latitude>
+<Longitude>13.5933361111111</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6644" ParentId="6636">
+<ShortName>Grava (S)</ShortName>
+<RSVCode>178008</RSVCode>
+<FullName>Grava (S)</FullName>
+<Latitude>59.457475</Latitude>
+<Longitude>13.4226694444444</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6645" ParentId="6636">
+<ShortName>Nor (S)</ShortName>
+<RSVCode>178009</RSVCode>
+<FullName>Nor (S)</FullName>
+<Latitude>59.4068861111111</Latitude>
+<Longitude>13.2350333333333</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6646" ParentId="6636">
+<ShortName>Segerstad (S)</ShortName>
+<RSVCode>178010</RSVCode>
+<FullName>Segerstad (S)</FullName>
+<Latitude>59.3568277777778</Latitude>
+<Longitude>13.2432027777778</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6647" ParentId="6582">
+<ShortName>Kristinehamn</ShortName>
+<PlaceKind>Kommun</PlaceKind>
+<RSVCode>1781</RSVCode>
+<FullName>Kristinehamn</FullName>
+<Latitude>59.1941666666667</Latitude>
+<Longitude>14.1103222222222</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+</Place>
+<Place PlaceId="6648" ParentId="6647">
+<ShortName>Kristinehamn (S)</ShortName>
+<RSVCode>178101</RSVCode>
+<FullName>Kristinehamn (S)</FullName>
+<Latitude>59.3105111111111</Latitude>
+<Longitude>14.115875</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6649" ParentId="6647">
+<ShortName>Rudskoga (S)</ShortName>
+<RSVCode>178103</RSVCode>
+<FullName>Rudskoga (S)</FullName>
+<Latitude>59.0527888888889</Latitude>
+<Longitude>14.26645</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6650" ParentId="6647">
+<ShortName>Visnums-Kil (S)</ShortName>
+<RSVCode>178104</RSVCode>
+<FullName>Visnums-Kil (S)</FullName>
+<Latitude>59.1129805555556</Latitude>
+<Longitude>14.054975</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6651" ParentId="6647">
+<ShortName>Visnum (S)</ShortName>
+<RSVCode>178105</RSVCode>
+<FullName>Visnum (S)</FullName>
+<Latitude>59.1296222222222</Latitude>
+<Longitude>14.17495</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6652" ParentId="6647">
+<ShortName>Ölme (S)</ShortName>
+<RSVCode>178106</RSVCode>
+<FullName>Ölme (S)</FullName>
+<Latitude>59.3646888888889</Latitude>
+<Longitude>13.9378361111111</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6653" ParentId="6582">
+<ShortName>Filipstad</ShortName>
+<PlaceKind>Kommun</PlaceKind>
+<RSVCode>1782</RSVCode>
+<FullName>Filipstad</FullName>
+<Latitude>59.7907916666667</Latitude>
+<Longitude>14.1782027777778</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+</Place>
+<Place PlaceId="6654" ParentId="6653">
+<ShortName>Filipstad (S)</ShortName>
+<RSVCode>178201</RSVCode>
+<FullName>Filipstad (S)</FullName>
+<Latitude>59.7110305555556</Latitude>
+<Longitude>14.171525</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6655" ParentId="6653">
+<ShortName>Brattfors (S)</ShortName>
+<RSVCode>178203</RSVCode>
+<FullName>Brattfors (S)</FullName>
+<Latitude>59.6684222222222</Latitude>
+<Longitude>14.0253888888889</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6656" ParentId="6653">
+<ShortName>Nordmark (S)</ShortName>
+<RSVCode>178204</RSVCode>
+<FullName>Nordmark (S)</FullName>
+<Latitude>59.8347944444444</Latitude>
+<Longitude>14.1087055555556</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6657" ParentId="6653">
+<ShortName>Gåsborn (S)</ShortName>
+<RSVCode>178205</RSVCode>
+<FullName>Gåsborn (S)</FullName>
+<Latitude>59.8797694444444</Latitude>
+<Longitude>14.3331444444444</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6658" ParentId="6653">
+<ShortName>Kroppa (S)</ShortName>
+<RSVCode>178206</RSVCode>
+<FullName>Kroppa (S)</FullName>
+<Latitude>59.6192027777778</Latitude>
+<Longitude>14.3009944444444</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6659" ParentId="6653">
+<ShortName>Rämmen (S)</ShortName>
+<RSVCode>178207</RSVCode>
+<FullName>Rämmen (S)</FullName>
+<Latitude>60.031275</Latitude>
+<Longitude>14.1293861111111</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6660" ParentId="6582">
+<ShortName>Hagfors</ShortName>
+<PlaceKind>Kommun</PlaceKind>
+<RSVCode>1783</RSVCode>
+<FullName>Hagfors</FullName>
+<Latitude>60.0695027777778</Latitude>
+<Longitude>13.6643222222222</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+</Place>
+<Place PlaceId="6661" ParentId="6660">
+<ShortName>Hagfors (S)</ShortName>
+<RSVCode>178301</RSVCode>
+<FullName>Hagfors (S)</FullName>
+<Latitude>60.0322638888889</Latitude>
+<Longitude>13.696575</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6662" ParentId="6660">
+<ShortName>Ekshärad (S)</ShortName>
+<RSVCode>178302</RSVCode>
+<FullName>Ekshärad (S)</FullName>
+<Latitude>60.1725444444444</Latitude>
+<Longitude>13.4974</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6663" ParentId="6660">
+<ShortName>Gustav Adolf (S)</ShortName>
+<RSVCode>178303</RSVCode>
+<FullName>Gustav Adolf (S)</FullName>
+<Latitude>60.0687027777778</Latitude>
+<Longitude>13.8649805555556</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6664" ParentId="6660">
+<ShortName>Norra Råda (S)</ShortName>
+<RSVCode>178304</RSVCode>
+<FullName>Norra Råda (S)</FullName>
+<Latitude>60.0042277777778</Latitude>
+<Longitude>13.5979194444444</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6665" ParentId="6660">
+<ShortName>Sunnemo (S)</ShortName>
+<RSVCode>178305</RSVCode>
+<FullName>Sunnemo (S)</FullName>
+<Latitude>59.8844833333333</Latitude>
+<Longitude>13.7173333333333</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6666" ParentId="6582">
+<ShortName>Arvika</ShortName>
+<PlaceKind>Kommun</PlaceKind>
+<RSVCode>1784</RSVCode>
+<FullName>Arvika</FullName>
+<Latitude>59.6882722222222</Latitude>
+<Longitude>12.6339805555556</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+</Place>
+<Place PlaceId="6667" ParentId="6666">
+<ShortName>Arvika östra (S)</ShortName>
+<RSVCode>178401</RSVCode>
+<FullName>Arvika östra (S)</FullName>
+<Latitude>59.6578166666667</Latitude>
+<Longitude>12.5942055555556</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6668" ParentId="6666">
+<ShortName>Arvika västra (S)</ShortName>
+<RSVCode>178402</RSVCode>
+<FullName>Arvika västra (S)</FullName>
+<Latitude>59.6540694444444</Latitude>
+<Longitude>12.569</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6669" ParentId="6666">
+<ShortName>Stavnäs (S)</ShortName>
+<RSVCode>178403</RSVCode>
+<FullName>Stavnäs (S)</FullName>
+<Latitude>59.483825</Latitude>
+<Longitude>12.7385388888889</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6670" ParentId="6666">
+<ShortName>Högerud (S)</ShortName>
+<RSVCode>178404</RSVCode>
+<FullName>Högerud (S)</FullName>
+<Latitude>59.5805333333333</Latitude>
+<Longitude>12.7269194444444</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6671" ParentId="6666">
+<ShortName>Glava (S)</ShortName>
+<RSVCode>178405</RSVCode>
+<FullName>Glava (S)</FullName>
+<Latitude>59.5565277777778</Latitude>
+<Longitude>12.5613861111111</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6672" ParentId="6666">
+<ShortName>Bogen (S)</ShortName>
+<RSVCode>178406</RSVCode>
+<FullName>Bogen (S)</FullName>
+<Latitude>60.0588194444444</Latitude>
+<Longitude>12.5549166666667</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6673" ParentId="6666">
+<ShortName>Gunnarskog (S)</ShortName>
+<RSVCode>178407</RSVCode>
+<FullName>Gunnarskog (S)</FullName>
+<Latitude>59.8121888888889</Latitude>
+<Longitude>12.5647388888889</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6674" ParentId="6666">
+<ShortName>Ny (S)</ShortName>
+<RSVCode>178408</RSVCode>
+<FullName>Ny (S)</FullName>
+<Latitude>59.7171944444444</Latitude>
+<Longitude>12.4717944444444</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6675" ParentId="6666">
+<ShortName>Älgå (S)</ShortName>
+<RSVCode>178409</RSVCode>
+<FullName>Älgå (S)</FullName>
+<Latitude>59.6439972222222</Latitude>
+<Longitude>12.4750694444444</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6676" ParentId="6666">
+<ShortName>Mangskog (S)</ShortName>
+<RSVCode>178410</RSVCode>
+<FullName>Mangskog (S)</FullName>
+<Latitude>59.7513666666667</Latitude>
+<Longitude>12.8239611111111</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6677" ParentId="6666">
+<ShortName>Brunskog (S)</ShortName>
+<RSVCode>178411</RSVCode>
+<FullName>Brunskog (S)</FullName>
+<Latitude>59.653975</Latitude>
+<Longitude>12.8917361111111</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6678" ParentId="6582">
+<ShortName>Säffle</ShortName>
+<PlaceKind>Kommun</PlaceKind>
+<RSVCode>1785</RSVCode>
+<FullName>Säffle</FullName>
+<Latitude>59.1283305555556</Latitude>
+<Longitude>12.9230527777778</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+</Place>
+<Place PlaceId="6679" ParentId="6678">
+<ShortName>Säffle (S)</ShortName>
+<RSVCode>178501</RSVCode>
+<FullName>Säffle (S)</FullName>
+<Latitude>59.1319722222222</Latitude>
+<Longitude>12.9207222222222</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6680" ParentId="6678">
+<ShortName>Tveta (S)</ShortName>
+<RSVCode>178502</RSVCode>
+<FullName>Tveta (S)</FullName>
+<Latitude>59.1186555555556</Latitude>
+<Longitude>12.8243472222222</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6681" ParentId="6678">
+<ShortName>Bro (S)</ShortName>
+<RSVCode>178503</RSVCode>
+<FullName>Bro (S)</FullName>
+<Latitude>59.1832111111111</Latitude>
+<Longitude>13.0025111111111</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6682" ParentId="6678">
+<ShortName>Botilsäter (S)</ShortName>
+<RSVCode>178504</RSVCode>
+<FullName>Botilsäter (S)</FullName>
+<Latitude>59.0456416666667</Latitude>
+<Longitude>13.0814861111111</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6683" ParentId="6678">
+<ShortName>Ölserud (S)</ShortName>
+<RSVCode>178505</RSVCode>
+<FullName>Ölserud (S)</FullName>
+<Latitude>59.0188111111111</Latitude>
+<Longitude>13.1337</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6684" ParentId="6678">
+<ShortName>Millesvik (S)</ShortName>
+<RSVCode>178506</RSVCode>
+<FullName>Millesvik (S)</FullName>
+<Latitude>58.9697638888889</Latitude>
+<Longitude>13.1172222222222</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6685" ParentId="6678">
+<ShortName>Eskilsäter (S)</ShortName>
+<RSVCode>178507</RSVCode>
+<FullName>Eskilsäter (S)</FullName>
+<Latitude>58.9386027777778</Latitude>
+<Longitude>13.1662527777778</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6686" ParentId="6678">
+<ShortName>Ny-Huggenäs (S)</ShortName>
+<RSVCode>178508</RSVCode>
+<FullName>Ny-Huggenäs (S)</FullName>
+<Latitude>59.1397555555556</Latitude>
+<Longitude>13.0070611111111</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6687" ParentId="6678">
+<ShortName>Gillberga (S)</ShortName>
+<RSVCode>178509</RSVCode>
+<FullName>Gillberga (S)</FullName>
+<Latitude>59.3213833333333</Latitude>
+<Longitude>12.7778611111111</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6688" ParentId="6678">
+<ShortName>Kila (S)</ShortName>
+<RSVCode>178510</RSVCode>
+<FullName>Kila (S)</FullName>
+<Latitude>59.2046527777778</Latitude>
+<Longitude>12.8144277777778</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6689" ParentId="6678">
+<ShortName>Svanskog (S)</ShortName>
+<RSVCode>178511</RSVCode>
+<FullName>Svanskog (S)</FullName>
+<Latitude>59.1861777777778</Latitude>
+<Longitude>12.551975</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="6690" ParentId="6678">
+<ShortName>Långserud (S)</ShortName>
+<RSVCode>178512</RSVCode>
+<FullName>Långserud (S)</FullName>
+<Latitude>59.2797777777778</Latitude>
+<Longitude>12.6731666666667</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="7383" ParentId="6666">
+<ShortName>Brunskogs västra kbfd (S)</ShortName>
+<RSVCode>178400</RSVCode>
+<FullName>Brunskogs västra kbfd (S)</FullName>
+<Latitude>59.653975</Latitude>
+<Longitude>12.8917361111111</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="7384" ParentId="6666">
+<ShortName>Brunskogs östra kbfd (S)</ShortName>
+<RSVCode>178400</RSVCode>
+<FullName>Brunskogs östra kbfd (S)</FullName>
+<Latitude>59.653975</Latitude>
+<Longitude>12.8917361111111</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="7390" ParentId="6678">
+<ShortName>By (S)</ShortName>
+<RSVCode>178500</RSVCode>
+<FullName>By (S)</FullName>
+<Latitude>59.1319722222222</Latitude>
+<Longitude>12.9207222222222</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="7426" ParentId="6587">
+<ShortName>Eda norra kbfd (S)</ShortName>
+<RSVCode>173000</RSVCode>
+<FullName>Eda norra kbfd (S)</FullName>
+<Latitude>59.8392222222222</Latitude>
+<Longitude>12.3149444444444</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="7427" ParentId="6587">
+<ShortName>Eda södra kbfd (S)</ShortName>
+<RSVCode>173000</RSVCode>
+<FullName>Eda södra kbfd (S)</FullName>
+<Latitude>59.8392222222222</Latitude>
+<Longitude>12.3149444444444</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="7473" ParentId="6592">
+<ShortName>Finnskoga (S)</ShortName>
+<RSVCode>173700</RSVCode>
+<FullName>Finnskoga (S)</FullName>
+<Latitude>60.8992638888889</Latitude>
+<Longitude>12.5937083333333</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="7519" ParentId="6653">
+<ShortName>Färnebo (S)</ShortName>
+<RSVCode>178200</RSVCode>
+<FullName>Färnebo (S)</FullName>
+<Latitude>59.7110305555556</Latitude>
+<Longitude>14.171525</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="7632" ParentId="6606">
+<ShortName>Hammarö kbfd (S)</ShortName>
+<RSVCode>176100</RSVCode>
+<FullName>Hammarö kbfd (S)</FullName>
+<Latitude>59.3356583333333</Latitude>
+<Longitude>13.5208888888889</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="7668" ParentId="6587">
+<ShortName>Hjärnskog (S)</ShortName>
+<RSVCode>173000</RSVCode>
+<FullName>Hjärnskog (S)</FullName>
+<Latitude>59.6890333333333</Latitude>
+<Longitude>12.1474333333333</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="7678" ParentId="6678">
+<ShortName>Huggenäs (S)</ShortName>
+<RSVCode>178500</RSVCode>
+<FullName>Huggenäs (S)</FullName>
+<Latitude>59.1397555555556</Latitude>
+<Longitude>13.0070611111111</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="7787" ParentId="6636">
+<ShortName>Karlstads landsförsamling (S)</ShortName>
+<RSVCode>178000</RSVCode>
+<FullName>Karlstads landsförsamling (S)</FullName>
+<Latitude>59.3815805555556</Latitude>
+<Longitude>13.5059861111111</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="7841" ParentId="6653">
+<ShortName>Kroppa kbfd (S)</ShortName>
+<RSVCode>178200</RSVCode>
+<FullName>Kroppa kbfd (S)</FullName>
+<Latitude>59.6192027777778</Latitude>
+<Longitude>14.3009944444444</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="8291" ParentId="6606">
+<ShortName>Skoghalls kbfd (S)</ShortName>
+<RSVCode>176100</RSVCode>
+<FullName>Skoghalls kbfd (S)</FullName>
+<Latitude>59.3356583333333</Latitude>
+<Longitude>13.5208888888889</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="8348" ParentId="6602">
+<ShortName>Storfors kbfd (S)</ShortName>
+<RSVCode>176000</RSVCode>
+<FullName>Storfors kbfd (S)</FullName>
+<Latitude>59.5335777777778</Latitude>
+<Longitude>14.2802777777778</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="8570" ParentId="6636">
+<ShortName>Västerstrand (S)</ShortName>
+<RSVCode>178011</RSVCode>
+<FullName>Västerstrand (S)</FullName>
+<Latitude>59.3815805555556</Latitude>
+<Longitude>13.5059861111111</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="8590" ParentId="6630">
+<ShortName>Västra Sund (S)</ShortName>
+<RSVCode>176600</RSVCode>
+<FullName>Västra Sund (S)</FullName>
+<Latitude>59.8376805555556</Latitude>
+<Longitude>13.1542694444444</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="8624" ParentId="6678">
+<ShortName>Åskog (S)</ShortName>
+<RSVCode>178500</RSVCode>
+<FullName>Åskog (S)</FullName>
+<Latitude>59.2797777777778</Latitude>
+<Longitude>12.6731666666667</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>19</Landskap>
+</Place>
+<Place PlaceId="8697" ParentId="6647">
+<ShortName>Varnum (S)</ShortName>
+<RSVCode>178100</RSVCode>
+<FullName>Varnum (S)</FullName>
+<Latitude>59.3105111111111</Latitude>
+<Longitude>14.115875</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>19</Landskap>
+</Place>
+<PlaceKind PlaceKindImage="1">S</PlaceKind>
+</Disgen>

@@ -1,0 +1,120 @@
+.rsw-editor {
+  border: 1px solid #475569; /* slate-600 */
+  border-radius: 4px;
+  background: #0f172a; /* slate-900 */
+  color: #e2e8f0; /* slate-200 */
+}
+
+/* Nuclear CSS override for tui-image-editor - force everything to expand */
+.tui-image-editor {
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.tui-image-editor-canvas-container {
+  flex: 1 !important;
+  width: 100% !important;
+  height: 100% !important;
+  overflow: visible !important;
+}
+
+.tui-canvas {
+  max-width: 100% !important;
+  max-height: 100% !important;
+  width: auto !important;
+  height: auto !important;
+}
+
+.tui-canvas-container {
+  flex: 1 !important;
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: visible !important;
+}
+
+/* Remove all max-width/height restrictions */
+.tui-image-editor * {
+  max-width: none !important;
+  max-height: none !important;
+}
+
+.rsw-ce {
+  padding: 8px;
+  min-height: 120px;
+  outline: none;
+  background: #0f172a !important; /* slate-900 */
+  color: #e2e8f0 !important; /* slate-200 */
+}
+
+.rsw-ce ul,
+.rsw-ce ol {
+  color: #e2e8f0; /* slate-200 */
+}
+
+.rsw-ce li {
+  color: #e2e8f0; /* slate-200 */
+}
+
+/* Fix for lists when using global resets */
+.rsw-ce ul {
+  list-style: disc;
+  padding-left: 1.5rem;
+}
+
+.rsw-toolbar {
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  border-bottom: 1px solid #334155; /* slate-700 */
+  background: #1e293b; /* slate-800 */
+}
+
+.rsw-toolbar button {
+  background: #475569 !important; /* slate-600 */
+  color: #e2e8f0 !important; /* slate-200 */
+  border: 1px solid #334155 !important; /* slate-700 */
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.rsw-toolbar button svg {
+  filter: brightness(0) !important;
+}
+
+.rsw-toolbar button img {
+  filter: brightness(0) !important;
+  opacity: 0.7;
+}
+
+.rsw-toolbar button:hover {
+  background: #64748b !important; /* slate-500 */
+  border-color: #475569 !important; /* slate-600 */
+}
+
+.rsw-toolbar button:active,
+.rsw-toolbar button[aria-pressed="true"] {
+  background: #334155 !important; /* slate-700 */
+}
+
+.rsw-toolbar select {
+  background: #475569 !important; /* slate-600 */
+  color: #e2e8f0 !important; /* slate-200 */
+  border: 1px solid #334155 !important; /* slate-700 */
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.rsw-toolbar select:hover {
+  background: #64748b !important; /* slate-500 */
+}
+
+/* Dropdown menu styling */
+.rsw-toolbar select option {
+  background: #1e293b; /* slate-800 */
+  color: #e2e8f0; /* slate-200 */
+}

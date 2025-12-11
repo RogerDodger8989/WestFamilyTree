@@ -1,0 +1,10 @@
+{
+  "name": "electron-preload-test",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "dependencies": {
+    "electron": "^27.3.11"
+  }
+}

@@ -1,0 +1,53 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.menubar { background: #1f2937; color: white; padding: 0.5rem 1rem; display: flex; align-items: center; justify-content: space-between; }
+.menu-btn { background: #374151; border: 1px solid #4b5563; padding: 0.25rem 0.75rem; border-radius: 4px; font-size: 0.875rem; cursor: pointer; transition: all 0.2s; }
+.menu-btn:hover { background: #4b5563; }
+.menu-btn.primary { background: #2563eb; border-color: #1d4ed8; font-weight: 600; }
+.menu-btn.primary:hover { background: #1d4ed8; }
+
+.status-bar { background: #1e293b; padding: 0.25rem 1rem; font-size: 0.75rem; color: #94a3b8; border-bottom: 1px solid #475569; display: flex; justify-content: space-between; }
+
+.modal-tab { cursor: pointer; padding: 12px 20px; border-bottom: 3px solid transparent; color: #94a3b8; font-weight: 500; }
+.modal-tab.active { border-bottom-color: #2563eb; color: #60a5fa; font-weight: 700; background-color: #334155; }
+.event-row { transition: background-color 0.1s; }
+.event-row:hover { background-color: #334155; }
+
+/* Drawer slide-in animation used for global drawers to match EditPerson modal feel */
+@keyframes slide-in-right {
+	from { transform: translateX(100%); opacity: 0; }
+	to { transform: translateX(0); opacity: 1; }
+}
+.animate-slide-in-right {
+	animation: slide-in-right 220ms ease-out forwards;
+}
+
+@keyframes slide-out-right {
+	from { transform: translateX(0); opacity: 1; }
+	to { transform: translateX(100%); opacity: 0; }
+}
+.animate-slide-out-right {
+	animation: slide-out-right 180ms ease-in forwards;
+}
+
+/* Left variants for slide-in/out when drawer is on the left */
+@keyframes slide-in-left {
+	from { transform: translateX(-100%); opacity: 0; }
+	to { transform: translateX(0); opacity: 1; }
+}
+.animate-slide-in-left {
+	animation: slide-in-left 220ms ease-out forwards;
+}
+
+@keyframes slide-out-left {
+	from { transform: translateX(0); opacity: 1; }
+	to { transform: translateX(-100%); opacity: 0; }
+}
+.animate-slide-out-left {
+	animation: slide-out-left 180ms ease-in forwards;
+}
+
+/* Slight shadow to match edit modal separation; support left or right drawers */
+.drawer-inner { box-shadow: 6px 0 18px rgba(15,23,42,0.06), -6px 0 18px rgba(15,23,42,0.04); }

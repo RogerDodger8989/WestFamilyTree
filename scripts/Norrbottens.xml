@@ -1,0 +1,867 @@
+﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Disgen ExportType="PlaceImport" ExportVersion="1" DisgenVersion="2025" FolderName="C:\Users\denni\Disgen\ew">
+<PlaceCount>87</PlaceCount>
+<Place PlaceId="7204" ParentId="10">
+<ShortName>Norrbottens län</ShortName>
+<PlaceKind>BD</PlaceKind>
+<RSVCode>25</RSVCode>
+<FullName>Norrbottens län</FullName>
+<Latitude>66.2767388888889</Latitude>
+<Longitude>21.5748694444444</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+</Place>
+<Place PlaceId="7205" ParentId="7204">
+<ShortName>Arvidsjaur</ShortName>
+<PlaceKind>Kommun</PlaceKind>
+<RSVCode>2505</RSVCode>
+<FullName>Arvidsjaur</FullName>
+<Latitude>65.5952472222222</Latitude>
+<Longitude>19.1668333333333</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+</Place>
+<Place PlaceId="7206" ParentId="7205">
+<ShortName>Glommersträsks kbfd (BD)</ShortName>
+<RSVCode>250501</RSVCode>
+<FullName>Glommersträsks (kyrka) kbfd (BD)</FullName>
+<Latitude>65.2605194444444</Latitude>
+<Longitude>19.6375194444444</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<Landskap>11</Landskap>
+</Place>
+<Place PlaceId="7207" ParentId="7205">
+<ShortName>Arvidsjaurs kbfd (BD)</ShortName>
+<RSVCode>250502</RSVCode>
+<FullName>Arvidsjaurs kbfd (BD)</FullName>
+<Latitude>65.5952472222222</Latitude>
+<Longitude>19.1668333333333</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>11</Landskap>
+</Place>
+<Place PlaceId="7208" ParentId="7204">
+<ShortName>Arjeplog</ShortName>
+<PlaceKind>Kommun</PlaceKind>
+<RSVCode>2506</RSVCode>
+<FullName>Arjeplog</FullName>
+<Latitude>66.0519194444444</Latitude>
+<Longitude>17.8846527777778</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+</Place>
+<Place PlaceId="7209" ParentId="7208">
+<ShortName>Södra Bergnäs kbfd (BD)</ShortName>
+<RSVCode>250601</RSVCode>
+<FullName>Södra Bergnäs kbfd (BD)</FullName>
+<Latitude>65.6858888888889</Latitude>
+<Longitude>18.1786388888889</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>11</Landskap>
+</Place>
+<Place PlaceId="7210" ParentId="7208">
+<ShortName>Arjeplogs kbfd (BD)</ShortName>
+<RSVCode>250602</RSVCode>
+<FullName>Arjeplogs kbfd (BD)</FullName>
+<Latitude>66.0519194444444</Latitude>
+<Longitude>17.8846527777778</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>11</Landskap>
+</Place>
+<Place PlaceId="7211" ParentId="7204">
+<ShortName>Jokkmokk</ShortName>
+<PlaceKind>Kommun</PlaceKind>
+<RSVCode>2510</RSVCode>
+<FullName>Jokkmokk</FullName>
+<Latitude>66.6640722222222</Latitude>
+<Longitude>20.0888388888889</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+</Place>
+<Place PlaceId="7212" ParentId="7211">
+<ShortName>Jokkmokk (BD)</ShortName>
+<RSVCode>251002</RSVCode>
+<FullName>Jokkmokk (BD)</FullName>
+<Latitude>66.6050722222222</Latitude>
+<Longitude>19.8416638888889</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>11</Landskap>
+</Place>
+<Place PlaceId="7213" ParentId="7211">
+<ShortName>Porjus (BD)</ShortName>
+<RSVCode>251004</RSVCode>
+<FullName>Porjus (BD)</FullName>
+<Latitude>66.9524305555556</Latitude>
+<Longitude>19.8070611111111</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>11</Landskap>
+</Place>
+<Place PlaceId="7214" ParentId="7211">
+<ShortName>Vuollerim (BD)</ShortName>
+<RSVCode>251005</RSVCode>
+<FullName>Vuollerim (BD)</FullName>
+<Latitude>66.4312555555556</Latitude>
+<Longitude>20.6131333333333</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>11</Landskap>
+</Place>
+<Place PlaceId="7215" ParentId="7204">
+<ShortName>Överkalix</ShortName>
+<PlaceKind>Kommun</PlaceKind>
+<RSVCode>2513</RSVCode>
+<FullName>Överkalix</FullName>
+<Latitude>66.3270222222222</Latitude>
+<Longitude>22.8427194444444</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+</Place>
+<Place PlaceId="7216" ParentId="7215">
+<ShortName>Överkalix (BD)</ShortName>
+<RSVCode>251301</RSVCode>
+<FullName>Överkalix (BD)</FullName>
+<Latitude>66.3270222222222</Latitude>
+<Longitude>22.8427194444444</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="7217" ParentId="7204">
+<ShortName>Kalix</ShortName>
+<PlaceKind>Kommun</PlaceKind>
+<RSVCode>2514</RSVCode>
+<FullName>Kalix</FullName>
+<Latitude>65.8847972222222</Latitude>
+<Longitude>22.8934972222222</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+</Place>
+<Place PlaceId="7218" ParentId="7217">
+<ShortName>Nederkalix (BD)</ShortName>
+<RSVCode>251401</RSVCode>
+<FullName>Nederkalix (BD)</FullName>
+<Latitude>65.8540916666667</Latitude>
+<Longitude>23.1324194444444</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="7219" ParentId="7217">
+<ShortName>Töre kbfd (BD)</ShortName>
+<RSVCode>251402</RSVCode>
+<FullName>Töre kbfd (BD)</FullName>
+<Latitude>65.915375</Latitude>
+<Longitude>22.6530638888889</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="7220" ParentId="7217">
+<ShortName>Morjärvs kbfd (BD)</ShortName>
+<RSVCode>251403</RSVCode>
+<FullName>Morjärvs kbfd (BD)</FullName>
+<Latitude>66.0662194444444</Latitude>
+<Longitude>22.7016305555556</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="7221" ParentId="7204">
+<ShortName>Övertorneå</ShortName>
+<PlaceKind>Kommun</PlaceKind>
+<RSVCode>2518</RSVCode>
+<FullName>Övertorneå</FullName>
+<Latitude>66.4199888888889</Latitude>
+<Longitude>23.7398416666667</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+</Place>
+<Place PlaceId="7222" ParentId="7221">
+<ShortName>Övertorneå (BD)</ShortName>
+<RSVCode>251801</RSVCode>
+<FullName>Övertorneå (BD)</FullName>
+<Latitude>66.3910166666667</Latitude>
+<Longitude>23.6567916666667</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="7223" ParentId="7221">
+<ShortName>Svanstein (BD)</ShortName>
+<RSVCode>251802</RSVCode>
+<FullName>Svanstein (BD)</FullName>
+<Latitude>66.6540277777778</Latitude>
+<Longitude>23.85555</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="7224" ParentId="7221">
+<ShortName>Hietaniemi (BD)</ShortName>
+<RSVCode>251803</RSVCode>
+<FullName>Hietaniemi (BD)</FullName>
+<Latitude>66.2148388888889</Latitude>
+<Longitude>23.7087333333333</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="7225" ParentId="7204">
+<ShortName>Pajala</ShortName>
+<PlaceKind>Kommun</PlaceKind>
+<RSVCode>2521</RSVCode>
+<FullName>Pajala</FullName>
+<Latitude>67.3186083333333</Latitude>
+<Longitude>22.9999055555556</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+</Place>
+<Place PlaceId="7226" ParentId="7225">
+<ShortName>Pajala (BD)</ShortName>
+<RSVCode>252101</RSVCode>
+<FullName>Pajala (BD)</FullName>
+<Latitude>67.2091472222222</Latitude>
+<Longitude>23.3849194444444</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="7227" ParentId="7225">
+<ShortName>Muonionalusta (BD)</ShortName>
+<RSVCode>252103</RSVCode>
+<FullName>Muonionalusta (BD)</FullName>
+<Latitude>67.9454305555555</Latitude>
+<Longitude>23.4332138888889</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="7228" ParentId="7225">
+<ShortName>Korpilombolo (BD)</ShortName>
+<RSVCode>252104</RSVCode>
+<FullName>Korpilombolo (BD)</FullName>
+<Latitude>66.8522166666667</Latitude>
+<Longitude>23.050325</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="7229" ParentId="7225">
+<ShortName>Tärendö (BD)</ShortName>
+<RSVCode>252105</RSVCode>
+<FullName>Tärendö (BD)</FullName>
+<Latitude>67.1567055555556</Latitude>
+<Longitude>22.6357361111111</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="7230" ParentId="7225">
+<ShortName>Junosuando (BD)</ShortName>
+<RSVCode>252106</RSVCode>
+<FullName>Junosuando (BD)</FullName>
+<Latitude>67.4272722222222</Latitude>
+<Longitude>22.5047694444444</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="7231" ParentId="7204">
+<ShortName>Gällivare</ShortName>
+<PlaceKind>Kommun</PlaceKind>
+<RSVCode>2523</RSVCode>
+<FullName>Gällivare</FullName>
+<Latitude>67.1116083333333</Latitude>
+<Longitude>21.1204083333333</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+</Place>
+<Place PlaceId="7232" ParentId="7231">
+<ShortName>Gällivare kbfd (BD)</ShortName>
+<RSVCode>252301</RSVCode>
+<FullName>Gällivare kbfd (BD)</FullName>
+<Latitude>67.1324027777778</Latitude>
+<Longitude>20.65935</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>11</Landskap>
+</Place>
+<Place PlaceId="7233" ParentId="7231">
+<ShortName>Nattavaara kbfd (BD)</ShortName>
+<RSVCode>252302</RSVCode>
+<FullName>Nattavaara kbfd (BD)</FullName>
+<Latitude>66.7559722222222</Latitude>
+<Longitude>21.0212222222222</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>11</Landskap>
+</Place>
+<Place PlaceId="7234" ParentId="7231">
+<ShortName>Hakkas (BD)</ShortName>
+<RSVCode>252304</RSVCode>
+<FullName>Hakkas (BD)</FullName>
+<Latitude>66.9148861111111</Latitude>
+<Longitude>21.5675944444444</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>11</Landskap>
+</Place>
+<Place PlaceId="7235" ParentId="7231">
+<ShortName>Nilivaara (BD)</ShortName>
+<RSVCode>252305</RSVCode>
+<FullName>Nilivaara (BD)</FullName>
+<Latitude>67.2225</Latitude>
+<Longitude>21.5989277777778</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>11</Landskap>
+</Place>
+<Place PlaceId="7236" ParentId="7231">
+<ShortName>Malmberget (BD)</ShortName>
+<RSVCode>252306</RSVCode>
+<FullName>Malmberget (BD)</FullName>
+<Latitude>67.1728111111111</Latitude>
+<Longitude>20.6491805555556</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>11</Landskap>
+</Place>
+<Place PlaceId="7237" ParentId="7204">
+<ShortName>Älvsbyn</ShortName>
+<PlaceKind>Kommun</PlaceKind>
+<RSVCode>2560</RSVCode>
+<FullName>Älvsbyn</FullName>
+<Latitude>65.6712277777778</Latitude>
+<Longitude>21.0177805555556</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+</Place>
+<Place PlaceId="7238" ParentId="7237">
+<ShortName>Älvsby (BD)</ShortName>
+<RSVCode>256002</RSVCode>
+<FullName>Älvsby (BD)</FullName>
+<Latitude>65.6712277777778</Latitude>
+<Longitude>21.0177805555556</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="7239" ParentId="7204">
+<ShortName>Luleå</ShortName>
+<PlaceKind>Kommun</PlaceKind>
+<RSVCode>2580</RSVCode>
+<FullName>Luleå</FullName>
+<Latitude>65.6664111111111</Latitude>
+<Longitude>22.1658972222222</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+</Place>
+<Place PlaceId="7240" ParentId="7239">
+<ShortName>Luleå domkyrkoförsamling (BD)</ShortName>
+<RSVCode>258001</RSVCode>
+<FullName>Luleå domkyrkoförsamling (BD)</FullName>
+<Latitude>65.5826888888889</Latitude>
+<Longitude>22.1483416666667</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="7241" ParentId="7239">
+<ShortName>Örnäset (BD)</ShortName>
+<RSVCode>258002</RSVCode>
+<FullName>Örnäset (BD)</FullName>
+<Latitude>65.5805055555556</Latitude>
+<Longitude>22.2021555555556</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="7242" ParentId="7239">
+<ShortName>Nederluleå (BD)</ShortName>
+<RSVCode>258003</RSVCode>
+<FullName>Nederluleå (BD)</FullName>
+<Latitude>65.6457694444445</Latitude>
+<Longitude>22.0279777777778</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="7243" ParentId="7239">
+<ShortName>Råneå (BD)</ShortName>
+<RSVCode>258004</RSVCode>
+<FullName>Råneå (BD)</FullName>
+<Latitude>65.8565694444444</Latitude>
+<Longitude>22.2860916666667</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="7244" ParentId="7204">
+<ShortName>Piteå</ShortName>
+<PlaceKind>Kommun</PlaceKind>
+<RSVCode>2581</RSVCode>
+<FullName>Piteå</FullName>
+<Latitude>65.3321805555556</Latitude>
+<Longitude>21.519275</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+</Place>
+<Place PlaceId="7245" ParentId="7244">
+<ShortName>Piteå stadsförsamling (BD)</ShortName>
+<RSVCode>258101</RSVCode>
+<FullName>Piteå stadsförsamling (BD)</FullName>
+<Latitude>65.3183472222222</Latitude>
+<Longitude>21.4835972222222</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="7246" ParentId="7244">
+<ShortName>Hortlax (BD)</ShortName>
+<RSVCode>258102</RSVCode>
+<FullName>Hortlax (BD)</FullName>
+<Latitude>65.2839527777778</Latitude>
+<Longitude>21.4023472222222</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="7247" ParentId="7244">
+<ShortName>Piteå kbfd (BD)</ShortName>
+<RSVCode>258103</RSVCode>
+<FullName>Piteå kbfd (BD)</FullName>
+<Latitude>65.3462083333333</Latitude>
+<Longitude>21.3964694444444</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="7248" ParentId="7244">
+<ShortName>Markbygdens kbfd (BD)</ShortName>
+<RSVCode>258104</RSVCode>
+<FullName>Markbygdens kbfd (BD)</FullName>
+<Latitude>65.3866944444444</Latitude>
+<Longitude>20.32375</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="7249" ParentId="7244">
+<ShortName>Norrfjärden (BD)</ShortName>
+<RSVCode>258105</RSVCode>
+<FullName>Norrfjärden (BD)</FullName>
+<Latitude>65.4221888888889</Latitude>
+<Longitude>21.4914611111111</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="7250" ParentId="7204">
+<ShortName>Boden</ShortName>
+<PlaceKind>Kommun</PlaceKind>
+<RSVCode>2582</RSVCode>
+<FullName>Boden</FullName>
+<Latitude>66.0034333333333</Latitude>
+<Longitude>21.4815805555556</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+</Place>
+<Place PlaceId="7251" ParentId="7250">
+<ShortName>Överluleå (BD)</ShortName>
+<RSVCode>258201</RSVCode>
+<FullName>Överluleå (BD)</FullName>
+<Latitude>65.8298027777778</Latitude>
+<Longitude>21.6866611111111</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="7252" ParentId="7250">
+<ShortName>Gunnarsbyn (BD)</ShortName>
+<RSVCode>258202</RSVCode>
+<FullName>Gunnarsbyn (BD)</FullName>
+<Latitude>66.0892305555555</Latitude>
+<Longitude>21.806075</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="7253" ParentId="7250">
+<ShortName>Edefors (BD)</ShortName>
+<RSVCode>258203</RSVCode>
+<FullName>Edefors (BD)</FullName>
+<Latitude>66.0898861111111</Latitude>
+<Longitude>20.9498166666667</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="7254" ParentId="7204">
+<ShortName>Haparanda</ShortName>
+<PlaceKind>Kommun</PlaceKind>
+<RSVCode>2583</RSVCode>
+<FullName>Haparanda</FullName>
+<Latitude>65.9394138888889</Latitude>
+<Longitude>24.0446777777778</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+</Place>
+<Place PlaceId="7255" ParentId="7254">
+<ShortName>Nedertorneå-Haparanda (BD)</ShortName>
+<RSVCode>258301</RSVCode>
+<FullName>Nedertorneå-Haparanda (BD)</FullName>
+<Latitude>65.8330916666667</Latitude>
+<Longitude>24.1214277777778</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="7256" ParentId="7254">
+<ShortName>Karl Gustav (BD)</ShortName>
+<RSVCode>258304</RSVCode>
+<FullName>Karl Gustav (BD)</FullName>
+<Latitude>66.0457</Latitude>
+<Longitude>23.9672916666667</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="7257" ParentId="7204">
+<ShortName>Kiruna</ShortName>
+<PlaceKind>Kommun</PlaceKind>
+<RSVCode>2584</RSVCode>
+<FullName>Kiruna</FullName>
+<Latitude>67.762</Latitude>
+<Longitude>21.1366861111111</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+</Place>
+<Place PlaceId="7258" ParentId="7257">
+<ShortName>Jukkasjärvi (BD)</ShortName>
+<RSVCode>258401</RSVCode>
+<FullName>Jukkasjärvi (BD)</FullName>
+<Latitude>67.8464583333333</Latitude>
+<Longitude>20.6212638888889</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>11</Landskap>
+</Place>
+<Place PlaceId="7259" ParentId="7257">
+<ShortName>Vittangi (BD)</ShortName>
+<RSVCode>258402</RSVCode>
+<FullName>Vittangi (BD)</FullName>
+<Latitude>67.6759555555556</Latitude>
+<Longitude>21.6483027777778</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<YName>-65</YName>
+<Landskap>11</Landskap>
+</Place>
+<Place PlaceId="7260" ParentId="7257">
+<ShortName>Karesuando (BD)</ShortName>
+<RSVCode>258403</RSVCode>
+<FullName>Karesuando (BD)</FullName>
+<Latitude>68.4417305555556</Latitude>
+<Longitude>22.4815305555556</Longitude>
+<ShowAtZoom>9</ShowAtZoom>
+<XName>-12</XName>
+<Landskap>11</Landskap>
+</Place>
+<Place PlaceId="7353" ParentId="7250">
+<ShortName>Bodens kbfd (BD)</ShortName>
+<RSVCode>258200</RSVCode>
+<FullName>Bodens kbfd (BD)</FullName>
+<Latitude>65.8298027777778</Latitude>
+<Longitude>21.6866611111111</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="7625" ParentId="7231">
+<ShortName>Hakkas kbfd (BD)</ShortName>
+<RSVCode>252300</RSVCode>
+<FullName>Hakkas kbfd (BD)</FullName>
+<Latitude>66.9148888888889</Latitude>
+<Longitude>21.5675944444444</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>11</Landskap>
+</Place>
+<Place PlaceId="7634" ParentId="7254">
+<ShortName>Haparanda kbfd (BD)</ShortName>
+<RSVCode>258300</RSVCode>
+<FullName>Haparanda kbfd (BD)</FullName>
+<Latitude>65.8330916666667</Latitude>
+<Longitude>24.1214277777778</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="7738" ParentId="7211">
+<ShortName>Jokkmokk kbfd (BD)</ShortName>
+<RSVCode>251000</RSVCode>
+<FullName>Jokkmokk kbfd (BD)</FullName>
+<Latitude>66.605075</Latitude>
+<Longitude>19.8416666666667</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>11</Landskap>
+</Place>
+<Place PlaceId="7798" ParentId="7225">
+<ShortName>Kaunisvaara kbfd (BD)</ShortName>
+<RSVCode>252100</RSVCode>
+<FullName>Kaunisvaara kbfd (BD)</FullName>
+<Latitude>67.2091472222222</Latitude>
+<Longitude>23.3849194444444</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="7800" ParentId="7225">
+<ShortName>Kengis bruksförsamling (BD)</ShortName>
+<RSVCode>252100</RSVCode>
+<FullName>Kengis bruksförsamling (BD)</FullName>
+<Latitude>67.2091472222222</Latitude>
+<Longitude>23.3849194444444</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="7855" ParentId="7211">
+<ShortName>Kvikkjokk (BD)</ShortName>
+<RSVCode>251000</RSVCode>
+<FullName>Kvikkjokk (BD)</FullName>
+<Latitude>66.9503222222222</Latitude>
+<Longitude>17.7200388888889</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>11</Landskap>
+</Place>
+<Place PlaceId="7856" ParentId="7211">
+<ShortName>Kvikkjokks kbfd (BD)</ShortName>
+<RSVCode>251000</RSVCode>
+<FullName>Kvikkjokks kbfd (BD)</FullName>
+<Latitude>66.9503222222222</Latitude>
+<Longitude>17.7200388888889</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>11</Landskap>
+</Place>
+<Place PlaceId="7885" ParentId="7215">
+<ShortName>Lansjärvs kbfd (BD)</ShortName>
+<RSVCode>251300</RSVCode>
+<FullName>Lansjärvs kbfd (BD)</FullName>
+<Latitude>66.6503</Latitude>
+<Longitude>22.2107944444444</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="7971" ParentId="7231">
+<ShortName>Malmbergets kbfd (BD)</ShortName>
+<RSVCode>252300</RSVCode>
+<FullName>Malmbergets kbfd (BD)</FullName>
+<Latitude>67.1728111111111</Latitude>
+<Longitude>20.6491833333333</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>11</Landskap>
+</Place>
+<Place PlaceId="8026" ParentId="7208">
+<ShortName>Nasafjäll (BD)</ShortName>
+<RSVCode>250600</RSVCode>
+<FullName>Nasafjäll (BD)</FullName>
+<Latitude>66.471925</Latitude>
+<Longitude>15.4046305555556</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>11</Landskap>
+</Place>
+<Place PlaceId="8028" ParentId="7254">
+<ShortName>Nedertorneå (BD)</ShortName>
+<RSVCode>258300</RSVCode>
+<FullName>Nedertorneå (BD)</FullName>
+<Latitude>65.8330916666667</Latitude>
+<Longitude>24.1214277777778</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="8029" ParentId="7254">
+<ShortName>Nedertorneå kbfd (BD)</ShortName>
+<RSVCode>258300</RSVCode>
+<FullName>Nedertorneå kbfd (BD)</FullName>
+<Latitude>65.8330916666667</Latitude>
+<Longitude>24.1214277777778</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="8033" ParentId="7231">
+<ShortName>Niilivaara kbfd (BD)</ShortName>
+<RSVCode>252300</RSVCode>
+<FullName>Niilivaara kbfd (BD)</FullName>
+<Latitude>67.2225</Latitude>
+<Longitude>21.5989277777778</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>11</Landskap>
+</Place>
+<Place PlaceId="8122" ParentId="7225">
+<ShortName>Pajala kbfd (BD)</ShortName>
+<RSVCode>252100</RSVCode>
+<FullName>Pajala kbfd (BD)</FullName>
+<Latitude>67.2091472222222</Latitude>
+<Longitude>23.3849194444444</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="8135" ParentId="7244">
+<ShortName>Piteå landsförsamling (BD)</ShortName>
+<RSVCode>258171</RSVCode>
+<FullName>Piteå landsförsamling (BD)</FullName>
+<Latitude>65.3462083333333</Latitude>
+<Longitude>21.3964694444444</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="8138" ParentId="7211">
+<ShortName>Porjus kbfd (BD)</ShortName>
+<RSVCode>251000</RSVCode>
+<FullName>Porjus kbfd (BD)</FullName>
+<Latitude>66.9524361111111</Latitude>
+<Longitude>19.8067638888889</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>11</Landskap>
+</Place>
+<Place PlaceId="8139" ParentId="7211">
+<ShortName>Puottaure kbfd (BD)</ShortName>
+<RSVCode>251000</RSVCode>
+<FullName>Puottaure kbfd (BD)</FullName>
+<Latitude>66.1905972222222</Latitude>
+<Longitude>20.2321972222222</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>11</Landskap>
+</Place>
+<Place PlaceId="8171" ParentId="7239">
+<ShortName>Råneå nedre kbfd (BD)</ShortName>
+<RSVCode>258000</RSVCode>
+<FullName>Råneå nedre kbfd (BD)</FullName>
+<Latitude>65.8565694444444</Latitude>
+<Longitude>22.2860916666667</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="8172" ParentId="7250">
+<ShortName>Råneå övre kbfd (BD)</ShortName>
+<RSVCode>258200</RSVCode>
+<FullName>Råneå övre kbfd (BD)</FullName>
+<Latitude>66.0892305555555</Latitude>
+<Longitude>21.806075</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="8255" ParentId="7254">
+<ShortName>Seskarö kbfd (BD)</ShortName>
+<RSVCode>258300</RSVCode>
+<FullName>Seskarö kbfd (BD)</FullName>
+<Latitude>65.7321</Latitude>
+<Longitude>23.7423861111111</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="8259" ParentId="7208">
+<ShortName>Silbojokk (BD)</ShortName>
+<RSVCode>250600</RSVCode>
+<FullName>Silbojokk (BD)</FullName>
+<Latitude>66.5168388888889</Latitude>
+<Longitude>16.3058972222222</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>11</Landskap>
+</Place>
+<Place PlaceId="8366" ParentId="7221">
+<ShortName>Svansteins kbfd (BD)</ShortName>
+<RSVCode>251800</RSVCode>
+<FullName>Svansteins kbfd (BD)</FullName>
+<Latitude>66.6540277777778</Latitude>
+<Longitude>23.85555</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="8458" ParentId="7221">
+<ShortName>Turtola (BD)</ShortName>
+<RSVCode>251800</RSVCode>
+<FullName>Turtola (BD)</FullName>
+<Latitude>66.6540277777778</Latitude>
+<Longitude>23.85555</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="8470" ParentId="7217">
+<ShortName>Töre (BD)</ShortName>
+<RSVCode>251471</RSVCode>
+<FullName>Töre (BD)</FullName>
+<Latitude>65.915375</Latitude>
+<Longitude>22.6530638888889</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="8536" ParentId="7231">
+<ShortName>Vitträsks kbfd (BD)</ShortName>
+<RSVCode>252300</RSVCode>
+<FullName>Vitträsks kbfd (BD)</FullName>
+<Latitude>66.7559722222222</Latitude>
+<Longitude>21.0212222222222</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>11</Landskap>
+</Place>
+<Place PlaceId="8543" ParentId="7211">
+<ShortName>Vuollerims kbfd (BD)</ShortName>
+<RSVCode>251000</RSVCode>
+<FullName>Vuollerims kbfd (BD)</FullName>
+<Latitude>66.4312583333333</Latitude>
+<Longitude>20.6131333333333</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>11</Landskap>
+</Place>
+<Place PlaceId="8678" ParentId="7215">
+<ShortName>Överkalix kbfd (BD)</ShortName>
+<RSVCode>251300</RSVCode>
+<FullName>Överkalix kbfd (BD)</FullName>
+<Latitude>66.3270222222222</Latitude>
+<Longitude>22.8427194444444</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="8681" ParentId="7250">
+<ShortName>Överluleå kbfd (BD)</ShortName>
+<RSVCode>258200</RSVCode>
+<FullName>Överluleå kbfd (BD)</FullName>
+<Latitude>65.8298027777778</Latitude>
+<Longitude>21.6866611111111</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>13</Landskap>
+</Place>
+<Place PlaceId="8684" ParentId="7221">
+<ShortName>Övertorneå kbfd (BD)</ShortName>
+<RSVCode>251800</RSVCode>
+<FullName>Övertorneå kbfd (BD)</FullName>
+<Latitude>66.3910194444444</Latitude>
+<Longitude>23.6567944444444</Longitude>
+<ShowAtZoom>0</ShowAtZoom>
+<Landskap>13</Landskap>
+</Place>
+<PlaceKind PlaceKindImage="1">BD</PlaceKind>
+</Disgen>

@@ -1,0 +1,1131 @@
+console.log('WestFamilyTree Electron main.js loaded:', __filename);
+console.log('Node version:', process.version);
+console.log('Electron version:', process.versions.electron);
+console.log('IPC-handlers for last-opened-file are active!');
+// Inställnings-store för senaste fil
+const { loadSettings, saveSettings } = require('./settingsStore');
+
+const { ipcMain, app, BrowserWindow, Menu, protocol } = require('electron');
+// IPC handler for saving the entire database (people, sources, places, meta)
+ipcMain.handle('save-database', async (event, fileHandle, data) => {
+  // DEBUG: Logga vad som sparas (allra först)
+  const dbPath = fileHandle && fileHandle.path ? fileHandle.path : fileHandle;
+  console.log('SPARAR TILL SQLITE:', {
+    dbPath,
+    antalPersoner: Array.isArray(data?.people) ? data.people.length : 'ej array',
+    personer: (Array.isArray(data?.people) && data.people.length > 0) ? data.people.map(p => ({ id: p.id, firstName: p.firstName, lastName: p.lastName })) : data?.people
+  });
+  const sqlite3 = require('sqlite3').verbose();
+  if (!dbPath) return { error: 'Ingen fil angiven' };
+  try {
+    const db = new sqlite3.Database(dbPath);
+    // Create tables if missing
+    await new Promise((resolve, reject) => {
+      db.run(`CREATE TABLE IF NOT EXISTS people (
+        id TEXT PRIMARY KEY,
+        refNumber INTEGER,
+        firstName TEXT,
+        lastName TEXT,
+        gender TEXT,
+        events TEXT,
+        notes TEXT,
+        links TEXT,
+        relations TEXT
+      )`, err => err ? reject(err) : resolve());
+    });
+    await new Promise((resolve, reject) => {
+      db.run(`CREATE TABLE IF NOT EXISTS sources (
+        id TEXT PRIMARY KEY,
+        title TEXT,
+        archive TEXT,
+        volume TEXT,
+        page TEXT,
+        date TEXT,
+        tags TEXT,
+        note TEXT,
+        // Inställnings-store för senaste fil
+        const { loadSettings, saveSettings } = require('./settingsStore');
+        const { ipcMain, app, BrowserWindow, Menu, protocol } = require('electron');
+
+        // IPC: Hämta senaste öppnade fil
+        ipcMain.handle('get-last-opened-file', async () => {
+          const settings = loadSettings();
+          return settings.lastOpenedFile || null;
+        });
+
+        // IPC: Sätt senaste öppnade fil (kan användas vid save as)
+        ipcMain.handle('set-last-opened-file', async (event, filePath) => {
+          const settings = loadSettings();
+          settings.lastOpenedFile = filePath;
+          saveSettings(settings);
+          return true;
+        });
+        aid TEXT,
+        nad TEXT,
+        bildid TEXT,
+        imagePage TEXT,
+        dateAdded TEXT,
+        trust INTEGER
+      )`, err => err ? reject(err) : resolve());
+    });
+    await new Promise((resolve, reject) => {
+      db.run(`CREATE TABLE IF NOT EXISTS places (
+        id TEXT PRIMARY KEY,
+        country TEXT,
+        region TEXT,
+        municipality TEXT,
+        parish TEXT,
+        village TEXT,
+        specific TEXT,
+        matched_place_id TEXT
+      )`, err => err ? reject(err) : resolve());
+    });
+    await new Promise((resolve, reject) => {
+      db.run(`CREATE TABLE IF NOT EXISTS meta (
+        key TEXT PRIMARY KEY,
+        value TEXT
+      )`, err => err ? reject(err) : resolve());
+    });
+    // Clear tables before insert (simple overwrite)
+    await new Promise((resolve, reject) => db.run('DELETE FROM people', err => err ? reject(err) : resolve()));
+    await new Promise((resolve, reject) => db.run('DELETE FROM sources', err => err ? reject(err) : resolve()));
+    await new Promise((resolve, reject) => db.run('DELETE FROM places', err => err ? reject(err) : resolve()));
+    await new Promise((resolve, reject) => db.run('DELETE FROM meta', err => err ? reject(err) : resolve()));
+    // Insert people
+    for (const p of data.people || []) {
+      await new Promise((resolve, reject) => {
+        db.run(`INSERT INTO people (id, refNumber, firstName, lastName, gender, events, notes, links, relations) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [p.id, p.refNumber, p.firstName, p.lastName, p.gender || '', JSON.stringify(p.events || []), p.notes || '', JSON.stringify(p.links || {}), JSON.stringify(p.relations || {})],
+          err => err ? reject(err) : resolve()
+        );
+      });
+    }
+    // Insert sources
+    for (const s of data.sources || []) {
+      await new Promise((resolve, reject) => {
+        db.run(`INSERT INTO sources (id, title, archive, volume, page, date, tags, note, aid, nad, bildid, imagePage, dateAdded, trust) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [s.id, s.title || '', s.archive || '', s.volume || '', s.page || '', s.date || '', s.tags || '', s.note || '', s.aid || '', s.nad || '', s.bildid || '', s.imagePage || '', s.dateAdded || '', s.trust || 0],
+          err => err ? reject(err) : resolve()
+        );
+      });
+    }
+    // Insert places
+    for (const pl of data.places || []) {
+      await new Promise((resolve, reject) => {
+        db.run(`INSERT INTO places (id, country, region, municipality, parish, village, specific, matched_place_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [pl.id, pl.country || '', pl.region || '', pl.municipality || '', pl.parish || '', pl.village || '', pl.specific || '', pl.matched_place_id || ''],
+          err => err ? reject(err) : resolve()
+        );
+      });
+    }
+    // Insert meta
+    for (const [key, value] of Object.entries(data.meta || {})) {
+      await new Promise((resolve, reject) => {
+        db.run(`INSERT INTO meta (key, value) VALUES (?, ?)`,
+          [key, typeof value === 'object' ? JSON.stringify(value) : String(value)],
+          err => err ? reject(err) : resolve()
+        );
+      });
+    }
+    db.close();
+    return { success: true, dbPath };
+  } catch (err) {
+    return { error: err.message, dbPath };
+  }
+});
+// IPC handler for open-database-dialog (for opening .db/.sqlite files)
+ipcMain.handle('open-database-dialog', async (event) => {
+  const win = BrowserWindow.getFocusedWindow();
+  const result = await dialog.showOpenDialog(win, {
+    title: 'Öppna databas...',
+    properties: ['openFile'],
+    filters: [
+      { name: 'SQLite Database', extensions: ['db', 'sqlite'] }
+    ]
+  });
+  if (result.canceled || !result.filePaths || result.filePaths.length === 0) return null;
+  return result.filePaths[0];
+});
+// IPC handler for opening a SQLite .db file and reading all people
+ipcMain.handle('open-database', async (event, filePath) => {
+  // Spara senaste öppnade fil
+  if (filePath) {
+    const settings = loadSettings();
+    settings.lastOpenedFile = filePath;
+    saveSettings(settings);
+  }
+  // IPC handler for opening a SQLite .db file and reading all people
+  ipcMain.handle('open-database', async (event, filePath) => {
+    // Spara senaste öppnade fil
+    if (filePath) {
+      const settings = loadSettings();
+      settings.lastOpenedFile = filePath;
+      saveSettings(settings);
+    }
+    const sqlite3 = require('sqlite3').verbose();
+    let dbPath = filePath;
+    if (!dbPath) return { error: 'Ingen fil angiven' };
+    try {
+      const db = new sqlite3.Database(dbPath);
+      // Helper to read a table and parse JSON columns
+      function readTable(table, jsonCols = []) {
+        return new Promise((resolve, reject) => {
+          db.all(`SELECT * FROM ${table}`, (err, rows) => {
+            if (err) return resolve([]); // tom array om tabellen saknas
+            resolve(rows.map(row => {
+              const parsed = { ...row };
+              for (const col of jsonCols) {
+                if (parsed[col]) {
+                  try { parsed[col] = JSON.parse(parsed[col]); } catch (e) { parsed[col] = null; }
+                }
+              }
+              return parsed;
+            }));
+          });
+        });
+      }
+      const people = await readTable('people', ['events', 'links', 'relations']);
+      const sources = await readTable('sources');
+      const places = await readTable('places');
+      // Meta-data: försök läsa tabellen 'meta', annars tomt objekt
+      const metaRows = await readTable('meta');
+      let meta = {};
+      if (metaRows.length > 0) {
+        // Om meta-tabellen har en 'key' och 'value' kolumn, bygg objekt
+        if ('key' in metaRows[0] && 'value' in metaRows[0]) {
+          meta = {};
+          for (const row of metaRows) {
+            meta[row.key] = row.value;
+          }
+        } else {
+          meta = metaRows[0];
+        }
+      }
+      db.close();
+      return { people, sources, places, meta, dbPath };
+    } catch (err) {
+      return { error: err.message, dbPath };
+    }
+  });
+  const sqlite3 = require('sqlite3').verbose();
+  let dbPath = filePath;
+  if (!dbPath) return { error: 'Ingen fil angiven' };
+  try {
+    const db = new sqlite3.Database(dbPath);
+    // Helper to read a table and parse JSON columns
+    function readTable(table, jsonCols = []) {
+      return new Promise((resolve, reject) => {
+        db.all(`SELECT * FROM ${table}`, (err, rows) => {
+          if (err) return resolve([]); // tom array om tabellen saknas
+          resolve(rows.map(row => {
+            const parsed = { ...row };
+            for (const col of jsonCols) {
+              if (parsed[col]) {
+                try { parsed[col] = JSON.parse(parsed[col]); } catch (e) { parsed[col] = null; }
+              }
+            }
+            return parsed;
+          }));
+        });
+      });
+    }
+    const people = await readTable('people', ['events', 'links', 'relations']);
+    const sources = await readTable('sources');
+    const places = await readTable('places');
+    // Meta-data: försök läsa tabellen 'meta', annars tomt objekt
+    const metaRows = await readTable('meta');
+    let meta = {};
+    if (metaRows.length > 0) {
+      // Om meta-tabellen har en 'key' och 'value' kolumn, bygg objekt
+      if ('key' in metaRows[0] && 'value' in metaRows[0]) {
+        meta = {};
+        for (const row of metaRows) {
+          meta[row.key] = row.value;
+        }
+      } else {
+        meta = metaRows[0];
+      }
+    }
+    db.close();
+    return { people, sources, places, meta, dbPath };
+  } catch (err) {
+    return { error: err.message, dbPath };
+  }
+});
+const path = require('path');
+const fs = require('fs');
+
+// Rensa gamla .sqlite-filer i media-mappen vid appstart (behåll bara de 5 senaste)
+const mediaDir = path.join(__dirname, '..', 'media');
+try {
+  const files = fs.readdirSync(mediaDir)
+    .filter(f => f.endsWith('.sqlite'))
+    .map(f => ({
+      name: f,
+      path: path.join(mediaDir, f),
+      mtime: fs.statSync(path.join(mediaDir, f)).mtime.getTime(),
+      size: fs.statSync(path.join(mediaDir, f)).size
+    }));
+  // Sortera efter senaste ändring
+  files.sort((a, b) => b.mtime - a.mtime);
+  // Behåll de 5 senaste, ta bort resten
+  const toDelete = files.slice(5);
+  for (const file of toDelete) {
+    fs.unlinkSync(file.path);
+    console.log('[cleanup] Tog bort gammal databasfil:', file.path);
+  }
+  // Ta bort tomma filer bland de 5 senaste
+  for (const file of files.slice(0, 5)) {
+    if (file.size === 0) {
+      fs.unlinkSync(file.path);
+      console.log('[cleanup] Tog bort tom databasfil:', file.path);
+    }
+  }
+} catch (err) {
+  console.error('[cleanup] Fel vid rensning av media-mapp:', err);
+}
+function createApplicationMenu() {
+  const isMac = process.platform === 'darwin';
+  const template = [
+    ...(isMac ? [{
+      label: app.name,
+      submenu: [
+        { role: 'about', label: `Om ${app.name}` },
+        { type: 'separator' },
+        { role: 'services' },
+        { type: 'separator' },
+        { role: 'hide', label: `Göm ${app.name}` },
+        { role: 'hideOthers', label: 'Göm övriga' },
+        { role: 'unhide', label: 'Visa alla' },
+        { type: 'separator' },
+        { role: 'quit', label: `Avsluta ${app.name}` }
+      ]
+    }] : []),
+    {
+      label: 'Arkiv',
+      submenu: [
+        {
+          label: 'Ny databas',
+          accelerator: 'CmdOrCtrl+N',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow();
+            if (win) win.webContents.send('menu-action', 'new-database');
+          }
+        },
+        {
+          label: 'Öppna',
+          accelerator: 'CmdOrCtrl+O',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow();
+            if (win) win.webContents.send('menu-action', 'open-database');
+          }
+        },
+        // Ta bort JSON-relaterade undermenyer, endast SQLite
+        { type: 'separator' },
+        {
+          label: 'Spara',
+          accelerator: 'CmdOrCtrl+S',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow();
+            if (win) win.webContents.send('menu-action', 'save-database');
+          }
+        },
+        {
+          label: 'Spara som',
+          accelerator: 'CmdOrCtrl+Shift+S',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow();
+            if (win) win.webContents.send('menu-action', 'save-as-database');
+          }
+        },
+        { type: 'separator' },
+        {
+          label: 'Exportera',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow();
+            if (win) win.webContents.send('menu-action', 'export-data');
+          }
+        },
+        {
+          label: 'Importera',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow();
+            if (win) win.webContents.send('menu-action', 'import-data');
+          }
+        },
+        { type: 'separator' },
+        {
+          label: 'Stäng databas',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow();
+            if (win) win.webContents.send('menu-action', 'close-database');
+          }
+        },
+        { type: 'separator' },
+        {
+          label: 'Inställningar',
+          accelerator: 'CmdOrCtrl+,',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow();
+            if (win) win.webContents.send('menu-action', 'settings');
+          }
+        },
+        { type: 'separator' },
+        {
+          label: 'Skriv ut',
+          accelerator: 'CmdOrCtrl+P',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow();
+            if (win) win.webContents.print();
+          }
+        }
+      ]
+    },
+    {
+      label: 'Redigera',
+      submenu: [
+        { role: 'undo', label: 'Ångra' },
+        { role: 'redo', label: 'Gör om' },
+        { type: 'separator' },
+        { role: 'cut', label: 'Klipp ut' },
+        { role: 'copy', label: 'Kopiera' },
+        { role: 'paste', label: 'Klistra in' }
+      ]
+    },
+    {
+      label: 'Visa',
+      submenu: [
+        { role: 'reload', label: 'Ladda om' },
+        { role: 'toggleDevTools', label: 'Utvecklarverktyg' },
+        { type: 'separator' },
+        { role: 'togglefullscreen', label: 'Helskärm' }
+      ]
+    }
+  ];
+  const menu = Menu.buildFromTemplate(template);
+  Menu.setApplicationMenu(menu);
+}
+const openImage = require('./open-image');
+// Media-mapp i programmets katalog
+const IMAGE_ROOT = path.join(__dirname, '..', 'media');
+
+// IPC för att öppna bild i systemets visare
+ipcMain.on('open-image', (event, filePath) => {
+  const fullPath = forceImageRoot(filePath);
+  openImage(fullPath);
+});
+
+// Logga miljö och versioner för felsökning av teckenkodning
+console.log('==================== [ENV/LOCALE DEBUG] ====================');
+console.log('process.env.LANG:', process.env.LANG);
+console.log('process.env.LC_ALL:', process.env.LC_ALL);
+console.log('process.env.CHARSET:', process.env.CHARSET);
+console.log('process.env.LANGUAGE:', process.env.LANGUAGE);
+console.log('process.platform:', process.platform);
+console.log('process.versions:', process.versions);
+console.log('============================================================');
+
+// Hjälpfunktion: Kombinera rot-mappen med den relativa sökvägen från appen.
+function forceImageRoot(filePath) {
+  let relPath = filePath;
+  
+  // Dekoda till UTF-8 om det är en Buffer eller felaktigt kodad sträng
+  if (Buffer.isBuffer(relPath)) {
+    relPath = relPath.toString('utf8');
+  }
+  
+  // Normalisera till forward slashes
+  relPath = relPath.replace(/\\/g, '/');
+  
+  // Om det är en absolut Windows-sökväg, extrahera bara filnamnet
+  if (relPath.includes(':')) {
+    // Ta bara filnamnet, inte hela sökvägen
+    relPath = path.basename(relPath);
+  }
+  
+  // Om sökvägen redan börjar med IMAGE_ROOT, ta bara den relativa delen
+  if (relPath.includes('media/')) {
+    const idx = relPath.indexOf('media/');
+    relPath = relPath.slice(idx + 6); // Efter 'media/'
+  }
+  
+  // Om det innehåller slashes, ta bara filnamnet
+  if (relPath.includes('/')) {
+    relPath = path.basename(relPath);
+  }
+  
+  console.log('[forceImageRoot] Input:', filePath);
+  console.log('[forceImageRoot] Processed relPath:', relPath);
+  console.log('[forceImageRoot] IMAGE_ROOT:', IMAGE_ROOT);
+  
+  // Säkerställ att vi inte försöker gå "uppåt" i mappstrukturen (../)
+  const safeRelativePath = path.normalize(relPath).replace(/^(\.\.[/\\])+/, '');
+  const fullPath = path.join(IMAGE_ROOT, safeRelativePath);
+  
+  console.log('[forceImageRoot] Final fullPath:', fullPath);
+  
+  // Kolla om filen finns
+  // ...existing code...
+  if (!fs.existsSync(fullPath)) {
+    console.error('[forceImageRoot] WARNING: File does not exist at:', fullPath);
+  }
+  
+  return fullPath;
+  // --- Endast Arkiv-meny ---
+  const archiveMenu = [
+    {
+      label: 'Arkiv',
+      submenu: [
+        { label: 'Ny databas', click: () => win.webContents.send('menu-action', 'new-database') },
+        { label: 'Öppna...', click: () => win.webContents.send('menu-action', 'open-database') },
+        { label: 'Senaste fil...', click: () => win.webContents.send('menu-action', 'recent-files') },
+        { type: 'separator' },
+        { label: 'Spara', click: () => win.webContents.send('menu-action', 'save-database') },
+        { label: 'Spara som...', click: () => win.webContents.send('menu-action', 'save-as-database') },
+        { type: 'separator' },
+        { label: 'Exportera...', click: () => win.webContents.send('menu-action', 'export-data') },
+        { label: 'Importera...', click: () => win.webContents.send('menu-action', 'import-data') },
+        { type: 'separator' },
+        { label: 'Stäng databas', click: () => win.webContents.send('menu-action', 'close-database') },
+        { type: 'separator' },
+        { label: 'Inställningar...', click: () => win.webContents.send('menu-action', 'settings') },
+        { label: 'Skriv ut...', click: () => win.webContents.send('menu-action', 'print') }
+      ]
+    }
+  ];
+  Menu.setApplicationMenu(Menu.buildFromTemplate(archiveMenu));
+}
+
+// IPC handler for saving a file
+// IPC handler for creating a new SQLite database (with Save As dialog)
+const sqlite3 = require('sqlite3').verbose();
+ipcMain.handle('create-new-database', async (event) => {
+  const { dialog } = require('electron');
+  const win = BrowserWindow.getFocusedWindow();
+  const result = await dialog.showSaveDialog(win, {
+    title: 'Skapa ny databas',
+    defaultPath: 'min_slakt.db',
+    filters: [
+      { name: 'SQLite Database', extensions: ['db', 'sqlite'] }
+    ]
+  });
+  if (result.canceled || !result.filePath) return null;
+  const dbPath = result.filePath;
+  const db = new sqlite3.Database(dbPath);
+  // Initiera tabeller om de inte finns
+  await new Promise((resolve, reject) => {
+    db.serialize(() => {
+      db.run(`CREATE TABLE IF NOT EXISTS people (
+        id TEXT PRIMARY KEY,
+        refNumber INTEGER,
+        firstName TEXT,
+        lastName TEXT,
+        gender TEXT,
+        events TEXT,
+        notes TEXT,
+        links TEXT,
+        relations TEXT
+      )`, (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+      // Skapa även relations-tabellen
+      db.run(`CREATE TABLE IF NOT EXISTS relations (
+        id TEXT PRIMARY KEY,
+        person1Id TEXT,
+        person2Id TEXT,
+        type TEXT,
+        details TEXT
+      )`, (err) => {
+        if (err) reject(err);
+      });
+    });
+  });
+  db.close();
+  // Returnera ett objekt med rätt initialstruktur
+  return {
+    people: [],
+    relations: [],
+    dbPath
+  };
+});
+ipcMain.handle('save-file', async (event, filePath, data) => {
+        // Skapa tabeller om de saknas
+        await new Promise((resolve, reject) => {
+          db.run(`CREATE TABLE IF NOT EXISTS people (
+            id TEXT PRIMARY KEY,
+            refNumber INTEGER,
+            firstName TEXT,
+            lastName TEXT,
+            gender TEXT,
+            events TEXT,
+            notes TEXT,
+            links TEXT,
+            relations TEXT
+          )`, err => err ? reject(err) : resolve());
+        });
+        await new Promise((resolve, reject) => {
+          db.run(`CREATE TABLE IF NOT EXISTS relations (
+            id TEXT PRIMARY KEY,
+            person1Id TEXT,
+            person2Id TEXT,
+            type TEXT,
+            details TEXT
+          )`, err => err ? reject(err) : resolve());
+        });
+    // FULL LOGGNING AV TECKENKODNING
+    if (typeof filePath === 'string') {
+      console.log('[save-file] filePath (string):', filePath);
+      console.log('[save-file] filePath charCodes:', Array.from(filePath).map(c => c.charCodeAt(0)));
+    } else {
+      console.log('[save-file] filePath (NOT string!):', filePath);
+    }
+    const sqlite3 = require('sqlite3').verbose();
+    // ...existing code...
+    let dbPath = forceImageRoot(filePath);
+    console.log('[save-file] dbPath:', dbPath);
+    try {
+      const existsBefore = fs.existsSync(dbPath);
+      const sizeBefore = existsBefore ? fs.statSync(dbPath).size : 0;
+      console.log(`[save-file] Filen finns före: ${existsBefore}, storlek före: ${sizeBefore} bytes`);
+      if (!dbPath.endsWith('.db') && !dbPath.endsWith('.sqlite')) {
+        console.error('[save-file] Fel: Filen måste ha ändelsen .db eller .sqlite');
+        return { error: 'Filen måste ha ändelsen .db eller .sqlite', filePath: dbPath };
+      }
+      const peopleCount = data && Array.isArray(data.people) ? data.people.length : 0;
+      console.log('[save-file] Antal personer som sparas:', peopleCount);
+      const db = new sqlite3.Database(dbPath);
+      console.log('[save-file] Skapar tabeller om de saknas...');
+      await new Promise((resolve, reject) => {
+        db.run(`CREATE TABLE IF NOT EXISTS people (
+          id TEXT PRIMARY KEY,
+          refNumber INTEGER,
+          firstName TEXT,
+          lastName TEXT,
+          gender TEXT,
+          events TEXT,
+          notes TEXT,
+          links TEXT,
+          relations TEXT
+        )`, err => {
+          if (err) {
+            console.error('[save-file] Fel vid CREATE TABLE people:', err);
+            reject(err);
+          } else {
+            console.log('[save-file] Tabell people OK');
+            resolve();
+          }
+        });
+      });
+      await new Promise((resolve, reject) => {
+        db.run(`CREATE TABLE IF NOT EXISTS relations (
+          id TEXT PRIMARY KEY,
+          person1Id TEXT,
+          person2Id TEXT,
+          type TEXT,
+          details TEXT
+        )`, err => {
+          if (err) {
+            console.error('[save-file] Fel vid CREATE TABLE relations:', err);
+            reject(err);
+          } else {
+            console.log('[save-file] Tabell relations OK');
+            resolve();
+          }
+        });
+      });
+      console.log('[save-file] Raderar alla personer...');
+      await new Promise((resolve, reject) => {
+        db.run('DELETE FROM people', err => {
+          if (err) {
+            console.error('[save-file] Fel vid DELETE FROM people:', err);
+            reject(err);
+          } else {
+            console.log('[save-file] Alla personer raderade');
+            resolve();
+          }
+        });
+      });
+      if (peopleCount > 0) {
+        console.log(`[save-file] Lägger in ${peopleCount} personer...`);
+        for (const p of data.people) {
+          await new Promise((resolve, reject) => {
+            db.run(`INSERT INTO people (id, refNumber, firstName, lastName, gender, events, notes, links, relations) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              [p.id, p.refNumber, p.firstName, p.lastName, p.gender, JSON.stringify(p.events), p.notes, JSON.stringify(p.links), JSON.stringify(p.relations)],
+              err => {
+                if (err) {
+                  console.error(`[save-file] Fel vid INSERT person ${p.id}:`, err);
+                  reject(err);
+                } else {
+                  console.log(`[save-file] Person ${p.id} sparad`);
+                  resolve();
+                }
+              }
+            );
+          });
+        }
+      }
+      db.close();
+      const existsAfter = fs.existsSync(dbPath);
+      const sizeAfter = existsAfter ? fs.statSync(dbPath).size : 0;
+      console.log(`[save-file] Filen finns efter: ${existsAfter}, storlek efter: ${sizeAfter} bytes`);
+      return { success: true, savedPath: dbPath, sizeBefore, sizeAfter };
+    } catch (err) {
+      console.error('[save-file] ERROR:', err);
+      return { error: err.message, details: err, filePath: dbPath };
+    }
+});
+
+// IPC handler for reading a file
+ipcMain.handle('read-file', async (event, filePath) => {
+  // ...existing code...
+  const path = require('path');
+  const forcedPath = forceImageRoot(filePath);
+  try {
+    console.log('[read-file] IN:', filePath);
+    console.log('[read-file] OUT:', forcedPath);
+    const data = await fs.readFile(forcedPath);
+    return data;
+  } catch (err) {
+    console.error('[read-file] FEL:', err, 'Path:', forcedPath);
+    return { error: err.message };
+  }
+});
+
+const openFolder = require('./open-folder');
+// IPC för att öppna mapp från renderer
+ipcMain.on('open-folder', (event, folderPath) => {
+  openFolder(folderPath);
+});
+
+function createWindow() {
+  const preloadPath = path.join(__dirname, 'preload.js');
+  console.log('[Electron] Skapar BrowserWindow med preload:', preloadPath);
+  const win = new BrowserWindow({
+    width: 1200,
+    height: 900,
+    webPreferences: {
+      preload: preloadPath,
+      nodeIntegration: false,
+      contextIsolation: true
+    }
+  });
+
+  // Kolla om vi är i utvecklingsläge (om en miljövariabel är satt)
+  // Detta är ett robust sätt att skilja på utveckling och produktion.
+  // Du kan starta med "npm run dev" och "npm run electron" som vanligt.
+  const isDev = process.env.NODE_ENV !== 'production';
+
+  if (isDev) {
+    // I utvecklingsläge, ladda från Vite-servern.
+    console.log('[Electron] Laddar Vite dev-server i Electron!');
+    win.loadURL('http://localhost:5100');
+    win.webContents.openDevTools();
+  } else {
+    // I produktionsläge, ladda den byggda filen.
+    console.log('[Electron] Laddar byggd index.html i Electron!');
+    win.loadFile(path.join(__dirname, '../dist/index.html'));
+  }
+}
+
+// --- Kod för kontextmeny ---
+// Lyssnar efter meddelandet från React för att visa menyn
+ipcMain.on('show-person-context-menu', (event, personId) => {
+  const webContents = event.sender;
+  const win = BrowserWindow.fromWebContents(webContents);
+
+  const template = [
+    {
+      label: 'Redigera person...',
+      click: () => win.webContents.send('context-menu-command', 'edit-person', personId)
+    },
+    {
+      label: 'Visa i släktträd',
+      enabled: false // Inaktiverad tills funktionen finns
+    },
+    { type: 'separator' },
+    {
+      label: 'Kopiera REF-nummer',
+      click: () => win.webContents.send('context-menu-command', 'copy-ref', personId)
+    },
+    {
+      label: 'Kopiera fullständigt namn',
+      click: () => win.webContents.send('context-menu-command', 'copy-name', personId)
+    },
+    { type: 'separator' },
+    {
+      label: 'Radera person...',
+      click: () => win.webContents.send('context-menu-command', 'delete-person', personId)
+    },
+    { type: 'separator' },
+    { label: 'Klipp ut', role: 'cut' },
+    { label: 'Kopiera', role: 'copy' },
+    { label: 'Klistra in', role: 'paste' },
+  ];
+
+  const menu = Menu.buildFromTemplate(template);
+  // Visa menyn i det fönster där högerklicket skedde
+  menu.popup({ window: win });
+});
+
+
+app.whenReady().then(() => {
+  createApplicationMenu();
+  // Registrera custom protocol för media-bilder
+  protocol.registerFileProtocol('media', (request, callback) => {
+    const encodedName = request.url.replace('media://', '');
+    const fileName = decodeURIComponent(encodedName);
+    const filePath = path.join(IMAGE_ROOT, fileName);
+    console.log('[media protocol] Loading:', encodedName, '->', filePath);
+    callback({ path: filePath });
+  });
+  createWindow();
+});
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') app.quit();
+});
+
+// IPC handler for open-file-dialog
+const { dialog } = require('electron');
+ipcMain.handle('open-file-dialog', async (event, options) => {
+  const result = await dialog.showOpenDialog({
+    properties: options?.properties || ['openFile'],
+    filters: options?.filters || []
+  });
+  return result;
+});
+
+// IPC handler for reading directory contents
+ipcMain.handle('read-dir', async (event, dirPath) => {
+  try {
+    const files = await fs.readdir(dirPath, { withFileTypes: true });
+    return files.map(f => ({ name: f.name, isDirectory: f.isDirectory() }));
+  } catch (err) {
+    return { error: err.message };
+  }
+});
+
+// All JSON audit-debug hantering borttagen
+
+// IPC handler for saving an audit backup into the app's userData folder.
+ipcMain.handle('save-audit-backup', async (event, fileName, data, dir) => {
+  try {
+    // If caller provided an absolute directory, write there. Otherwise default to app userData/audit-backups
+    let backupDir;
+    if (dir && typeof dir === 'string' && path.isAbsolute(dir)) {
+      backupDir = path.normalize(dir);
+    } else {
+      const userData = app.getPath('userData');
+      backupDir = path.join(userData, 'audit-backups');
+    }
+    await fs.promises.mkdir(backupDir, { recursive: true });
+    // Use the filename provided by the caller when possible (sanitized),
+    // otherwise fall back to a timestamped audit file.
+    const requestedName = (typeof fileName === 'string' && fileName.trim()) ? fileName.trim() : null;
+    const safeName = requestedName ? path.basename(requestedName) : `audit_backup-${Date.now()}.json`;
+    const outPath = path.join(backupDir, safeName);
+    const payload = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+    await fs.promises.writeFile(outPath, payload, 'utf8');
+    console.log('[save-audit-backup] Saved audit backup to', outPath);
+    return { success: true, savedPath: outPath };
+  } catch (err) {
+    console.error('[save-audit-backup] error:', err);
+    return { error: err.message };
+  }
+});
+
+// IPC handler to open the audit backup folder (or a provided folder)
+ipcMain.handle('open-audit-backup-folder', async (event, dir) => {
+  try {
+    let folderToOpen;
+    if (dir && typeof dir === 'string' && path.isAbsolute(dir)) {
+      folderToOpen = path.normalize(dir);
+    } else {
+      const userData = app.getPath('userData');
+      folderToOpen = path.join(userData, 'audit-backups');
+    }
+    // ensure folder exists
+    await require('fs').promises.mkdir(folderToOpen, { recursive: true });
+    // Use the existing openFolder helper
+    const openFolder = require('./open-folder');
+    openFolder(folderToOpen);
+    console.log('[open-audit-backup-folder] opened', folderToOpen);
+    return { success: true, folder: folderToOpen };
+  } catch (err) {
+    console.error('[open-audit-backup-folder] error', err);
+    return { error: err.message };
+  }
+});
+
+// GEDCOM IPC handlers: read (parse preview), apply (perform mapping into DB), write (export)
+const gedcomHandler = require('./gedcom-handler');
+
+ipcMain.handle('gedcom:read', async (event, filePath) => {
+  try {
+    // filePath should be an absolute path (renderer can use open-file-dialog to pick)
+    const result = await gedcomHandler.readGedcom(filePath);
+    return result;
+  } catch (err) {
+    console.error('[gedcom:read] error', err);
+    return { error: err.message };
+  }
+});
+
+ipcMain.handle('gedcom:apply', async (event, parsed, options) => {
+  try {
+    const result = await gedcomHandler.applyGedcom(parsed, options);
+    return result;
+  } catch (err) {
+    console.error('[gedcom:apply] error', err);
+    return { error: err.message };
+  }
+});
+
+ipcMain.handle('gedcom:write', async (event, dbData, options) => {
+  try {
+    const result = await gedcomHandler.writeGedcom(dbData, options);
+    return result;
+  } catch (err) {
+    console.error('[gedcom:write] error', err);
+    return { error: err.message };
+  }
+});
+
+// ============================================
+// EXIF HANDLERS
+// ============================================
+
+ipcMain.handle('read-exif', async (event, filePath) => {
+  try {
+    const fullPath = forceImageRoot(filePath);
+    console.log('[read-exif] Reading EXIF from:', fullPath);
+    
+    const fetch = require('node-fetch');
+    const response = await fetch('http://localhost:5005/exif/read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image_path: fullPath })
+    });
+    
+    const data = await response.json();
+    console.log('[read-exif] Success:', Object.keys(data));
+    return data;
+  } catch (error) {
+    console.error('[read-exif] Error:', error);
+    return { error: error.message, face_tags: [], keywords: [], metadata: {}, camera: {}, gps: null };
+  }
+});
+
+ipcMain.handle('write-exif-keywords', async (event, filePath, keywords, backup = true) => {
+  try {
+    const fullPath = forceImageRoot(filePath);
+    console.log('[write-exif-keywords] Writing to:', fullPath, 'Keywords:', keywords);
+    
+    const fetch = require('node-fetch');
+    const response = await fetch('http://localhost:5005/exif/write_keywords', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image_path: fullPath, keywords, backup })
+    });
+    
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('[write-exif-keywords] Error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('write-exif-face-tags', async (event, filePath, faceTags, backup = true) => {
+  try {
+    const fullPath = forceImageRoot(filePath);
+    console.log('[write-exif-face-tags] Writing to:', fullPath, 'Face tags:', faceTags.length);
+    
+    const fetch = require('node-fetch');
+    const response = await fetch('http://localhost:5005/exif/write_face_tags', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image_path: fullPath, face_tags: faceTags, backup })
+    });
+    
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('[write-exif-face-tags] Error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Copy file to media folder
+ipcMain.handle('copy-file-to-media', async (event, sourcePath, fileName) => {
+  try {
+    // ...existing code...
+    
+    // Om sourcePath är undefined, betyder det att det är en blob från webbläsare
+    if (!sourcePath) {
+      return { success: false, error: 'No source path provided' };
+    }
+    
+    const destPath = path.join(IMAGE_ROOT, fileName);
+    
+    console.log('[copy-file-to-media] Copying:', sourcePath, '->', destPath);
+    
+    // Skapa media-mappen om den inte finns
+      await fs.promises.mkdir(IMAGE_ROOT, { recursive: true });
+    
+    // Kopiera filen
+      await fs.promises.copyFile(sourcePath, destPath);
+    
+    console.log('[copy-file-to-media] Success!');
+    return { success: true, filePath: fileName };
+  } catch (error) {
+    console.error('[copy-file-to-media] Error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Save file buffer to media folder (för drag-and-drop och paste)
+ipcMain.handle('save-file-buffer-to-media', async (event, fileBuffer, fileName) => {
+  try {
+    // ...existing code...
+    
+    const destPath = path.join(IMAGE_ROOT, fileName);
+    
+    console.log('[save-file-buffer-to-media] Saving buffer to:', destPath, 'Size:', fileBuffer.length);
+    
+    // Skapa media-mappen om den inte finns
+      await fs.promises.mkdir(IMAGE_ROOT, { recursive: true });
+    
+    // Skriv buffer till fil
+      await fs.promises.writeFile(destPath, Buffer.from(fileBuffer));
+    
+    console.log('[save-file-buffer-to-media] Success!');
+    return { success: true, filePath: fileName };
+  } catch (error) {
+    console.error('[save-file-buffer-to-media] Error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Import images - dialog + copy to media folder
+ipcMain.handle('import-images', async (event) => {
+  try {
+    // ...existing code...
+    
+    // Visa fil-dialog
+    const result = await dialog.showOpenDialog({
+      properties: ['openFile', 'multiSelections'],
+      filters: [
+        { name: 'Bilder', extensions: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff'] }
+      ]
+    });
+    
+    if (result.canceled || !result.filePaths || result.filePaths.length === 0) {
+      return { success: false, canceled: true };
+    }
+    
+    // Skapa media-mappen om den inte finns
+    await fs.mkdir(IMAGE_ROOT, { recursive: true });
+    
+    // Kopiera alla valda filer
+    const importedFiles = [];
+    for (const sourcePath of result.filePaths) {
+      const fileName = path.basename(sourcePath);
+      const destPath = path.join(IMAGE_ROOT, fileName);
+      
+      console.log('[import-images] Copying:', sourcePath, '->', destPath);
+      
+      try {
+        await fs.copyFile(sourcePath, destPath);
+        importedFiles.push({
+          fileName: fileName,
+          filePath: fileName,
+          originalPath: sourcePath
+        });
+      } catch (error) {
+        console.error('[import-images] Failed to copy:', fileName, error);
+      }
+    }
+    
+    return { success: true, files: importedFiles };
+  } catch (error) {
+    console.error('[import-images] Error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Get media file path (för att visa bilder från media-mappen)
+ipcMain.handle('get-media-path', async (event, fileName) => {
+  const fullPath = path.join(IMAGE_ROOT, fileName);
+  return fullPath;
+});
+
+// ✅ NY GEDCOM IMPORT HANDLER
+ipcMain.handle('import-gedcom', async (event, gedcomData) => {
+  try {
+    console.log(`[main.js] Mottog ${gedcomData.individuals.length} individer för import.`);
+    
+    // TODO: HÄR SKA DU ANROPA DIN FUNKTION FÖR ATT SPARA TILL DATABASEN
+    // Exempel: await database.saveImportedData(gedcomData);
+    
+    // Just nu returnerar vi bara success för att React ska bli glad
+    return { success: true, message: 'Importen mottogs av huvudprocessen.' };
+  } catch (error) {
+    console.error('[main.js] Fel vid hantering av GEDCOM-import:', error);
+    return { success: false, message: error.message };
+  }
+});
+
+ipcMain.handle('save-as-database', async (event, data) => {
+  const { dialog } = require('electron');
+  const win = BrowserWindow.getFocusedWindow();
+  const result = await dialog.showSaveDialog(win, {
+    title: 'Spara som...',
+    defaultPath: 'min_slakt.db',
+    filters: [
+      { name: 'SQLite Database', extensions: ['db', 'sqlite'] }
+    ]
+  });
+  if (result.canceled || !result.filePath) return null;
+  try {
+    const sqlite3 = require('sqlite3').verbose();
+    const dbPath = result.filePath;
+    const db = new sqlite3.Database(dbPath);
+    // Skapa tabellen om den inte finns
+    await new Promise((resolve, reject) => {
+      db.run(`CREATE TABLE IF NOT EXISTS people (
+        id TEXT PRIMARY KEY,
+        refNumber INTEGER,
+        firstName TEXT,
+        lastName TEXT,
+        gender TEXT,
+        events TEXT,
+        notes TEXT,
+        links TEXT,
+        relations TEXT
+      )`, err => err ? reject(err) : resolve());
+    });
+    // Radera alla personer först (om du vill ha "ersätt allt")
+    await new Promise((resolve, reject) => {
+      db.run('DELETE FROM people', err => err ? reject(err) : resolve());
+    });
+    // Spara alla personer från data.people
+    if (data && Array.isArray(data.people)) {
+      for (const p of data.people) {
+        await new Promise((resolve, reject) => {
+          db.run(`INSERT INTO people (id, refNumber, firstName, lastName, gender, events, notes, links, relations) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [p.id, p.refNumber, p.firstName, p.lastName, p.gender, JSON.stringify(p.events), p.notes, JSON.stringify(p.links), JSON.stringify(p.relations)],
+            err => err ? reject(err) : resolve()
+          );
+        });
+      }
+    }
+    db.close();
+    // Return an object for frontend fileHandle
+    return { name: dbPath.split(/[\\/]/).pop(), path: dbPath };
+  } catch (err) {
+    console.error('Fel vid Spara som:', err);
+    return null;
+  }
+});
