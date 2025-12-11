@@ -24,6 +24,21 @@ export function buildPlaceString(place) {
 }
 
 export default function PlacePicker({ value, displayValue, allPlaces, onChange }) {
+        // Spara senaste platser globalt (window) för enkel demo, kan bytas till context eller localStorage
+        const [recentPlaces, setRecentPlaces] = useState(() => window._recentPlaces || []);
+
+        useEffect(() => {
+            window._recentPlaces = recentPlaces;
+        }, [recentPlaces]);
+
+        // Lägg till vald plats i senaste-listan
+        const addRecentPlace = (place) => {
+            if (!place || !place.id) return;
+            setRecentPlaces(prev => {
+                const filtered = prev.filter(p => p.id !== place.id);
+                return [place, ...filtered].slice(0, 5);
+            });
+        };
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -157,6 +172,7 @@ export default function PlacePicker({ value, displayValue, allPlaces, onChange }
     const handleSelect = (placeId, placeObject) => {
         if (placeId) {
             onChange(placeId, placeObject);
+            addRecentPlace(placeObject);
             setIsOpen(false);
             setSearchTerm('');
         }
@@ -205,6 +221,32 @@ export default function PlacePicker({ value, displayValue, allPlaces, onChange }
             {/* Dropdown */}
             {isOpen && (
                 <div className="absolute z-50 w-full mt-1 bg-slate-800 border border-slate-700 rounded-md shadow-xl max-h-64 overflow-y-auto">
+                    {/* Visa senaste platser om sökrutan är tom */}
+                    {!searchTerm && recentPlaces.length > 0 && (
+                        <div className="border-b border-slate-700">
+                            <div className="px-4 py-2 text-xs text-slate-400">Senaste platser</div>
+                            <ul>
+                                {recentPlaces.map(place => (
+                                    <li
+                                        key={place.id}
+                                        onMouseDown={e => e.preventDefault()}
+                                        onClick={e => {
+                                            e.stopPropagation();
+                                            handleSelect(place.id, place);
+                                        }}
+                                        className="px-4 py-2 hover:bg-slate-700 cursor-pointer flex items-start gap-2 border-b border-slate-700 last:border-0"
+                                    >
+                                        <span className="text-sm text-slate-300 font-medium">
+                                            {place.name || place.ortnamn || place.sockenstadnamn || place.kommunnamn || place.lansnamn}
+                                            {place.lanskod ? ` (${place.lanskod})` : ''}
+                                            {place.sockenstadnamn ? ', Församling' : place.kommunnamn ? ', Kommun' : place.lansnamn ? ', Län' : place.ortnamn ? ', Ort' : ''}
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+                    {/* Visa vanliga sökresultat om man skriver */}
                     {filteredPlaces.length > 0 ? (
                         <ul>
                             {filteredPlaces.map(place => (

@@ -613,6 +613,20 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
 
   const handleDeleteEvent = (index) => {
     setPerson({ ...person, events: person.events.filter((_, i) => i !== index) });
+    // Reset modal state if open
+    setEventModalOpen(false);
+    setEditingEventIndex(null);
+    setNewEvent({ 
+      id: `evt_${Date.now()}`,
+      type: 'Födelse', 
+      date: '', 
+      place: '',
+      placeId: '',
+      placeData: null,
+      sources: [],
+      images: 0,
+      notes: ''
+    });
   };
 
   const handleAddSource = (source) => {
