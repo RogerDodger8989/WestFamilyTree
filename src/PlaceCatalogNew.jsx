@@ -7,9 +7,12 @@ function formatPlaceName(node) {
     return name.replace(/\s*\(K-\d{4}\)/g, '').replace(/\s+/g, ' ').trim();
   }
   function onlyOneKod(name, kod) {
-    // Ta bort alla (K) och lägg till en gång sist
-    let n = name.replace(/\s*\(K\)/gi, '').trim();
-    return kod ? `${n} (${kod})` : n;
+    if (!kod) return name;
+    // Ta bort alla (K), (O), (N), (B), (M), (D), (G), (S), (T), (U), (W), (C), (F), (H), (E), (A), (P), (R), (L), (I), (Z), (Y), (X) – alla möjliga länsbokstäver
+    let n = name.replace(/\s*\([A-ZÅÄÖ]{1}\)/g, '').trim();
+    // Ta även bort eventuella dubbla kod på slutet
+    n = n.replace(/\s*\([A-ZÅÄÖ]{1}\)$/, '').trim();
+    return `${n} (${kod})`;
   }
   if (node.type === 'Län') {
     const kod = node.metadata.lanskod;
@@ -333,16 +336,33 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
           };
         }
         // Konvertera till arraystruktur
-        const länArr = Object.values(länMap).map(länNode => {
-          länNode.children = Object.values(länNode.children).map(kommunNode => {
-            kommunNode.children = Object.values(kommunNode.children).map(forsamlingNode => {
-              forsamlingNode.children = Object.values(forsamlingNode.children);
-              return forsamlingNode;
-            });
-            return kommunNode;
+        // Filtrera bort noder med tomt/generiskt namn
+        function isValidName(name, type) {
+          if (!name) return false;
+          const n = name.trim().toLowerCase();
+          if (type === 'Län' && (n === 'län' || n === '')) return false;
+          if (type === 'Kommun' && (n === 'kommun' || n === '')) return false;
+          if (type === 'Församling' && (n === 'församling' || n === '')) return false;
+          if (type === 'Ort' && (n === 'ort' || n === '')) return false;
+          return true;
+        }
+        const länArr = Object.values(länMap)
+          .filter(länNode => isValidName(länNode.metadata.lansnamn, 'Län'))
+          .map(länNode => {
+            länNode.children = Object.values(länNode.children)
+              .filter(kommunNode => isValidName(kommunNode.metadata.kommunnamn, 'Kommun'))
+              .map(kommunNode => {
+                kommunNode.children = Object.values(kommunNode.children)
+                  .filter(forsamlingNode => isValidName(forsamlingNode.metadata.sockenstadnamn, 'Församling'))
+                  .map(forsamlingNode => {
+                    forsamlingNode.children = Object.values(forsamlingNode.children)
+                      .filter(ortNode => isValidName(ortNode.metadata.ortnamn, 'Ort'));
+                    return forsamlingNode;
+                  });
+                return kommunNode;
+              });
+            return länNode;
           });
-          return länNode;
-        });
         convertedTree = [{ id: 'root', name: 'Sverige', type: 'Country', children: länArr, metadata: {} }];
       } else {
         // Fallback till gamla tree om det finns
