@@ -36,6 +36,8 @@ function formatPlaceName(node) {
   return onlyOneKod(cleanName(node.metadata.ortnamn || node.name), node.metadata.lanskod);
 }
 import React, { useState, useEffect, useRef } from 'react';
+// För Riksarkivet-integration
+const RIKSARKIVET_API = 'https://sok.riksarkivet.se/en/data-api/api';
 import { useApp } from './AppContext.jsx';
 import WindowFrame from './WindowFrame.jsx';
 import PlaceEditModal from './PlaceEditModal.jsx';
@@ -211,6 +213,11 @@ const ContextMenu = ({ x, y, node, onClose, onAction }) => {
 };
 
 export default function PlaceCatalog({ catalogState, setCatalogState, onPick, onClose, isDrawerMode = false, onLinkPlace }) {
+  // Riksarkivet state
+  const [riksarkivetResults, setRiksarkivetResults] = useState(null);
+  const [riksarkivetLoading, setRiksarkivetLoading] = useState(false);
+  const [riksarkivetError, setRiksarkivetError] = useState(null);
+  // Ingen set-hantering behövs för Riksarkivet OAI-PMH
   const { recordAudit, showStatus } = useApp();
   const [tree, setTree] = useState([]);
   const [flatPlaces, setFlatPlaces] = useState([]);
@@ -256,11 +263,40 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
   }, []);
 
   // Ladda kopplade personer när en plats väljs
+  // Hämta tillgängliga set när fliken öppnas första gången
+  // Ingen set-hämtning behövs
+
+  // Hämta poster när plats eller set ändras
   useEffect(() => {
     if (selectedNode && selectedNode.metadata?.id) {
       loadLinkedPeople(selectedNode.metadata.id);
     } else {
       setLinkedPeople([]);
+    }
+    if (selectedNode && selectedNode.name) {
+      const placeName = selectedNode.name.replace(/\s*\([^)]+\)/g, '').trim();
+      setRiksarkivetLoading(true);
+      setRiksarkivetError(null);
+      // Använd Riksarkivets Sök-API (REST)
+      const url = `/riksarkivet_search?query=${encodeURIComponent(placeName)}&rows=10`;
+      fetch(url)
+        .then(res => res.json())
+        .then(data => {
+          // Anpassa efter API-svar: records eller hits
+          const hits = (data.records || data.hits || []).map(rec => ({
+            title: rec.title || rec.displayString || '',
+            description: rec.description || '',
+            identifier: rec.url || rec.id || ''
+          })).filter(r => r.title && r.title.toLowerCase().includes(placeName.toLowerCase()));
+          setRiksarkivetResults(hits);
+          setRiksarkivetLoading(false);
+        })
+        .catch(err => {
+          setRiksarkivetError('Kunde inte hämta data från Riksarkivet (Sök-API).');
+          setRiksarkivetLoading(false);
+        });
+    } else {
+      setRiksarkivetResults(null);
     }
   }, [selectedNode]);
 
@@ -1028,6 +1064,15 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
                     {activeRightTab === 'info' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2 h-2 bg-blue-500 rounded-full" />}
                   </button>
                   <button
+                    className={`relative px-5 py-2 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors duration-150 focus:outline-none ${activeRightTab === 'riksarkivet' ? 'border-blue-500 text-blue-300 bg-slate-800 shadow -mb-px' : 'border-transparent text-slate-400 hover:text-blue-400 hover:bg-slate-700'}`}
+                    onClick={() => setActiveRightTab('riksarkivet')}
+                    title="Riksarkivet"
+                  >
+                    <span className="text-lg" role="img" aria-label="Riksarkivet">🏛️</span>
+                    Riksarkivet
+                    {activeRightTab === 'riksarkivet' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2 h-2 bg-blue-500 rounded-full" />}
+                  </button>
+                  <button
                     className={`relative px-5 py-2 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors duration-150 focus:outline-none ${activeRightTab === 'images' ? 'border-blue-500 text-blue-300 bg-slate-800 shadow -mb-px' : 'border-transparent text-slate-400 hover:text-blue-400 hover:bg-slate-700'}`}
                     onClick={() => setActiveRightTab('images')}
                     title="Bilder"
@@ -1063,6 +1108,37 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
                     onClose={() => setSelectedPlaceId(null)}
                     onSave={handleSavePlace}
                   />
+                )}
+                {activeRightTab === 'riksarkivet' && (
+                  <div className="max-w-3xl mx-auto">
+                    <h3 className="text-lg font-bold text-slate-200 mb-3">Riksarkivet</h3>
+                    {riksarkivetLoading && <div>Laddar från Riksarkivet...</div>}
+                    {riksarkivetError && (
+                      <div className="text-red-400">
+                        {riksarkivetError}
+                        <div className="text-slate-400 mt-2 text-sm">
+                          Riksarkivets Sök-API verkar vara otillgängligt just nu.<br />
+                          Detta är ett problem hos Riksarkivet, inte i din app.<br />
+                          Försök igen senare. Om felet kvarstår, kontrollera <a href="https://sok.riksarkivet.se/" target="_blank" rel="noopener noreferrer" className="underline text-blue-400">Riksarkivets webbsida</a> för driftstatus.
+                        </div>
+                      </div>
+                    )}
+                    {riksarkivetResults && riksarkivetResults.length > 0 ? (
+                      <ul className="space-y-2">
+                        {riksarkivetResults.map((rec, i) => (
+                          <li key={i} className="border-b border-slate-700 pb-2">
+                            <div className="font-semibold">{rec.title}</div>
+                            {rec.description && <div className="text-sm mb-1">{rec.description}</div>}
+                            {rec.identifier && (
+                              <a href={rec.identifier} target="_blank" rel="noopener noreferrer" className="text-blue-400 underline">Visa arkivpost</a>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      !riksarkivetLoading && <div>Inga träffar från Riksarkivet.</div>
+                    )}
+                  </div>
                 )}
                 {activeRightTab === 'images' && (
                   <div className="max-w-3xl mx-auto">

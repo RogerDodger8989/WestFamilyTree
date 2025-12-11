@@ -854,7 +854,33 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                     </div>
                     <div>
                       <label className="text-xs uppercase font-bold text-slate-300">Ref Nr</label>
-                      <input type="text" value={person.refId} onChange={e => setPerson({...person, refId: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-slate-200 focus:border-blue-500 focus:outline-none" />
+                      <input
+                        type="text"
+                        value={person.refNumber || ''}
+                        onBlur={e => {
+                          const val = e.target.value.trim();
+                          if (!val) {
+                            // Tilldela automatiskt nästa lediga nummer
+                            const maxRef = allPeople?.reduce((max, p) => {
+                              const num = parseInt(p.refNumber, 10);
+                              return (!isNaN(num) && num > max) ? num : max;
+                            }, 0) || 0;
+                            setPerson({...person, refNumber: String(maxRef + 1)});
+                          }
+                        }}
+                        onChange={e => {
+                          const val = e.target.value;
+                          // Kontrollera om refNumber redan finns hos annan person
+                          const isDuplicate = allPeople?.some(p => p.id !== person.id && String(p.refNumber) === String(val));
+                          if (isDuplicate) {
+                            alert('Ref Nr används redan av en annan person! Välj ett unikt nummer.');
+                            setPerson({...person, refNumber: ''});
+                          } else {
+                            setPerson({...person, refNumber: val});
+                          }
+                        }}
+                        className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-slate-200 focus:border-blue-500 focus:outline-none"
+                      />
                     </div>
                   </div>
                 </div>

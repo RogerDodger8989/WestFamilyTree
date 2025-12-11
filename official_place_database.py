@@ -8,14 +8,14 @@ class OfficialPlaceDatabase:
         self._ensure_table_exists()
 
     def search_places(self, query):
-        # Enkel sökning: returnera alla platser där ortnamn, kommunnamn eller lansnamn matchar query (case-insensitive)
+        # Sök i tabellen official_places istället för places
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         c = conn.cursor()
         q = f"%{query.strip().lower()}%"
         c.execute('''
-            SELECT * FROM places
-            WHERE LOWER(name) LIKE ? OR LOWER(municipality) LIKE ? OR LOWER(country) LIKE ? OR LOWER(parish) LIKE ?
+            SELECT * FROM official_places
+            WHERE LOWER(ortnamn) LIKE ? OR LOWER(sockenstadnamn) LIKE ? OR LOWER(kommunnamn) LIKE ? OR LOWER(lansnamn) LIKE ?
         ''', (q, q, q, q))
         results = []
         for row in c.fetchall():

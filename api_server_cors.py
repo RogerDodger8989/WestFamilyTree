@@ -1,3 +1,4 @@
+import requests
 from flask import Flask, request, jsonify
 
 import re
@@ -8,8 +9,22 @@ from place_database_manager import PlaceDatabaseManager
 from official_place_database import OfficialPlaceDatabase
 from exif_manager import ExifManager
 
+
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
+CORS(app)  # Aktivera CORS för alla routes
+
+# Proxy till Riksarkivets Sök-API (REST)
+@app.route('/riksarkivet_search')
+def riksarkivet_search():
+    query = request.args.get('query', '')
+    rows = request.args.get('rows', '10')
+    url = f'https://sok.riksarkivet.se/api/search?query={query}&rows={rows}'
+    try:
+        resp = requests.get(url, timeout=10)
+        resp.raise_for_status()
+        return resp.json()
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 # Standard: genealogy.db för personer, places.db för platser
 

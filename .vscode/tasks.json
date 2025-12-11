@@ -1,44 +1,50 @@
 {
-  "version": "2.0.0",
-  "tasks": [
-    {
-      "label": "Start dev server",
-      "type": "shell",
-        "command": "cd C:/Users/denni/Documents/Dennis/programmering/WestFamilyTree/WestFamilyTree; npm run dev",
-      "isBackground": true,
-      "problemMatcher": []
-    },
-    {
-      "label": "Start API server",
-      "type": "shell",
-        "command": "cd C:/Users/denni/Documents/Dennis/programmering/WestFamilyTree/WestFamilyTree; python api_server_cors.py",
-      "isBackground": true,
-      "problemMatcher": []
-    },
-    {
-      "label": "Start OAI proxy",
-      "type": "shell",
-        "command": "cd C:/Users/denni/Documents/Dennis/programmering/WestFamilyTree/WestFamilyTree; python oai_proxy.py",
-      "isBackground": true,
-      "problemMatcher": []
-    },
-    {
-      "label": "Start Electron",
-      "type": "shell",
-        "command": "cd C:/Users/denni/Documents/Dennis/programmering/WestFamilyTree/WestFamilyTree; npm run electron",
-      "isBackground": true,
-      "problemMatcher": []
-    },
-    {
-      "label": "Start All",
-      "type": "shell",
-      "dependsOn": [
-        "Start dev server",
-        "Start API server",
-        "Start OAI proxy",
-        "Start Electron"
-      ],
-      "dependsOrder": "parallel"
-    }
-  ]
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Start dev server",
+			"type": "shell",
+			"command": "cd C:/Users/denni/Documents/Dennis/programmering/WestFamilyTree/WestFamilyTree; npm run dev",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Start API server",
+			"type": "shell",
+			"command": "cd C:/Users/denni/Documents/Dennis/programmering/WestFamilyTree/WestFamilyTree; python api_server_cors.py",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Start OAI proxy",
+			"type": "shell",
+			"command": "cd C:/Users/denni/Documents/Dennis/programmering/WestFamilyTree/WestFamilyTree; python oai_proxy.py",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Start Electron",
+			"type": "shell",
+			"command": "cd C:/Users/denni/Documents/Dennis/programmering/WestFamilyTree/WestFamilyTree; npm run electron",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Start All",
+			"type": "shell",
+			"dependsOn": [
+				"Start dev server",
+				"Start API server",
+				"Start OAI proxy",
+				"Start Electron"
+			],
+			"dependsOrder": "parallel"
+		},
+		{
+			"label": "Start API server",
+			"type": "shell",
+			"command": "cd C:/Users/denni/Documents/Dennis/programmering/WestFamilyTree; python api_server_cors.py",
+			"isBackground": true
+		}
+	]
 }
