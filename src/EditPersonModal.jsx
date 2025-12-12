@@ -374,6 +374,62 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
       setRelationSearchIndex(0);
     };
 
+    // Generell funktion: Säkerställ att alla föräldrar till samma barn är partners
+    const ensureParentsArePartners = (childId, currentPersonId, currentPersonRelations) => {
+      if (!childId || !currentPersonId) return currentPersonRelations;
+      
+      const child = allPeople.find(p => p.id === childId);
+      if (!child) return currentPersonRelations;
+      
+      // Hämta alla föräldrar till barnet
+      const childParentsFromChild = (child.relations?.parents || [])
+        .map(p => typeof p === 'object' ? p.id : p)
+        .filter(Boolean);
+      
+      // Hitta andra personer som har detta barn i sin children-lista
+      const childParentsFromOthers = allPeople
+        .filter(p => p.id !== currentPersonId && p.relations?.children)
+        .filter(p => {
+          const children = (p.relations.children || []).map(c => typeof c === 'object' ? c.id : c);
+          return children.includes(childId);
+        })
+        .map(p => p.id);
+      
+      // Kombinera alla föräldrar (inklusive den nuvarande personen om de lägger till sig själv som förälder)
+      const allParents = [...new Set([...childParentsFromChild, ...childParentsFromOthers, currentPersonId])]
+        .filter(Boolean);
+      
+      // Om barnet har fler än en förälder, säkerställ att alla är partners med varandra
+      if (allParents.length > 1) {
+        const rels = { ...currentPersonRelations };
+        if (!rels.partners) rels.partners = [];
+        
+        allParents.forEach(parentId => {
+          if (parentId === currentPersonId) return; // Skippa sig själv
+          
+          const otherParent = allPeople.find(p => p.id === parentId);
+          if (!otherParent) return;
+          
+          // Kolla om de redan är partners
+          const alreadyPartners = rels.partners.some(p => 
+            (typeof p === 'object' ? p.id : p) === parentId
+          );
+          
+          if (!alreadyPartners) {
+            rels.partners.push({ 
+              id: parentId, 
+              name: `${otherParent.firstName} ${otherParent.lastName}`,
+              type: 'Okänd' // Sätt som "Okänd" som standard
+            });
+          }
+        });
+        
+        return rels;
+      }
+      
+      return currentPersonRelations;
+    };
+
     // Add selected person as relation
     const addRelation = (personId) => {
       const selected = allPeople.find(p => p.id === personId);
@@ -385,6 +441,18 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
         if (!rels[relationTypeToAdd].some(r => r.id === selected.id)) {
           rels[relationTypeToAdd].push({ id: selected.id, name: `${selected.firstName} ${selected.lastName}` });
         }
+        
+        // Automatisk partner-relation: Säkerställ att alla föräldrar till samma barn är partners
+        if (relationTypeToAdd === 'children') {
+          // När man lägger till ett barn: säkerställ att alla föräldrar till detta barn är partners
+          const updatedRels = ensureParentsArePartners(personId, prev.id, rels);
+          return { ...prev, relations: updatedRels };
+        } else if (relationTypeToAdd === 'parents') {
+          // När man lägger till en förälder på ett barn, lägg bara till föräldern
+          // Partner-relationer mellan föräldrarna skapas automatiskt när man sparar (i App.jsx)
+          // Här ska vi bara lägga till föräldern, inget mer
+        }
+        
         return { ...prev, relations: rels };
       });
       setRelationModalOpen(false);

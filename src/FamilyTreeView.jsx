@@ -426,7 +426,37 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
 
         // Partners (ingifta)
         const partners = [];
-        if (dbPerson.relations?.spouseId) {
+        
+        // Kolla först efter partners-arrayen (från EditPersonModal)
+        if (dbPerson.relations?.partners && Array.isArray(dbPerson.relations.partners)) {
+            dbPerson.relations.partners.forEach(partnerRef => {
+                const partnerId = typeof partnerRef === 'object' ? partnerRef.id : partnerRef;
+                if (!partnerId) return;
+                
+                const spouse = allPeople.find(p => p.id === partnerId);
+                if (spouse) {
+                    // Hitta gemensamma barn
+                const children = allPeople.filter(child => {
+                    const childParents = (child.relations?.parents || []).map(p => typeof p === 'object' ? p.id : p);
+                    // Koppla bara om barnet uttryckligen har båda föräldrarna
+                    return childParents.includes(focusPersonId) && childParents.includes(partnerId) && childParents.length > 1;
+                }).map(c => c.id);
+                    
+                    // Kontrollera om partnern redan finns i listan
+                    if (!partners.some(p => p.id === partnerId)) {
+                        partners.push({
+                            id: partnerId,
+                            children: children,
+                            type: (typeof partnerRef === 'object' && partnerRef.type) ? partnerRef.type : 'married',
+                            isPartner: true // markerar ingift
+                        });
+                    }
+                }
+            });
+        }
+        
+        // Fallback: kolla även efter spouseId (för bakåtkompatibilitet)
+        if (dbPerson.relations?.spouseId && !partners.some(p => p.id === dbPerson.relations.spouseId)) {
             const spouse = allPeople.find(p => p.id === dbPerson.relations.spouseId);
             if (spouse) {
                 // Hitta gemensamma barn
@@ -443,11 +473,24 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
             }
         }
 
-        // Lägg till barn som bara har denna förälder
-        const childrenWithoutPartner = allPeople.filter(child => {
+        // Hitta alla barn som har denna person som förälder men som inte redan är kopplade till en partner
+        const allChildrenOfThisPerson = allPeople.filter(child => {
             const childParents = (child.relations?.parents || []).map(p => typeof p === 'object' ? p.id : p);
-            return childParents.includes(focusPersonId) && childParents.length === 1;
-        }).map(c => c.id);
+            return childParents.includes(focusPersonId);
+        });
+        
+        // Separera barn i två grupper:
+        // 1. Barn som redan är kopplade till en partner (via partners-arrayen ovan)
+        const childrenAlreadyInPartners = new Set();
+        partners.forEach(p => {
+            (p.children || []).forEach(cid => childrenAlreadyInPartners.add(cid));
+        });
+        
+        // 2. Barn som INTE är kopplade till någon partner (inklusive barn med flera föräldrar där föräldrarna inte är partners)
+        const childrenWithoutPartner = allChildrenOfThisPerson
+            .filter(child => !childrenAlreadyInPartners.has(child.id))
+            .map(c => c.id);
+        
         if (childrenWithoutPartner.length > 0) {
             partners.push({
                 id: null,
@@ -658,18 +701,24 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
         let previousConnectionY = (FOCUS_HEIGHT/2) - 10;
         (data.relationships.partners || []).forEach((rel, idx) => {
             const partner = data.people[rel.id];
-            if (!partner && rel.id !== null) return;
-            if (partner) {
-                const partnerY = cursorY + (CARD_HEIGHT/2);
-                nodes.push({ ...partner, x: 0, y: partnerY, isPartner: true });
+            // Ghost-parent om saknad partner men ensamstående barn finns
+            const isGhost = !partner && rel.id === null;
+            const nodeY = cursorY + (CARD_HEIGHT/2);
+
+            if (partner || isGhost) {
+                const baseNode = partner || { id: `ghost_parent_${idx}`, firstName: 'Lägg till förälder', lastName: '', isGhostParent: true };
+                nodes.push({ ...baseNode, x: 0, y: nodeY, isPartner: !isGhost, isGhostParent: isGhost });
                 edges.push({
                     from: { x: 0, y: previousConnectionY },
-                    to: { x: 0, y: partnerY - (CARD_HEIGHT/2) + 10 },
+                    to: { x: 0, y: nodeY - (CARD_HEIGHT/2) + 10 },
                     type: 'straight-down',
-                    midPoint: { x: 0, y: (previousConnectionY + partnerY - (CARD_HEIGHT/2)) / 2 },
+                    midPoint: { x: 0, y: (previousConnectionY + nodeY - (CARD_HEIGHT/2)) / 2 },
                     styleType: rel.type
                 });
-                previousConnectionY = partnerY + (CARD_HEIGHT/2) - 10;
+                previousConnectionY = nodeY + (CARD_HEIGHT/2) - 10;
+            } else {
+                // Ingen partner att visa och ingen ghost: hoppa över
+                return;
             }
             // Barn till partner
             const children = rel.children || [];
@@ -919,6 +968,7 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
             {/* Kort (Nodes) */}
             {nodes.map(node => {
                 const warnings = validatePerson(node);
+                const isGhost = !!node.isGhostParent;
                 const width = node.isFocus ? FOCUS_WIDTH : CARD_WIDTH;
                 const height = node.isFocus ? FOCUS_HEIGHT : CARD_HEIGHT;
                 
@@ -926,44 +976,54 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
                     <div 
                         key={node.id}
                         className={`absolute flex flex-col shadow-2xl rounded-lg overflow-hidden border-2 transition-all duration-300 hover:scale-105 hover:z-50 
-                            ${node.gender === 'M' ? 'bg-blue-50 border-blue-200' : node.gender === 'K' ? 'bg-rose-50 border-rose-200' : 'bg-gray-50 border-gray-200'} 
+                            ${isGhost ? 'bg-slate-800 border-slate-500 border-dashed text-slate-200 opacity-90' : (node.gender === 'M' ? 'bg-blue-50 border-blue-200' : node.gender === 'K' ? 'bg-rose-50 border-rose-200' : 'bg-gray-50 border-gray-200')} 
                             ${node.isFocus ? 'ring-4 ring-yellow-400 z-40' : 'z-10'}`
                         }
                         style={{ left: node.x - width / 2, top: node.y - height / 2, width, height }}
-                        onDoubleClick={() => navigateToPerson(node.id)}
-                        onContextMenu={(e) => handleTreeContextMenu(e, node)}
+                        onDoubleClick={isGhost ? undefined : () => navigateToPerson(node.id)}
+                        onContextMenu={(e) => { if (isGhost) return; handleTreeContextMenu(e, node); }}
                     >
-                        <div className={`${node.gender === 'M' ? 'bg-blue-600' : node.gender === 'K' ? 'bg-rose-500' : 'bg-gray-500'} text-white px-3 py-1.5 flex items-center gap-2 shadow-sm`}>
+                        <div className={`${isGhost ? 'bg-slate-700 text-slate-100 italic' : (node.gender === 'M' ? 'bg-blue-600' : node.gender === 'K' ? 'bg-rose-500' : 'bg-gray-500') + ' text-white'} px-3 py-1.5 flex items-center gap-2 shadow-sm`}>
                             <span className="font-bold truncate text-sm flex-1">{node.firstName} {node.lastName}</span>
-                            {node.isBookmarked && <Star size={12} className="fill-yellow-300 text-yellow-300"/>}
-                            {warnings.length > 0 && <AlertTriangle size={14} className="text-yellow-300 animate-pulse" />}
-                            {node.deathDate && <span className="text-xs opacity-70">✝</span>}
+                            {!isGhost && node.isBookmarked && <Star size={12} className="fill-yellow-300 text-yellow-300"/>}
+                            {!isGhost && warnings.length > 0 && <AlertTriangle size={14} className="text-yellow-300 animate-pulse" />}
+                            {!isGhost && node.deathDate && <span className="text-xs opacity-70">✝</span>}
                             {/* Ingifta-ikon */}
-                            {node.isPartner && (
+                            {!isGhost && node.isPartner && (
                                 <button title="Visa träd för denna person" className="ml-2 p-1 rounded hover:bg-blue-700/30" onClick={e => { e.stopPropagation(); navigateToPerson(node.id); }}>
                                     <Network size={16} className="text-blue-200" />
                                 </button>
                             )}
+                            {isGhost && <span className="text-xs opacity-80">Saknad förälder</span>}
                         </div>
 
                         <div className="flex flex-1 p-2 gap-3 relative group">
                             <div className="flex flex-col items-center gap-0.5">
-                                <div className="w-16 h-16 bg-gray-300 rounded overflow-hidden border border-gray-400 flex-shrink-0 shadow-inner">
-                                    <User className="w-full h-full p-2 text-gray-500" />
+                                <div className={`w-16 h-16 rounded overflow-hidden flex-shrink-0 shadow-inner ${isGhost ? 'bg-slate-700 border border-slate-500' : 'bg-gray-300 border border-gray-400'}`}>
+                                    {isGhost ? <Plus className="w-full h-full p-2 text-slate-200" /> : <User className="w-full h-full p-2 text-gray-500" />}
                                 </div>
                             </div>
-                            <div className="flex-1 flex flex-col text-xs space-y-1 justify-center text-slate-700">
-                                {node.birthDate && (
-                                    <div className="flex flex-col">
-                                        <span className="opacity-70 flex items-center gap-1 font-semibold text-[10px] uppercase tracking-wide">Född</span>
-                                        <span className="font-medium truncate">{node.birthDate}</span>
-                                    </div>
-                                )}
-                                {node.deathDate && (
-                                    <div className="flex flex-col">
-                                        <span className="opacity-70 flex items-center gap-1 font-semibold text-[10px] uppercase tracking-wide">Död</span>
-                                        <span className="font-medium truncate">{node.deathDate}</span>
-                                    </div>
+                            <div className={`flex-1 flex flex-col text-xs space-y-1 justify-center ${isGhost ? 'text-slate-200' : 'text-slate-700'}`}>
+                                {isGhost ? (
+                                    <>
+                                        <div className="font-semibold text-sm">Lägg till förälder</div>
+                                        <div className="text-[11px] opacity-80">Klicka för att lägga till saknad förälder</div>
+                                    </>
+                                ) : (
+                                    <>
+                                        {node.birthDate && (
+                                            <div className="flex flex-col">
+                                                <span className="opacity-70 flex items-center gap-1 font-semibold text-[10px] uppercase tracking-wide">Född</span>
+                                                <span className="font-medium truncate">{node.birthDate}</span>
+                                            </div>
+                                        )}
+                                        {node.deathDate && (
+                                            <div className="flex flex-col">
+                                                <span className="opacity-70 flex items-center gap-1 font-semibold text-[10px] uppercase tracking-wide">Död</span>
+                                                <span className="font-medium truncate">{node.deathDate}</span>
+                                            </div>
+                                        )}
+                                    </>
                                 )}
                             </div>
                         </div>

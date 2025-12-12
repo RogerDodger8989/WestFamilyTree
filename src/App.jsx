@@ -26,6 +26,83 @@ import LinkPersonModal from './LinkPersonModal.jsx';
 import OAIArchiveHarvesterModal from './OAIArchiveHarvesterModal.jsx';
 import Button from './Button.jsx'; 
 
+// Helper: Build relations array from people array to keep dbData.relations in sync
+function buildRelationsFromPeople(people = []) {
+  const relations = [];
+  const seen = new Set();
+  
+  const addRelation = (fromPersonId, toPersonId, type) => {
+    if (!fromPersonId || !toPersonId || fromPersonId === toPersonId) return;
+    // Create a normalized key to avoid duplicates (bidirectional)
+    const key1 = `${fromPersonId}|${toPersonId}|${type}`;
+    const key2 = `${toPersonId}|${fromPersonId}|${type}`;
+    if (seen.has(key1) || seen.has(key2)) return;
+    seen.add(key1);
+    
+    relations.push({
+      id: `rel_${fromPersonId}_${toPersonId}_${type}_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+      fromPersonId,
+      toPersonId,
+      type,
+      createdAt: new Date().toISOString(),
+      modifiedAt: new Date().toISOString(),
+      _archived: false
+    });
+  };
+  
+  for (const person of people) {
+    if (!person || !person.id || !person.relations) continue;
+    
+    const { parents = [], children = [], spouseId = null, siblings = [], partners = [] } = person.relations;
+    
+    // Parent-child relations (bidirectional)
+    for (const parentId of parents) {
+      if (typeof parentId === 'string') {
+        addRelation(parentId, person.id, 'parent');
+      } else if (parentId && typeof parentId === 'object' && parentId.id) {
+        addRelation(parentId.id, person.id, 'parent');
+      }
+    }
+    
+    for (const childId of children) {
+      if (typeof childId === 'string') {
+        addRelation(person.id, childId, 'parent');
+      } else if (childId && typeof childId === 'object' && childId.id) {
+        addRelation(person.id, childId.id, 'parent');
+      }
+    }
+    
+    // Partner relations (från partners-arrayen)
+    if (Array.isArray(partners)) {
+      for (const partnerRef of partners) {
+        const partnerId = typeof partnerRef === 'string' ? partnerRef : (partnerRef?.id || partnerRef);
+        if (partnerId) {
+          addRelation(person.id, partnerId, 'spouse');
+        }
+      }
+    }
+    
+    // Fallback: Spouse relations (från spouseId för bakåtkompatibilitet)
+    if (spouseId) {
+      const spouseIdStr = typeof spouseId === 'string' ? spouseId : (spouseId.id || spouseId);
+      if (spouseIdStr) {
+        addRelation(person.id, spouseIdStr, 'spouse');
+      }
+    }
+    
+    // Sibling relations
+    for (const siblingId of siblings) {
+      if (typeof siblingId === 'string') {
+        addRelation(person.id, siblingId, 'sibling');
+      } else if (siblingId && typeof siblingId === 'object' && siblingId.id) {
+        addRelation(person.id, siblingId.id, 'sibling');
+      }
+    }
+  }
+  
+  return relations;
+}
+
 function App() {
     // Reset all UI state after new database
     // Visa bekräftelsedialog för ny databas
@@ -396,7 +473,9 @@ function App() {
             ? { ...p, _isPlaceholder: false, _placeholderRelation: undefined, _placeholderTargetId: undefined, _hideUntilEdit: false }
             : p
         );
-        return { ...prev, people: updatedPeople };
+        // Bygg relations-array från people så att dbData.relations är synkad
+        const relations = buildRelationsFromPeople(updatedPeople);
+        return { ...prev, people: updatedPeople, relations };
       });
     }
     if (personDrawer && creationSnapshotsRef.current[personDrawer.id]) delete creationSnapshotsRef.current[personDrawer.id];
@@ -406,11 +485,173 @@ function App() {
   };
 
 
+  // Generell funktion: Säkerställ att alla föräldrar till samma barn är partners
+  // Denna funktion uppdaterar ALLA berörda personer, inte bara den som sparas
+  const ensureParentsArePartners = (allPeople, personId) => {
+    let updatedPeople = allPeople.map(p => ({ ...p, relations: { ...p.relations } }));
+    
+    // Hitta alla barn som är relaterade till denna person
+    // 1. Barn som personen har i sin children-lista
+    const person = updatedPeople.find(p => p.id === personId);
+    if (!person || !person.relations) return updatedPeople;
+    
+    const childrenFromChildren = (person.relations.children || []).map(c => typeof c === 'object' ? c.id : c);
+    
+    // 2. Barn som har personen i sin parents-lista
+    const childrenFromParents = updatedPeople
+      .filter(p => {
+        const parents = (p.relations?.parents || []).map(par => typeof par === 'object' ? par.id : par);
+        return parents.includes(personId);
+      })
+      .map(p => p.id);
+    
+    const allChildren = [...new Set([...childrenFromChildren, ...childrenFromParents])];
+    
+    // För varje barn, hitta alla dess föräldrar och säkerställ att de är partners
+    allChildren.forEach(childId => {
+      const child = updatedPeople.find(p => p.id === childId);
+      if (!child) return;
+      
+      // Hämta alla föräldrar till barnet
+      const childParentsFromChild = (child.relations?.parents || [])
+        .map(p => typeof p === 'object' ? p.id : p)
+        .filter(Boolean);
+      
+      // Hitta andra personer som har detta barn i sin children-lista
+      const childParentsFromOthers = updatedPeople
+        .filter(p => p.relations?.children)
+        .filter(p => {
+          const pChildren = (p.relations.children || []).map(c => typeof c === 'object' ? c.id : c);
+          return pChildren.includes(childId);
+        })
+        .map(p => p.id);
+      
+      // Kombinera alla föräldrar
+      const allParents = [...new Set([...childParentsFromChild, ...childParentsFromOthers])]
+        .filter(Boolean);
+      
+      // Om barnet har fler än en förälder, säkerställ att alla är partners med varandra
+      if (allParents.length > 1) {
+        // Uppdatera VARJE förälder så att de har de andra som partners
+        allParents.forEach(parentId => {
+          const parentIndex = updatedPeople.findIndex(p => p.id === parentId);
+          if (parentIndex === -1) return;
+          
+          const parent = updatedPeople[parentIndex];
+          if (!parent.relations) parent.relations = {};
+          if (!parent.relations.partners) parent.relations.partners = [];
+          
+          // Lägg till alla andra föräldrar som partners
+          allParents.forEach(otherParentId => {
+            if (otherParentId === parentId) return; // Skippa sig själv
+            
+            const otherParent = updatedPeople.find(p => p.id === otherParentId);
+            if (!otherParent) return;
+            
+            // Kolla om de redan är partners
+            const alreadyPartners = parent.relations.partners.some(p => 
+              (typeof p === 'object' ? p.id : p) === otherParentId
+            );
+            
+            if (!alreadyPartners) {
+              parent.relations.partners.push({ 
+                id: otherParentId, 
+                name: `${otherParent.firstName || ''} ${otherParent.lastName || ''}`.trim(),
+                type: 'Okänd'
+              });
+            }
+          });
+          
+          updatedPeople[parentIndex] = parent;
+        });
+      }
+    });
+    
+    return updatedPeople;
+  };
+
   const patchedHandleSavePersonDetails = (person) => {
     setDbData(prev => {
       // Synka ALLA relationer tvåvägs (partners, barn, föräldrar)
-      const updatedPeople = syncRelations(person, prev.people || []);
-      return { ...prev, people: updatedPeople };
+      let updatedPeople = syncRelations(person, prev.people || []);
+      
+      // Hitta alla personer som kan ha påverkats och behöver synkas
+      const affectedPersonIds = new Set([person.id]);
+      
+      // Lägg till alla partners från den sparade personen
+      const personPartners = (person.relations?.partners || []).map(p => typeof p === 'object' ? p.id : p);
+      personPartners.forEach(id => affectedPersonIds.add(id));
+      
+      // Lägg till alla föräldrar
+      const personParents = (person.relations?.parents || []).map(p => typeof p === 'object' ? p.id : p);
+      personParents.forEach(id => affectedPersonIds.add(id));
+      
+      // Lägg till alla barn
+      const personChildren = (person.relations?.children || []).map(c => typeof c === 'object' ? c.id : c);
+      personChildren.forEach(id => affectedPersonIds.add(id));
+      
+      // Hitta alla barn som har personen som förälder
+      updatedPeople
+        .filter(p => {
+          const parents = (p.relations?.parents || []).map(par => typeof par === 'object' ? par.id : par);
+          return parents.includes(person.id);
+        })
+        .forEach(p => affectedPersonIds.add(p.id));
+      
+      // Synka alla berörda personer först
+      for (let i = 0; i < 2; i++) {
+        affectedPersonIds.forEach(affectedId => {
+          const affectedPerson = updatedPeople.find(p => p.id === affectedId);
+          if (affectedPerson) {
+            updatedPeople = syncRelations(affectedPerson, updatedPeople);
+          }
+        });
+      }
+      
+      // EFTER att alla personer är synkade, säkerställ att alla föräldrar till samma barn är partners
+      // Detta uppdaterar ALLA berörda personer (inte bara den som sparas)
+      updatedPeople = ensureParentsArePartners(updatedPeople, person.id);
+      
+      // Kör ensureParentsArePartners för ALLA personer som kan ha påverkats
+      const allAffectedIds = new Set([person.id]);
+      personParents.forEach(id => allAffectedIds.add(id));
+      personChildren.forEach(id => allAffectedIds.add(id));
+      updatedPeople
+        .filter(p => {
+          const parents = (p.relations?.parents || []).map(par => typeof par === 'object' ? par.id : par);
+          return parents.includes(person.id);
+        })
+        .forEach(p => allAffectedIds.add(p.id));
+      
+      // Kör ensureParentsArePartners för alla berörda personer
+      allAffectedIds.forEach(affectedId => {
+        updatedPeople = ensureParentsArePartners(updatedPeople, affectedId);
+      });
+      
+      // Nu när partner-relationer har lagts till, synka alla personer igen
+      // Hitta alla personer som kan ha fått nya partner-relationer
+      const allPersonIdsToSync = new Set();
+      updatedPeople.forEach(p => {
+        allPersonIdsToSync.add(p.id);
+        if (p.relations?.partners) {
+          const partners = (p.relations.partners || []).map(par => typeof par === 'object' ? par.id : par);
+          partners.forEach(partnerId => allPersonIdsToSync.add(partnerId));
+        }
+      });
+      
+      // Synka alla personer igen för att säkerställa tvåvägs-relationer
+      for (let i = 0; i < 2; i++) {
+        allPersonIdsToSync.forEach(personId => {
+          const personToSync = updatedPeople.find(p => p.id === personId);
+          if (personToSync) {
+            updatedPeople = syncRelations(personToSync, updatedPeople);
+          }
+        });
+      }
+      
+      // Bygg relations-array från people så att dbData.relations är synkad
+      const relations = buildRelationsFromPeople(updatedPeople);
+      return { ...prev, people: updatedPeople, relations };
     });
     setIsDirty(true);
     showStatus('Person sparad.');
