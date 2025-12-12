@@ -1010,6 +1010,11 @@ function App() {
                 focusPair={focusPair}
                 onSetFocusPair={handleSetFocusPair}
                 activeSourcingEventId={sourcingEventInfo?.eventId}
+                allMediaItems={dbData.media || []}
+                onUpdateAllMedia={(updatedMedia) => {
+                  setDbData(prev => ({ ...prev, media: updatedMedia }));
+                  setIsDirty(true);
+                }}
               />
             </WindowFrame>
           )}

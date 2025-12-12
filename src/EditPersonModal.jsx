@@ -8,6 +8,8 @@ import {
 import WindowFrame from './WindowFrame.jsx';
 import PlacePicker from './PlacePicker.jsx';
 import ImageViewer from './ImageViewer.jsx';
+import Editor from './MaybeEditor.jsx';
+import MediaSelector from './MediaSelector.jsx';
 
 // --- KONSTANTER ---
 
@@ -359,7 +361,7 @@ const SourceModal = ({ isOpen, onClose, onAdd, eventType }) => {
 
 // --- HUVUDKOMPONENT ---
 
-export default function EditPersonModal({ person: initialPerson, allPlaces, onSave, onClose, onOpenSourceDrawer, allSources, allPeople, onOpenEditModal }) {
+export default function EditPersonModal({ person: initialPerson, allPlaces, onSave, onClose, onOpenSourceDrawer, allSources, allPeople, onOpenEditModal, allMediaItems = [], onUpdateAllMedia = () => {} }) {
     // Relation linking modal state
     const [relationModalOpen, setRelationModalOpen] = useState(false);
     const [relationTypeToAdd, setRelationTypeToAdd] = useState(null);
@@ -740,6 +742,11 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
   const [tagInput, setTagInput] = useState('');
   const [selectedEventIndex, setSelectedEventIndex] = useState(null);
   const [sourceRefreshKey, setSourceRefreshKey] = useState(0);
+  
+  // State för noteringar-fliken
+  const [noteSearch, setNoteSearch] = useState('');
+  const [draggedNoteIndex, setDraggedNoteIndex] = useState(null);
+  const [dragOverIndex, setDragOverIndex] = useState(null);
 
   // Re-render detail block när allSources ändras
   useEffect(() => {
@@ -948,25 +955,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
     }
   }, [eventTypeSearchOpen]);
 
-  // Image paste handler
-  useEffect(() => {
-    const handlePaste = (e) => {
-      if (activeTab !== 'media') return;
-      const items = e.clipboardData.items;
-      for (let i = 0; i < items.length; i++) {
-        if (items[i].type.indexOf('image') !== -1) {
-          const blob = items[i].getAsFile();
-          const fakeUrl = URL.createObjectURL(blob);
-          setPerson(prev => ({
-            ...prev,
-            media: [...prev.media, { id: `img_${Date.now()}`, url: fakeUrl, name: 'Urklipp.png', type: 'image' }]
-          }));
-        }
-      }
-    };
-    window.addEventListener('paste', handlePaste);
-    return () => window.removeEventListener('paste', handlePaste);
-  }, [activeTab]);
+  // Image paste handler - TAS BORT: MediaSelector hanterar paste nu
 
   const handleSave = async () => {
     try {
@@ -1524,90 +1513,18 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
 
             {/* FLIK: MEDIA */}
             {activeTab === 'media' && (
-              <div className="animate-in fade-in duration-300 h-full flex gap-4">
-                {/* VÄNSTER: Thumbnails */}
-                <div className="w-48 flex flex-col gap-2">
-                  <p className="text-xs text-slate-400">Bilder</p>
-                  <div className="flex-1 flex flex-col gap-3 overflow-y-auto">
-                    {person.media?.map((m, idx) => (
-                      <div 
-                        key={m.id} 
-                        onClick={() => setSelectedMediaIndex(idx)}
-                        className={`group relative cursor-pointer rounded border-2 transition-all ${
-                          selectedMediaIndex === idx 
-                            ? 'border-blue-500 ring-2 ring-blue-500/50' 
-                            : 'border-slate-600 hover:border-slate-500'
-                        }`}
-                      >
-                        <div className="aspect-square bg-slate-700 rounded overflow-hidden relative">
-                          <img src={m.url} alt={m.name} className="w-full h-full object-cover" />
-                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition-opacity">
-                            <button className="p-1 bg-slate-600 rounded hover:bg-red-600 text-white"><Trash2 size={12}/></button>
-                          </div>
-                        </div>
-                        <p className="text-xs text-center mt-1 truncate text-slate-300 px-1">{m.name}</p>
-                      </div>
-                    ))}
-                    
-                    <div className="aspect-square flex flex-col items-center justify-center border-2 border-slate-600 border-dashed rounded hover:border-slate-500 hover:bg-slate-700 transition-colors cursor-pointer text-slate-400 hover:text-slate-300">
-                      <Plus size={24} />
-                      <span className="text-xs mt-2">Lägg till</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* HÖGER: Stor preview med ansiktstagging */}
-                <div className="flex-1 flex flex-col gap-2">
-                  {selectedMediaIndex !== null && person.media?.[selectedMediaIndex] ? (
-                    <>
-                      <div className="flex justify-between items-center">
-                        <p className="text-sm text-slate-300 font-medium">{person.media[selectedMediaIndex].name}</p>
-                        <button 
-                          onClick={() => setImageViewerOpen(true)}
-                          className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded flex items-center gap-2 transition-colors"
-                        >
-                          <Camera size={16} />
-                          Ansiktstagga
-                        </button>
-                      </div>
-                      <div className="flex-1 border-2 border-slate-600 rounded-lg bg-slate-900 flex items-center justify-center overflow-hidden">
-                        <img 
-                          src={person.media[selectedMediaIndex].url} 
-                          alt={person.media[selectedMediaIndex].name} 
-                          className="max-w-full max-h-full object-contain"
-                        />
-                      </div>
-                    </>
-                  ) : (
-                    <div className="flex-1 border-2 border-dashed border-slate-600 rounded-lg bg-slate-800 flex items-center justify-center text-slate-400">
-                      <div className="text-center">
-                        <ImageIcon size={48} className="mx-auto mb-2 opacity-50" />
-                        <p>Välj eller lägg till en bild</p>
-                        <p className="text-xs mt-1">Dra och släpp eller klistra in (Ctrl+V)</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* ImageViewer för ansiktstagging */}
-                <ImageViewer
-                  isOpen={imageViewerOpen}
-                  onClose={() => setImageViewerOpen(false)}
-                  imageSrc={selectedMediaIndex !== null && person.media?.[selectedMediaIndex]?.url}
-                  imageTitle={selectedMediaIndex !== null && person.media?.[selectedMediaIndex]?.name}
-                  regions={selectedMediaIndex !== null && person.media?.[selectedMediaIndex]?.regions || []}
-                  onSaveRegions={(newRegions) => {
-                    if (selectedMediaIndex !== null) {
-                      const updatedMedia = [...person.media];
-                      updatedMedia[selectedMediaIndex] = {
-                        ...updatedMedia[selectedMediaIndex],
-                        regions: newRegions
-                      };
-                      setPerson({ ...person, media: updatedMedia });
-                    }
+              <div className="animate-in fade-in duration-300 h-full">
+                <MediaSelector
+                  media={person.media || []}
+                  onMediaChange={(newMedia) => {
+                    setPerson(prev => ({ ...prev, media: newMedia }));
                   }}
-                  people={allPeople}
+                  entityType="person"
+                  entityId={person.id}
+                  allPeople={allPeople}
                   onOpenEditModal={onOpenEditModal}
+                  allMediaItems={allMediaItems}
+                  onUpdateAllMedia={onUpdateAllMedia}
                 />
               </div>
             )}
@@ -1686,28 +1603,250 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
             )}
 
             {/* FLIK: NOTERINGAR */}
-            {activeTab === 'notes' && (
-              <div className="space-y-4 animate-in fade-in duration-300">
-                 <div className="flex justify-end">
-                    <button className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded flex items-center gap-1"><Plus size={14}/> Ny notering</button>
-                 </div>
-                 {person.notes?.map((note, idx) => (
-                   <div key={idx} className="bg-slate-900 border border-slate-700 rounded-lg overflow-hidden">
-                      <div className="bg-slate-800 p-2 border-b border-slate-700 flex justify-between items-center">
-                         <input type="text" defaultValue={note.title} className="bg-transparent font-bold text-sm text-slate-200 focus:outline-none" />
-                         <div className="flex gap-2">
-                           <button className="text-slate-400 hover:text-red-600"><Trash2 size={14}/></button>
-                         </div>
-                      </div>
-                      <EditorToolbar />
-                      <textarea 
-                        className="w-full bg-slate-800 text-sm text-slate-200 p-3 focus:outline-none min-h-[150px] resize-y"
-                        defaultValue={note.content}
-                      />
+            {activeTab === 'notes' && (() => {
+              // Säkerställ att alla noteringar har datum (för bakåtkompatibilitet)
+              const notesWithDates = (person.notes || []).map(note => {
+                if (!note.createdAt) {
+                  return { ...note, createdAt: new Date().toISOString(), modifiedAt: new Date().toISOString() };
+                }
+                if (!note.modifiedAt) {
+                  return { ...note, modifiedAt: note.createdAt };
+                }
+                return note;
+              });
+
+              // Filtrera noteringar baserat på söktext
+              const filteredNotes = notesWithDates.filter(note => {
+                if (!noteSearch) return true;
+                const searchLower = noteSearch.toLowerCase();
+                const titleMatch = (note.title || '').toLowerCase().includes(searchLower);
+                // Sök även i HTML-innehållet (strippa HTML-taggar för sökning)
+                const contentText = (note.content || '').replace(/<[^>]*>/g, '').toLowerCase();
+                const contentMatch = contentText.includes(searchLower);
+                return titleMatch || contentMatch;
+              });
+
+              // Hantera drag start
+              const handleDragStart = (e, index) => {
+                setDraggedNoteIndex(index);
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/html', e.target.outerHTML);
+                e.target.style.opacity = '0.5';
+              };
+
+              // Hantera drag over
+              const handleDragOver = (e, index) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                setDragOverIndex(index);
+              };
+
+              // Hantera drag leave
+              const handleDragLeave = () => {
+                setDragOverIndex(null);
+              };
+
+              // Hantera drop
+              const handleDrop = (e, dropIndex) => {
+                e.preventDefault();
+                if (draggedNoteIndex === null || draggedNoteIndex === dropIndex) {
+                  setDraggedNoteIndex(null);
+                  setDragOverIndex(null);
+                  return;
+                }
+
+                // Hitta originalindex i den ofiltrerade listan
+                const draggedNote = filteredNotes[draggedNoteIndex];
+                const originalDraggedIndex = notesWithDates.findIndex(n => n.id === draggedNote.id);
+                const originalDropIndex = notesWithDates.findIndex(n => n.id === filteredNotes[dropIndex].id);
+
+                if (originalDraggedIndex !== -1 && originalDropIndex !== -1) {
+                  const newNotes = [...notesWithDates];
+                  const [removed] = newNotes.splice(originalDraggedIndex, 1);
+                  newNotes.splice(originalDropIndex, 0, removed);
+                  
+                  setPerson(prev => ({
+                    ...prev,
+                    notes: newNotes
+                  }));
+                }
+
+                setDraggedNoteIndex(null);
+                setDragOverIndex(null);
+              };
+
+              // Hantera drag end
+              const handleDragEnd = (e) => {
+                e.target.style.opacity = '1';
+                setDraggedNoteIndex(null);
+                setDragOverIndex(null);
+              };
+
+              // Formatera datum
+              const formatDate = (dateString) => {
+                if (!dateString) return '';
+                try {
+                  const date = new Date(dateString);
+                  return date.toLocaleDateString('sv-SE', { 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  });
+                } catch {
+                  return dateString;
+                }
+              };
+
+              return (
+                <div className="space-y-4 animate-in fade-in duration-300">
+                   <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-lg font-bold text-slate-200">Noteringar</h3>
+                      <button 
+                        onClick={() => {
+                          const now = new Date().toISOString();
+                          const newNote = {
+                            id: `note_${Date.now()}`,
+                            title: 'Ny notering',
+                            content: '',
+                            createdAt: now,
+                            modifiedAt: now
+                          };
+                          setPerson(prev => ({
+                            ...prev,
+                            notes: [...(prev.notes || []), newNote]
+                          }));
+                        }}
+                        className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded flex items-center gap-1 transition-colors"
+                      >
+                        <Plus size={14}/> Ny notering
+                      </button>
                    </div>
-                 ))}
-              </div>
-            )}
+
+                   {/* Sökfält */}
+                   <div className="relative mb-4">
+                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18}/>
+                     <input
+                       type="text"
+                       value={noteSearch}
+                       onChange={(e) => setNoteSearch(e.target.value)}
+                       placeholder="Sök i noteringar..."
+                       className="w-full bg-slate-900 border border-slate-700 rounded p-2 pl-10 text-white focus:border-blue-500 focus:outline-none"
+                     />
+                     {noteSearch && (
+                       <button
+                         onClick={() => setNoteSearch('')}
+                         className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-white"
+                       >
+                         <X size={18}/>
+                       </button>
+                     )}
+                   </div>
+                   
+                   {(!notesWithDates || notesWithDates.length === 0) ? (
+                     <div className="text-center py-12 text-slate-400">
+                       <FileText size={48} className="mx-auto mb-4 opacity-50" />
+                       <p className="text-sm">Inga noteringar ännu. Klicka på "Ny notering" för att lägga till en.</p>
+                     </div>
+                   ) : filteredNotes.length === 0 ? (
+                     <div className="text-center py-12 text-slate-400">
+                       <Search size={48} className="mx-auto mb-4 opacity-50" />
+                       <p className="text-sm">Inga noteringar matchar din sökning.</p>
+                     </div>
+                   ) : (
+                     filteredNotes.map((note, idx) => {
+                       // Hitta originalindex
+                       const originalIndex = notesWithDates.findIndex(n => n.id === note.id);
+                       
+                       return (
+                         <div 
+                           key={note.id || idx} 
+                           draggable
+                           onDragStart={(e) => handleDragStart(e, idx)}
+                           onDragOver={(e) => handleDragOver(e, idx)}
+                           onDragLeave={handleDragLeave}
+                           onDrop={(e) => handleDrop(e, idx)}
+                           onDragEnd={handleDragEnd}
+                           className={`bg-slate-900 border border-slate-700 rounded-lg overflow-hidden transition-all cursor-move ${
+                             dragOverIndex === idx ? 'border-blue-500 ring-2 ring-blue-500/50' : ''
+                           } ${draggedNoteIndex === idx ? 'opacity-50' : ''}`}
+                         >
+                            <div className="bg-slate-800 p-3 border-b border-slate-700 flex justify-between items-center">
+                               <div className="flex-1 flex items-center gap-2">
+                                 <div className="text-slate-500 cursor-grab active:cursor-grabbing" title="Dra för att sortera">
+                                   <MoreHorizontal size={18}/>
+                                 </div>
+                                 <input 
+                                   type="text" 
+                                   value={note.title || 'Notering'}
+                                   onChange={(e) => {
+                                     const now = new Date().toISOString();
+                                     setPerson(prev => ({
+                                       ...prev,
+                                       notes: prev.notes.map((n, i) => 
+                                         i === originalIndex 
+                                           ? { ...n, title: e.target.value, modifiedAt: now } 
+                                           : n
+                                       )
+                                     }));
+                                   }}
+                                   className="bg-transparent font-bold text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-2 py-1 flex-1"
+                                   placeholder="Titel på notering..."
+                                   onClick={(e) => e.stopPropagation()}
+                                 />
+                               </div>
+                               <div className="flex gap-3 items-center ml-3">
+                                 {/* Datum */}
+                                 <div className="text-xs text-slate-500 flex flex-col items-end">
+                                   {note.createdAt && (
+                                     <span title="Skapad">Skapad: {formatDate(note.createdAt)}</span>
+                                   )}
+                                   {note.modifiedAt && note.modifiedAt !== note.createdAt && (
+                                     <span title="Senast ändrad" className="text-slate-600">Ändrad: {formatDate(note.modifiedAt)}</span>
+                                   )}
+                                 </div>
+                                 <button 
+                                   onClick={(e) => {
+                                     e.stopPropagation();
+                                     setPerson(prev => ({
+                                       ...prev,
+                                       notes: prev.notes.filter((_, i) => i !== originalIndex)
+                                     }));
+                                   }}
+                                   className="text-slate-400 hover:text-red-600 transition-colors p-1"
+                                   title="Ta bort notering"
+                                 >
+                                   <Trash2 size={16}/>
+                                 </button>
+                               </div>
+                            </div>
+                            <div className="p-4 bg-slate-800" onClick={(e) => e.stopPropagation()}>
+                              <Editor
+                                value={note.content || ''}
+                                onChange={(e) => {
+                                  const now = new Date().toISOString();
+                                  setPerson(prev => ({
+                                    ...prev,
+                                    notes: prev.notes.map((n, i) => 
+                                      i === originalIndex 
+                                        ? { ...n, content: e.target.value, modifiedAt: now } 
+                                        : n
+                                    )
+                                  }));
+                                }}
+                                onBlur={() => {
+                                  // Autospara när man lämnar editorn
+                                }}
+                              />
+                            </div>
+                         </div>
+                       );
+                     })
+                   )}
+                </div>
+              );
+            })()}
 
           </div>
         </div>

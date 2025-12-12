@@ -203,47 +203,76 @@ export default function ImageViewer({
             setLoading(true); setError(null);
             setZoomLevel(1.0); setPanOffset({ x: 0, y: 0 }); // Återställ zoom och pan
             
-            // Check if it's an HTTP URL or local file
-            if (imageSrc.startsWith('http://') || imageSrc.startsWith('https://')) {
-                // For HTTP URLs, use directly
+            // Check if it's an HTTP URL, blob URL, or data URL
+            if (imageSrc.startsWith('http://') || imageSrc.startsWith('https://') || 
+                imageSrc.startsWith('blob:') || imageSrc.startsWith('data:')) {
+                // For HTTP URLs, blob URLs, or data URLs, use directly
                 setBlobUrl(imageSrc);
                 setLoading(false);
+                // Vänta tills bilden laddats och mät storlek
+                setTimeout(() => {
+                    if (imgRef.current) {
+                        const img = imgRef.current;
+                        const container = img.parentElement;
+                        if (container) {
+                            const imgW = img.naturalWidth;
+                            const imgH = img.naturalHeight;
+                            const contW = container.clientWidth;
+                            const contH = container.clientHeight;
+                            if (imgW && imgH && contW && contH) {
+                                const scaleW = contW / imgW;
+                                const scaleH = contH / imgH;
+                                const fitZoom = Math.min(scaleW, scaleH, 1);
+                                setZoomLevel(fitZoom);
+                                setPanOffset({ x: 0, y: 0 });
+                            }
+                        }
+                    }
+                }, 50);
             } else {
-                // For local files, use Electron API
-                window.electronAPI.readFile(imageSrc)
-                    .then(data => {
-                        if (data && !data.error) {
-                            const blob = new Blob([data]);
-                            const url = URL.createObjectURL(blob);
-                            setBlobUrl(url);
-                        // Vänta tills bilden laddats och mät storlek
-                        setTimeout(() => {
-                            if (imgRef.current) {
-                                const img = imgRef.current;
-                                const container = img.parentElement;
-                                if (container) {
-                                    const imgW = img.naturalWidth;
-                                    const imgH = img.naturalHeight;
-                                    const contW = container.clientWidth;
-                                    const contH = container.clientHeight;
-                                    if (imgW && imgH && contW && contH) {
-                                        const scaleW = contW / imgW;
-                                        const scaleH = contH / imgH;
-                                        const fitZoom = Math.min(scaleW, scaleH, 1);
-                                        setZoomLevel(fitZoom);
-                                        setPanOffset({ x: 0, y: 0 });
+                // For local files, use Electron API (om den finns)
+                if (window.electronAPI && typeof window.electronAPI.readFile === 'function') {
+                    window.electronAPI.readFile(imageSrc)
+                        .then(data => {
+                            if (data && !data.error) {
+                                const blob = new Blob([data]);
+                                const url = URL.createObjectURL(blob);
+                                setBlobUrl(url);
+                            // Vänta tills bilden laddats och mät storlek
+                            setTimeout(() => {
+                                if (imgRef.current) {
+                                    const img = imgRef.current;
+                                    const container = img.parentElement;
+                                    if (container) {
+                                        const imgW = img.naturalWidth;
+                                        const imgH = img.naturalHeight;
+                                        const contW = container.clientWidth;
+                                        const contH = container.clientHeight;
+                                        if (imgW && imgH && contW && contH) {
+                                            const scaleW = contW / imgW;
+                                            const scaleH = contH / imgH;
+                                            const fitZoom = Math.min(scaleW, scaleH, 1);
+                                            setZoomLevel(fitZoom);
+                                            setPanOffset({ x: 0, y: 0 });
+                                        }
                                     }
                                 }
-                            }
-                        }, 50);
-                        } else { setError("Kunde inte läsa in bilden."); }
-                    })
-                    .catch(err => setError(err.message))
-                    .finally(() => setLoading(false));
+                            }, 50);
+                            } else { setError("Kunde inte läsa in bilden."); }
+                        })
+                        .catch(err => setError(err.message))
+                        .finally(() => setLoading(false));
+                } else {
+                    // Fallback: försök använda direkt om Electron API inte finns
+                    setBlobUrl(imageSrc);
+                    setLoading(false);
+                }
             }
         }
         return () => {
-            if (blobUrl && !blobUrl.startsWith('http')) URL.revokeObjectURL(blobUrl); 
+            if (blobUrl && !blobUrl.startsWith('http') && !blobUrl.startsWith('blob') && !blobUrl.startsWith('data')) {
+                URL.revokeObjectURL(blobUrl);
+            }
             setBlobUrl(null);
             setIsDrawing(false);
             setEditingRegion(null);
