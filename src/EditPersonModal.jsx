@@ -365,6 +365,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
     const [relationTypeToAdd, setRelationTypeToAdd] = useState(null);
     const [relationSearch, setRelationSearch] = useState('');
     const [relationSearchIndex, setRelationSearchIndex] = useState(0);
+    const [relationSortBy, setRelationSortBy] = useState('name'); // 'name', 'recent', 'related'
 
     // Open relation picker modal
     const openRelationModal = (type) => {
@@ -372,6 +373,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
       setRelationModalOpen(true);
       setRelationSearch('');
       setRelationSearchIndex(0);
+      setRelationSortBy('name');
     };
 
     // Generell funktion: Säkerställ att alla föräldrar till samma barn är partners
@@ -497,6 +499,50 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
     return { birthYear, deathYear, lifeSpan };
   };
 
+  // Helper: Hämta födelse- och dödsdatum med plats för personväljaren
+  const getPersonLifeDetails = (personData) => {
+    if (!personData || !personData.events) {
+      return { birthDate: '', birthPlace: '', deathDate: '', deathPlace: '' };
+    }
+
+    const birthEvent = personData.events.find(e => e.type === 'Födelse');
+    const deathEvent = personData.events.find(e => e.type === 'Död');
+
+    const birthDate = birthEvent?.date || '';
+    const birthPlace = birthEvent?.place || '';
+    const deathDate = deathEvent?.date || '';
+    const deathPlace = deathEvent?.place || '';
+
+    return { birthDate, birthPlace, deathDate, deathPlace };
+  };
+
+  // Helper: Beräkna relationstyp mellan två personer (enkel version)
+  const getRelationshipType = (personAId, personBId) => {
+    if (personAId === personBId) return null;
+    
+    const personA = allPeople.find(p => p.id === personAId);
+    const personB = allPeople.find(p => p.id === personBId);
+    if (!personA || !personB) return null;
+
+    // Kolla om de är partners
+    const aPartners = (personA.relations?.partners || []).map(p => typeof p === 'object' ? p.id : p);
+    if (aPartners.includes(personBId)) return 'partner';
+
+    // Kolla om de är föräldrar/barn
+    const aParents = (personA.relations?.parents || []).map(p => typeof p === 'object' ? p.id : p);
+    if (aParents.includes(personBId)) return 'parent';
+    
+    const aChildren = (personA.relations?.children || []).map(c => typeof c === 'object' ? c.id : c);
+    if (aChildren.includes(personBId)) return 'child';
+
+    // Kolla om de är syskon (gemensamma föräldrar)
+    const bParents = (personB.relations?.parents || []).map(p => typeof p === 'object' ? p.id : p);
+    const commonParents = aParents.filter(p => bParents.includes(p));
+    if (commonParents.length > 0) return 'sibling';
+
+    return null;
+  };
+
   // Helper: Beräkna ålder vid ett visst datum
   const calculateAgeAtEvent = (birthDate, eventDate) => {
     if (!birthDate || !eventDate) return null;
@@ -611,6 +657,63 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
     
     return base;
   });
+
+  // Handle keyboard navigation in relation picker (moved after person definition)
+  useEffect(() => {
+    if (!relationModalOpen) return;
+
+    const handleKeyDown = (e) => {
+      // Beräkna filtrerad lista (samma logik som i modalen)
+      const filtered = allPeople
+        .filter(p => {
+          if (p.id === person.id) return false;
+          if (!relationSearch) return true;
+          const searchLower = relationSearch.toLowerCase();
+          const fullName = `${p.firstName || ''} ${p.lastName || ''}`.toLowerCase();
+          const ref = (p.refNumber || p.refId || '').toString().toLowerCase();
+          return fullName.includes(searchLower) || ref.includes(searchLower) ||
+                 (p.firstName || '').toLowerCase().includes(searchLower) ||
+                 (p.lastName || '').toLowerCase().includes(searchLower);
+        })
+        .map(p => {
+          const relationship = getRelationshipType(person.id, p.id);
+          const modifiedAt = p.modifiedAt || p.createdAt || '';
+          return { ...p, relationship, modifiedAt };
+        })
+        .sort((a, b) => {
+          if (relationSortBy === 'recent') {
+            return (b.modifiedAt || '').localeCompare(a.modifiedAt || '');
+          } else if (relationSortBy === 'related') {
+            const order = { 'partner': 1, 'parent': 2, 'child': 3, 'sibling': 4 };
+            const aOrder = order[a.relationship] || 99;
+            const bOrder = order[b.relationship] || 99;
+            if (aOrder !== bOrder) return aOrder - bOrder;
+            return `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
+          } else {
+            return `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
+          }
+        });
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setRelationSearchIndex(prev => Math.min(prev + 1, Math.max(0, filtered.length - 1)));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setRelationSearchIndex(prev => Math.max(prev - 1, 0));
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (filtered[relationSearchIndex]) {
+          addRelation(filtered[relationSearchIndex].id);
+        }
+      } else if (e.key === 'Escape') {
+        setRelationModalOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [relationModalOpen, relationSearch, relationSearchIndex, relationSortBy, person.id, allPeople]);
 
   const [isEventModalOpen, setEventModalOpen] = useState(false);
   const [isSourceModalOpen, setSourceModalOpen] = useState(false);
@@ -1244,41 +1347,178 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                 </div>
 
                 {/* Relation Picker Modal */}
-                {relationModalOpen && (
-                  <div className="fixed inset-0 z-[4200] flex items-center justify-center bg-black/30">
-                    <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-2xl w-full max-w-md p-0 overflow-hidden">
-                      <div className="modal-header bg-slate-900 p-4 border-b border-slate-700 flex justify-between items-center">
-                        <h3 className="font-bold text-white">Välj person att koppla</h3>
-                        <button onClick={() => setRelationModalOpen(false)} className="text-slate-400 hover:text-white"><X size={20}/></button>
-                      </div>
-                      <div className="p-6 space-y-4">
-                        <input
-                          type="text"
-                          value={relationSearch}
-                          onChange={e => { setRelationSearch(e.target.value); setRelationSearchIndex(0); }}
-                          placeholder="Sök namn..."
-                          className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:border-blue-500 focus:outline-none mb-2"
-                        />
-                        <div className="max-h-64 overflow-y-auto divide-y divide-slate-700">
-                          {allPeople
-                            .filter(p => `${p.firstName} ${p.lastName}`.toLowerCase().includes(relationSearch.toLowerCase()))
-                            .map((p, idx) => (
-                              <div key={p.id} className={`flex items-center gap-3 py-2 px-2 cursor-pointer hover:bg-slate-700 ${idx === relationSearchIndex ? 'bg-blue-600 text-white' : 'text-slate-200'}`}
-                                onClick={() => addRelation(p.id)}
-                                onMouseEnter={() => setRelationSearchIndex(idx)}
-                              >
-                                <div className="w-8 h-8 rounded-full bg-slate-600 flex items-center justify-center text-slate-400"><User size={16}/></div>
-                                <span className="font-medium">{p.firstName} {p.lastName}</span>
-                              </div>
-                            ))}
-                          {allPeople.filter(p => `${p.firstName} ${p.lastName}`.toLowerCase().includes(relationSearch.toLowerCase())).length === 0 && (
-                            <div className="text-slate-400 py-4 text-center">Ingen person hittades</div>
-                          )}
+                {relationModalOpen && (() => {
+                  // Filtrera och sortera personer
+                  const filteredPeople = allPeople
+                    .filter(p => {
+                      if (p.id === person.id) return false; // Exkludera sig själv
+                      if (!relationSearch) return true;
+                      
+                      const searchLower = relationSearch.toLowerCase();
+                      const fullName = `${p.firstName || ''} ${p.lastName || ''}`.toLowerCase();
+                      const ref = (p.refNumber || p.refId || '').toString().toLowerCase();
+                      
+                      // Sök på f.namn, e.namn, ref
+                      return fullName.includes(searchLower) || 
+                             ref.includes(searchLower) ||
+                             (p.firstName || '').toLowerCase().includes(searchLower) ||
+                             (p.lastName || '').toLowerCase().includes(searchLower);
+                    })
+                    .map(p => {
+                      const relationship = getRelationshipType(person.id, p.id);
+                      const modifiedAt = p.modifiedAt || p.createdAt || '';
+                      return { ...p, relationship, modifiedAt };
+                    })
+                    .sort((a, b) => {
+                      if (relationSortBy === 'recent') {
+                        // Sortera efter senast ändrad (nyast först)
+                        return (b.modifiedAt || '').localeCompare(a.modifiedAt || '');
+                      } else if (relationSortBy === 'related') {
+                        // Sortera efter relationstyp (partners först, sedan föräldrar, barn, syskon, osv)
+                        const order = { 'partner': 1, 'parent': 2, 'child': 3, 'sibling': 4 };
+                        const aOrder = order[a.relationship] || 99;
+                        const bOrder = order[b.relationship] || 99;
+                        if (aOrder !== bOrder) return aOrder - bOrder;
+                        // Om samma typ, sortera alfabetiskt
+                        return `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
+                      } else {
+                        // Sortera alfabetiskt (standard)
+                        return `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
+                      }
+                    });
+
+                  return (
+                    <WindowFrame
+                      title="Välj person att koppla"
+                      icon={User}
+                      onClose={() => setRelationModalOpen(false)}
+                      initialWidth={800}
+                      initialHeight={600}
+                      zIndex={4200}
+                    >
+                      <div className="h-full flex flex-col bg-slate-800 overflow-hidden">
+                        <div className="p-4 space-y-3 flex-shrink-0">
+                          {/* Sökfält */}
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18}/>
+                            <input
+                              type="text"
+                              value={relationSearch}
+                              onChange={e => { setRelationSearch(e.target.value); setRelationSearchIndex(0); }}
+                              placeholder="Sök på namn, ref, f.namn, e.namn..."
+                              className="w-full bg-slate-900 border border-slate-700 rounded p-2 pl-10 text-white focus:border-blue-500 focus:outline-none"
+                              autoFocus
+                            />
+                          </div>
+                          
+                          {/* Filter/Sortering */}
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => { setRelationSortBy('name'); setRelationSearchIndex(0); }}
+                              className={`px-3 py-1 text-xs rounded transition-colors ${
+                                relationSortBy === 'name' 
+                                  ? 'bg-blue-600 text-white' 
+                                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                              }`}
+                            >
+                              Namn
+                            </button>
+                            <button
+                              onClick={() => { setRelationSortBy('recent'); setRelationSearchIndex(0); }}
+                              className={`px-3 py-1 text-xs rounded transition-colors ${
+                                relationSortBy === 'recent' 
+                                  ? 'bg-blue-600 text-white' 
+                                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                              }`}
+                            >
+                              Senast tillagd
+                            </button>
+                            <button
+                              onClick={() => { setRelationSortBy('related'); setRelationSearchIndex(0); }}
+                              className={`px-3 py-1 text-xs rounded transition-colors ${
+                                relationSortBy === 'related' 
+                                  ? 'bg-blue-600 text-white' 
+                                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                              }`}
+                            >
+                              Närmast släkt
+                            </button>
+                          </div>
+
+                          {/* Personlista */}
+                          <div className="flex-1 overflow-y-auto divide-y divide-slate-700 custom-scrollbar">
+                            {filteredPeople.length === 0 ? (
+                              <div className="text-slate-400 py-8 text-center">Ingen person hittades</div>
+                            ) : (
+                              filteredPeople.map((p, idx) => {
+                                const { birthDate, birthPlace, deathDate, deathPlace } = getPersonLifeDetails(p);
+                                const sex = p.sex || 'U';
+                                const sexLabel = sex === 'M' ? 'M' : sex === 'K' ? 'F' : 'U';
+                                const profileImage = p.media && p.media.length > 0 ? p.media[0].url : null;
+                                
+                                return (
+                                  <div 
+                                    key={p.id} 
+                                    className={`flex items-start gap-3 py-3 px-3 cursor-pointer hover:bg-slate-700 transition-colors ${
+                                      idx === relationSearchIndex ? 'bg-blue-600 text-white' : 'text-slate-200'
+                                    }`}
+                                    onClick={() => addRelation(p.id)}
+                                    onMouseEnter={() => setRelationSearchIndex(idx)}
+                                  >
+                                    {/* Rund thumbnail */}
+                                    <div className="w-12 h-12 rounded-full bg-slate-600 flex-shrink-0 overflow-hidden border-2 border-slate-500">
+                                      {profileImage ? (
+                                        <img src={profileImage} alt={`${p.firstName} ${p.lastName}`} className="w-full h-full object-cover" />
+                                      ) : (
+                                        <User className="w-full h-full p-2 text-slate-400" />
+                                      )}
+                                    </div>
+                                    
+                                    {/* Personinfo */}
+                                    <div className="flex-1 min-w-0">
+                                      <div className="font-semibold text-base mb-1">
+                                        {p.firstName} {p.lastName}
+                                        {p.relationship && (
+                                          <span className="ml-2 text-xs font-normal text-slate-400">
+                                            ({p.relationship === 'partner' ? 'Partner' : 
+                                              p.relationship === 'parent' ? 'Förälder' : 
+                                              p.relationship === 'child' ? 'Barn' : 
+                                              p.relationship === 'sibling' ? 'Syskon' : ''})
+                                          </span>
+                                        )}
+                                      </div>
+                                      
+                                      {/* Födelsedatum och plats */}
+                                      {(birthDate || birthPlace) && (
+                                        <div className="text-sm text-slate-400 mb-0.5">
+                                          * {birthDate || '????-??-??'} {birthPlace && ` ${birthPlace}`} ({sexLabel})
+                                        </div>
+                                      )}
+                                      
+                                      {/* Dödsdatum och plats */}
+                                      {(deathDate || deathPlace) && (
+                                        <div className="text-sm text-slate-400">
+                                          + {deathDate || '????-??-??'} {deathPlace && ` ${deathPlace}`} ({sexLabel})
+                                        </div>
+                                      )}
+                                      
+                                      {/* Om inga datum finns */}
+                                      {!birthDate && !deathDate && (
+                                        <div className="text-sm text-slate-500 italic">
+                                          Inga datum registrerade
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                )}
+                    </WindowFrame>
+                  );
+                })()}
               </div>
             )}
 
