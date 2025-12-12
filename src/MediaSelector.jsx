@@ -1,10 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   Image as ImageIcon, Plus, Trash2, Star, MoreHorizontal,
-  Search, X, Grid, Eye, UploadCloud, Check
+  Search, X, Grid, Eye, UploadCloud, Check, User, FileText, MapPin,
+  Edit2, Link as LinkIcon
 } from 'lucide-react';
 import ImageViewer from './ImageViewer.jsx';
 import WindowFrame from './WindowFrame.jsx';
+import Editor from './MaybeEditor.jsx';
 
 /**
  * Återanvändbar komponent för att hantera media (bilder) för personer, källor, platser, etc.
@@ -17,6 +19,8 @@ import WindowFrame from './WindowFrame.jsx';
  * @param {Function} onOpenEditModal - Callback för att öppna person-redigering
  * @param {Array} allMediaItems - Alla media-items från databasen (för MediaManagerModal)
  * @param {Function} onUpdateAllMedia - Callback när alla media uppdateras
+ * @param {Array} allSources - Alla källor (för att visa kopplingar)
+ * @param {Array} allPlaces - Alla platser (för att visa kopplingar)
  */
 export default function MediaSelector({
   media = [],
@@ -26,7 +30,9 @@ export default function MediaSelector({
   allPeople = [],
   onOpenEditModal = () => {},
   allMediaItems = [],
-  onUpdateAllMedia = () => {}
+  onUpdateAllMedia = () => {},
+  allSources = [],
+  allPlaces = []
 }) {
   const [selectedImageIndex, setSelectedImageIndex] = useState(null);
   const [isMediaManagerOpen, setIsMediaManagerOpen] = useState(false);
@@ -35,6 +41,8 @@ export default function MediaSelector({
   const [searchTerm, setSearchTerm] = useState('');
   const [draggedIndex, setDraggedIndex] = useState(null);
   const [dragOverIndex, setDragOverIndex] = useState(null);
+  const [editingNoteIndex, setEditingNoteIndex] = useState(null);
+  const [showConnectionsIndex, setShowConnectionsIndex] = useState(null);
   const fileInputRef = useRef(null);
   const dropZoneRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -115,20 +123,93 @@ export default function MediaSelector({
   };
 
   // Hantera filuppladdning
-  const handleFileSelect = async (files) => {
+  const handleFileSelect = async (files, isPaste = false) => {
     const newImages = [];
     for (const file of Array.from(files)) {
       if (file.type.startsWith('image/')) {
-        const url = URL.createObjectURL(file);
+        // Generera namn baserat på datum och tid om det är klistrat in
+        let imageName = file.name;
+        if (isPaste) {
+          const now = new Date();
+          const year = now.getFullYear();
+          const month = String(now.getMonth() + 1).padStart(2, '0');
+          const day = String(now.getDate()).padStart(2, '0');
+          const hours = String(now.getHours()).padStart(2, '0');
+          const minutes = String(now.getMinutes()).padStart(2, '0');
+          const seconds = String(now.getSeconds()).padStart(2, '0');
+          // Behåll filändelsen
+          const extension = file.name.split('.').pop() || 'png';
+          imageName = `${year}${month}${day}-${hours}${minutes}${seconds}.${extension}`;
+        }
+        
+        // Läs filen som ArrayBuffer för att spara till disk
+        const arrayBuffer = await file.arrayBuffer();
+        const fileBuffer = Array.from(new Uint8Array(arrayBuffer));
+        
+        // Bestäm undermapp baserat på entityType (Hybrid-struktur)
+        let subfolder = 'temp'; // Standard för temporära/klistrade bilder
+        if (entityType === 'person') {
+          subfolder = 'persons';
+        } else if (entityType === 'source') {
+          subfolder = 'sources';
+        } else if (entityType === 'place') {
+          subfolder = 'places';
+        }
+        
+        // Skapa sökväg med undermapp
+        const relativePath = `${subfolder}/${imageName}`;
+        
+        // Spara till media-mappen via Electron
+        let savedPath = null;
+        let imageUrl = URL.createObjectURL(file); // Temporär blob URL
+        
+        if (window.electronAPI && window.electronAPI.saveFileBufferToMedia) {
+          try {
+            console.log('[MediaSelector] Sparar bild:', { relativePath, fileBufferLength: fileBuffer.length, entityType });
+            const result = await window.electronAPI.saveFileBufferToMedia(fileBuffer, relativePath);
+            console.log('[MediaSelector] Spar-resultat:', result);
+            if (result && result.success) {
+              // Använd media:// protocol URL istället för blob URL
+              savedPath = result.filePath || relativePath;
+              imageUrl = `media://${encodeURIComponent(savedPath)}`;
+              console.log('[MediaSelector] Bild sparad, URL:', imageUrl);
+            } else {
+              console.warn('[MediaSelector] Sparning misslyckades:', result);
+            }
+          } catch (error) {
+            console.error('[MediaSelector] Error saving file to media folder:', error);
+            // Fallback: använd blob URL om sparning misslyckas
+          }
+        } else {
+          console.warn('[MediaSelector] window.electronAPI.saveFileBufferToMedia finns inte!');
+        }
+        
         const newImage = {
           id: `img_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
-          url,
-          name: file.name,
-          file: file, // Behåll filen för senare uppladdning
+          url: imageUrl,
+          name: imageName,
+          file: file, // Behåll filen för senare uppladdning (om sparning misslyckades)
           date: new Date().toISOString().split('T')[0],
           description: '',
-          tags: []
+          tags: [],
+          connections: {}
         };
+        
+        // Om det är en person, lägg till personen i connections
+        if (entityType === 'person' && entityId) {
+          const person = allPeople.find(p => p.id === entityId);
+          if (person) {
+            newImage.connections = {
+              people: [{
+                id: person.id,
+                name: `${person.firstName} ${person.lastName}`,
+                ref: person.refNumber || '',
+                dates: '' // Kan fyllas i senare
+              }]
+            };
+          }
+        }
+        
         newImages.push(newImage);
       }
     }
@@ -180,7 +261,7 @@ export default function MediaSelector({
   useEffect(() => {
     const handlePaste = (e) => {
       if (e.clipboardData && e.clipboardData.files.length > 0) {
-        handleFileSelect(e.clipboardData.files);
+        handleFileSelect(e.clipboardData.files, true); // true = isPaste
       }
     };
 
@@ -268,7 +349,7 @@ export default function MediaSelector({
             </div>
           </div>
         ) : viewMode === 'grid' ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3">
             {filteredMedia.map((item, idx) => {
               const originalIndex = media.findIndex(m => m.id === item.id);
               const isProfile = entityType === 'person' && originalIndex === 0;
@@ -282,70 +363,108 @@ export default function MediaSelector({
                   onDragLeave={handleDragLeave}
                   onDrop={(e) => handleDrop(e, originalIndex)}
                   onDragEnd={handleDragEnd}
-                  className={`group relative cursor-pointer rounded-lg border-2 overflow-hidden transition-all ${
+                  className={`group relative rounded-lg border-2 overflow-hidden transition-all ${
                     dragOverIndex === originalIndex 
                       ? 'border-blue-500 ring-2 ring-blue-500/50 scale-105' 
                       : selectedImageIndex === originalIndex
                       ? 'border-blue-500 ring-2 ring-blue-500/50'
                       : 'border-slate-700 hover:border-slate-600'
                   } ${draggedIndex === originalIndex ? 'opacity-50' : ''}`}
-                  onClick={() => {
-                    setSelectedImageIndex(originalIndex);
-                    setIsImageViewerOpen(true);
-                  }}
                 >
-                  <div className="aspect-square bg-slate-800 relative">
-                    <img 
-                      src={item.url} 
-                      alt={item.name || 'Bild'} 
-                      className="w-full h-full object-cover"
-                    />
-                    {isProfile && (
-                      <div className="absolute top-2 left-2 bg-yellow-500 text-yellow-900 rounded-full p-1">
-                        <Star size={14} fill="currentColor" />
-                      </div>
-                    )}
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition-opacity">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setIsImageViewerOpen(true);
-                          setSelectedImageIndex(originalIndex);
-                        }}
-                        className="p-2 bg-slate-700 rounded hover:bg-slate-600 text-white"
-                        title="Visa"
-                      >
-                        <Eye size={16} />
-                      </button>
-                      {entityType === 'person' && !isProfile && (
+                  <div className="flex flex-col">
+                    <div 
+                      className="aspect-square bg-slate-800 relative cursor-pointer"
+                      onClick={() => {
+                        setSelectedImageIndex(originalIndex);
+                        setIsImageViewerOpen(true);
+                      }}
+                    >
+                      <img 
+                        src={item.url} 
+                        alt={item.name || 'Bild'} 
+                        className="w-full h-full object-cover"
+                      />
+                      {isProfile && (
+                        <div className="absolute top-2 left-2 bg-yellow-500 text-yellow-900 rounded-full p-1">
+                          <Star size={14} fill="currentColor" />
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1 transition-opacity">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleSetAsProfile(originalIndex);
+                            setIsImageViewerOpen(true);
+                            setSelectedImageIndex(originalIndex);
                           }}
-                          className="p-2 bg-yellow-600 rounded hover:bg-yellow-700 text-white"
-                          title="Sätt som profilbild"
+                          className="p-2 bg-slate-700 rounded hover:bg-slate-600 text-white"
+                          title="Visa"
                         >
-                          <Star size={16} />
+                          <Eye size={14} />
                         </button>
-                      )}
-                      <button
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingNoteIndex(originalIndex);
+                          }}
+                          className="p-2 bg-blue-600 rounded hover:bg-blue-700 text-white"
+                          title="Redigera notiser"
+                        >
+                          <Edit2 size={14} />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowConnectionsIndex(showConnectionsIndex === originalIndex ? null : originalIndex);
+                          }}
+                          className={`p-2 rounded text-white ${showConnectionsIndex === originalIndex ? 'bg-purple-700' : 'bg-purple-600 hover:bg-purple-700'}`}
+                          title="Kopplingar"
+                        >
+                          <LinkIcon size={14} />
+                        </button>
+                        {entityType === 'person' && !isProfile && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSetAsProfile(originalIndex);
+                            }}
+                            className="p-2 bg-yellow-600 rounded hover:bg-yellow-700 text-white"
+                            title="Sätt som profilbild"
+                          >
+                            <Star size={14} />
+                          </button>
+                        )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveImage(originalIndex);
+                          }}
+                          className="p-2 bg-red-600 rounded hover:bg-red-700 text-white"
+                          title="Ta bort"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <p className="text-white text-xs font-medium truncate">{item.name || 'Namnlös'}</p>
+                        {item.date && (
+                          <p className="text-white/70 text-[10px]">{item.date}</p>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Förhandsvisning av noteringar under bilden (grid-vy) */}
+                    {item.note && (
+                      <div 
+                        className="mt-2 p-2 bg-slate-900 border border-slate-700 rounded cursor-pointer hover:border-slate-600 transition-colors"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleRemoveImage(originalIndex);
+                          setEditingNoteIndex(originalIndex);
                         }}
-                        className="p-2 bg-red-600 rounded hover:bg-red-700 text-white"
-                        title="Ta bort"
                       >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <p className="text-white text-xs font-medium truncate">{item.name || 'Namnlös'}</p>
-                      {item.date && (
-                        <p className="text-white/70 text-[10px]">{item.date}</p>
-                      )}
-                    </div>
+                        <div className="text-xs text-slate-300 line-clamp-2" dangerouslySetInnerHTML={{ __html: item.note }} />
+                        <p className="text-[10px] text-slate-500 mt-1">Klicka för att redigera</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -366,19 +485,21 @@ export default function MediaSelector({
                   onDragLeave={handleDragLeave}
                   onDrop={(e) => handleDrop(e, originalIndex)}
                   onDragEnd={handleDragEnd}
-                  className={`group flex items-center gap-4 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                  className={`group flex items-start gap-4 p-3 rounded-lg border-2 transition-all ${
                     dragOverIndex === originalIndex 
                       ? 'border-blue-500 ring-2 ring-blue-500/50' 
                       : selectedImageIndex === originalIndex
                       ? 'border-blue-500 bg-blue-500/10'
                       : 'border-slate-700 hover:border-slate-600 hover:bg-slate-800/50'
                   } ${draggedIndex === originalIndex ? 'opacity-50' : ''}`}
-                  onClick={() => {
-                    setSelectedImageIndex(originalIndex);
-                    setIsImageViewerOpen(true);
-                  }}
                 >
-                  <div className="w-16 h-16 bg-slate-800 rounded overflow-hidden flex-shrink-0 relative">
+                  <div 
+                    className="w-16 h-16 bg-slate-800 rounded overflow-hidden flex-shrink-0 relative cursor-pointer"
+                    onClick={() => {
+                      setSelectedImageIndex(originalIndex);
+                      setIsImageViewerOpen(true);
+                    }}
+                  >
                     <img 
                       src={item.url} 
                       alt={item.name || 'Bild'} 
@@ -391,20 +512,42 @@ export default function MediaSelector({
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium text-slate-200 truncate">{item.name || 'Namnlös'}</p>
+                    <div className="flex items-center gap-2 mb-1">
+                      <p 
+                        className="text-sm font-medium text-slate-200 truncate cursor-pointer hover:text-blue-400"
+                        onClick={() => {
+                          setSelectedImageIndex(originalIndex);
+                          setIsImageViewerOpen(true);
+                        }}
+                      >
+                        {item.name || 'Namnlös'}
+                      </p>
                       {isProfile && (
                         <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded">Profilbild</span>
                       )}
                     </div>
                     {item.date && (
-                      <p className="text-xs text-slate-400 mt-1">{item.date}</p>
+                      <p className="text-xs text-slate-400">{item.date}</p>
                     )}
                     {item.description && (
                       <p className="text-xs text-slate-500 mt-1 truncate">{item.description}</p>
                     )}
+                    
+                    {/* Förhandsvisning av noteringar till höger om bilden (list-vy) */}
+                    {item.note && (
+                      <div 
+                        className="mt-3 p-2 bg-slate-900 border border-slate-700 rounded cursor-pointer hover:border-slate-600 transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingNoteIndex(originalIndex);
+                        }}
+                      >
+                        <div className="text-xs text-slate-300 line-clamp-3" dangerouslySetInnerHTML={{ __html: item.note }} />
+                        <p className="text-[10px] text-slate-500 mt-1">Klicka för att redigera</p>
+                      </div>
+                    )}
                   </div>
-                  <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -414,7 +557,27 @@ export default function MediaSelector({
                       className="p-2 bg-slate-700 rounded hover:bg-slate-600 text-white"
                       title="Visa"
                     >
-                      <Eye size={16} />
+                      <Eye size={14} />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingNoteIndex(originalIndex);
+                      }}
+                      className="p-2 bg-blue-600 rounded hover:bg-blue-700 text-white"
+                      title="Redigera notiser"
+                    >
+                      <Edit2 size={14} />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowConnectionsIndex(showConnectionsIndex === originalIndex ? null : originalIndex);
+                      }}
+                      className={`p-2 rounded text-white ${showConnectionsIndex === originalIndex ? 'bg-purple-700' : 'bg-purple-600 hover:bg-purple-700'}`}
+                      title="Kopplingar"
+                    >
+                      <LinkIcon size={14} />
                     </button>
                     {entityType === 'person' && !isProfile && (
                       <button
@@ -425,7 +588,7 @@ export default function MediaSelector({
                         className="p-2 bg-yellow-600 rounded hover:bg-yellow-700 text-white"
                         title="Sätt som profilbild"
                       >
-                        <Star size={16} />
+                        <Star size={14} />
                       </button>
                     )}
                     <button
@@ -436,7 +599,7 @@ export default function MediaSelector({
                       className="p-2 bg-red-600 rounded hover:bg-red-700 text-white"
                       title="Ta bort"
                     >
-                      <Trash2 size={16} />
+                      <Trash2 size={14} />
                     </button>
                   </div>
                 </div>
@@ -479,8 +642,34 @@ export default function MediaSelector({
                               date: item.date || new Date().toISOString().split('T')[0],
                               description: item.description || '',
                               tags: item.tags || [],
-                              regions: item.faces || []
+                              regions: item.faces || [],
+                              connections: item.connections || {}
                             };
+                            
+                            // Om det är en person, lägg till personen i connections om den inte redan finns
+                            if (entityType === 'person' && entityId) {
+                              const person = allPeople.find(p => p.id === entityId);
+                              if (person) {
+                                const existingPeople = newItem.connections.people || [];
+                                const personAlreadyLinked = existingPeople.some(p => p.id === entityId);
+                                
+                                if (!personAlreadyLinked) {
+                                  newItem.connections = {
+                                    ...newItem.connections,
+                                    people: [
+                                      ...existingPeople,
+                                      {
+                                        id: person.id,
+                                        name: `${person.firstName} ${person.lastName}`,
+                                        ref: person.refNumber || '',
+                                        dates: '' // Kan fyllas i senare
+                                      }
+                                    ]
+                                  };
+                                }
+                              }
+                            }
+                            
                             onMediaChange([...media, newItem]);
                           }
                         }}
@@ -536,9 +725,207 @@ export default function MediaSelector({
           }}
           people={allPeople}
           onOpenEditModal={onOpenEditModal}
+          connections={media[selectedImageIndex].connections || {}}
         />
       )}
+
+      {/* Notiser Modal */}
+      {editingNoteIndex !== null && media[editingNoteIndex] && (
+        <NoteEditorModal
+          imageName={media[editingNoteIndex].name || 'Bild'}
+          initialNote={media[editingNoteIndex].note || ''}
+          onSave={(noteContent) => {
+            const updatedMedia = [...media];
+            updatedMedia[editingNoteIndex] = {
+              ...updatedMedia[editingNoteIndex],
+              note: noteContent
+            };
+            onMediaChange(updatedMedia);
+          }}
+          onClose={() => setEditingNoteIndex(null)}
+        />
+      )}
+
+      {/* Kopplingar Modal */}
+      {showConnectionsIndex !== null && media[showConnectionsIndex] && (
+        <WindowFrame
+          title="Kopplingar"
+          icon={LinkIcon}
+          onClose={() => setShowConnectionsIndex(null)}
+          initialWidth={600}
+          initialHeight={500}
+          zIndex={5001}
+        >
+          <div className="h-full flex flex-col bg-slate-800 p-4">
+            <div className="mb-4">
+              <h3 className="text-lg font-bold text-white mb-2">{media[showConnectionsIndex].name || 'Bild'}</h3>
+              <p className="text-sm text-slate-400">Personer, källor och platser kopplade till denna bild</p>
+            </div>
+            <div className="flex-1 overflow-y-auto space-y-4">
+              {/* Personer kopplade via regions (ansiktstagging) */}
+              {media[showConnectionsIndex].regions && media[showConnectionsIndex].regions.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold text-slate-300 mb-2 flex items-center gap-2">
+                    <User size={16} />
+                    Personer (ansiktstagging)
+                  </h4>
+                  <div className="space-y-2">
+                    {media[showConnectionsIndex].regions.map((region, idx) => {
+                      const person = allPeople.find(p => p.id === region.personId);
+                      if (!person) return null;
+                      return (
+                        <div
+                          key={idx}
+                          className="p-2 bg-slate-700 rounded hover:bg-slate-600 cursor-pointer transition-colors"
+                          onClick={() => {
+                            onOpenEditModal(person.id);
+                            setShowConnectionsIndex(null);
+                          }}
+                        >
+                          <p className="text-sm text-white font-medium">
+                            {person.firstName} {person.lastName}
+                            {person.refNumber && ` (Ref: ${person.refNumber})`}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Personer kopplade via connections */}
+              {media[showConnectionsIndex].connections?.people && media[showConnectionsIndex].connections.people.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold text-slate-300 mb-2 flex items-center gap-2">
+                    <User size={16} />
+                    Personer
+                  </h4>
+                  <div className="space-y-2">
+                    {media[showConnectionsIndex].connections.people.map((conn, idx) => {
+                      const person = allPeople.find(p => p.id === conn.id);
+                      if (!person) return null;
+                      return (
+                        <div
+                          key={idx}
+                          className="p-2 bg-slate-700 rounded hover:bg-slate-600 cursor-pointer transition-colors"
+                          onClick={() => {
+                            onOpenEditModal(person.id);
+                            setShowConnectionsIndex(null);
+                          }}
+                        >
+                          <p className="text-sm text-white font-medium">
+                            {person.firstName} {person.lastName}
+                            {person.refNumber && ` (Ref: ${person.refNumber})`}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Källor */}
+              {media[showConnectionsIndex].connections?.sources && media[showConnectionsIndex].connections.sources.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold text-slate-300 mb-2 flex items-center gap-2">
+                    <FileText size={16} />
+                    Källor
+                  </h4>
+                  <div className="space-y-2">
+                    {media[showConnectionsIndex].connections.sources.map((source, idx) => (
+                      <div key={idx} className="p-2 bg-slate-700 rounded">
+                        <p className="text-sm text-white font-medium">{source.name || source.id}</p>
+                        {source.ref && <p className="text-xs text-slate-400 mt-1">Ref: {source.ref}</p>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Platser */}
+              {media[showConnectionsIndex].connections?.places && media[showConnectionsIndex].connections.places.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold text-slate-300 mb-2 flex items-center gap-2">
+                    <MapPin size={16} />
+                    Platser
+                  </h4>
+                  <div className="space-y-2">
+                    {media[showConnectionsIndex].connections.places.map((place, idx) => (
+                      <div key={idx} className="p-2 bg-slate-700 rounded">
+                        <p className="text-sm text-white font-medium">{place.name || place.id}</p>
+                        {place.type && <p className="text-xs text-slate-400 mt-1">Typ: {place.type}</p>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Om inga kopplingar finns */}
+              {(!media[showConnectionsIndex].regions || media[showConnectionsIndex].regions.length === 0) &&
+               (!media[showConnectionsIndex].connections?.people || media[showConnectionsIndex].connections.people.length === 0) &&
+               (!media[showConnectionsIndex].connections?.sources || media[showConnectionsIndex].connections.sources.length === 0) &&
+               (!media[showConnectionsIndex].connections?.places || media[showConnectionsIndex].connections.places.length === 0) && (
+                <div className="text-center py-8 text-slate-400">
+                  <LinkIcon size={48} className="mx-auto mb-2 opacity-50" />
+                  <p>Inga kopplingar ännu</p>
+                  <p className="text-xs mt-1">Använd ansiktstagging eller koppla till källor/platser</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </WindowFrame>
+      )}
     </div>
+  );
+}
+
+// Separat komponent för notis-redigering
+function NoteEditorModal({ imageName, initialNote, onSave, onClose }) {
+  const [noteContent, setNoteContent] = useState(initialNote);
+
+  // Uppdatera när initialNote ändras (om användaren öppnar en annan bild)
+  useEffect(() => {
+    setNoteContent(initialNote);
+  }, [initialNote]);
+
+  const handleSave = () => {
+    onSave(noteContent);
+    onClose();
+  };
+
+  return (
+    <WindowFrame
+      title="Notiser"
+      icon={Edit2}
+      onClose={handleSave}
+      initialWidth={800}
+      initialHeight={600}
+      zIndex={5001}
+    >
+      <div className="h-full flex flex-col bg-slate-800 p-4">
+        <div className="mb-4">
+          <h3 className="text-lg font-bold text-white mb-2">{imageName}</h3>
+          <p className="text-sm text-slate-400">Lägg till notiser om denna bild</p>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          <Editor
+            value={noteContent}
+            onChange={(e) => {
+              setNoteContent(e.target.value);
+            }}
+            placeholder="Skriv notiser om denna bild..."
+          />
+        </div>
+        <div className="mt-4 flex justify-end gap-2">
+          <button
+            onClick={handleSave}
+            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded"
+          >
+            Stäng
+          </button>
+        </div>
+      </div>
+    </WindowFrame>
   );
 }
 

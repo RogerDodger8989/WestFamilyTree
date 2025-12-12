@@ -179,7 +179,8 @@ export default function ImageViewer({
     onPrev,
     onNext,
     hasPrev = false,
-    hasNext = false
+    hasNext = false,
+    connections = {}
 }) {
     // ... (resten av koden är oförändrad)
     const [blobUrl, setBlobUrl] = useState(null);
@@ -413,17 +414,37 @@ export default function ImageViewer({
     };
 
     // --- Sidopanel data ---
-    const taggedPeopleWithDetails = regions.map(region => {
+    // Kombinera personer från regions (ansiktstagging) och connections.people
+    const allConnectedPeople = new Map();
+    
+    // Lägg till personer från regions (ansiktstagging)
+    regions.forEach(region => {
         const person = people.find(p => p.id === region.personId);
-        if (person) {
-            return {
+        if (person && !allConnectedPeople.has(person.id)) {
+            allConnectedPeople.set(person.id, {
                 ...person,
                 lifeRange: getLifeRange(person),
-                region
-            };
+                region,
+                source: 'tagged' // Ansiktstagging
+            });
         }
-        return null;
-    }).filter(Boolean);
+    });
+    
+    // Lägg till personer från connections.people
+    if (connections.people && Array.isArray(connections.people)) {
+        connections.people.forEach(conn => {
+            const person = people.find(p => p.id === conn.id);
+            if (person && !allConnectedPeople.has(person.id)) {
+                allConnectedPeople.set(person.id, {
+                    ...person,
+                    lifeRange: getLifeRange(person),
+                    source: 'connected' // Kopplad via connections
+                });
+            }
+        });
+    }
+    
+    const taggedPeopleWithDetails = Array.from(allConnectedPeople.values());
 
 
     if (!isOpen) return null;
@@ -537,7 +558,7 @@ export default function ImageViewer({
                     {/* VERKTYGSFÄLT */}
                     <div className="bg-slate-800 p-3 border-t border-slate-700 flex justify-between items-center shrink-0">
                         <div className="text-slate-400 text-xs flex gap-4">
-                            {isDrawing ? "Klicka och dra en ruta för att tagga en person." : `${regions.length} personer taggade.`}
+                            {isDrawing ? "Klicka och dra en ruta för att tagga en person." : `${taggedPeopleWithDetails.length} personer kopplade.`}
                             {zoomLevel > 1 && <span className="text-sm text-white">Zoom: {Math.round(zoomLevel * 100)}%</span>}
                         </div>
                         <div className="flex gap-2 items-center">

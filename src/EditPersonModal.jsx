@@ -1525,6 +1525,8 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                   onOpenEditModal={onOpenEditModal}
                   allMediaItems={allMediaItems}
                   onUpdateAllMedia={onUpdateAllMedia}
+                  allSources={allSources || []}
+                  allPlaces={allPlaces || []}
                 />
               </div>
             )}
@@ -2304,7 +2306,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
         eventType={newEvent.type}
       />
 
-      <style jsx global>{`
+      <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #f3f4f6; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; border: 2px solid #f3f4f6; }

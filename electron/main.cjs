@@ -314,18 +314,115 @@ function createWindow() {
 		return { error: err.message, dbPath };
 	}
 	});
-	// ...existing code...
+
+	// Media-mapp i programmets katalog
+	const path = require('path');
+	const fs = require('fs');
+	const IMAGE_ROOT = path.join(__dirname, '..', 'media');
+	
+	// Skapa media-mappen vid start om den inte finns
+	(async () => {
+		try {
+			await fs.promises.mkdir(IMAGE_ROOT, { recursive: true });
+			console.log('[main.cjs] Media-mapp verifierad/skapad:', IMAGE_ROOT);
+		} catch (err) {
+			console.error('[main.cjs] Kunde inte skapa media-mapp:', err);
+		}
+	})();
+
+	// Save file buffer to media folder (för drag-and-drop och paste)
+	ipcMain.handle('save-file-buffer-to-media', async (event, fileBuffer, filePath) => {
+		try {
+			// Normalisera filePath (hantera både forward och backslashes)
+			const normalizedPath = filePath.replace(/\\/g, '/');
+			
+			// filePath kan vara antingen bara filnamn eller sökväg med undermapp (t.ex. "persons/image.jpg")
+			const destPath = path.join(IMAGE_ROOT, normalizedPath);
+			
+			console.log('[save-file-buffer-to-media] Saving buffer to:', destPath, 'Size:', fileBuffer.length);
+			console.log('[save-file-buffer-to-media] IMAGE_ROOT:', IMAGE_ROOT);
+			console.log('[save-file-buffer-to-media] filePath (normalized):', normalizedPath);
+			
+			// Skapa mappen (inklusive undermappar) om den inte finns
+			const destDir = path.dirname(destPath);
+			console.log('[save-file-buffer-to-media] Skapar mapp:', destDir);
+			
+			// Skapa mappen rekursivt - använd path.normalize för att säkerställa korrekt sökväg
+			const normalizedDir = path.normalize(destDir);
+			console.log('[save-file-buffer-to-media] Normaliserad mapp-sökväg:', normalizedDir);
+			
+			// Skapa mappen rekursivt
+			await fs.promises.mkdir(normalizedDir, { recursive: true });
+			
+			// Verifiera att mappen faktiskt skapades
+			try {
+				const stats = await fs.promises.stat(normalizedDir);
+				if (!stats.isDirectory()) {
+					throw new Error(`${normalizedDir} är inte en mapp`);
+				}
+				console.log('[save-file-buffer-to-media] Mapp verifierad:', normalizedDir);
+			} catch (accessError) {
+				console.error('[save-file-buffer-to-media] Mapp-verifiering misslyckades:', accessError);
+				throw new Error(`Kunde inte skapa eller verifiera mapp: ${normalizedDir}. Error: ${accessError.message}`);
+			}
+			
+			// Normalisera destPath också
+			const normalizedDestPath = path.normalize(destPath);
+			console.log('[save-file-buffer-to-media] Skriver fil till:', normalizedDestPath);
+			
+			// Skriv buffer till fil
+			await fs.promises.writeFile(normalizedDestPath, Buffer.from(fileBuffer));
+			
+			// Verifiera att filen skapades
+			const fileStats = await fs.promises.stat(normalizedDestPath);
+			console.log('[save-file-buffer-to-media] Success! Fil sparad till:', normalizedDestPath, 'Storlek:', fileStats.size, 'bytes');
+			
+			return { success: true, filePath: normalizedPath }; // Returnera normaliserad relativ sökväg
+		} catch (error) {
+			console.error('[save-file-buffer-to-media] Error:', error);
+			console.error('[save-file-buffer-to-media] Error stack:', error.stack);
+			return { success: false, error: error.message };
+		}
+	});
+
+	// Copy file to media folder
+	ipcMain.handle('copy-file-to-media', async (event, sourcePath, fileName) => {
+		try {
+			// Om sourcePath är undefined, betyder det att det är en blob från webbläsare
+			if (!sourcePath) {
+				return { success: false, error: 'No source path provided' };
+			}
+			
+			const destPath = path.join(IMAGE_ROOT, fileName);
+			
+			console.log('[copy-file-to-media] Copying:', sourcePath, '->', destPath);
+			
+			// Skapa media-mappen om den inte finns
+			await fs.promises.mkdir(IMAGE_ROOT, { recursive: true });
+			
+			// Kopiera filen
+			await fs.promises.copyFile(sourcePath, destPath);
+			
+			console.log('[copy-file-to-media] Success!');
+			return { success: true, filePath: fileName };
+		} catch (error) {
+			console.error('[copy-file-to-media] Error:', error);
+			return { success: false, error: error.message };
+		}
+	});
+
 	// Make sure the Electron app startup code is present at the end:
 	if (typeof app !== 'undefined' && app.whenReady) {
 		app.whenReady().then(() => {
 			if (typeof createApplicationMenu === 'function') createApplicationMenu();
 			if (typeof protocol !== 'undefined' && protocol.registerFileProtocol) {
 				protocol.registerFileProtocol('media', (request, callback) => {
-					const encodedName = request.url.replace('media://', '');
-					const fileName = decodeURIComponent(encodedName);
+					const encodedPath = request.url.replace('media://', '');
+					const relativePath = decodeURIComponent(encodedPath);
 					const path = require('path');
 					const IMAGE_ROOT = path.join(__dirname, '..', 'media');
-					const filePath = path.join(IMAGE_ROOT, fileName);
+					// relativePath kan vara antingen filnamn eller sökväg med undermapp (t.ex. "persons/image.jpg")
+					const filePath = path.join(IMAGE_ROOT, relativePath);
 					callback({ path: filePath });
 				});
 			}

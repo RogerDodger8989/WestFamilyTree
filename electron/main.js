@@ -773,10 +773,11 @@ app.whenReady().then(() => {
   createApplicationMenu();
   // Registrera custom protocol för media-bilder
   protocol.registerFileProtocol('media', (request, callback) => {
-    const encodedName = request.url.replace('media://', '');
-    const fileName = decodeURIComponent(encodedName);
-    const filePath = path.join(IMAGE_ROOT, fileName);
-    console.log('[media protocol] Loading:', encodedName, '->', filePath);
+    const encodedPath = request.url.replace('media://', '');
+    const relativePath = decodeURIComponent(encodedPath);
+    // relativePath kan vara antingen filnamn eller sökväg med undermapp (t.ex. "persons/image.jpg")
+    const filePath = path.join(IMAGE_ROOT, relativePath);
+    console.log('[media protocol] Loading:', encodedPath, '->', filePath);
     callback({ path: filePath });
   });
   createWindow();
@@ -986,24 +987,56 @@ ipcMain.handle('copy-file-to-media', async (event, sourcePath, fileName) => {
 });
 
 // Save file buffer to media folder (för drag-and-drop och paste)
-ipcMain.handle('save-file-buffer-to-media', async (event, fileBuffer, fileName) => {
+ipcMain.handle('save-file-buffer-to-media', async (event, fileBuffer, filePath) => {
   try {
-    // ...existing code...
+    // Normalisera filePath (hantera både forward och backslashes)
+    const normalizedPath = filePath.replace(/\\/g, '/');
     
-    const destPath = path.join(IMAGE_ROOT, fileName);
+    // filePath kan vara antingen bara filnamn eller sökväg med undermapp (t.ex. "persons/image.jpg")
+    const destPath = path.join(IMAGE_ROOT, normalizedPath);
     
     console.log('[save-file-buffer-to-media] Saving buffer to:', destPath, 'Size:', fileBuffer.length);
+    console.log('[save-file-buffer-to-media] IMAGE_ROOT:', IMAGE_ROOT);
+    console.log('[save-file-buffer-to-media] filePath (normalized):', normalizedPath);
     
-    // Skapa media-mappen om den inte finns
-      await fs.promises.mkdir(IMAGE_ROOT, { recursive: true });
+    // Skapa mappen (inklusive undermappar) om den inte finns
+    const destDir = path.dirname(destPath);
+    console.log('[save-file-buffer-to-media] Skapar mapp:', destDir);
+    
+    // Normalisera mapp-sökvägen
+    const normalizedDir = path.normalize(destDir);
+    console.log('[save-file-buffer-to-media] Normaliserad mapp-sökväg:', normalizedDir);
+    
+    // Skapa mappen rekursivt
+    await fs.promises.mkdir(normalizedDir, { recursive: true });
+    
+    // Verifiera att mappen faktiskt skapades
+    try {
+      const stats = await fs.promises.stat(normalizedDir);
+      if (!stats.isDirectory()) {
+        throw new Error(`${normalizedDir} är inte en mapp`);
+      }
+      console.log('[save-file-buffer-to-media] Mapp verifierad:', normalizedDir);
+    } catch (accessError) {
+      console.error('[save-file-buffer-to-media] Mapp-verifiering misslyckades:', accessError);
+      throw new Error(`Kunde inte skapa eller verifiera mapp: ${normalizedDir}. Error: ${accessError.message}`);
+    }
+    
+    // Normalisera destPath också
+    const normalizedDestPath = path.normalize(destPath);
+    console.log('[save-file-buffer-to-media] Skriver fil till:', normalizedDestPath);
     
     // Skriv buffer till fil
-      await fs.promises.writeFile(destPath, Buffer.from(fileBuffer));
+    await fs.promises.writeFile(normalizedDestPath, Buffer.from(fileBuffer));
     
-    console.log('[save-file-buffer-to-media] Success!');
-    return { success: true, filePath: fileName };
+    // Verifiera att filen skapades
+    const fileStats = await fs.promises.stat(normalizedDestPath);
+    console.log('[save-file-buffer-to-media] Success! Fil sparad till:', normalizedDestPath, 'Storlek:', fileStats.size, 'bytes');
+    
+    return { success: true, filePath: normalizedPath }; // Returnera normaliserad relativ sökväg
   } catch (error) {
     console.error('[save-file-buffer-to-media] Error:', error);
+    console.error('[save-file-buffer-to-media] Error stack:', error.stack);
     return { success: false, error: error.message };
   }
 });
