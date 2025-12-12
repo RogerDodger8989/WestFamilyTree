@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from './AppContext';
+import { syncRelations } from './syncRelations';
 import PersonAddForm from './PersonAddForm.jsx';
 import PersonList from './PersonList.jsx';
 import EditPersonModal from './EditPersonModal.jsx';
@@ -407,9 +408,8 @@ function App() {
 
   const patchedHandleSavePersonDetails = (person) => {
     setDbData(prev => {
-      let updatedPeople = (prev.people || []).map(p => p.id === person.id ? { ...person } : { ...p });
-      // SÄKERSTÄLL RELATIONSLÄNK
-      updatedPeople = ensureRelationLink(updatedPeople, person);
+      // Synka ALLA relationer tvåvägs (partners, barn, föräldrar)
+      const updatedPeople = syncRelations(person, prev.people || []);
       return { ...prev, people: updatedPeople };
     });
     setIsDirty(true);
