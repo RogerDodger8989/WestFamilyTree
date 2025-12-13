@@ -1358,8 +1358,54 @@ ipcMain.handle('get-trash-files', async (event) => {
 				let originalName, originalPath;
 				if (parts.length >= 3) {
 					// Nytt format - extrahera originalPath och filename
-					originalPath = parts.slice(1, -1).join('_').replace(/_/g, '/'); // Återställ / från _
-					originalName = parts[parts.length - 1];
+					// Format: timestamp_persons_2772.jpg_2772.jpg
+					// pathHash = parts.slice(1, -1) = ['persons', '2772', 'jpg']
+					// Vi behöver identifiera kända mappar för att korrekt återställa sökvägen
+					const pathHashParts = parts.slice(1, -1);
+					const fileName = parts[parts.length - 1];
+					
+					// Försök identifiera kända mappar i början
+					const knownFolders = ['persons', 'sources', 'places', 'temp'];
+					let foundFolder = null;
+					let folderIndex = -1;
+					
+					for (const folder of knownFolders) {
+						if (pathHashParts[0] === folder) {
+							foundFolder = folder;
+							folderIndex = 1;
+							break;
+						}
+					}
+					
+					if (foundFolder && pathHashParts.length > folderIndex) {
+						// Vi har hittat en känd mapp
+						// Allt efter mappen är filnamnet (kan innehålla _)
+						const remainingParts = pathHashParts.slice(folderIndex);
+						if (remainingParts.length > 0) {
+							// Om det finns fler delar, kan det vara fler mappar eller del av filnamn
+							// Om sista delen matchar fileName (utan extension), är det troligen filnamn
+							const lastPart = remainingParts[remainingParts.length - 1];
+							if (lastPart === fileName || lastPart === fileName.split('.')[0]) {
+								// Det är filnamnet, använd bara mappen
+								originalPath = `${foundFolder}/${fileName}`;
+							} else {
+								// Det kan vara fler mappar, konvertera _ till /
+								originalPath = `${foundFolder}/${remainingParts.join('/')}/${fileName}`;
+							}
+						} else {
+							// Inget efter mappen, använd bara mappen + filnamn
+							originalPath = `${foundFolder}/${fileName}`;
+						}
+					} else {
+						// Ingen känd mapp hittad - försök konvertera första _ till /
+						if (pathHashParts.length > 1) {
+							originalPath = pathHashParts[0] + '/' + pathHashParts.slice(1).join('_') + '/' + fileName;
+						} else {
+							originalPath = pathHashParts[0] + '/' + fileName;
+						}
+					}
+					
+					originalName = fileName;
 				} else {
 					// Gammalt format - bara filnamn
 					originalName = parts.slice(1).join('_');
@@ -1417,19 +1463,83 @@ ipcMain.handle('restore-file-from-trash', async (event, trashFileName, originalP
 		let finalOriginalPath = originalPath;
 		if (!finalOriginalPath) {
 			// Försök extrahera från trash-filnamn (nytt format: timestamp_pathHash_filename)
+			// Format: timestamp_persons_image.jpg_image.jpg
+			// Problemet: vi kan inte skilja mellan _ som är del av filnamnet och _ som ersätter /
+			// Lösning: använd kända mappar (persons, sources, places, temp) som referenspunkter
 			const parts = trashFileName.split('_');
 			if (parts.length >= 3) {
-				// Nytt format - extrahera originalPath
-				finalOriginalPath = parts.slice(1, -1).join('_').replace(/_/g, '/');
-				console.log('[restore-file-from-trash] Extraherade originalPath från filnamn:', finalOriginalPath);
+				// Hitta sista delen (filnamnet med extension)
+				const fileName = parts[parts.length - 1];
+				
+				// Allt mellan timestamp och filnamnet är pathHash
+				const pathHash = parts.slice(1, -1).join('_');
+				
+				// Försök identifiera kända mappar i början
+				const knownFolders = ['persons', 'sources', 'places', 'temp'];
+				let foundFolder = null;
+				let folderIndex = -1;
+				
+				for (const folder of knownFolders) {
+					const index = pathHash.indexOf(folder);
+					if (index === 0) {
+						// Mappen är i början
+						foundFolder = folder;
+						folderIndex = folder.length;
+						break;
+					}
+				}
+				
+				if (foundFolder) {
+					// Vi har hittat en känd mapp
+					const afterFolder = pathHash.substring(folderIndex);
+					if (afterFolder.startsWith('_')) {
+						// Efter mappen finns mer - detta kan vara fler mappar eller del av filnamn
+						// Om det ser ut som en mapp (inte innehåller .), konvertera _ till /
+						const remaining = afterFolder.substring(1);
+						if (remaining.includes('.')) {
+							// Det innehåller en punkt - troligen del av filnamn, använd bara mappen
+							finalOriginalPath = `${foundFolder}/${fileName}`;
+						} else {
+							// Det ser ut som en mappstruktur, konvertera _ till /
+							finalOriginalPath = `${foundFolder}/${remaining.replace(/_/g, '/')}/${fileName}`;
+						}
+					} else {
+						// Inget efter mappen, använd bara mappen + filnamn
+						finalOriginalPath = `${foundFolder}/${fileName}`;
+					}
+				} else {
+					// Ingen känd mapp hittad - detta kan vara ett filnamn med _ eller en okänd mapp
+					// Om pathHash innehåller en punkt, är det troligen del av filnamnet
+					if (pathHash.includes('.')) {
+						// Det ser ut som ett filnamn, använd root
+						finalOriginalPath = fileName;
+					} else {
+						// Försök konvertera första _ till / om det finns
+						const firstUnderscore = pathHash.indexOf('_');
+						if (firstUnderscore > 0) {
+							finalOriginalPath = pathHash.substring(0, firstUnderscore) + '/' + pathHash.substring(firstUnderscore + 1) + '/' + fileName;
+						} else {
+							finalOriginalPath = pathHash + '/' + fileName;
+						}
+					}
+				}
+				
+				console.log('[restore-file-from-trash] Extraherade originalPath från filnamn:', {
+					trashFileName,
+					pathHash,
+					foundFolder,
+					finalOriginalPath
+				});
 			}
 		}
 		
 		// Bestäm destination baserat på originalPath eller filnamn
 		let destPath;
-		if (finalOriginalPath && !finalOriginalPath.startsWith('.trash/')) {
+		if (finalOriginalPath && !finalOriginalPath.startsWith('.trash/') && !finalOriginalPath.includes('..')) {
+			// Normalisera sökvägen - ta bort eventuella dubbla separators
+			const normalizedPath = finalOriginalPath.replace(/\/+/g, '/').replace(/\\+/g, '/');
 			// Använd originalPath direkt
-			destPath = path.join(IMAGE_ROOT, finalOriginalPath);
+			destPath = path.join(IMAGE_ROOT, normalizedPath);
 			console.log('[restore-file-from-trash] Använder originalPath:', destPath);
 		} else {
 			// Extrahera originalnamn från trash-filnamn
@@ -1536,6 +1646,20 @@ ipcMain.handle('empty-trash', async (event, olderThanDays = 30) => {
 		console.error('[empty-trash] Error:', error);
 		return { success: false, error: error.message, deletedCount: 0 };
 	}
+});
+
+// Skanna media-mappen och returnera alla bilder
+// OBS: Denna handler måste registreras tidigt, innan appen är klar
+ipcMain.handle('scan-media-folder', async (event) => {
+  console.log('[scan-media-folder] Handler anropad');
+  try {
+    const result = await scanMediaFolder();
+    console.log('[scan-media-folder] Resultat:', { success: result.success, antal: result.media?.length || 0 });
+    return result;
+  } catch (error) {
+    console.error('[scan-media-folder] Error:', error);
+    return { success: false, error: error.message, media: [] };
+  }
 });
 
 // Get media file path (för att visa bilder från media-mappen)

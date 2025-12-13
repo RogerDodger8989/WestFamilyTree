@@ -15,10 +15,11 @@ import {
 } from 'lucide-react';
 
 const SYSTEM_LIBRARIES = [
-  { id: 'all', label: 'Alla bilder', icon: Layers, type: 'system' },
-  { id: 'gallery', label: 'Personligt Galleri', icon: ImageIcon, type: 'system' },
-  { id: 'places', label: 'Platsregister', icon: MapPin, type: 'system' },
-  { id: 'sources', label: 'Källmaterial', icon: FileText, type: 'system' },
+  { id: 'all', label: 'Alla bilder', icon: Layers, type: 'system', path: '' },
+  { id: 'persons', label: 'Personer', icon: User, type: 'system', path: 'persons/' },
+  { id: 'sources', label: 'Källor', icon: FileText, type: 'system', path: 'sources/' },
+  { id: 'places', label: 'Platser', icon: MapPin, type: 'system', path: 'places/' },
+  { id: 'temp', label: 'Tillfälliga', icon: Folder, type: 'system', path: 'temp/' },
 ];
 
 const INITIAL_MEDIA = [
@@ -463,14 +464,20 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {}, media
       }
       
       // Flytta filen till papperskorgen om den finns på disk
+      let moveSuccess = false;
       if (filePathToDelete && window.electronAPI && window.electronAPI.moveFileToTrash) {
         console.log('[MediaManager] Försöker flytta fil till papperskorg:', filePathToDelete);
         const result = await window.electronAPI.moveFileToTrash(filePathToDelete);
         console.log('[MediaManager] moveFileToTrash resultat:', result);
         if (result && result.success) {
           console.log('[MediaManager] ✅ Fil flyttad till papperskorg:', filePathToDelete);
+          moveSuccess = true;
         } else {
           console.warn('[MediaManager] ⚠️ Kunde inte flytta fil till papperskorg:', result?.error || 'Okänt fel');
+          if (typeof showStatus === 'function') {
+            showStatus(`Kunde inte flytta "${item.name}" till papperskorg: ${result?.error || 'Okänt fel'}`, 'error');
+          }
+          return; // Avbryt om vi inte kunde flytta filen
         }
       } else {
         console.warn('[MediaManager] ⚠️ Kan inte flytta fil till papperskorg:', {
@@ -478,15 +485,20 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {}, media
           hasElectronAPI: !!window.electronAPI,
           hasMoveFileToTrash: !!(window.electronAPI && window.electronAPI.moveFileToTrash)
         });
+        if (typeof showStatus === 'function') {
+          showStatus(`Kunde inte flytta "${item.name}" till papperskorg: Filen hittades inte.`, 'error');
+        }
+        return; // Avbryt om vi inte har rätt API eller filePath
       }
       
-      // Ta bort från media-listan
-      const deletionIndex = mediaItems.findIndex(m => m.id === item.id);
-      updateMedia(prev => prev.filter(m => m.id !== item.id));
-      setSelectedImage(current => (current && current.id === item.id ? null : current));
-      
-      if (typeof showStatus === 'function') {
-        showStatus(`"${item.name}" har flyttats till papperskorgen.`, 'success');
+      // Ta bort från media-listan (bara om filen flyttades framgångsrikt)
+      if (moveSuccess) {
+        updateMedia(prev => prev.filter(m => m.id !== item.id));
+        setSelectedImage(current => (current && current.id === item.id ? null : current));
+        
+        if (typeof showStatus === 'function') {
+          showStatus(`"${item.name}" har flyttats till papperskorgen.`, 'success');
+        }
       }
       
       if (typeof showUndoToast === 'function') {
@@ -759,16 +771,37 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
   })() : null;
 
   const filteredMedia = mediaItems.filter(m => {
-    const matchesLib = activeLib === 'all' || m.libraryId === activeLib;
+    // Filtrera baserat på bibliotek (matcha mot filePath för systembibliotek)
+    let matchesLib = true;
+    if (activeLib !== 'all') {
+      const activeLibrary = SYSTEM_LIBRARIES.find(lib => lib.id === activeLib);
+      if (activeLibrary && activeLibrary.path) {
+        // För systembibliotek, matcha mot filePath
+        const filePath = m.filePath || m.url?.replace('media://', '').replace(/%2F/g, '/') || '';
+        matchesLib = filePath.startsWith(activeLibrary.path);
+      } else {
+        // För custom bibliotek, använd libraryId
+        matchesLib = m.libraryId === activeLib;
+      }
+    }
+    
     const q = search.toLowerCase();
     const matchesSearch = !q || (
         m.name.toLowerCase().includes(q) || 
         m.date.includes(q) || 
-        m.tags.some(t => t.toLowerCase().includes(q)) || 
-        m.connections.people.some(c => c.name.toLowerCase().includes(q) || c.ref.toLowerCase().includes(q)) || 
+        (m.tags && m.tags.some(t => t.toLowerCase().includes(q))) || 
+        (m.connections?.people && m.connections.people.some(c => {
+          const name = typeof c === 'object' ? c.name : '';
+          const ref = typeof c === 'object' ? c.ref : '';
+          return name.toLowerCase().includes(q) || ref.toLowerCase().includes(q);
+        })) || 
         (m.transcription && m.transcription.toLowerCase().includes(q))
     );
-    const matchesUnlinked = filterUnlinked ? (m.connections.people.length === 0 && m.connections.places.length === 0 && m.connections.sources.length === 0) : true; 
+    const matchesUnlinked = filterUnlinked ? (
+      (!m.connections?.people || m.connections.people.length === 0) && 
+      (!m.connections?.places || m.connections.places.length === 0) && 
+      (!m.connections?.sources || m.connections.sources.length === 0)
+    ) : true; 
     return matchesLib && matchesSearch && matchesUnlinked;
   });
 
@@ -962,12 +995,60 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
     setSelectedIds(newSelected);
   };
 
-  const handleBatchDelete = () => {
-    if (confirm(`Radera ${selectedIds.size} bilder permanent?`)) {
-      updateMedia(mediaItems.filter(m => !selectedIds.has(m.id)));
+  const handleBatchDelete = async () => {
+    if (!confirm(`Radera ${selectedIds.size} bilder? Filerna flyttas till papperskorgen och raderas automatiskt efter 30 dagar.`)) {
+      return;
+    }
+    
+    const itemsToDelete = mediaItems.filter(m => selectedIds.has(m.id));
+    const deletedIds = new Set();
+    const failedItems = [];
+    
+    // Flytta alla valda bilder till papperskorgen
+    for (const item of itemsToDelete) {
+      try {
+        let filePathToDelete = item.filePath;
+        
+        // Om filePath inte finns, försök extrahera från url
+        if (!filePathToDelete && item.url) {
+          const urlPath = item.url.replace('media://', '').replace(/%2F/g, '/');
+          filePathToDelete = urlPath;
+        }
+        
+        if (filePathToDelete && window.electronAPI && window.electronAPI.moveFileToTrash) {
+          const result = await window.electronAPI.moveFileToTrash(filePathToDelete);
+          if (result && result.success) {
+            deletedIds.add(item.id);
+          } else {
+            failedItems.push(item.name);
+          }
+        } else {
+          failedItems.push(item.name);
+        }
+      } catch (error) {
+        console.error('[MediaManager] Error deleting item:', item, error);
+        failedItems.push(item.name);
+      }
+    }
+    
+    // Ta bort endast de som flyttades framgångsrikt
+    if (deletedIds.size > 0) {
+      updateMedia(prev => prev.filter(m => !deletedIds.has(m.id)));
       setSelectedIds(new Set());
       setIsSelectMode(false);
-      setSelectedImage(null);
+      setSelectedImage(current => (current && deletedIds.has(current.id) ? null : current));
+      
+      if (typeof showStatus === 'function') {
+        if (failedItems.length > 0) {
+          showStatus(`${deletedIds.size} bilder flyttade till papperskorg. ${failedItems.length} misslyckades.`, 'warn');
+        } else {
+          showStatus(`${deletedIds.size} bilder flyttade till papperskorgen.`, 'success');
+        }
+      }
+    } else {
+      if (typeof showStatus === 'function') {
+        showStatus(`Kunde inte flytta bilderna till papperskorg.`, 'error');
+      }
     }
   };
 
@@ -1400,6 +1481,102 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
       <div className="flex-1 flex flex-col bg-slate-900 min-w-0 relative">
       
       <div className="h-14 border-b border-slate-700 flex items-center justify-between px-4 bg-slate-800/30">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={async () => {
+                if (window.electronAPI && window.electronAPI.scanMediaFolder) {
+                  try {
+                    if (typeof showStatus === 'function') {
+                      showStatus('Skannar media-mappen...', 'info');
+                    }
+                    const result = await window.electronAPI.scanMediaFolder();
+                    if (result && result.success && result.media) {
+                      // Skapa en map av filer som finns på disk (keyed by filePath)
+                      const filesOnDisk = new Map();
+                      result.media.forEach(m => {
+                        const key = m.filePath || m.url?.replace('media://', '').replace(/%2F/g, '/');
+                        if (key) filesOnDisk.set(key, m);
+                      });
+                      
+                      // Merga med befintlig media - använd metadata från databasen om den finns
+                      updateMedia(prev => {
+                        const existingById = new Map(prev.map(m => [m.id, m]));
+                        const existingByPath = new Map(prev.map(m => {
+                          const path = m.filePath || m.url?.replace('media://', '').replace(/%2F/g, '/');
+                          return [path, m];
+                        }));
+                        
+                        // Lägg till/uppdatera bilder som finns på disk
+                        const merged = result.media.map(fileMedia => {
+                          const path = fileMedia.filePath || fileMedia.url?.replace('media://', '').replace(/%2F/g, '/');
+                          // Försök hitta befintlig media via ID eller filePath
+                          const existing = existingById.get(fileMedia.id) || existingByPath.get(path);
+                          if (existing) {
+                            // Merga: behåll metadata från databasen, uppdatera fileSize
+                            return {
+                              ...existing,
+                              fileSize: fileMedia.fileSize,
+                              url: fileMedia.url, // Uppdatera URL om den ändrats
+                              filePath: fileMedia.filePath // Uppdatera filePath om den ändrats
+                            };
+                          } else {
+                            // Ny bild från filsystemet
+                            return fileMedia;
+                          }
+                        });
+                        
+                        // Ta bort bilder som inte längre finns på disk
+                        const removed = [];
+                        
+                        // Filtrera bort de som inte finns på disk
+                        const finalMedia = merged.filter(m => {
+                          const path = m.filePath || m.url?.replace('media://', '').replace(/%2F/g, '/');
+                          const existsOnDisk = filesOnDisk.has(path);
+                          if (!existsOnDisk) {
+                            removed.push(m.name || m.id);
+                          }
+                          return existsOnDisk;
+                        });
+                        
+                        const prevCount = prev.length;
+                        const newCount = finalMedia.length - prevCount;
+                        const removedCount = removed.length;
+                        
+                        if (newCount > 0 && removedCount > 0) {
+                          if (typeof showStatus === 'function') {
+                            showStatus(`${newCount} nya bilder hittade, ${removedCount} bilder borttagna.`, 'info');
+                          }
+                        } else if (newCount > 0) {
+                          if (typeof showStatus === 'function') {
+                            showStatus(`${newCount} nya bilder hittade!`, 'success');
+                          }
+                        } else if (removedCount > 0) {
+                          if (typeof showStatus === 'function') {
+                            showStatus(`${removedCount} bilder borttagna från filsystemet.`, 'info');
+                          }
+                        } else {
+                          if (typeof showStatus === 'function') {
+                            showStatus('Inga ändringar hittades.', 'info');
+                          }
+                        }
+                        
+                        return finalMedia;
+                      });
+                    }
+                  } catch (error) {
+                    console.error('[MediaManager] Error scanning media folder:', error);
+                    if (typeof showStatus === 'function') {
+                      showStatus(`Fel vid skanning: ${error.message}`, 'error');
+                    }
+                  }
+                }
+              }}
+              className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs rounded transition-colors flex items-center gap-1.5"
+              title="Skanna media-mappen för nya bilder"
+            >
+              <RefreshCw size={14} /> Uppdatera
+            </button>
+          </div>
           <div className="flex gap-2 items-center">
               <button onClick={() => { setIsSelectMode(!isSelectMode); setSelectedIds(new Set()); setSelectedImage(null); }} className={`px-3 py-1.5 rounded text-sm border transition-colors ${isSelectMode ? 'bg-blue-600 border-blue-500 text-white' : 'border-slate-600 text-slate-300 hover:border-slate-400 hover:text-white'}`}>
                   {isSelectMode ? 'Klar' : 'Välj'}

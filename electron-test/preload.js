@@ -44,6 +44,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     restoreFileFromTrash: (trashFileName, originalPath) => ipcRenderer.invoke('restore-file-from-trash', trashFileName, originalPath),
     permanentlyDeleteFromTrash: (trashFileName) => ipcRenderer.invoke('permanently-delete-from-trash', trashFileName),
     emptyTrash: (olderThanDays) => ipcRenderer.invoke('empty-trash', olderThanDays),
+    scanMediaFolder: () => ipcRenderer.invoke('scan-media-folder'),
     importImages: () => ipcRenderer.invoke('import-images'),
     // Add generic event listener for menu actions
     on: (channel, listener) => {

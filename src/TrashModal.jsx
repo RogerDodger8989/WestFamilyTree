@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import WindowFrame from './WindowFrame.jsx';
-import { Trash, RotateCcw, X, AlertCircle, Calendar } from 'lucide-react';
+import { Trash, RotateCcw, X, AlertCircle, Calendar, FileText } from 'lucide-react';
 
 export default function TrashModal({ isOpen, onClose, onRestore, onEmptyTrash }) {
   const [trashFiles, setTrashFiles] = useState([]);
@@ -31,17 +31,12 @@ export default function TrashModal({ isOpen, onClose, onRestore, onEmptyTrash })
   const handleRestore = async (trashFile) => {
     if (window.electronAPI && window.electronAPI.restoreFileFromTrash) {
       try {
-        // Försök hitta originalPath från trashFile (kan vara i originalPath eller extraheras från name)
-        let originalPath = trashFile.originalPath;
-        if (!originalPath && trashFile.name) {
-          // Om originalPath inte finns, använd originalName för att gissa sökvägen
-          // Filen kan ha varit i persons/, sources/, places/, eller root
-          originalPath = trashFile.originalName; // Fallback till filnamn
-        }
+        // Använd originalPath från trashFile om den finns (den extraheras korrekt i get-trash-files)
+        const originalPath = trashFile.originalPath || null;
         
         const result = await window.electronAPI.restoreFileFromTrash(
           trashFile.name,
-          originalPath || null
+          originalPath
         );
         if (result && result.success) {
           await loadTrashFiles(); // Uppdatera papperskorg-listan
@@ -167,40 +162,63 @@ export default function TrashModal({ isOpen, onClose, onRestore, onEmptyTrash })
                       Kommer att raderas automatiskt ({filesToBeDeleted.length})
                     </span>
                   </div>
-                  {filesToBeDeleted.map((file) => (
-                    <div
-                      key={file.name}
-                      className="bg-red-900/20 border border-red-800/50 rounded p-3 mb-2 flex items-center justify-between"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm truncate">{file.originalName}</div>
-                        <div className="text-xs text-slate-400 mt-1 flex items-center gap-3">
-                          <span className="flex items-center gap-1">
-                            <Calendar size={12} />
-                            {formatDate(file.deletedAt)}
-                          </span>
-                          <span>{formatSize(file.size)}</span>
-                          <span className="text-red-400">{file.daysOld} dagar gammal</span>
+                  {filesToBeDeleted.map((file) => {
+                    const isImage = /\.(jpg|jpeg|png|gif|bmp|tiff|webp)$/i.test(file.originalName);
+                    // Använd den faktiska sökvägen till trash-filen
+                    const imageUrl = isImage ? `media://${encodeURIComponent(file.path)}` : null;
+                    
+                    return (
+                      <div
+                        key={file.name}
+                        className="bg-red-900/20 border border-red-800/50 rounded p-3 mb-2 flex items-center gap-3"
+                      >
+                        {isImage && imageUrl ? (
+                          <div className="w-16 h-16 shrink-0 rounded overflow-hidden bg-slate-800 border border-slate-700">
+                            <img
+                              src={imageUrl}
+                              alt={file.originalName}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center text-slate-500 text-xs">Ingen bild</div>';
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-16 h-16 shrink-0 rounded bg-slate-800 border border-slate-700 flex items-center justify-center">
+                            <FileText size={24} className="text-slate-500" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm truncate">{file.originalName}</div>
+                          <div className="text-xs text-slate-400 mt-1 flex items-center gap-3">
+                            <span className="flex items-center gap-1">
+                              <Calendar size={12} />
+                              {formatDate(file.deletedAt)}
+                            </span>
+                            <span>{formatSize(file.size)}</span>
+                            <span className="text-red-400">{file.daysOld} dagar gammal</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 ml-4 shrink-0">
+                          <button
+                            onClick={() => handleRestore(file)}
+                            className="px-2 py-1 bg-blue-900/30 border border-blue-700/50 text-blue-300 text-xs rounded hover:bg-blue-900/50 transition-colors flex items-center gap-1"
+                            title="Återställ"
+                          >
+                            <RotateCcw size={14} />
+                          </button>
+                          <button
+                            onClick={() => handlePermanentDelete(file)}
+                            className="px-2 py-1 bg-red-900/30 border border-red-700/50 text-red-300 text-xs rounded hover:bg-red-900/50 transition-colors flex items-center gap-1"
+                            title="Radera permanent"
+                          >
+                            <X size={14} />
+                          </button>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 ml-4">
-                        <button
-                          onClick={() => handleRestore(file)}
-                          className="px-2 py-1 bg-blue-900/30 border border-blue-700/50 text-blue-300 text-xs rounded hover:bg-blue-900/50 transition-colors flex items-center gap-1"
-                          title="Återställ"
-                        >
-                          <RotateCcw size={14} />
-                        </button>
-                        <button
-                          onClick={() => handlePermanentDelete(file)}
-                          className="px-2 py-1 bg-red-900/30 border border-red-700/50 text-red-300 text-xs rounded hover:bg-red-900/50 transition-colors flex items-center gap-1"
-                          title="Radera permanent"
-                        >
-                          <X size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
 
@@ -214,40 +232,63 @@ export default function TrashModal({ isOpen, onClose, onRestore, onEmptyTrash })
                       </span>
                     </div>
                   )}
-                  {filesSafe.map((file) => (
-                    <div
-                      key={file.name}
-                      className="bg-slate-800/50 border border-slate-700 rounded p-3 mb-2 flex items-center justify-between hover:bg-slate-800 transition-colors"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm truncate">{file.originalName}</div>
-                        <div className="text-xs text-slate-400 mt-1 flex items-center gap-3">
-                          <span className="flex items-center gap-1">
-                            <Calendar size={12} />
-                            {formatDate(file.deletedAt)}
-                          </span>
-                          <span>{formatSize(file.size)}</span>
-                          <span className="text-slate-500">{file.daysOld} dagar gammal</span>
+                  {filesSafe.map((file) => {
+                    const isImage = /\.(jpg|jpeg|png|gif|bmp|tiff|webp)$/i.test(file.originalName);
+                    // Använd den faktiska sökvägen till trash-filen
+                    const imageUrl = isImage ? `media://${encodeURIComponent(file.path)}` : null;
+                    
+                    return (
+                      <div
+                        key={file.name}
+                        className="bg-slate-800/50 border border-slate-700 rounded p-3 mb-2 flex items-center gap-3 hover:bg-slate-800 transition-colors"
+                      >
+                        {isImage && imageUrl ? (
+                          <div className="w-16 h-16 shrink-0 rounded overflow-hidden bg-slate-800 border border-slate-700">
+                            <img
+                              src={imageUrl}
+                              alt={file.originalName}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center text-slate-500 text-xs">Ingen bild</div>';
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-16 h-16 shrink-0 rounded bg-slate-800 border border-slate-700 flex items-center justify-center">
+                            <FileText size={24} className="text-slate-500" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm truncate">{file.originalName}</div>
+                          <div className="text-xs text-slate-400 mt-1 flex items-center gap-3">
+                            <span className="flex items-center gap-1">
+                              <Calendar size={12} />
+                              {formatDate(file.deletedAt)}
+                            </span>
+                            <span>{formatSize(file.size)}</span>
+                            <span className="text-slate-500">{file.daysOld} dagar gammal</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 ml-4 shrink-0">
+                          <button
+                            onClick={() => handleRestore(file)}
+                            className="px-2 py-1 bg-blue-900/30 border border-blue-700/50 text-blue-300 text-xs rounded hover:bg-blue-900/50 transition-colors flex items-center gap-1"
+                            title="Återställ"
+                          >
+                            <RotateCcw size={14} />
+                          </button>
+                          <button
+                            onClick={() => handlePermanentDelete(file)}
+                            className="px-2 py-1 bg-red-900/30 border border-red-700/50 text-red-300 text-xs rounded hover:bg-red-900/50 transition-colors flex items-center gap-1"
+                            title="Radera permanent"
+                          >
+                            <X size={14} />
+                          </button>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 ml-4">
-                        <button
-                          onClick={() => handleRestore(file)}
-                          className="px-2 py-1 bg-blue-900/30 border border-blue-700/50 text-blue-300 text-xs rounded hover:bg-blue-900/50 transition-colors flex items-center gap-1"
-                          title="Återställ"
-                        >
-                          <RotateCcw size={14} />
-                        </button>
-                        <button
-                          onClick={() => handlePermanentDelete(file)}
-                          className="px-2 py-1 bg-red-900/30 border border-red-700/50 text-red-300 text-xs rounded hover:bg-red-900/50 transition-colors flex items-center gap-1"
-                          title="Radera permanent"
-                        >
-                          <X size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
