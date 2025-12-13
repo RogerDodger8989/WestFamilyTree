@@ -10,6 +10,7 @@ import PlacePicker from './PlacePicker.jsx';
 import ImageViewer from './ImageViewer.jsx';
 import Editor from './MaybeEditor.jsx';
 import MediaSelector from './MediaSelector.jsx';
+import { useApp } from './AppContext';
 
 // --- KONSTANTER ---
 
@@ -740,6 +741,9 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
   });
 
   const [tagInput, setTagInput] = useState('');
+  const [tagSuggestions, setTagSuggestions] = useState([]);
+  const tagInputRef = useRef(null);
+  const { getAllTags } = useApp();
   const [selectedEventIndex, setSelectedEventIndex] = useState(null);
   const [sourceRefreshKey, setSourceRefreshKey] = useState(0);
   
@@ -760,16 +764,44 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
     return !person.events?.some(e => e.type === eventType);
   };
 
-  // Tag handling
-  const addTag = (e) => {
-    if ((e.key === 'Enter' || e.key === ',') && tagInput.trim()) {
-      e.preventDefault();
-      const newTag = tagInput.replace(',', '').trim();
-      if (!person.tags.includes(newTag)) {
-        setPerson({ ...person, tags: [...person.tags, newTag] });
-      }
+  // Tag handling (samma som MediaManager/SourceCatalog)
+  // Få förslag baserat på input (använder centraliserad tag-lista)
+  const getTagSuggestions = (input) => {
+    if (!input || input.trim().length === 0) return [];
+    const allTags = getAllTags ? getAllTags() : [];
+    const lowerInput = input.toLowerCase();
+    const currentTags = Array.isArray(person?.tags) ? person.tags : [];
+    return allTags.filter(tag => 
+      tag.toLowerCase().includes(lowerInput) && 
+      !currentTags.includes(tag)
+    ).slice(0, 5);
+  };
+
+  // Lägg till tagg
+  const handleAddTag = (tagText) => {
+    if (!tagText || tagText.trim().length === 0) return;
+    
+    const tag = tagText.trim();
+    const currentTags = Array.isArray(person.tags) ? person.tags : [];
+    
+    // Kontrollera om taggen redan finns
+    if (currentTags.includes(tag)) {
       setTagInput('');
+      setTagSuggestions([]);
+      return;
     }
+    
+    // Lägg till taggen
+    setPerson({ ...person, tags: [...currentTags, tag] });
+    setTagInput('');
+    setTagSuggestions([]);
+    
+    // Fokusera tagg-input igen efter att taggen lagts till
+    setTimeout(() => {
+      if (tagInputRef.current) {
+        tagInputRef.current.focus();
+      }
+    }, 50);
   };
 
   const removeTag = (tagToRemove) => {
@@ -1011,7 +1043,6 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                   { id: 'media', icon: ImageIcon, label: 'Media' },
                   { id: 'notes', icon: FileText, label: 'Noteringar' },
                   { id: 'research', icon: Activity, label: 'Forskning' },
-                  { id: 'tags', icon: Tag, label: 'Taggar' },
                 ].map(tab => (
                   <button
                     key={tab.id}
@@ -1087,17 +1118,117 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                         }}
                         onChange={e => {
                           const val = e.target.value;
-                          // Kontrollera om refNumber redan finns hos annan person
-                          const isDuplicate = allPeople?.some(p => p.id !== person.id && String(p.refNumber) === String(val));
-                          if (isDuplicate) {
-                            alert('Ref Nr används redan av en annan person! Välj ett unikt nummer.');
-                            setPerson({...person, refNumber: ''});
-                          } else {
+                          // Tillåt endast siffror
+                          if (val === '' || /^\d+$/.test(val)) {
                             setPerson({...person, refNumber: val});
                           }
                         }}
-                        className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-slate-200 focus:border-blue-500 focus:outline-none"
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            e.target.blur();
+                            const val = e.target.value.trim();
+                            if (val) {
+                              const isDuplicate = allPeople?.some(p => p.id !== person.id && String(p.refNumber) === String(val));
+                              if (isDuplicate) {
+                                alert('Ref Nr används redan av en annan person! Välj ett unikt nummer.');
+                                setPerson({...person, refNumber: ''});
+                              } else {
+                                setPerson({...person, refNumber: val});
+                              }
+                            }
+                          }
+                        }}
+                        className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-slate-200 focus:border-blue-500 focus:outline-none" 
                       />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase mb-2 block">Taggar</label>
+                      
+                      {/* Visade taggar */}
+                      {Array.isArray(person?.tags) && person.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mb-2">
+                          {person.tags.map((tag, idx) => (
+                            <span 
+                              key={idx} 
+                              className="bg-green-600/20 border border-green-500/50 text-green-300 text-xs px-2 py-1 rounded-full flex items-center gap-1.5 group hover:bg-green-600/30 transition-colors"
+                            >
+                              <span>{tag}</span>
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removeTag(tag);
+                                }}
+                                className="text-green-400 hover:text-red-400 transition-colors ml-0.5"
+                                title="Ta bort tagg"
+                              >
+                                <X size={12}/>
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      
+                      {/* Input för nya taggar */}
+                      <div className="relative">
+                        <input
+                          ref={tagInputRef}
+                          type="text"
+                          placeholder="Skriv eller välj tagg..."
+                          className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500"
+                          value={tagInput}
+                          onChange={(e) => {
+                            setTagInput(e.target.value);
+                            setTagSuggestions(getTagSuggestions(e.target.value));
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ',') {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              const trimmed = tagInput.trim();
+                              if (trimmed) {
+                                handleAddTag(trimmed);
+                              }
+                            }
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                          }}
+                          onFocus={(e) => {
+                            e.stopPropagation();
+                            e.target.select();
+                            if (tagInput) {
+                              setTagSuggestions(getTagSuggestions(tagInput));
+                            }
+                          }}
+                          onBlur={() => {
+                            setTimeout(() => setTagSuggestions([]), 200);
+                          }}
+                          autoComplete="off"
+                        />
+                        
+                        {/* Autocomplete dropdown */}
+                        {tagSuggestions.length > 0 && tagInput && (
+                          <div className="absolute z-50 w-full mt-1 bg-slate-800 border border-slate-600 rounded shadow-lg max-h-40 overflow-y-auto">
+                            {tagSuggestions.map((suggestion, idx) => (
+                              <button
+                                key={idx}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  handleAddTag(suggestion);
+                                  setTagInput('');
+                                  setTagSuggestions([]);
+                                }}
+                                className="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 transition-colors flex items-center gap-2"
+                              >
+                                <Tag size={12} className="text-slate-500" />
+                                <span>{suggestion}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      
+                      <p className="text-[10px] text-slate-500 mt-1">Tryck Enter eller "," för att lägga till tagg</p>
                     </div>
                   </div>
                 </div>
@@ -1584,32 +1715,6 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
               </div>
             )}
 
-            {/* FLIK: TAGGAR */}
-            {activeTab === 'tags' && (
-              <div className="animate-in fade-in duration-300">
-                <label className="block text-xs font-bold text-slate-300 uppercase mb-2">Hantera Taggar</label>
-                <div className="flex items-center gap-2 mb-4">
-                  <input 
-                    type="text" 
-                    className="bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-slate-200 w-64 focus:outline-none focus:border-blue-500"
-                    placeholder="Skriv tagg och tryck Enter..."
-                    value={tagInput}
-                    onChange={e => setTagInput(e.target.value)}
-                    onKeyDown={addTag}
-                  />
-                  <p className="text-xs text-slate-400">Separera med komma eller enter.</p>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  {person.tags?.map(tag => (
-                    <span key={tag} className="flex items-center gap-1 bg-green-100 border border-green-300 text-green-800 px-3 py-1 rounded-full text-sm">
-                      {tag}
-                      <button onClick={() => removeTag(tag)} className="hover:text-green-900"><X size={14}/></button>
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
 
             {/* FLIK: NOTERINGAR */}
             {activeTab === 'notes' && (() => {

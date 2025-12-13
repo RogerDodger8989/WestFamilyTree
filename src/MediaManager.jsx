@@ -662,7 +662,7 @@ const translatePlaceType = (type) => {
 };
 
 export function MediaManager({ allPeople = [], allSources = [], onOpenEditModal = () => {}, onNavigateToSource = () => {}, onNavigateToPlace = () => {}, mediaItems: initialMedia = [], onUpdateMedia = () => {}, setIsSourceDrawerOpen = () => {}, setIsPlaceDrawerOpen = () => {}, onSelectMedia = null, selectedMediaIds = [] }) {
-  const { showUndoToast, showStatus } = useApp();
+  const { showUndoToast, showStatus, getAllTags } = useApp();
 
   // UI State
   const [viewMode, setViewMode] = useState('grid'); 
@@ -1235,25 +1235,18 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
     }
   }, [safeDisplayImage?.id]);
 
-  // Hämta alla befintliga taggar från alla media items
-  const getAllTags = () => {
-    const allTags = new Set();
-    mediaItems.forEach(item => {
-      if (Array.isArray(item.tags)) {
-        item.tags.forEach(tag => allTags.add(tag));
-      }
-    });
-    return Array.from(allTags).sort();
-  };
+  // Använd centraliserad tag-lista från AppContext (alla taggar i appen)
+  // getAllTags kommer från useApp() och inkluderar taggar från personer, källor och media
 
-  // Få förslag baserat på input
+  // Få förslag baserat på input (använder centraliserad tag-lista)
   const getTagSuggestions = (input) => {
     if (!input || input.trim().length === 0) return [];
-    const allTags = getAllTags();
+    const allTags = getAllTags ? getAllTags() : [];
     const lowerInput = input.toLowerCase();
+    const currentTags = Array.isArray(safeDisplayImage?.tags) ? safeDisplayImage.tags : [];
     return allTags.filter(tag => 
       tag.toLowerCase().includes(lowerInput) && 
-      !safeDisplayImage?.tags?.includes(tag)
+      !currentTags.includes(tag)
     ).slice(0, 5);
   };
 

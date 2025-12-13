@@ -3,8 +3,7 @@ import { useApp } from './AppContext';
 import ImageGallery from './ImageGallery.jsx';
 import Editor from './MaybeEditor.jsx';
 import Button from './Button.jsx';
-import TagInput from './TagInput.jsx';
-import { User } from 'lucide-react'; 
+import { User, Tag, X } from 'lucide-react'; 
 
 // --- HJÄLPFUNKTIONER (Oförändrad) ---
 
@@ -105,12 +104,18 @@ export default function SourceCatalog({
     onUnlinkSourceFromEvent, 
     alreadyLinkedIds = [] 
 }) {
+  const { getAllTags } = useApp();
   const { selectedSourceId, expanded, searchTerm, sortOrder = 'name_asc' } = catalogState; 
   const [importString, setImportString] = useState(''); 
   const listContainerRef = useRef(null);
 
   // State för högerpanelens flikar ('info', 'images', 'notes')
   const [activeRightTab, setActiveRightTab] = useState('info');
+
+  // Tag State (samma som MediaManager)
+  const [tagInput, setTagInput] = useState('');
+  const [tagSuggestions, setTagSuggestions] = useState([]);
+  const tagInputRef = useRef(null);
 
   // --- PARSER-LOGIK (Oförändrad) ---
   const parseSourceString = () => {
@@ -287,6 +292,75 @@ export default function SourceCatalog({
   const handleSortChange = (e) => setCatalogState(prev => ({ ...prev, sortOrder: e.target.value }));
   const selectedSource = sources.find(s => s.id === selectedSourceId);
   const handleSave = (updatedFields) => { onEditSource({ ...selectedSource, ...updatedFields }); };
+
+  // Tag-funktioner (samma som MediaManager)
+  // Använd centraliserad tag-lista från AppContext (alla taggar i appen)
+  // getAllTags kommer från useApp() och inkluderar taggar från personer, källor och media
+
+  // Få förslag baserat på input (använder centraliserad tag-lista)
+  const getTagSuggestions = (input) => {
+    if (!input || input.trim().length === 0) return [];
+    const allTags = getAllTags ? getAllTags() : [];
+    const lowerInput = input.toLowerCase();
+    
+    // Hämta nuvarande taggar från selectedSource
+    let currentTags = selectedSource?.tags || [];
+    if (typeof currentTags === 'string' && currentTags.trim()) {
+      currentTags = currentTags.split(',').map(t => t.trim()).filter(t => t);
+    }
+    if (!Array.isArray(currentTags)) {
+      currentTags = [];
+    }
+    
+    return allTags.filter(tag => 
+      tag.toLowerCase().includes(lowerInput) && 
+      !currentTags.includes(tag)
+    ).slice(0, 5);
+  };
+
+  // Lägg till tagg
+  const handleAddTag = (tagText) => {
+    if (!tagText || tagText.trim().length === 0) return;
+    if (!selectedSource) return;
+    
+    const tag = tagText.trim();
+    
+    // Hämta nuvarande taggar
+    let currentTags = selectedSource.tags || [];
+    if (typeof currentTags === 'string' && currentTags.trim()) {
+      currentTags = currentTags.split(',').map(t => t.trim()).filter(t => t);
+    }
+    if (!Array.isArray(currentTags)) {
+      currentTags = [];
+    }
+    
+    // Kontrollera om taggen redan finns
+    if (currentTags.includes(tag)) {
+      setTagInput('');
+      setTagSuggestions([]);
+      return;
+    }
+    
+    // Lägg till taggen
+    const newTags = [...currentTags, tag];
+    handleSave({ tags: newTags });
+    
+    setTagInput('');
+    setTagSuggestions([]);
+    
+    // Fokusera tagg-input igen efter att taggen lagts till
+    setTimeout(() => {
+      if (tagInputRef.current) {
+        tagInputRef.current.focus();
+      }
+    }, 50);
+  };
+
+  // Rensa tagg-input när källan ändras
+  useEffect(() => {
+    setTagInput('');
+    setTagSuggestions([]);
+  }, [selectedSourceId]);
 
   // --- HITTA KOPPLADE PERSONER (Memoized) ---
     // Grupp: personId -> { person, events: [], isLinkedToImageRegion, family }
@@ -592,11 +666,110 @@ export default function SourceCatalog({
                             <div className="flex items-end gap-1"><div className="flex-1"><label className="block text-xs font-bold text-slate-300 uppercase">BildID (RA)</label><input className="w-full border border-slate-600 rounded px-2 py-1 font-mono text-xs bg-slate-900 text-slate-200 focus:border-blue-500 focus:outline-none" value={selectedSource.bildid || ''} onChange={e => handleSave({ bildid: e.target.value })} /></div>{selectedSource.bildid && (<Button onClick={() => window.open(`https://sok.riksarkivet.se/bildvisning/${selectedSource.bildid}`, '_blank')} variant="success" size="xs">RA</Button>)}</div>
                             <div className="flex items-end gap-1"><div className="flex-1"><label className="block text-xs font-bold text-slate-300 uppercase">NAD</label><input className="w-full border border-slate-600 rounded px-2 py-1 font-mono text-xs bg-slate-900 text-slate-200 focus:border-blue-500 focus:outline-none" value={selectedSource.nad || ''} onChange={e => handleSave({ nad: e.target.value })} /></div>{selectedSource.nad && (<Button onClick={() => window.open(`https://sok.riksarkivet.se/?postid=ArkisRef%20${selectedSource.nad}`, '_blank')} variant="success" size="xs">NAD</Button>)}</div>
                         </div>
-                        <div className="mt-4 flex items-center justify-between mb-6">
+                        <div className="mt-4 mb-6 space-y-4">
                            <div className="flex items-center gap-2"><label className="text-xs font-bold text-slate-300 uppercase">Trovärdighet:</label><TrustDropdown value={selectedSource.trust} onChange={v => handleSave({ trust: v })} /></div>
                            
-                           {/* NY TAG INPUT */}
-                           <TagInput value={selectedSource.tags || ''} onChange={newValue => handleSave({ tags: newValue })} />
+                           {/* TAG-SEKTION (samma som MediaManager) */}
+                           <div className="space-y-2">
+                               <label className="text-[10px] font-bold text-slate-500 uppercase mb-2 block">Taggar</label>
+                               
+                               {/* Visade taggar */}
+                               {(() => {
+                                 let tags = selectedSource?.tags || [];
+                                 if (typeof tags === 'string' && tags.trim()) {
+                                   tags = tags.split(',').map(t => t.trim()).filter(t => t);
+                                 }
+                                 if (!Array.isArray(tags)) {
+                                   tags = [];
+                                 }
+                                 
+                                 return tags.length > 0 && (
+                                   <div className="flex flex-wrap gap-2 mb-2">
+                                     {tags.map((tag, idx) => (
+                                       <span 
+                                         key={idx} 
+                                         className="bg-green-600/20 border border-green-500/50 text-green-300 text-xs px-2 py-1 rounded-full flex items-center gap-1.5 group hover:bg-green-600/30 transition-colors"
+                                       >
+                                         <span>{tag}</span>
+                                         <button 
+                                           onClick={(e) => {
+                                             e.stopPropagation();
+                                             const newTags = tags.filter(t => t !== tag);
+                                             handleSave({ tags: newTags });
+                                           }}
+                                           className="text-green-400 hover:text-red-400 transition-colors ml-0.5"
+                                           title="Ta bort tagg"
+                                         >
+                                           <X size={12}/>
+                                         </button>
+                                       </span>
+                                     ))}
+                                   </div>
+                                 );
+                               })()}
+                               
+                               {/* Input för nya taggar */}
+                               <div className="relative">
+                                   <input
+                                       ref={tagInputRef}
+                                       type="text"
+                                       placeholder="Skriv eller välj tagg..."
+                                       className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500"
+                                       value={tagInput}
+                                       onChange={(e) => {
+                                           setTagInput(e.target.value);
+                                           setTagSuggestions(getTagSuggestions(e.target.value));
+                                       }}
+                                       onKeyDown={(e) => {
+                                           if (e.key === 'Enter' || e.key === ',') {
+                                               e.preventDefault();
+                                               e.stopPropagation();
+                                               const trimmed = tagInput.trim();
+                                               if (trimmed) {
+                                                   handleAddTag(trimmed);
+                                               }
+                                           }
+                                       }}
+                                       onClick={(e) => {
+                                           e.stopPropagation();
+                                       }}
+                                       onFocus={(e) => {
+                                           e.stopPropagation();
+                                           e.target.select();
+                                           if (tagInput) {
+                                               setTagSuggestions(getTagSuggestions(tagInput));
+                                           }
+                                       }}
+                                       onBlur={() => {
+                                           setTimeout(() => setTagSuggestions([]), 200);
+                                       }}
+                                       autoComplete="off"
+                                   />
+                                   
+                                   {/* Autocomplete dropdown */}
+                                   {tagSuggestions.length > 0 && tagInput && (
+                                       <div className="absolute z-50 w-full mt-1 bg-slate-800 border border-slate-600 rounded shadow-lg max-h-40 overflow-y-auto">
+                                           {tagSuggestions.map((suggestion, idx) => (
+                                               <button
+                                                   key={idx}
+                                                   onClick={(e) => {
+                                                       e.preventDefault();
+                                                       handleAddTag(suggestion);
+                                                       setTagInput('');
+                                                       setTagSuggestions([]);
+                                                   }}
+                                                   className="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 transition-colors flex items-center gap-2"
+                                               >
+                                                   <Tag size={12} className="text-slate-500" />
+                                                   <span>{suggestion}</span>
+                                               </button>
+                                           ))}
+                                       </div>
+                                   )}
+                               </div>
+                               
+                               <p className="text-[10px] text-slate-500">Tryck Enter eller "," för att lägga till tagg</p>
+                           </div>
                         </div>
                     </div>
                 )}

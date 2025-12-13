@@ -1817,6 +1817,43 @@ export default function useAppContext() {
         bulkWarningsModal, openBulkWarningsModal, closeBulkWarningsModal,
         // expose undo toast helper so UI can show an inline Ångra action
         showUndoToast,
-        applyHistoryEntry, historyState, isHistoryOpen, handleBack, handleForward, handleShowHistory
+        applyHistoryEntry, historyState, isHistoryOpen, handleBack, handleForward, handleShowHistory,
+        // Centraliserad tag-hantering
+        getAllTags: useCallback(() => {
+            const allTags = new Set();
+            
+            // Taggar från personer
+            if (dbData?.people) {
+                dbData.people.forEach(person => {
+                    if (person.tags && Array.isArray(person.tags)) {
+                        person.tags.forEach(tag => allTags.add(tag));
+                    }
+                });
+            }
+            
+            // Taggar från källor
+            if (dbData?.sources) {
+                dbData.sources.forEach(source => {
+                    let tags = source.tags;
+                    if (typeof tags === 'string' && tags.trim()) {
+                        tags = tags.split(',').map(t => t.trim()).filter(t => t);
+                    }
+                    if (Array.isArray(tags)) {
+                        tags.forEach(tag => allTags.add(tag));
+                    }
+                });
+            }
+            
+            // Taggar från media
+            if (dbData?.media) {
+                dbData.media.forEach(media => {
+                    if (media.tags && Array.isArray(media.tags)) {
+                        media.tags.forEach(tag => allTags.add(tag));
+                    }
+                });
+            }
+            
+            return Array.from(allTags).sort();
+        }, [dbData])
     };
 }
