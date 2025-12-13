@@ -35,6 +35,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     writeExifKeywords: (filePath, keywords, backup) => ipcRenderer.invoke('write-exif-keywords', filePath, keywords, backup),
     writeExifFaceTags: (filePath, faceTags, backup) => ipcRenderer.invoke('write-exif-face-tags', filePath, faceTags, backup),
 
+    // File operations
+    readFile: (filePath) => ipcRenderer.invoke('read-file', filePath),
+    
     // Media operations
     copyFileToMedia: (sourcePath, fileName) => ipcRenderer.invoke('copy-file-to-media', sourcePath, fileName),
     saveFileBufferToMedia: (fileBuffer, fileName) => ipcRenderer.invoke('save-file-buffer-to-media', fileBuffer, fileName),

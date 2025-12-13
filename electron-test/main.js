@@ -848,13 +848,13 @@ ipcMain.handle('save-file', async (event, filePath, data) => {
 
 // IPC handler for reading a file
 ipcMain.handle('read-file', async (event, filePath) => {
-  // ...existing code...
   const path = require('path');
   const forcedPath = forceImageRoot(filePath);
   try {
     console.log('[read-file] IN:', filePath);
     console.log('[read-file] OUT:', forcedPath);
-    const data = await fs.readFile(forcedPath);
+    // Använd fs.promises.readFile() för att få en Promise
+    const data = await fs.promises.readFile(forcedPath);
     return data;
   } catch (err) {
     console.error('[read-file] FEL:', err, 'Path:', forcedPath);

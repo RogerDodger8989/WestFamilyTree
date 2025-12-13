@@ -13,7 +13,8 @@
     "node-fetch": "^2.7.0",
     "parse-gedcom": "^2.0.1",
     "react-select": "^5.10.2",
-    "sqlite3": "^5.1.7"
+    "sqlite3": "^5.1.7",
+    "tesseract.js": "^6.0.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.17",

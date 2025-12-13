@@ -3,7 +3,10 @@ import ImageViewer from './ImageViewer.jsx';
 import ImageEditorModal from './ImageEditorModal.jsx';
 import LinkPersonModal from './LinkPersonModal.jsx';
 import TrashModal from './TrashModal.jsx';
+import WindowFrame from './WindowFrame.jsx';
 import { useApp } from './AppContext.jsx';
+import { createWorker } from 'tesseract.js';
+import Editor from './MaybeEditor.jsx';
 import { 
   Search, Image as ImageIcon, Grid, List, Tag, User, 
   MapPin, Calendar, Plus, Trash2, AlertCircle, UploadCloud, 
@@ -132,17 +135,19 @@ const MoveFilesModal = ({ isOpen, onClose, onMove, libraries }) => {
 const BatchEditModal = ({ isOpen, onClose, onSave, count }) => {
     const [date, setDate] = useState('');
     const [tagsToAdd, setTagsToAdd] = useState('');
+    const [description, setDescription] = useState('');
+    const [transcription, setTranscription] = useState('');
 
     if (!isOpen) return null;
 
     return (
         <div className="absolute inset-0 z-[80] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-            <div className="bg-slate-800 border border-slate-600 rounded-lg shadow-xl w-96 overflow-hidden">
-                <div className="p-4 border-b border-slate-700 bg-slate-900 font-bold text-white flex justify-between items-center">
+            <div className="bg-slate-800 border border-slate-600 rounded-lg shadow-xl w-[600px] max-h-[90vh] overflow-hidden flex flex-col">
+                <div className="p-4 border-b border-slate-700 bg-slate-900 font-bold text-white flex justify-between items-center shrink-0">
                     <span>Redigera {count} objekt</span>
                     <button onClick={onClose}><X size={18} className="text-slate-400 hover:text-white"/></button>
                 </div>
-                <div className="p-4 space-y-4">
+                <div className="p-4 space-y-4 overflow-y-auto flex-1">
                     <div>
                         <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Sätt gemensamt datum</label>
                         <input 
@@ -165,11 +170,38 @@ const BatchEditModal = ({ isOpen, onClose, onSave, count }) => {
                         />
                         <p className="text-[10px] text-slate-500 mt-1">Separera med kommatecken. Dessa läggs till på befintliga.</p>
                     </div>
+                    <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Sätt gemensam bildtext / beskrivning</label>
+                        <div className="bg-slate-900 border border-slate-600 rounded p-2 min-h-[100px]">
+                            <Editor
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
+                                placeholder="Skriv en beskrivning som ska gälla för alla valda bilder..."
+                            />
+                        </div>
+                        <p className="text-[10px] text-slate-500 mt-1">Lämna tomt för att behålla befintliga beskrivningar.</p>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Sätt gemensam transkribering</label>
+                        <div className="bg-slate-900 border border-slate-600 rounded p-2 min-h-[150px]">
+                            <Editor
+                                value={transcription}
+                                onChange={(e) => setTranscription(e.target.value)}
+                                placeholder="Skriv en transkribering som ska gälla för alla valda bilder..."
+                            />
+                        </div>
+                        <p className="text-[10px] text-slate-500 mt-1">Lämna tomt för att behålla befintliga transkriberingar.</p>
+                    </div>
                 </div>
-                <div className="p-3 border-t border-slate-700 bg-slate-900 flex justify-end gap-2">
+                <div className="p-3 border-t border-slate-700 bg-slate-900 flex justify-end gap-2 shrink-0">
                     <button onClick={onClose} className="text-sm text-slate-400 hover:text-white px-3 py-1.5">Avbryt</button>
                     <button 
-                        onClick={() => onSave({ date, tags: tagsToAdd })}
+                        onClick={() => onSave({ 
+                            date: date || undefined, 
+                            tags: tagsToAdd || undefined,
+                            description: description || undefined,
+                            transcription: transcription || undefined
+                        })}
                         className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded text-sm font-medium"
                     >
                         Uppdatera
@@ -178,6 +210,355 @@ const BatchEditModal = ({ isOpen, onClose, onSave, count }) => {
             </div>
         </div>
     );
+};
+
+const OcrResultModal = ({ isOpen, image, ocrResult, setOcrResult, onClose, onSave }) => {
+  const [zoomLevel, setZoomLevel] = useState(1.0);
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const [blobUrl, setBlobUrl] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const panStart = useRef({ x: 0, y: 0 });
+  const imgRef = useRef(null);
+
+  // Ladda bilden när modalen öppnas
+  useEffect(() => {
+    if (!isOpen || !image) return;
+
+    let currentBlobUrl = null;
+
+    const loadImage = async () => {
+      setLoading(true);
+      try {
+        const imageUrl = image.url;
+        console.log('[OcrResultModal] Loading image:', { imageUrl, filePath: image.filePath });
+        
+        if (imageUrl && imageUrl.startsWith('media://')) {
+          if (window.electronAPI && typeof window.electronAPI.readFile === 'function') {
+            // Extrahera filvägen från media:// URL
+            let filePath = imageUrl.replace('media://', '');
+            // Decode URL encoding
+            filePath = decodeURIComponent(filePath);
+            // Ersätt %2F med / om det behövs
+            filePath = filePath.replace(/%2F/g, '/');
+            
+            console.log('[OcrResultModal] Reading file:', filePath);
+            
+            const fileData = await window.electronAPI.readFile(filePath);
+            console.log('[OcrResultModal] File data received:', { 
+              hasData: !!fileData, 
+              hasError: !!fileData?.error,
+              dataType: fileData?.data ? typeof fileData.data : 'no data',
+              isArray: fileData?.data ? Array.isArray(fileData.data) : false
+            });
+            
+            if (fileData && !fileData.error) {
+              // readFile returnerar data på olika sätt - hantera alla fall
+              let uint8Array;
+              
+              // Om fileData är direkt en ArrayBuffer eller Uint8Array
+              if (fileData instanceof ArrayBuffer) {
+                uint8Array = new Uint8Array(fileData);
+              } else if (fileData instanceof Uint8Array) {
+                uint8Array = fileData;
+              } 
+              // Om fileData har en data-property
+              else if (fileData.data) {
+                if (fileData.data instanceof Uint8Array) {
+                  uint8Array = fileData.data;
+                } else if (fileData.data instanceof ArrayBuffer) {
+                  uint8Array = new Uint8Array(fileData.data);
+                } else if (Array.isArray(fileData.data)) {
+                  uint8Array = new Uint8Array(fileData.data);
+                } else {
+                  uint8Array = new Uint8Array(fileData.data);
+                }
+              }
+              // Om fileData är en array
+              else if (Array.isArray(fileData)) {
+                uint8Array = new Uint8Array(fileData);
+              }
+              // Om fileData är en string (base64)
+              else if (typeof fileData === 'string') {
+                const binaryString = atob(fileData);
+                uint8Array = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                  uint8Array[i] = binaryString.charCodeAt(i);
+                }
+              }
+              // Sista fallback
+              else {
+                try {
+                  uint8Array = new Uint8Array(fileData);
+                } catch (e) {
+                  console.error('[OcrResultModal] Could not convert fileData to Uint8Array:', e);
+                  throw new Error('Kunde inte konvertera bilddata');
+                }
+              }
+              
+              // Bestäm MIME-typ baserat på filändelse
+              const ext = (image.name || filePath).split('.').pop()?.toLowerCase() || 'png';
+              const mimeTypes = {
+                'jpg': 'image/jpeg',
+                'jpeg': 'image/jpeg',
+                'png': 'image/png',
+                'gif': 'image/gif',
+                'webp': 'image/webp',
+                'bmp': 'image/bmp'
+              };
+              const mimeType = mimeTypes[ext] || 'image/png';
+              
+              const blob = new Blob([uint8Array], { type: mimeType });
+              const url = URL.createObjectURL(blob);
+              currentBlobUrl = url;
+              setBlobUrl(url);
+              console.log('[OcrResultModal] Image loaded successfully, size:', uint8Array.length, 'bytes');
+            } else {
+              console.error('[OcrResultModal] Error reading file:', fileData?.error);
+            }
+          } else if (image.filePath && window.electronAPI && typeof window.electronAPI.readFile === 'function') {
+            // Fallback: använd filePath direkt
+            console.log('[OcrResultModal] Using filePath fallback:', image.filePath);
+            const fileData = await window.electronAPI.readFile(image.filePath);
+            if (fileData && !fileData.error) {
+              let uint8Array;
+              
+              if (fileData instanceof ArrayBuffer) {
+                uint8Array = new Uint8Array(fileData);
+              } else if (fileData instanceof Uint8Array) {
+                uint8Array = fileData;
+              } else if (fileData.data) {
+                if (fileData.data instanceof Uint8Array) {
+                  uint8Array = fileData.data;
+                } else if (fileData.data instanceof ArrayBuffer) {
+                  uint8Array = new Uint8Array(fileData.data);
+                } else if (Array.isArray(fileData.data)) {
+                  uint8Array = new Uint8Array(fileData.data);
+                } else {
+                  uint8Array = new Uint8Array(fileData.data);
+                }
+              } else if (Array.isArray(fileData)) {
+                uint8Array = new Uint8Array(fileData);
+              } else if (typeof fileData === 'string') {
+                const binaryString = atob(fileData);
+                uint8Array = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                  uint8Array[i] = binaryString.charCodeAt(i);
+                }
+              } else {
+                uint8Array = new Uint8Array(fileData);
+              }
+              
+              const ext = (image.name || image.filePath).split('.').pop()?.toLowerCase() || 'png';
+              const mimeTypes = {
+                'jpg': 'image/jpeg',
+                'jpeg': 'image/jpeg',
+                'png': 'image/png',
+                'gif': 'image/gif',
+                'webp': 'image/webp',
+                'bmp': 'image/bmp'
+              };
+              const mimeType = mimeTypes[ext] || 'image/png';
+              
+              const blob = new Blob([uint8Array], { type: mimeType });
+              const url = URL.createObjectURL(blob);
+              currentBlobUrl = url;
+              setBlobUrl(url);
+              console.log('[OcrResultModal] Image loaded via filePath fallback');
+            }
+          }
+        } else if (imageUrl && imageUrl.startsWith('blob:')) {
+          setBlobUrl(imageUrl);
+        } else if (imageUrl) {
+          setBlobUrl(imageUrl);
+        }
+      } catch (error) {
+        console.error('[OcrResultModal] Error loading image:', error);
+        setError(error.message || 'Kunde inte ladda bilden');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadImage();
+
+    return () => {
+      if (currentBlobUrl && !currentBlobUrl.startsWith('http') && !currentBlobUrl.startsWith('blob') && !currentBlobUrl.startsWith('data')) {
+        URL.revokeObjectURL(currentBlobUrl);
+      }
+      setBlobUrl(null);
+      setZoomLevel(1.0);
+      setPanOffset({ x: 0, y: 0 });
+      setError(null);
+    };
+  }, [isOpen, image]);
+
+  const handlePanStart = (e) => {
+    if (e.button !== 0 || zoomLevel === 1) return;
+    e.preventDefault();
+    setIsPanning(true);
+    panStart.current = { x: e.clientX, y: e.clientY };
+  };
+
+  const handlePanMove = (e) => {
+    if (!isPanning) return;
+    const dx = e.clientX - panStart.current.x;
+    const dy = e.clientY - panStart.current.y;
+    setPanOffset(prev => ({ x: prev.x + dx / zoomLevel, y: prev.y + dy / zoomLevel }));
+    panStart.current = { x: e.clientX, y: e.clientY };
+  };
+
+  const handlePanEnd = () => {
+    setIsPanning(false);
+  };
+
+  const handleZoom = (e) => {
+    e.preventDefault();
+    const delta = e.deltaY * -0.01;
+    const newZoom = Math.min(Math.max(1, zoomLevel + delta), 4);
+    setZoomLevel(newZoom);
+    if (newZoom === 1) {
+      setPanOffset({ x: 0, y: 0 });
+    }
+  };
+
+  const handleZoomIn = () => {
+    const newZoom = Math.min(zoomLevel * 1.2, 4);
+    setZoomLevel(newZoom);
+  };
+
+  const handleZoomOut = () => {
+    const newZoom = Math.max(zoomLevel / 1.2, 1);
+    setZoomLevel(newZoom);
+    if (newZoom === 1) {
+      setPanOffset({ x: 0, y: 0 });
+    }
+  };
+
+  const handleResetZoom = () => {
+    setZoomLevel(1.0);
+    setPanOffset({ x: 0, y: 0 });
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <WindowFrame
+      title="OCR-resultat - Redigera text"
+      icon={ScanFace}
+      onClose={onClose}
+      initialWidth={1200}
+      initialHeight={700}
+      zIndex={5002}
+    >
+      <div className="h-full flex bg-slate-800">
+        {/* VÄNSTER: BILD MED ZOOM + PAN */}
+        <div className="w-1/2 border-r border-slate-700 flex flex-col bg-slate-900">
+          <div className="p-3 border-b border-slate-700 flex items-center justify-between bg-slate-800">
+            <h3 className="text-sm font-bold text-white truncate flex-1">{image?.name || 'Bild'}</h3>
+            <div className="flex items-center gap-2 ml-4">
+              <button
+                onClick={handleZoomOut}
+                disabled={zoomLevel <= 1}
+                className="p-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Zooma ut"
+              >
+                <ZoomOut size={16} />
+              </button>
+              <span className="text-xs text-slate-400 min-w-[50px] text-center">
+                {Math.round(zoomLevel * 100)}%
+              </span>
+              <button
+                onClick={handleZoomIn}
+                disabled={zoomLevel >= 4}
+                className="p-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Zooma in"
+              >
+                <ZoomIn size={16} />
+              </button>
+              <button
+                onClick={handleResetZoom}
+                className="px-2 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded text-xs"
+                title="Återställ zoom"
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+          <div 
+            className="flex-1 flex items-center justify-center overflow-hidden relative"
+            onWheel={handleZoom}
+            onMouseMove={handlePanMove}
+            onMouseUp={handlePanEnd}
+            onMouseLeave={handlePanEnd}
+            style={{ cursor: zoomLevel > 1 ? (isPanning ? 'grabbing' : 'grab') : 'default' }}
+          >
+            {loading && <span className="text-white animate-pulse">Laddar bild...</span>}
+            {error && !loading && (
+              <div className="text-red-400 text-center p-4">
+                <p className="font-bold mb-2">Fel vid laddning av bild</p>
+                <p className="text-sm">{error}</p>
+              </div>
+            )}
+            {!blobUrl && !loading && !error && (
+              <div className="text-slate-400 text-center p-4">
+                <p>Ingen bild att visa</p>
+              </div>
+            )}
+            {blobUrl && !loading && !error && (
+              <img
+                ref={imgRef}
+                src={blobUrl}
+                alt={image?.name || 'Bild'}
+                className="max-w-full max-h-full object-contain select-none"
+                style={{
+                  transform: `scale(${zoomLevel}) translate(${panOffset.x}px, ${panOffset.y}px)`,
+                  transition: isPanning ? 'none' : 'transform 0.1s ease-out',
+                  transformOrigin: 'center center'
+                }}
+                onMouseDown={handlePanStart}
+                draggable={false}
+                onError={(e) => {
+                  console.error('[OcrResultModal] Image load error');
+                  setError('Kunde inte visa bilden');
+                }}
+              />
+            )}
+          </div>
+        </div>
+
+        {/* HÖGER: OCR-REDIGERARE */}
+        <div className="w-1/2 flex flex-col bg-slate-800">
+          <div className="p-4 border-b border-slate-700 bg-slate-800">
+            <h3 className="text-sm font-bold text-white mb-1">OCR-text</h3>
+            <p className="text-xs text-slate-400">Granska och redigera texten nedan</p>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4">
+            <Editor
+              value={ocrResult}
+              onChange={(e) => setOcrResult(e.target.value)}
+              placeholder="OCR-text kommer att visas här..."
+            />
+          </div>
+          <div className="p-4 border-t border-slate-700 bg-slate-800 flex justify-end gap-2">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded text-sm"
+            >
+              Avbryt
+            </button>
+            <button
+              onClick={onSave}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm"
+            >
+              Spara till transkribering
+            </button>
+          </div>
+        </div>
+      </div>
+    </WindowFrame>
+  );
 };
 
 const LibraryButton = ({ lib, isActive, onClick, onDrop, onDelete }) => {
@@ -506,8 +887,8 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {}, media
           showStatus(`"${item.name}" har flyttats till papperskorgen.`, 'success');
         }
       }
-      
-      if (typeof showUndoToast === 'function') {
+
+    if (typeof showUndoToast === 'function') {
         showUndoToast(`"${item.name}" har flyttats till papperskorgen. Ångra?`, async () => {
           // Återställ från papperskorg om möjligt
           if (item.filePath && window.electronAPI && window.electronAPI.restoreFileFromTrash) {
@@ -524,13 +905,13 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {}, media
                 );
                 if (restoreResult && restoreResult.success) {
                   // Lägg tillbaka i media-listan
-                  updateMedia(prev => {
+        updateMedia(prev => {
                     if (prev.some(m => m.id === item.id)) return prev;
-                    const newMedia = [...prev];
-                    const insertAt = deletionIndex >= 0 ? Math.min(deletionIndex, newMedia.length) : newMedia.length;
+          const newMedia = [...prev];
+          const insertAt = deletionIndex >= 0 ? Math.min(deletionIndex, newMedia.length) : newMedia.length;
                     newMedia.splice(insertAt, 0, item);
-                    return newMedia;
-                  });
+          return newMedia;
+        });
                   setSelectedImage(item);
                   if (typeof showStatus === 'function') {
                     showStatus(`"${item.name}" har återställts.`, 'success');
@@ -655,6 +1036,12 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
   const [showTranscription, setShowTranscription] = useState(false);
   const [showLinkPersonModal, setShowLinkPersonModal] = useState(false);
   const [showTrashModal, setShowTrashModal] = useState(false);
+  const [isRunningOCR, setIsRunningOCR] = useState(false);
+  const [ocrProgress, setOcrProgress] = useState(0);
+  const [showOcrModal, setShowOcrModal] = useState(false);
+  const [ocrResult, setOcrResult] = useState('');
+  const [transcriptionContent, setTranscriptionContent] = useState('');
+  const [descriptionContent, setDescriptionContent] = useState('');
   
   // Uppdatera selectedImage när mediaItems ändras, så att connections alltid är aktuella
   useEffect(() => {
@@ -700,7 +1087,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
   const panStart = useRef({ x: 0, y: 0 });
   
   const fileInputRef = useRef(null);
-  const libInputRef = useRef(null);
+  const libInputRef = useRef(null); 
   const tagInputRef = useRef(null);
 
   const allLibraries = [...SYSTEM_LIBRARIES, ...customLibraries];
@@ -781,6 +1168,20 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
     return result;
   })() : null;
 
+  // Uppdatera transcription och description när bilden ändras
+  useEffect(() => {
+    if (safeDisplayImage) {
+      // Uppdatera transcriptionContent till den valda bildens transcription
+      setTranscriptionContent(safeDisplayImage.transcription || '');
+      // Uppdatera descriptionContent till den valda bildens description
+      setDescriptionContent(safeDisplayImage.description || '');
+    } else {
+      // Rensa om ingen bild är vald
+      setTranscriptionContent('');
+      setDescriptionContent('');
+    }
+  }, [safeDisplayImage?.id]);
+
   // Rensa tagg-input när bilden ändras och fokusera input-fältet
   useEffect(() => {
     setTagInput('');
@@ -818,30 +1219,61 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
 
   // Lägg till tagg
   const handleAddTag = (tagText) => {
-    if (!tagText || tagText.trim().length === 0) return;
-    if (!safeDisplayImage) return;
+    if (!tagText || tagText.trim().length === 0) {
+      console.log('[MediaManager] handleAddTag: tom tagg');
+      return;
+    }
+    if (!safeDisplayImage) {
+      console.log('[MediaManager] handleAddTag: safeDisplayImage saknas');
+      return;
+    }
     
     const tag = tagText.trim();
     const currentTags = Array.isArray(safeDisplayImage.tags) ? safeDisplayImage.tags : [];
     
+    console.log('[MediaManager] handleAddTag:', {
+      tag,
+      currentTags,
+      imageId: safeDisplayImage.id,
+      imageName: safeDisplayImage.name
+    });
+    
     // Kontrollera om taggen redan finns
     if (currentTags.includes(tag)) {
+      console.log('[MediaManager] handleAddTag: tagg finns redan');
       setTagInput('');
       setTagSuggestions([]);
       return;
     }
     
     // Lägg till taggen
-    updateMedia(prev => prev.map(item => {
-      if (item.id !== safeDisplayImage.id) return item;
-      return {
-        ...item,
-        tags: [...currentTags, tag]
-      };
-    }));
+    updateMedia(prev => {
+      const updated = prev.map(item => {
+        if (item.id !== safeDisplayImage.id) return item;
+        const newTags = [...currentTags, tag];
+        console.log('[MediaManager] handleAddTag: uppdaterar media:', {
+          itemId: item.id,
+          oldTags: currentTags,
+          newTags: newTags
+        });
+        return {
+          ...item,
+          tags: newTags
+        };
+      });
+      console.log('[MediaManager] handleAddTag: media uppdaterad, antal items:', updated.length);
+      return updated;
+    });
     
     setTagInput('');
     setTagSuggestions([]);
+    
+    // Fokusera tagg-input igen efter att taggen lagts till
+    setTimeout(() => {
+      if (tagInputRef.current) {
+        tagInputRef.current.focus();
+      }
+    }, 50);
   };
 
   const filteredMedia = mediaItems.filter(m => {
@@ -1241,15 +1673,181 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
       updateMedia(mediaItems.map(m => ids.includes(m.id) ? { ...m, libraryId: targetLibId } : m));
   };
 
-  const handleBatchEditSave = ({ date, tags }) => {
-      const tagArray = tags.split(',').map(t => t.trim()).filter(t => t);
+  const handleBatchEditSave = ({ date, tags, description, transcription }) => {
+      const tagArray = tags ? tags.split(',').map(t => t.trim()).filter(t => t) : [];
+      const selectedCount = selectedIds.size;
       updateMedia(mediaItems.map(m => {
-          if (selectedIds.has(m.id)) return { ...m, date: date || m.date, tags: [...new Set([...m.tags, ...tagArray])] };
+          if (selectedIds.has(m.id)) {
+              const updated = { ...m };
+              if (date) updated.date = date;
+              if (tagArray.length > 0) updated.tags = [...new Set([...(m.tags || []), ...tagArray])];
+              if (description !== undefined && description !== '') updated.description = description;
+              if (transcription !== undefined && transcription !== '') updated.transcription = transcription;
+              return updated;
+          }
           return m;
       }));
       setIsBatchEditOpen(false);
       setSelectedIds(new Set());
       setIsSelectMode(false);
+      
+      if (typeof showStatus === 'function') {
+          showStatus(`${selectedCount} bilder uppdaterade!`, 'success');
+      }
+  };
+
+  // OCR-funktion
+  const handleRunOCR = async () => {
+    if (!safeDisplayImage) return;
+    
+    setIsRunningOCR(true);
+    setOcrProgress(0);
+    
+    let progressInterval = null;
+    
+    try {
+      const worker = await createWorker('swe+eng'); // Svenska och engelska
+      
+      // Ladda bilden
+      const imageUrl = safeDisplayImage.url;
+      let imageData;
+      
+      if (imageUrl.startsWith('media://')) {
+        // För media:// URLs, använd Electron IPC för att läsa filen
+        if (window.electronAPI && typeof window.electronAPI.readFile === 'function') {
+          // Extrahera filvägen från media:// URL
+          // media:// kan vara antingen encoded (20251212-175415.png) eller med path (persons/20251212-175415.png)
+          let filePath = imageUrl.replace('media://', '');
+          // Decode URL encoding
+          filePath = decodeURIComponent(filePath);
+          // Om det inte finns någon slash, använd filePath direkt (filen ligger i root)
+          // Annars använd filePath som den är (med subfolder)
+          console.log('[MediaManager] Läser fil för OCR:', filePath);
+          
+          // Läs filen via Electron IPC
+          const fileData = await window.electronAPI.readFile(filePath);
+          
+          if (fileData && !fileData.error) {
+            // readFile returnerar direkt data (Uint8Array eller ArrayBuffer)
+            if (fileData instanceof ArrayBuffer) {
+              imageData = fileData;
+            } else if (fileData instanceof Uint8Array) {
+              imageData = fileData.buffer;
+            } else if (typeof fileData === 'string') {
+              // Base64 string - konvertera till ArrayBuffer
+              const binaryString = atob(fileData);
+              const bytes = new Uint8Array(binaryString.length);
+              for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+              }
+              imageData = bytes.buffer;
+            } else {
+              // Försök använda direkt om det är något annat
+              imageData = fileData;
+            }
+          } else {
+            throw new Error(fileData?.error || 'Kunde inte läsa filen via Electron IPC');
+          }
+        } else {
+          // Fallback: använd filePath om det finns
+          if (safeDisplayImage.filePath) {
+            console.log('[MediaManager] Använder filePath som fallback:', safeDisplayImage.filePath);
+            if (window.electronAPI && typeof window.electronAPI.readFile === 'function') {
+              const fileData = await window.electronAPI.readFile(safeDisplayImage.filePath);
+              if (fileData && !fileData.error) {
+                if (fileData instanceof ArrayBuffer) {
+                  imageData = fileData;
+                } else if (fileData instanceof Uint8Array) {
+                  imageData = fileData.buffer;
+                } else {
+                  imageData = fileData;
+                }
+              } else {
+                throw new Error(fileData?.error || 'Kunde inte läsa filen via Electron IPC');
+              }
+            } else {
+              throw new Error('Electron IPC readFile är inte tillgänglig och filePath saknas');
+            }
+          } else {
+            throw new Error('Electron IPC readFile är inte tillgänglig och filePath saknas');
+          }
+        }
+      } else if (imageUrl.startsWith('blob:')) {
+        // För blob URLs, använd fetch
+        const response = await fetch(imageUrl);
+        const blob = await response.blob();
+        imageData = await blob.arrayBuffer();
+      } else if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+        // För HTTP/HTTPS URLs, använd fetch
+        const response = await fetch(imageUrl);
+        const blob = await response.blob();
+        imageData = await blob.arrayBuffer();
+      } else {
+        throw new Error(`Okänt URL-format: ${imageUrl}`);
+      }
+      
+      // Kör OCR
+      // Notera: Vi kan inte använda logger med React state setters i Web Workers
+      // Så vi simulerar progress med en interval
+      let simulatedProgress = 10;
+      setOcrProgress(simulatedProgress);
+      
+      progressInterval = setInterval(() => {
+        simulatedProgress = Math.min(90, simulatedProgress + 5);
+        setOcrProgress(simulatedProgress);
+      }, 500); // Uppdatera var 500ms
+      
+      const { data: { text } } = await worker.recognize(imageData);
+      
+      if (progressInterval) {
+        clearInterval(progressInterval);
+        progressInterval = null;
+      }
+      setOcrProgress(100); // Visa 100% när klar
+      
+      await worker.terminate();
+      
+      // Visa resultatet i modal för redigering
+      setOcrResult(text);
+      setShowOcrModal(true);
+      
+      if (typeof showStatus === 'function') {
+        showStatus('OCR klar! Redigera texten nedan.', 'success');
+      }
+    } catch (error) {
+      console.error('[MediaManager] OCR error:', error);
+      if (typeof showStatus === 'function') {
+        showStatus(`OCR-fel: ${error.message}`, 'error');
+      }
+    } finally {
+      if (progressInterval) {
+        clearInterval(progressInterval);
+      }
+      setIsRunningOCR(false);
+      setOcrProgress(0);
+    }
+  };
+
+  // Spara OCR-resultat till transcription
+  const handleSaveOCRResult = () => {
+    if (!safeDisplayImage) return;
+    
+    updateMedia(prev => prev.map(item => {
+      if (item.id !== safeDisplayImage.id) return item;
+      return {
+        ...item,
+        transcription: ocrResult
+      };
+    }));
+    
+    setTranscriptionContent(ocrResult);
+    setShowOcrModal(false);
+    setOcrResult('');
+    setShowTranscription(true);
+    
+    if (typeof showStatus === 'function') {
+      showStatus('OCR-text sparad!', 'success');
+    }
   };
 
   const handleFiles = async (files) => {
@@ -2025,24 +2623,66 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
 
               <div>
                   <label className="text-[10px] uppercase font-bold text-slate-500 block mb-1">Bildtext / Beskrivning</label>
-                  <div className="bg-slate-900 border border-slate-600 rounded p-2">
-                      <textarea className="w-full bg-transparent text-sm text-white focus:outline-none resize-y min-h-[60px]" placeholder="Skriv en beskrivning..." defaultValue={safeDisplayImage.description} />
+                  <div className="bg-slate-900 border border-slate-600 rounded p-2 min-h-[100px]">
+                      <Editor
+                          value={descriptionContent || safeDisplayImage.description || ''}
+                          onChange={(e) => {
+                              const newValue = e.target.value;
+                              setDescriptionContent(newValue);
+                              // Auto-spara
+                              updateMedia(prev => prev.map(item => {
+                                  if (item.id !== safeDisplayImage.id) return item;
+                                  return { ...item, description: newValue };
+                              }));
+                          }}
+                          placeholder="Skriv en beskrivning..."
+                      />
                   </div>
               </div>
 
-              {safeDisplayImage.libraryId === 'sources' && (
                   <div className="space-y-2">
                       <div className="flex justify-between items-center">
-                          <label className="text-[10px] font-bold text-slate-500 uppercase">Transkribering</label>
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Transkribering / OCR</label>
+                      <div className="flex items-center gap-2">
+                          <button 
+                              onClick={handleRunOCR} 
+                              disabled={isRunningOCR}
+                              className="text-xs flex items-center gap-1 text-blue-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                              title="Läs av text från bilden med OCR"
+                          >
+                              {isRunningOCR ? (
+                                  <>
+                                      <RefreshCw size={12} className="animate-spin"/> OCR: {ocrProgress}%
+                                  </>
+                              ) : (
+                                  <>
+                                      <ScanFace size={12}/> OCR
+                                  </>
+                              )}
+                          </button>
                           <button onClick={() => setShowTranscription(!showTranscription)} className="text-xs flex items-center gap-1 text-blue-400 hover:text-white">
                               <PenTool size={12}/> {showTranscription ? 'Dölj' : 'Visa / Redigera'}
                           </button>
                       </div>
+                      </div>
                       {showTranscription && (
-                          <textarea className="w-full h-32 bg-slate-900 border border-slate-700 rounded p-2 text-sm text-slate-300 focus:outline-none focus:border-blue-500" placeholder="Skriv av texten här..." defaultValue={safeDisplayImage.transcription} />
-                      )}
+                      <div className="bg-slate-900 border border-slate-700 rounded p-2 min-h-[150px]">
+                          <Editor
+                              value={transcriptionContent || safeDisplayImage.transcription || ''}
+                              onChange={(e) => {
+                                  const newValue = e.target.value;
+                                  setTranscriptionContent(newValue);
+                                  // Auto-spara
+                                  updateMedia(prev => prev.map(item => {
+                                      if (item.id !== safeDisplayImage.id) return item;
+                                      return { ...item, transcription: newValue };
+                                  }));
+                              }}
+                              placeholder="Skriv av texten här eller använd OCR..."
+                          />
                   </div>
               )}
+              </div>
               
               <div className="space-y-4">
                   <h4 className="text-[10px] font-bold text-slate-500 uppercase border-b border-slate-700 pb-1">Kopplingar</h4>
@@ -2089,8 +2729,8 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                           return (
                             <div key={personId || idx} className="flex items-center justify-between bg-slate-900 p-2 rounded border border-slate-700 text-xs">
                                 <div><span className="text-slate-200 font-medium block">{personName}</span><span className="text-[10px] text-slate-500">{personDates}</span></div>
-                                <button className="text-slate-500 hover:text-red-400"><X size={12}/></button>
-                            </div>
+                              <button className="text-slate-500 hover:text-red-400"><X size={12}/></button>
+                          </div>
                           );
                         });
                       })()}
@@ -2198,7 +2838,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                                   </button>
                               </span>
                           ))}
-                      </div>
+                  </div>
                   )}
                   
                   {/* Input för nya taggar */}
@@ -2216,13 +2856,18 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                           onKeyDown={(e) => {
                               if (e.key === 'Enter' || e.key === ',') {
                                   e.preventDefault();
+                                  e.stopPropagation(); // Förhindra att TipTap-editor fångar upp eventet
                                   const trimmed = tagInput.trim();
                                   if (trimmed) {
                                       handleAddTag(trimmed);
                                   }
                               }
                           }}
+                          onClick={(e) => {
+                              e.stopPropagation(); // Förhindra event bubbling
+                          }}
                           onFocus={(e) => {
+                              e.stopPropagation(); // Förhindra event bubbling
                               e.target.select();
                               if (tagInput) {
                                   setTagSuggestions(getTagSuggestions(tagInput));
@@ -2416,6 +3061,19 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
               <p className="text-slate-400 text-sm">Välj en bild</p>
           </div>
       )}
+
+      {/* OCR RESULT MODAL */}
+      {showOcrModal && <OcrResultModal 
+        isOpen={showOcrModal}
+        image={safeDisplayImage}
+        ocrResult={ocrResult}
+        setOcrResult={setOcrResult}
+        onClose={() => {
+          setShowOcrModal(false);
+          setOcrResult('');
+        }}
+        onSave={handleSaveOCRResult}
+      />}
 
       {/* TRASH MODAL */}
       <TrashModal
