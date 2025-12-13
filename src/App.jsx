@@ -184,7 +184,7 @@ function App() {
   // ALLA HOOKS MÅSTE VARA FÖRE CONDITIONAL RETURN!
   // Helper to detect Electron
   const isElectron = !!(window && window.electronAPI && typeof window.electronAPI.saveFileAs === 'function');
-  
+
   const [personDrawerId, setPersonDrawerId] = useState(null);
   const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
   const [isMergesPanelOpen, setIsMergesPanelOpen] = useState(false);
@@ -713,7 +713,7 @@ function App() {
 
   // Dessa funktioner kan vara efter conditional return eftersom de inte är hooks
   const showContextMenu = (personOrId, x, y) => { const id = personOrId && typeof personOrId === 'object' ? personOrId.id : personOrId; setContextMenu({ visible: true, x, y, targetPersonId: id }); };
-  const hideContextMenu = () => setContextMenu({ visible: false, x: 0, y: 0, targetPersonId: null }); 
+  const hideContextMenu = () => setContextMenu({ visible: false, x: 0, y: 0, targetPersonId: null });
 
   const createPersonAndLink = (targetId, relation) => {
     const maxRef = dbData.people.reduce((max, p) => p.refNumber > max ? p.refNumber : max, 0);

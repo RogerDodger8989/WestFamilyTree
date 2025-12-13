@@ -877,7 +877,8 @@ function createWindow() {
     webPreferences: {
       preload: preloadPath,
       nodeIntegration: false,
-      contextIsolation: true
+      contextIsolation: true,
+      webSecurity: false // Tillåt CORS för @xenova/transformers att ladda modeller
     }
   });
 
@@ -941,6 +942,36 @@ ipcMain.on('show-person-context-menu', (event, personId) => {
 
 app.whenReady().then(() => {
   createApplicationMenu();
+  
+  // Konfigurera session för att tillåta Hugging Face requests (för TrOCR)
+  const { session } = require('electron');
+  const defaultSession = session.defaultSession;
+  
+  // Tillåt CORS för Hugging Face
+  defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
+    if (details.url.includes('huggingface.co')) {
+      details.requestHeaders['Origin'] = 'https://huggingface.co';
+      details.requestHeaders['Referer'] = 'https://huggingface.co/';
+    }
+    callback({ requestHeaders: details.requestHeaders });
+  });
+  
+  // Tillåt CORS-responser från Hugging Face
+  defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    if (details.url.includes('huggingface.co')) {
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          'Access-Control-Allow-Origin': ['*'],
+          'Access-Control-Allow-Methods': ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+          'Access-Control-Allow-Headers': ['*'],
+        },
+      });
+    } else {
+      callback({ responseHeaders: details.responseHeaders });
+    }
+  });
+  
   // Registrera custom protocol för media-bilder
   protocol.registerFileProtocol('media', (request, callback) => {
     const encodedName = request.url.replace('media://', '');
@@ -1063,8 +1094,103 @@ ipcMain.handle('gedcom:write', async (event, dbData, options) => {
 });
 
 // ============================================
-// EXIF HANDLERS
+// TrOCR MODEL DOWNLOAD HANDLER
 // ============================================
+// Ladda ner TrOCR-modeller via Node.js (ingen CORS-problem)
+// OBS: Denna handler måste vara registrerad INNAN app.whenReady()
+ipcMain.handle('download-trocr-model', async (event, modelPath) => {
+  console.log('[TrOCR] download-trocr-model IPC handler called with:', modelPath);
+  try {
+    const https = require('https');
+    const fs = require('fs').promises;
+    const path = require('path');
+    const { app } = require('electron');
+    
+    // Skapa cache-mapp i userData (matchar @xenova/transformers cache-struktur)
+    const userDataPath = app.getPath('userData');
+    // @xenova/transformers använder denna struktur: models--{org}--{model}
+    // Exempel: models--microsoft--trocr-base-handwritten
+    const modelCacheName = 'models--' + modelPath.replace(/\//g, '--');
+    const cacheDir = path.join(userDataPath, '.cache', 'xenova', 'transformers', modelCacheName);
+    console.log('[TrOCR] Cache directory:', cacheDir);
+    
+    // Kontrollera om modellen redan finns (kolla efter tokenizer.json som indikator)
+    const tokenizerFile = path.join(cacheDir, 'tokenizer.json');
+    try {
+      await fs.access(tokenizerFile);
+      console.log('[TrOCR] Model already cached:', cacheDir);
+      return { success: true, cached: true, path: cacheDir };
+    } catch (e) {
+      // Modellen finns inte, ladda ner
+    }
+    
+    // Skapa cache-mapp
+    await fs.mkdir(cacheDir, { recursive: true });
+    
+    // URL för modellen - Hugging Face använder CDN med redirects
+    const baseUrl = 'https://huggingface.co/' + modelPath + '/resolve/main/';
+    const filesToDownload = [
+      { remote: 'onnx/encoder_model.onnx', local: 'onnx/encoder_model.onnx' },
+      { remote: 'onnx/decoder_model.onnx', local: 'onnx/decoder_model.onnx' },
+      { remote: 'tokenizer.json', local: 'tokenizer.json' },
+      { remote: 'config.json', local: 'config.json' },
+      { remote: 'preprocessor_config.json', local: 'preprocessor_config.json' } // Kan behövas
+    ];
+    
+    // Ladda ner filer
+    for (const file of filesToDownload) {
+      const url = baseUrl + file.remote;
+      const filePath = path.join(cacheDir, file.local);
+      
+      // Skapa mappar om de behövs
+      await fs.mkdir(path.dirname(filePath), { recursive: true });
+      
+      console.log('[TrOCR] Downloading:', url, '->', filePath);
+      
+      await new Promise((resolve, reject) => {
+        const request = https.get(url, (response) => {
+          // Följ redirects (301, 302, 307, 308)
+          if (response.statusCode === 301 || response.statusCode === 302 || response.statusCode === 307 || response.statusCode === 308) {
+            const redirectUrl = response.headers.location;
+            console.log('[TrOCR] Following redirect:', redirectUrl);
+            https.get(redirectUrl, (redirectResponse) => {
+              if (redirectResponse.statusCode === 200) {
+                const fileStream = require('fs').createWriteStream(filePath);
+                redirectResponse.pipe(fileStream);
+                fileStream.on('finish', () => {
+                  fileStream.close();
+                  console.log('[TrOCR] Downloaded:', file.local);
+                  resolve();
+                });
+                fileStream.on('error', reject);
+              } else {
+                reject(new Error(`Failed to download ${file.remote} after redirect: ${redirectResponse.statusCode}`));
+              }
+            }).on('error', reject);
+          } else if (response.statusCode === 200) {
+            const fileStream = require('fs').createWriteStream(filePath);
+            response.pipe(fileStream);
+            fileStream.on('finish', () => {
+              fileStream.close();
+              console.log('[TrOCR] Downloaded:', file.local);
+              resolve();
+            });
+            fileStream.on('error', reject);
+          } else {
+            reject(new Error(`Failed to download ${file.remote}: ${response.statusCode}`));
+          }
+        });
+        request.on('error', reject);
+      });
+    }
+    
+    console.log('[TrOCR] Model downloaded successfully to:', cacheDir);
+    return { success: true, cached: false, path: cacheDir };
+  } catch (error) {
+    console.error('[TrOCR] Download error:', error);
+    return { success: false, error: error.message };
+  }
+});
 
 ipcMain.handle('read-exif', async (event, filePath) => {
   try {

@@ -38,6 +38,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // File operations
     readFile: (filePath) => ipcRenderer.invoke('read-file', filePath),
     
+    // TrOCR model download (via Node.js, ingen CORS)
+    downloadTrocrModel: (modelPath) => ipcRenderer.invoke('download-trocr-model', modelPath),
+    
     // Media operations
     copyFileToMedia: (sourcePath, fileName) => ipcRenderer.invoke('copy-file-to-media', sourcePath, fileName),
     saveFileBufferToMedia: (fileBuffer, fileName) => ipcRenderer.invoke('save-file-buffer-to-media', fileBuffer, fileName),

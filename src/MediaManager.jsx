@@ -6,7 +6,23 @@ import TrashModal from './TrashModal.jsx';
 import WindowFrame from './WindowFrame.jsx';
 import { useApp } from './AppContext.jsx';
 import { createWorker } from 'tesseract.js';
+import { pipeline, env } from '@xenova/transformers';
 import Editor from './MaybeEditor.jsx';
+
+// Konfigurera transformers för Electron
+// @xenova/transformers behöver ladda modeller från Hugging Face
+env.allowLocalModels = true; // Tillåt lokala modeller
+env.useBrowserCache = true;
+env.useCustomCache = true;
+// Använd Hugging Face CDN direkt
+env.remoteURL = 'https://huggingface.co/';
+env.remotePath = '';
+
+// Custom fetch för Electron (använd IPC för att ladda ner filer)
+if (typeof window !== 'undefined' && window.electronAPI && window.electronAPI.downloadTrocrModel) {
+  // @xenova/transformers använder fetch() internt, men vi kan inte override det direkt
+  // Istället laddar vi ner modellerna först via IPC, sedan använder transformers dem från cache
+}
 import { 
   Search, Image as ImageIcon, Grid, List, Tag, User, 
   MapPin, Calendar, Plus, Trash2, AlertCircle, UploadCloud, 
@@ -1040,6 +1056,8 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
   const [ocrProgress, setOcrProgress] = useState(0);
   const [showOcrModal, setShowOcrModal] = useState(false);
   const [ocrResult, setOcrResult] = useState('');
+  // OCR-typ: Endast Tesseract (TrOCR fungerar inte i Electron)
+  // const [ocrType, setOcrType] = useState('tesseract'); // Borttagen - använder endast Tesseract
   const [transcriptionContent, setTranscriptionContent] = useState('');
   const [descriptionContent, setDescriptionContent] = useState('');
   
@@ -1696,6 +1714,50 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
       }
   };
 
+  // Hjälpfunktion för att ladda bild som Image för TrOCR
+  const loadImageForTrOCR = async (imageData) => {
+    return new Promise((resolve, reject) => {
+      try {
+        // Konvertera bilddata till Uint8Array om det behövs
+        let uint8Array;
+        if (imageData instanceof ArrayBuffer) {
+          uint8Array = new Uint8Array(imageData);
+        } else if (imageData instanceof Uint8Array) {
+          uint8Array = imageData;
+        } else if (imageData.data) {
+          if (imageData.data instanceof Uint8Array) {
+            uint8Array = imageData.data;
+          } else if (imageData.data instanceof ArrayBuffer) {
+            uint8Array = new Uint8Array(imageData.data);
+          } else {
+            uint8Array = new Uint8Array(imageData.data);
+          }
+        } else {
+          uint8Array = new Uint8Array(imageData);
+        }
+        
+        // Skapa en blob från bilddata
+        const blob = new Blob([uint8Array]);
+        const url = URL.createObjectURL(blob);
+        const img = new Image();
+        
+        img.onload = () => {
+          URL.revokeObjectURL(url);
+          resolve(img);
+        };
+        
+        img.onerror = (e) => {
+          URL.revokeObjectURL(url);
+          reject(new Error('Kunde inte ladda bilden för TrOCR'));
+        };
+        
+        img.src = url;
+      } catch (error) {
+        reject(error);
+      }
+    });
+  };
+
   // OCR-funktion
   const handleRunOCR = async () => {
     if (!safeDisplayImage) return;
@@ -1706,9 +1768,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
     let progressInterval = null;
     
     try {
-      const worker = await createWorker('swe+eng'); // Svenska och engelska
-      
-      // Ladda bilden
+      // Ladda bilden (samma för båda OCR-typer)
       const imageUrl = safeDisplayImage.url;
       let imageData;
       
@@ -1786,26 +1846,48 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
         throw new Error(`Okänt URL-format: ${imageUrl}`);
       }
       
-      // Kör OCR
-      // Notera: Vi kan inte använda logger med React state setters i Web Workers
-      // Så vi simulerar progress med en interval
-      let simulatedProgress = 10;
-      setOcrProgress(simulatedProgress);
+      let text = '';
       
-      progressInterval = setInterval(() => {
-        simulatedProgress = Math.min(90, simulatedProgress + 5);
+      // Använd endast Tesseract (TrOCR fungerar inte i Electron)
+      {
+        // Använd Tesseract (standard)
+        // För svenska kyrkböcker: Använd svenska + engelska språk
+        // Notera: Tesseract är bättre för tryckt text än handskriven text
+        // För handskriven text skulle TrOCR vara bättre, men fungerar inte i Electron
+        console.log('[MediaManager] Använder Tesseract för OCR (svenska + engelska)...');
+        const worker = await createWorker('swe+eng'); // Svenska och engelska
+        
+        // Förbättra OCR för kyrkböcker:
+        // - Använd högre DPI (300+ ger bättre resultat)
+        // - Försök med olika PSM (Page Segmentation Mode) för bättre resultat
+        // PSM 6 = Uniform text block (bra för kyrkböcker)
+        await worker.setParameters({
+          tessedit_pageseg_mode: '6', // Uniform text block
+          tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZÅÄÖabcdefghijklmnopqrstuvwxyzåäö0123456789.,;:!?()[]{}\'"- ', // Tillåt svenska tecken
+        });
+        
+        // Kör OCR
+        // Notera: Vi kan inte använda logger med React state setters i Web Workers
+        // Så vi simulerar progress med en interval
+        let simulatedProgress = 10;
         setOcrProgress(simulatedProgress);
-      }, 500); // Uppdatera var 500ms
-      
-      const { data: { text } } = await worker.recognize(imageData);
-      
-      if (progressInterval) {
-        clearInterval(progressInterval);
-        progressInterval = null;
+        
+        progressInterval = setInterval(() => {
+          simulatedProgress = Math.min(90, simulatedProgress + 5);
+          setOcrProgress(simulatedProgress);
+        }, 500); // Uppdatera var 500ms
+        
+        const { data: { text: tesseractText } } = await worker.recognize(imageData);
+        text = tesseractText;
+        
+        if (progressInterval) {
+          clearInterval(progressInterval);
+          progressInterval = null;
+        }
+        setOcrProgress(100); // Visa 100% när klar
+        
+        await worker.terminate();
       }
-      setOcrProgress(100); // Visa 100% när klar
-      
-      await worker.terminate();
       
       // Visa resultatet i modal för redigering
       setOcrResult(text);
@@ -1816,8 +1898,49 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
       }
     } catch (error) {
       console.error('[MediaManager] OCR error:', error);
-      if (typeof showStatus === 'function') {
-        showStatus(`OCR-fel: ${error.message}`, 'error');
+      
+      // Om TrOCR misslyckade, försök med Tesseract som fallback
+      // TrOCR-kod borttagen - använder endast Tesseract
+      if (false) { // TrOCR fungerar inte i Electron
+        console.log('[MediaManager] TrOCR misslyckades, försöker med Tesseract som fallback...');
+        try {
+          const worker = await createWorker('swe+eng');
+          
+          let simulatedProgress = 10;
+          setOcrProgress(simulatedProgress);
+          
+          progressInterval = setInterval(() => {
+            simulatedProgress = Math.min(90, simulatedProgress + 5);
+            setOcrProgress(simulatedProgress);
+          }, 500);
+          
+          const { data: { text: tesseractText } } = await worker.recognize(imageData);
+          text = tesseractText;
+          
+          if (progressInterval) {
+            clearInterval(progressInterval);
+            progressInterval = null;
+          }
+          setOcrProgress(100);
+          
+          await worker.terminate();
+          
+          setOcrResult(text);
+          setShowOcrModal(true);
+          
+          if (typeof showStatus === 'function') {
+            showStatus('TrOCR misslyckades, men Tesseract fungerade!', 'warn');
+          }
+        } catch (fallbackError) {
+          console.error('[MediaManager] Tesseract fallback failed:', fallbackError);
+          if (typeof showStatus === 'function') {
+            showStatus(`OCR-fel: ${error.message}`, 'error');
+          }
+        }
+      } else {
+        if (typeof showStatus === 'function') {
+          showStatus(`OCR-fel: ${error.message}`, 'error');
+        }
       }
     } finally {
       if (progressInterval) {
@@ -2596,7 +2719,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
               )}
           </div>
           
-          <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar bg-slate-800">
+          <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar bg-slate-800 min-h-0">
               <div className="space-y-3">
                   <div>
                       <label className="text-[10px] uppercase font-bold text-slate-500 block mb-1">Datering</label>
@@ -2643,7 +2766,9 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                   <div className="space-y-2">
                       <div className="flex justify-between items-center">
                       <label className="text-[10px] font-bold text-slate-500 uppercase">Transkribering / OCR</label>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                          {/* OCR-typ: Endast Tesseract (TrOCR fungerar inte i Electron) */}
+                          <span className="text-xs text-slate-400">Tesseract OCR</span>
                           <button 
                               onClick={handleRunOCR} 
                               disabled={isRunningOCR}

@@ -1011,17 +1011,17 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
                                     </>
                                 ) : (
                                     <>
-                                        {node.birthDate && (
-                                            <div className="flex flex-col">
-                                                <span className="opacity-70 flex items-center gap-1 font-semibold text-[10px] uppercase tracking-wide">Född</span>
-                                                <span className="font-medium truncate">{node.birthDate}</span>
-                                            </div>
-                                        )}
-                                        {node.deathDate && (
-                                            <div className="flex flex-col">
-                                                <span className="opacity-70 flex items-center gap-1 font-semibold text-[10px] uppercase tracking-wide">Död</span>
-                                                <span className="font-medium truncate">{node.deathDate}</span>
-                                            </div>
+                                {node.birthDate && (
+                                    <div className="flex flex-col">
+                                        <span className="opacity-70 flex items-center gap-1 font-semibold text-[10px] uppercase tracking-wide">Född</span>
+                                        <span className="font-medium truncate">{node.birthDate}</span>
+                                    </div>
+                                )}
+                                {node.deathDate && (
+                                    <div className="flex flex-col">
+                                        <span className="opacity-70 flex items-center gap-1 font-semibold text-[10px] uppercase tracking-wide">Död</span>
+                                        <span className="font-medium truncate">{node.deathDate}</span>
+                                    </div>
                                         )}
                                     </>
                                 )}
