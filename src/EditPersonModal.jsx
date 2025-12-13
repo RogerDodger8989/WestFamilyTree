@@ -3,7 +3,8 @@ import {
   X, Save, User, Users, Image as ImageIcon, FileText, 
   Activity, Tag, Plus, Trash2, Calendar, MapPin, 
   Link as LinkIcon, Camera, Edit3, AlertCircle, Check, 
-  ChevronDown, MoreHorizontal, Search, Globe
+  ChevronDown, MoreHorizontal, Search, Globe, HelpCircle,
+  ClipboardList, BookOpen, Clock
 } from 'lucide-react';
 import WindowFrame from './WindowFrame.jsx';
 import PlacePicker from './PlacePicker.jsx';
@@ -27,6 +28,13 @@ const PRIORITY_LEVELS = [
   { level: 3, label: 'Hög prio', color: 'text-orange-400' },
   { level: 4, label: 'Mycket hög prio', color: 'text-red-400' },
   { level: 5, label: 'Extremt hög prio', color: 'text-red-600 font-bold' },
+];
+
+const TASK_STATUS = [
+  { value: 'not-started', label: 'Inte påbörjad', color: 'text-slate-400', bgColor: 'bg-slate-700' },
+  { value: 'in-progress', label: 'Pågående', color: 'text-blue-400', bgColor: 'bg-blue-900/30' },
+  { value: 'completed', label: 'Klar', color: 'text-green-400', bgColor: 'bg-green-900/30' },
+  { value: 'on-hold', label: 'Pausad', color: 'text-yellow-400', bgColor: 'bg-yellow-900/30' },
 ];
 
 const EVENT_TYPES = [
@@ -648,7 +656,11 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
       tags: [],
       events: [],
       relations: { parents: [], partners: [], children: [] },
-      research: [],
+      research: {
+        tasks: [],
+        notes: '',
+        questions: []
+      },
       media: [],
       notes: []
     };
@@ -657,6 +669,18 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
     if (!Array.isArray(base.events)) {
       base.events = [];
     }
+    
+    // Säkerställ att research är ett objekt med tasks, notes, questions
+    if (!base.research || typeof base.research !== 'object' || Array.isArray(base.research)) {
+      base.research = {
+        tasks: Array.isArray(base.research) ? base.research : [],
+        notes: '',
+        questions: []
+      };
+    }
+    if (!Array.isArray(base.research.tasks)) base.research.tasks = [];
+    if (!Array.isArray(base.research.questions)) base.research.questions = [];
+    if (typeof base.research.notes !== 'string') base.research.notes = '';
     
     return base;
   });
@@ -751,6 +775,10 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
   const [noteSearch, setNoteSearch] = useState('');
   const [draggedNoteIndex, setDraggedNoteIndex] = useState(null);
   const [dragOverIndex, setDragOverIndex] = useState(null);
+
+  // State för forskning-fliken
+  const [newQuestionInput, setNewQuestionInput] = useState('');
+  const [editingTaskIndex, setEditingTaskIndex] = useState(null);
 
   // Re-render detail block när allSources ändras
   useEffect(() => {
@@ -1671,46 +1699,340 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
 
             {/* FLIK: FORSKNING */}
             {activeTab === 'research' && (
-              <div className="animate-in fade-in duration-300">
-                <div className="flex justify-between mb-4">
-                   <h3 className="text-md font-bold text-slate-200 uppercase">Forskningsuppgifter</h3>
-                   <button className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded flex items-center gap-1">
-                     <Plus size={14}/> Ny uppgift
-                   </button>
+              <div className="animate-in fade-in duration-300 space-y-8">
+                {/* FORSKNINGSUPPGIFTER */}
+                <div>
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-md font-bold text-slate-200 uppercase flex items-center gap-2">
+                      <ClipboardList size={18} className="text-blue-400"/> Forskningsuppgifter
+                    </h3>
+                    <button 
+                      onClick={() => {
+                        const newTask = {
+                          id: `task_${Date.now()}`,
+                          task: '',
+                          priority: 0,
+                          status: 'not-started',
+                          deadline: '',
+                          notes: ''
+                        };
+                        const currentResearch = person.research || { tasks: [], notes: '', questions: [] };
+                        setPerson({
+                          ...person,
+                          research: {
+                            ...currentResearch,
+                            tasks: [...(currentResearch.tasks || []), newTask]
+                          }
+                        });
+                        setEditingTaskIndex((currentResearch.tasks || []).length);
+                      }}
+                      className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded flex items-center gap-1.5 transition-colors"
+                    >
+                      <Plus size={14}/> Ny uppgift
+                    </button>
+                  </div>
+
+                  <div className="space-y-3">
+                    {(person.research?.tasks || []).length === 0 ? (
+                      <div className="bg-slate-900 border border-slate-700 rounded-lg p-8 text-center">
+                        <ClipboardList size={32} className="text-slate-500 mx-auto mb-2"/>
+                        <p className="text-slate-400 text-sm">Inga forskningsuppgifter än. Klicka på "Ny uppgift" för att lägga till en.</p>
+                      </div>
+                    ) : (
+                      (person.research?.tasks || []).map((task, idx) => {
+                        const prio = PRIORITY_LEVELS.find(p => p.level === (task.priority || 0)) || PRIORITY_LEVELS[0];
+                        const status = TASK_STATUS.find(s => s.value === (task.status || 'not-started')) || TASK_STATUS[0];
+                        const isEditing = editingTaskIndex === idx;
+                        
+                        return (
+                          <div key={task.id || idx} className="bg-slate-900 border border-slate-700 rounded-lg p-4 hover:border-slate-600 transition-colors">
+                            <div className="flex justify-between items-start mb-3">
+                              <div className="flex-1">
+                                <input 
+                                  type="text" 
+                                  value={task.task || ''}
+                                  onChange={(e) => {
+                                    const updatedTasks = [...(person.research?.tasks || [])];
+                                    updatedTasks[idx] = { ...task, task: e.target.value };
+                                    setPerson({
+                                      ...person,
+                                      research: {
+                                        ...(person.research || { tasks: [], notes: '', questions: [] }),
+                                        tasks: updatedTasks
+                                      }
+                                    });
+                                  }}
+                                  placeholder="Beskriv uppgiften..."
+                                  className="bg-transparent font-medium text-slate-200 w-full focus:outline-none focus:border-b border-blue-500 pb-1" 
+                                />
+                              </div>
+                              <div className="flex gap-2 ml-4 items-center">
+                                {/* Status */}
+                                <select 
+                                  value={task.status || 'not-started'}
+                                  onChange={(e) => {
+                                    const updatedTasks = [...(person.research?.tasks || [])];
+                                    updatedTasks[idx] = { ...task, status: e.target.value };
+                                    setPerson({
+                                      ...person,
+                                      research: {
+                                        ...(person.research || { tasks: [], notes: '', questions: [] }),
+                                        tasks: updatedTasks
+                                      }
+                                    });
+                                  }}
+                                  className={`bg-slate-800 border border-slate-700 text-xs rounded px-2 py-1 ${status.color}`}
+                                >
+                                  {TASK_STATUS.map(s => (
+                                    <option key={s.value} value={s.value}>{s.label}</option>
+                                  ))}
+                                </select>
+                                
+                                {/* Prioritet */}
+                                <select 
+                                  value={task.priority || 0}
+                                  onChange={(e) => {
+                                    const updatedTasks = [...(person.research?.tasks || [])];
+                                    updatedTasks[idx] = { ...task, priority: parseInt(e.target.value) };
+                                    setPerson({
+                                      ...person,
+                                      research: {
+                                        ...(person.research || { tasks: [], notes: '', questions: [] }),
+                                        tasks: updatedTasks
+                                      }
+                                    });
+                                  }}
+                                  className={`bg-slate-800 border border-slate-700 text-xs rounded px-2 py-1 text-slate-200 ${prio.color}`}
+                                >
+                                  {PRIORITY_LEVELS.map(p => (
+                                    <option key={p.level} value={p.level}>{p.level} - {p.label}</option>
+                                  ))}
+                                </select>
+                                
+                                {/* Deadline */}
+                                <div className="relative">
+                                  <input
+                                    type="date"
+                                    value={task.deadline || ''}
+                                    onChange={(e) => {
+                                      const updatedTasks = [...(person.research?.tasks || [])];
+                                      updatedTasks[idx] = { ...task, deadline: e.target.value };
+                                      setPerson({
+                                        ...person,
+                                        research: {
+                                          ...(person.research || { tasks: [], notes: '', questions: [] }),
+                                          tasks: updatedTasks
+                                        }
+                                      });
+                                    }}
+                                    className="bg-slate-800 border border-slate-700 text-xs rounded px-2 py-1 text-slate-200 w-32"
+                                  />
+                                  <Clock size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"/>
+                                </div>
+                                
+                                {/* Ta bort */}
+                                <button 
+                                  onClick={() => {
+                                    const updatedTasks = (person.research?.tasks || []).filter((_, i) => i !== idx);
+                                    setPerson({
+                                      ...person,
+                                      research: {
+                                        ...(person.research || { tasks: [], notes: '', questions: [] }),
+                                        tasks: updatedTasks
+                                      }
+                                    });
+                                  }}
+                                  className="text-slate-400 hover:text-red-600 transition-colors"
+                                  title="Ta bort uppgift"
+                                >
+                                  <Trash2 size={16}/>
+                                </button>
+                              </div>
+                            </div>
+                            
+                            {/* Noteringar för uppgiften */}
+                            <div className="bg-slate-800 rounded border border-slate-700 mt-2">
+                              <Editor
+                                value={task.notes || ''}
+                                onChange={(e) => {
+                                  const updatedTasks = [...(person.research?.tasks || [])];
+                                  updatedTasks[idx] = { ...task, notes: e.target.value };
+                                  setPerson({
+                                    ...person,
+                                    research: {
+                                      ...(person.research || { tasks: [], notes: '', questions: [] }),
+                                      tasks: updatedTasks
+                                    }
+                                  });
+                                }}
+                                placeholder="Lägg till noteringar om denna uppgift..."
+                              />
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
 
-                <div className="space-y-3">
-                   {person.research?.map((task, idx) => {
-                     const prio = PRIORITY_LEVELS.find(p => p.level === task.priority) || PRIORITY_LEVELS[0];
-                     return (
-                       <div key={idx} className="bg-slate-900 border border-slate-700 rounded-lg p-4 hover:border-slate-600 transition-colors">
-                          <div className="flex justify-between items-start mb-2">
-                             <div className="flex-1">
-                               <input type="text" defaultValue={task.task} className="bg-transparent font-medium text-slate-200 w-full focus:outline-none focus:border-b border-blue-500" />
-                             </div>
-                             <div className="flex gap-2 ml-4">
-                               <select 
-                                 className={`bg-slate-900 border border-slate-700 text-xs rounded px-2 py-1 text-slate-200 ${prio.color}`}
-                                 defaultValue={task.priority}
-                               >
-                                 {PRIORITY_LEVELS.map(p => (
-                                   <option key={p.level} value={p.level}>{p.level} - {p.label}</option>
-                                 ))}
-                               </select>
-                               <button className="text-slate-400 hover:text-red-600"><Trash2 size={16}/></button>
-                             </div>
-                          </div>
-                          
-                          <div className="bg-slate-800 rounded border border-slate-700 mt-2">
-                            <EditorToolbar />
-                            <textarea 
-                              className="w-full bg-transparent text-sm text-slate-200 p-2 focus:outline-none min-h-[60px] resize-y"
-                              defaultValue={task.notes}
-                            />
-                          </div>
-                       </div>
-                     );
-                   })}
+                {/* FORSKNINGSNOTERINGAR */}
+                <div>
+                  <h3 className="text-md font-bold text-slate-200 uppercase mb-4 flex items-center gap-2">
+                    <BookOpen size={18} className="text-blue-400"/> Forskningsnoteringar
+                  </h3>
+                  <div className="bg-slate-900 border border-slate-700 rounded-lg p-4">
+                    <Editor
+                      value={person.research?.notes || ''}
+                      onChange={(e) => {
+                        setPerson({
+                          ...person,
+                          research: {
+                            ...(person.research || { tasks: [], notes: '', questions: [] }),
+                            notes: e.target.value
+                          }
+                        });
+                      }}
+                      placeholder="Skriv fria anteckningar om din forskning här... Vad har du hittat? Vilka källor har du kollat? Vilka teorier har du?"
+                    />
+                  </div>
+                </div>
+
+                {/* FRÅGOR ATT BESVARA */}
+                <div>
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-md font-bold text-slate-200 uppercase flex items-center gap-2">
+                      <HelpCircle size={18} className="text-blue-400"/> Frågor att besvara
+                    </h3>
+                  </div>
+                  
+                  {/* Input för ny fråga */}
+                  <div className="mb-4">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newQuestionInput}
+                        onChange={(e) => setNewQuestionInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && newQuestionInput.trim()) {
+                            const currentResearch = person.research || { tasks: [], notes: '', questions: [] };
+                            setPerson({
+                              ...person,
+                              research: {
+                                ...currentResearch,
+                                questions: [...(currentResearch.questions || []), {
+                                  id: `q_${Date.now()}`,
+                                  question: newQuestionInput.trim(),
+                                  answered: false
+                                }]
+                              }
+                            });
+                            setNewQuestionInput('');
+                          }
+                        }}
+                        placeholder="Skriv en fråga och tryck Enter..."
+                        className="flex-1 bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
+                      />
+                      <button
+                        onClick={() => {
+                          if (newQuestionInput.trim()) {
+                            const currentResearch = person.research || { tasks: [], notes: '', questions: [] };
+                            setPerson({
+                              ...person,
+                              research: {
+                                ...currentResearch,
+                                questions: [...(currentResearch.questions || []), {
+                                  id: `q_${Date.now()}`,
+                                  question: newQuestionInput.trim(),
+                                  answered: false
+                                }]
+                              }
+                            });
+                            setNewQuestionInput('');
+                          }
+                        }}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm flex items-center gap-2 transition-colors"
+                      >
+                        <Plus size={16}/> Lägg till
+                      </button>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1">Tryck Enter eller klicka på "Lägg till" för att lägga till frågan</p>
+                  </div>
+
+                  {/* Lista med frågor */}
+                  <div className="space-y-2">
+                    {(person.research?.questions || []).length === 0 ? (
+                      <div className="bg-slate-900 border border-slate-700 rounded-lg p-6 text-center">
+                        <HelpCircle size={32} className="text-slate-500 mx-auto mb-2"/>
+                        <p className="text-slate-400 text-sm">Inga frågor än. Lägg till frågor du behöver hitta svar på.</p>
+                      </div>
+                    ) : (
+                      (person.research?.questions || []).map((q, idx) => (
+                        <div 
+                          key={q.id || idx} 
+                          className={`bg-slate-900 border rounded-lg p-3 flex items-start gap-3 transition-colors ${
+                            q.answered ? 'border-green-700/50 bg-green-900/10' : 'border-slate-700 hover:border-slate-600'
+                          }`}
+                        >
+                          <button
+                            onClick={() => {
+                              const updatedQuestions = [...(person.research?.questions || [])];
+                              updatedQuestions[idx] = { ...q, answered: !q.answered };
+                              setPerson({
+                                ...person,
+                                research: {
+                                  ...(person.research || { tasks: [], notes: '', questions: [] }),
+                                  questions: updatedQuestions
+                                }
+                              });
+                            }}
+                            className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                              q.answered 
+                                ? 'bg-green-600 border-green-600 text-white' 
+                                : 'border-slate-600 hover:border-green-600'
+                            }`}
+                            title={q.answered ? 'Markera som obesvarad' : 'Markera som besvarad'}
+                          >
+                            {q.answered && <Check size={14}/>}
+                          </button>
+                          <input
+                            type="text"
+                            value={q.question || ''}
+                            onChange={(e) => {
+                              const updatedQuestions = [...(person.research?.questions || [])];
+                              updatedQuestions[idx] = { ...q, question: e.target.value };
+                              setPerson({
+                                ...person,
+                                research: {
+                                  ...(person.research || { tasks: [], notes: '', questions: [] }),
+                                  questions: updatedQuestions
+                                }
+                              });
+                            }}
+                            className={`flex-1 bg-transparent text-sm ${
+                              q.answered ? 'text-slate-500 line-through' : 'text-slate-200'
+                            } focus:outline-none focus:border-b border-blue-500 pb-1`}
+                            placeholder="Fråga..."
+                          />
+                          <button
+                            onClick={() => {
+                              const updatedQuestions = (person.research?.questions || []).filter((_, i) => i !== idx);
+                              setPerson({
+                                ...person,
+                                research: {
+                                  ...(person.research || { tasks: [], notes: '', questions: [] }),
+                                  questions: updatedQuestions
+                                }
+                              });
+                            }}
+                            className="text-slate-400 hover:text-red-600 transition-colors flex-shrink-0"
+                            title="Ta bort fråga"
+                          >
+                            <X size={16}/>
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               </div>
             )}
