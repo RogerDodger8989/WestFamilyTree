@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import WindowFrame from './WindowFrame.jsx';
-import { Trash, RotateCcw, X, AlertCircle, Calendar, FileText } from 'lucide-react';
+import { Trash, RotateCcw, X, AlertCircle, Calendar, FileText, FolderOpen } from 'lucide-react';
 
 export default function TrashModal({ isOpen, onClose, onRestore, onEmptyTrash }) {
   const [trashFiles, setTrashFiles] = useState([]);
@@ -106,6 +106,23 @@ export default function TrashModal({ isOpen, onClose, onRestore, onEmptyTrash })
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   };
 
+  const handleOpenInExplorer = (file) => {
+    // Öppna mappen där filen ligger i papperskorgen
+    // file.path är relativ från media-mappen, t.ex. ".trash/timestamp_filename.jpg"
+    if (window.electronAPI && window.electronAPI.openFolder) {
+      // Extrahera mapp-sökvägen (ta bort filnamnet)
+      const pathParts = file.path.split('/');
+      const folderPath = pathParts.slice(0, -1).join('/'); // ".trash"
+      
+      // Konstruera sökväg till media-mappen + papperskorg
+      // openFolder hanterar relativ sökväg från app-root
+      const fullPath = `media/${folderPath}`;
+      
+      // Använd openFolder för att öppna mappen
+      window.electronAPI.openFolder(fullPath);
+    }
+  };
+
   if (!isOpen) return null;
 
   const filesToBeDeleted = trashFiles.filter(f => f.willBeDeleted);
@@ -191,13 +208,26 @@ export default function TrashModal({ isOpen, onClose, onRestore, onEmptyTrash })
                         )}
                         <div className="flex-1 min-w-0">
                           <div className="font-medium text-sm truncate">{file.originalName}</div>
-                          <div className="text-xs text-slate-400 mt-1 flex items-center gap-3">
-                            <span className="flex items-center gap-1">
-                              <Calendar size={12} />
-                              {formatDate(file.deletedAt)}
-                            </span>
-                            <span>{formatSize(file.size)}</span>
-                            <span className="text-red-400">{file.daysOld} dagar gammal</span>
+                          <div className="text-xs text-slate-400 mt-1 flex flex-col gap-1">
+                            <div className="flex items-center gap-3">
+                              <span className="flex items-center gap-1">
+                                <Calendar size={12} />
+                                {formatDate(file.deletedAt)}
+                              </span>
+                              <span>{formatSize(file.size)}</span>
+                              <span className="text-red-400">{file.daysOld} dagar gammal</span>
+                            </div>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenInExplorer(file);
+                              }}
+                              className="flex items-center gap-1 text-slate-500 hover:text-blue-400 transition-colors group"
+                              title="Öppna i Explorer"
+                            >
+                              <FolderOpen size={12} className="group-hover:text-blue-400" />
+                              <span className="truncate max-w-md">media/{file.path}</span>
+                            </button>
                           </div>
                         </div>
                         <div className="flex items-center gap-2 ml-4 shrink-0">
@@ -261,13 +291,26 @@ export default function TrashModal({ isOpen, onClose, onRestore, onEmptyTrash })
                         )}
                         <div className="flex-1 min-w-0">
                           <div className="font-medium text-sm truncate">{file.originalName}</div>
-                          <div className="text-xs text-slate-400 mt-1 flex items-center gap-3">
-                            <span className="flex items-center gap-1">
-                              <Calendar size={12} />
-                              {formatDate(file.deletedAt)}
-                            </span>
-                            <span>{formatSize(file.size)}</span>
-                            <span className="text-slate-500">{file.daysOld} dagar gammal</span>
+                          <div className="text-xs text-slate-400 mt-1 flex flex-col gap-1">
+                            <div className="flex items-center gap-3">
+                              <span className="flex items-center gap-1">
+                                <Calendar size={12} />
+                                {formatDate(file.deletedAt)}
+                              </span>
+                              <span>{formatSize(file.size)}</span>
+                              <span className="text-slate-500">{file.daysOld} dagar gammal</span>
+                            </div>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenInExplorer(file);
+                              }}
+                              className="flex items-center gap-1 text-slate-500 hover:text-blue-400 transition-colors group text-left"
+                              title="Öppna i Explorer"
+                            >
+                              <FolderOpen size={12} className="group-hover:text-blue-400 shrink-0" />
+                              <span className="truncate max-w-md">media/{file.path}</span>
+                            </button>
                           </div>
                         </div>
                         <div className="flex items-center gap-2 ml-4 shrink-0">

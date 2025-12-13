@@ -11,7 +11,8 @@ import {
   FolderPlus, Folder, CheckSquare, Square, MoveRight,
   Check, Edit2, FileWarning, PenTool, Mic, Link,
   X, Layers, FileText, MoreVertical, Save, Camera,
-  Download, Upload, RefreshCw, Database, Info, Trash
+  Download, Upload, RefreshCw, Database, Info, Trash, FolderOpen,
+  ArrowUpDown, Filter, SlidersHorizontal
 } from 'lucide-react';
 
 const SYSTEM_LIBRARIES = [
@@ -248,6 +249,11 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {}, media
   const [search, setSearch] = useState('');
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [filterUnlinked, setFilterUnlinked] = useState(false);
+  
+  // Sortering & Filtrering State
+  const [sortBy, setSortBy] = useState('newest'); // newest, oldest, name-az, name-za, date-newest, date-oldest, size-largest, size-smallest, most-connections, most-tags
+  const [filterBy, setFilterBy] = useState('all'); // all, with-tags, without-tags, with-date, without-date, with-transcription, without-transcription, with-people, with-places, with-sources, images-only, large-files, medium-files, small-files
+  const [thumbnailSize, setThumbnailSize] = useState(4); // Antal kolumner i grid (2-8)
   
   // Context Menu State
   const [contextMenuOpen, setContextMenuOpen] = useState(false);
@@ -676,6 +682,10 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
   const [exifExpanded, setExifExpanded] = useState(true);
   const [loadingExif, setLoadingExif] = useState(false);
 
+  // Tag State
+  const [tagInput, setTagInput] = useState('');
+  const [tagSuggestions, setTagSuggestions] = useState([]);
+
   // Library Management State
   const [editingLibId, setEditingLibId] = useState(null); 
   const [tempLibName, setTempLibName] = useState(''); 
@@ -690,7 +700,8 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
   const panStart = useRef({ x: 0, y: 0 });
   
   const fileInputRef = useRef(null);
-  const libInputRef = useRef(null); 
+  const libInputRef = useRef(null);
+  const tagInputRef = useRef(null);
 
   const allLibraries = [...SYSTEM_LIBRARIES, ...customLibraries];
 
@@ -770,6 +781,69 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
     return result;
   })() : null;
 
+  // Rensa tagg-input när bilden ändras och fokusera input-fältet
+  useEffect(() => {
+    setTagInput('');
+    setTagSuggestions([]);
+    // Fokusera input-fältet när bilden ändras (om det finns)
+    if (tagInputRef.current && safeDisplayImage) {
+      // Vänta lite så att DOM:en hinner uppdateras
+      setTimeout(() => {
+        tagInputRef.current?.focus();
+      }, 100);
+    }
+  }, [safeDisplayImage?.id]);
+
+  // Hämta alla befintliga taggar från alla media items
+  const getAllTags = () => {
+    const allTags = new Set();
+    mediaItems.forEach(item => {
+      if (Array.isArray(item.tags)) {
+        item.tags.forEach(tag => allTags.add(tag));
+      }
+    });
+    return Array.from(allTags).sort();
+  };
+
+  // Få förslag baserat på input
+  const getTagSuggestions = (input) => {
+    if (!input || input.trim().length === 0) return [];
+    const allTags = getAllTags();
+    const lowerInput = input.toLowerCase();
+    return allTags.filter(tag => 
+      tag.toLowerCase().includes(lowerInput) && 
+      !safeDisplayImage?.tags?.includes(tag)
+    ).slice(0, 5);
+  };
+
+  // Lägg till tagg
+  const handleAddTag = (tagText) => {
+    if (!tagText || tagText.trim().length === 0) return;
+    if (!safeDisplayImage) return;
+    
+    const tag = tagText.trim();
+    const currentTags = Array.isArray(safeDisplayImage.tags) ? safeDisplayImage.tags : [];
+    
+    // Kontrollera om taggen redan finns
+    if (currentTags.includes(tag)) {
+      setTagInput('');
+      setTagSuggestions([]);
+      return;
+    }
+    
+    // Lägg till taggen
+    updateMedia(prev => prev.map(item => {
+      if (item.id !== safeDisplayImage.id) return item;
+      return {
+        ...item,
+        tags: [...currentTags, tag]
+      };
+    }));
+    
+    setTagInput('');
+    setTagSuggestions([]);
+  };
+
   const filteredMedia = mediaItems.filter(m => {
     // Filtrera baserat på bibliotek (matcha mot filePath för systembibliotek)
     let matchesLib = true;
@@ -785,29 +859,125 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
       }
     }
     
-    const q = search.toLowerCase();
+    const q = search.toLowerCase().trim();
     const matchesSearch = !q || (
-        m.name.toLowerCase().includes(q) || 
-        m.date.includes(q) || 
-        (m.tags && m.tags.some(t => t.toLowerCase().includes(q))) || 
-        (m.connections?.people && m.connections.people.some(c => {
-          const name = typeof c === 'object' ? c.name : '';
-          const ref = typeof c === 'object' ? c.ref : '';
-          return name.toLowerCase().includes(q) || ref.toLowerCase().includes(q);
+        (m.name && String(m.name).toLowerCase().includes(q)) || 
+        (m.date && String(m.date).includes(q)) || 
+        (m.description && String(m.description).toLowerCase().includes(q)) ||
+        (m.tags && Array.isArray(m.tags) && m.tags.some(t => String(t || '').toLowerCase().includes(q))) || 
+        (m.connections?.people && Array.isArray(m.connections.people) && m.connections.people.some(c => {
+          const name = typeof c === 'object' ? String(c.name || '') : String(c || '');
+          const ref = typeof c === 'object' ? String(c.ref || '') : '';
+          return name.toLowerCase().includes(q) || (ref && ref.toLowerCase().includes(q));
         })) || 
-        (m.transcription && m.transcription.toLowerCase().includes(q))
+        (m.connections?.places && Array.isArray(m.connections.places) && m.connections.places.some(p => {
+          const placeName = typeof p === 'object' ? String(p.name || '') : String(p || '');
+          return placeName.toLowerCase().includes(q);
+        })) ||
+        (m.connections?.sources && Array.isArray(m.connections.sources) && m.connections.sources.some(s => {
+          const sourceName = typeof s === 'object' ? String(s.name || s.title || '') : String(s || '');
+          const sourceRef = typeof s === 'object' ? String(s.ref || s.reference || '') : '';
+          return sourceName.toLowerCase().includes(q) || (sourceRef && sourceRef.toLowerCase().includes(q));
+        })) ||
+        (m.transcription && String(m.transcription).toLowerCase().includes(q)) ||
+        (m.filePath && String(m.filePath).toLowerCase().includes(q))
     );
     const matchesUnlinked = filterUnlinked ? (
       (!m.connections?.people || m.connections.people.length === 0) && 
       (!m.connections?.places || m.connections.places.length === 0) && 
       (!m.connections?.sources || m.connections.sources.length === 0)
-    ) : true; 
-    return matchesLib && matchesSearch && matchesUnlinked;
+    ) : true;
+    
+    // Ytterligare filtrering baserat på filterBy
+    let matchesFilter = true;
+    if (filterBy !== 'all') {
+      switch(filterBy) {
+        case 'with-tags':
+          matchesFilter = m.tags && Array.isArray(m.tags) && m.tags.length > 0;
+          break;
+        case 'without-tags':
+          matchesFilter = !m.tags || !Array.isArray(m.tags) || m.tags.length === 0;
+          break;
+        case 'with-date':
+          matchesFilter = !!m.date;
+          break;
+        case 'without-date':
+          matchesFilter = !m.date;
+          break;
+        case 'with-transcription':
+          matchesFilter = !!m.transcription;
+          break;
+        case 'without-transcription':
+          matchesFilter = !m.transcription;
+          break;
+        case 'with-people':
+          matchesFilter = m.connections?.people && Array.isArray(m.connections.people) && m.connections.people.length > 0;
+          break;
+        case 'with-places':
+          matchesFilter = m.connections?.places && Array.isArray(m.connections.places) && m.connections.places.length > 0;
+          break;
+        case 'with-sources':
+          matchesFilter = m.connections?.sources && Array.isArray(m.connections.sources) && m.connections.sources.length > 0;
+          break;
+        case 'images-only':
+          const ext = (m.name || '').split('.').pop()?.toLowerCase() || '';
+          matchesFilter = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(ext);
+          break;
+        case 'large-files':
+          matchesFilter = m.fileSize && m.fileSize > 5 * 1024 * 1024; // >5MB
+          break;
+        case 'medium-files':
+          matchesFilter = m.fileSize && m.fileSize >= 1024 * 1024 && m.fileSize <= 5 * 1024 * 1024; // 1-5MB
+          break;
+        case 'small-files':
+          matchesFilter = m.fileSize && m.fileSize < 1024 * 1024; // <1MB
+          break;
+        default:
+          matchesFilter = true;
+      }
+    }
+    
+    return matchesLib && matchesSearch && matchesUnlinked && matchesFilter;
+  });
+  
+  // Sortera filtrerad media
+  const sortedMedia = [...filteredMedia].sort((a, b) => {
+    switch(sortBy) {
+      case 'newest':
+        // Antag att id innehåller timestamp eller använd createdAt om det finns
+        const aTime = a.createdAt || (a.id && typeof a.id === 'string' && a.id.includes('_') ? parseInt(a.id.split('_').pop()) : 0) || 0;
+        const bTime = b.createdAt || (b.id && typeof b.id === 'string' && b.id.includes('_') ? parseInt(b.id.split('_').pop()) : 0) || 0;
+        return bTime - aTime;
+      case 'oldest':
+        const aTime2 = a.createdAt || (a.id && typeof a.id === 'string' && a.id.includes('_') ? parseInt(a.id.split('_').pop()) : 0) || 0;
+        const bTime2 = b.createdAt || (b.id && typeof b.id === 'string' && b.id.includes('_') ? parseInt(b.id.split('_').pop()) : 0) || 0;
+        return aTime2 - bTime2;
+      case 'name-az':
+        return (a.name || '').localeCompare(b.name || '', 'sv');
+      case 'name-za':
+        return (b.name || '').localeCompare(a.name || '', 'sv');
+      case 'date-newest':
+        return (b.date || '').localeCompare(a.date || '', 'sv');
+      case 'date-oldest':
+        return (a.date || '').localeCompare(b.date || '', 'sv');
+      case 'size-largest':
+        return (b.fileSize || 0) - (a.fileSize || 0);
+      case 'size-smallest':
+        return (a.fileSize || 0) - (b.fileSize || 0);
+      case 'most-connections':
+        const aConn = (a.connections?.people?.length || 0) + (a.connections?.places?.length || 0) + (a.connections?.sources?.length || 0);
+        const bConn = (b.connections?.people?.length || 0) + (b.connections?.places?.length || 0) + (b.connections?.sources?.length || 0);
+        return bConn - aConn;
+      case 'most-tags':
+        return (b.tags?.length || 0) - (a.tags?.length || 0);
+      default:
+        return 0;
+    }
   });
 
-  const editingIndex = editingImage ? filteredMedia.findIndex(m => m.id === editingImage.id) : -1;
-  const prevEditingImage = editingIndex > 0 ? filteredMedia[editingIndex - 1] : null;
-  const nextEditingImage = editingIndex >= 0 && editingIndex < filteredMedia.length - 1 ? filteredMedia[editingIndex + 1] : null;
+  const editingIndex = editingImage ? sortedMedia.findIndex(m => m.id === editingImage.id) : -1;
+  const prevEditingImage = editingIndex > 0 ? sortedMedia[editingIndex - 1] : null;
+  const nextEditingImage = editingIndex >= 0 && editingIndex < sortedMedia.length - 1 ? sortedMedia[editingIndex + 1] : null;
 
   const handlePrevEditing = () => {
     if (!prevEditingImage) return;
@@ -927,7 +1097,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
           else newSelected.add(item.id);
           setLastSelectedId(item.id);
       } else if (e.shiftKey && lastSelectedId) {
-          const ids = filteredMedia.map(m => m.id);
+          const ids = sortedMedia.map(m => m.id);
           const lastIdx = ids.indexOf(lastSelectedId);
           const currIdx = ids.indexOf(item.id);
           if (lastIdx !== -1 && currIdx !== -1) {
@@ -984,8 +1154,8 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
   };
 
   const handleSelectAll = () => {
-    if (selectedIds.size === filteredMedia.length) { setSelectedIds(new Set()); setIsSelectMode(false); }
-    else { setSelectedIds(new Set(filteredMedia.map(m => m.id))); setIsSelectMode(true); }
+    if (selectedIds.size === sortedMedia.length) { setSelectedIds(new Set()); setIsSelectMode(false); }
+    else { setSelectedIds(new Set(sortedMedia.map(m => m.id))); setIsSelectMode(true); }
   };
 
   const handleToggleSelect = (itemId) => {
@@ -1395,6 +1565,42 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
   };
 
   return (
+    <>
+      <style>{`
+        .slider {
+          -webkit-appearance: none;
+          appearance: none;
+          height: 4px;
+          background: #334155;
+          border-radius: 2px;
+          outline: none;
+        }
+        .slider::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 14px;
+          height: 14px;
+          background: #3b82f6;
+          border-radius: 50%;
+          cursor: pointer;
+          transition: background 0.2s;
+        }
+        .slider::-webkit-slider-thumb:hover {
+          background: #2563eb;
+        }
+        .slider::-moz-range-thumb {
+          width: 14px;
+          height: 14px;
+          background: #3b82f6;
+          border-radius: 50%;
+          cursor: pointer;
+          border: none;
+          transition: background 0.2s;
+        }
+        .slider::-moz-range-thumb:hover {
+          background: #2563eb;
+        }
+      `}</style>
     <div className="flex flex-1 overflow-hidden w-full h-full bg-slate-900">
       {/* VÄNSTER: Bibliotek */}
       <div className="w-64 bg-slate-800/50 border-r border-slate-700 flex flex-col shrink-0">
@@ -1404,8 +1610,8 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
               {SYSTEM_LIBRARIES.map(lib => (
               <LibraryButton key={lib.id} lib={lib} isActive={activeLib === lib.id} onClick={() => { setActiveLib(lib.id); setSelectedImage(null); setIsSelectMode(false); setFilterUnlinked(false); }} onDrop={handleLibraryDrop}/>
               ))}
-              <button onClick={() => { setFilterUnlinked(!filterUnlinked); setActiveLib('all'); }} className={`flex items-center gap-3 w-full px-3 py-2 rounded text-sm transition-colors ${filterUnlinked ? 'bg-yellow-600/20 text-yellow-400 border border-yellow-600/50' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-                  <AlertCircle size={16} /> Okopplade ({mediaItems.filter(m => m.connections.people.length === 0 && m.connections.places.length === 0 && m.connections.sources.length === 0).length})
+              <button onClick={() => { setFilterUnlinked(!filterUnlinked); setActiveLib('all'); setSearch(''); }} className={`flex items-center gap-3 w-full px-3 py-2 rounded text-sm transition-colors ${filterUnlinked ? 'bg-yellow-600/20 text-yellow-400 border border-yellow-600/50' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
+                  <AlertCircle size={16} /> Okopplade ({mediaItems.filter(m => (!m.connections?.people || m.connections.people.length === 0) && (!m.connections?.places || m.connections.places.length === 0) && (!m.connections?.sources || m.connections.sources.length === 0)).length})
               </button>
           </div>
           <div className="p-2 space-y-1 border-t border-slate-700/50">
@@ -1582,14 +1788,78 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                   {isSelectMode ? 'Klar' : 'Välj'}
               </button>
               <button onClick={handleSelectAll} className="text-xs text-slate-400 hover:text-white px-2">
-                  {selectedIds.size === filteredMedia.length ? 'Avmarkera alla' : 'Markera alla'}
+                  {selectedIds.size === sortedMedia.length ? 'Avmarkera alla' : 'Markera alla'}
               </button>
           </div>
-          <div className="flex gap-2 items-center">
+          <div className="flex gap-2 items-center flex-wrap">
+              {/* Thumbnail Size Slider */}
+              <div className="flex items-center gap-1.5 w-24 flex-shrink-0">
+                  <SlidersHorizontal size={12} className="text-slate-400 flex-shrink-0"/>
+                  <input 
+                      type="range" 
+                      min="2" 
+                      max="8" 
+                      value={thumbnailSize} 
+                      onChange={(e) => setThumbnailSize(parseInt(e.target.value))}
+                      className="flex-1 slider min-w-[60px]"
+                      title={`${thumbnailSize} kolumner`}
+                  />
+                  <span className="text-xs text-slate-400 w-4 text-right flex-shrink-0">{thumbnailSize}</span>
+              </div>
+              
+              {/* Sortering Dropdown */}
+              <div className="relative flex-shrink-0">
+                  <select 
+                      value={sortBy} 
+                      onChange={(e) => setSortBy(e.target.value)}
+                      className="bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500 appearance-none pr-8 cursor-pointer min-w-[140px]"
+                  >
+                      <option value="newest">Senast tillagd</option>
+                      <option value="oldest">Äldst först</option>
+                      <option value="name-az">Namn (A-Z)</option>
+                      <option value="name-za">Namn (Z-A)</option>
+                      <option value="date-newest">Datum (nyast)</option>
+                      <option value="date-oldest">Datum (äldst)</option>
+                      <option value="size-largest">Storlek (störst)</option>
+                      <option value="size-smallest">Storlek (minst)</option>
+                      <option value="most-connections">Mest kopplade</option>
+                      <option value="most-tags">Mest taggar</option>
+                  </select>
+                  <ArrowUpDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"/>
+              </div>
+              
+              {/* Filtrering Dropdown */}
+              <div className="relative flex-shrink-0">
+                  <select 
+                      value={filterBy} 
+                      onChange={(e) => setFilterBy(e.target.value)}
+                      className="bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500 appearance-none pr-8 cursor-pointer min-w-[120px]"
+                  >
+                      <option value="all">Alla</option>
+                      <option value="with-tags">Med taggar</option>
+                      <option value="without-tags">Utan taggar</option>
+                      <option value="with-date">Med datum</option>
+                      <option value="without-date">Utan datum</option>
+                      <option value="with-transcription">Med transkription</option>
+                      <option value="without-transcription">Utan transkription</option>
+                      <option value="with-people">Med kopplade personer</option>
+                      <option value="with-places">Med kopplade platser</option>
+                      <option value="with-sources">Med kopplade källor</option>
+                      <option value="images-only">Endast bilder</option>
+                      <option value="large-files">Stora filer (&gt;5MB)</option>
+                      <option value="medium-files">Medelstora filer (1-5MB)</option>
+                      <option value="small-files">Små filer (&lt;1MB)</option>
+                  </select>
+                  <Filter size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"/>
+              </div>
+              
+              {/* Sök */}
               <div className="relative w-48">
                   <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"/>
                   <input type="text" placeholder="Sök..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-full pl-9 pr-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500"/>
               </div>
+              
+              {/* Grid/List View Toggle */}
               <div className="flex items-center bg-slate-950 rounded-lg p-1 border border-slate-700">
                   <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded ${viewMode === 'grid' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'}`}><Grid size={16}/></button>
                   <button onClick={() => setViewMode('list')} className={`p-1.5 rounded ${viewMode === 'list' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'}`}><List size={16}/></button>
@@ -1608,15 +1878,15 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                   <div className="text-center text-blue-400"><UploadCloud size={64} className="mx-auto mb-2"/><h3 className="font-bold">Släpp filerna här</h3></div>
               </div>
           )}
-          {filteredMedia.length === 0 && (
+          {sortedMedia.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full text-slate-500">
                   <FileWarning size={48} className="mb-2 opacity-20"/>
                   <p className="text-sm">Inga bilder hittades.</p>
               </div>
           )}
           {viewMode === 'grid' ? (
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-              {filteredMedia.map(item => (
+          <div className={`grid gap-4`} style={{ gridTemplateColumns: `repeat(${thumbnailSize}, minmax(0, 1fr))` }}>
+              {sortedMedia.map(item => (
               <div key={item.id} 
                   onClick={(e) => handleImageClick(item, e)}
                   onDoubleClick={(e) => handleImageDoubleClick(item, e)}
@@ -1654,7 +1924,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
           </div>
           ) : (
           <div className="flex flex-col gap-1">
-              {filteredMedia.map(item => (
+              {sortedMedia.map(item => (
                   <div key={item.id} 
                       onClick={(e) => handleImageClick(item, e)} 
                       onDoubleClick={(e) => handleImageDoubleClick(item, e)}
@@ -1701,9 +1971,31 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
       {/* HÖGER: Detaljpanel */}
       {safeDisplayImage ? (
       <div className="w-96 bg-slate-800 border-l border-slate-700 flex flex-col shrink-0 z-20 shadow-xl">
-          <div className="p-4 border-b border-slate-700 flex justify-between bg-slate-800">
-              <h3 className="text-sm font-bold text-white truncate w-64">{safeDisplayImage.name}</h3>
-              <button onClick={() => setSelectedImage(null)} className="text-slate-400 hover:text-white"><X size={18}/></button>
+          <div className="p-4 border-b border-slate-700 bg-slate-800">
+              <div className="flex justify-between items-start mb-2">
+                  <h3 className="text-sm font-bold text-white truncate flex-1">{safeDisplayImage.name}</h3>
+                  <button onClick={() => setSelectedImage(null)} className="text-slate-400 hover:text-white shrink-0 ml-2"><X size={18}/></button>
+              </div>
+              {safeDisplayImage.filePath && (
+                  <button
+                      onClick={(e) => {
+                          e.stopPropagation();
+                          // Extrahera mapp-sökvägen (ta bort filnamnet)
+                          const pathParts = safeDisplayImage.filePath.split('/');
+                          const folderPath = pathParts.slice(0, -1).join('/');
+                          const fullPath = folderPath ? `media/${folderPath}` : 'media';
+                          
+                          if (window.electronAPI && window.electronAPI.openFolder) {
+                              window.electronAPI.openFolder(fullPath);
+                          }
+                      }}
+                      className="flex items-center gap-1 text-xs text-slate-500 hover:text-blue-400 transition-colors group"
+                      title="Öppna i Explorer"
+                  >
+                      <FolderOpen size={12} className="group-hover:text-blue-400 shrink-0" />
+                      <span className="truncate">media/{safeDisplayImage.filePath}</span>
+                  </button>
+              )}
           </div>
           
           <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar bg-slate-800">
@@ -1878,14 +2170,94 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                   </div>
               </div>
 
-              <div>
+              <div className="space-y-2">
                   <label className="text-[10px] font-bold text-slate-500 uppercase mb-2 block">Taggar</label>
-                  <div className="flex flex-wrap gap-2">
-                      {selectedImage.tags.map(t => (
-                          <span key={t} className="bg-slate-700 text-slate-300 text-xs px-2 py-0.5 rounded-full flex items-center gap-1">{t} <button className="hover:text-white"><X size={10}/></button></span>
-                      ))}
-                      <button className="text-xs text-slate-400 bg-slate-900 border border-slate-700 px-2 py-0.5 rounded-full hover:text-white hover:border-slate-500">+ Tagg</button>
+                  
+                  {/* Visade taggar */}
+                  {Array.isArray(safeDisplayImage?.tags) && safeDisplayImage.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-2">
+                          {safeDisplayImage.tags.map((tag, idx) => (
+                              <span 
+                                  key={idx} 
+                                  className="bg-green-600/20 border border-green-500/50 text-green-300 text-xs px-2 py-1 rounded-full flex items-center gap-1.5 group hover:bg-green-600/30 transition-colors"
+                              >
+                                  <span>{tag}</span>
+                                  <button 
+                                      onClick={(e) => {
+                                          e.stopPropagation();
+                                          updateMedia(prev => prev.map(item => {
+                                              if (item.id !== safeDisplayImage?.id) return item;
+                                              const newTags = Array.isArray(item.tags) ? item.tags.filter(t => t !== tag) : [];
+                                              return { ...item, tags: newTags };
+                                          }));
+                                      }}
+                                      className="text-green-400 hover:text-red-400 transition-colors ml-0.5"
+                                      title="Ta bort tagg"
+                                  >
+                                      <X size={12}/>
+                                  </button>
+                              </span>
+                          ))}
+                      </div>
+                  )}
+                  
+                  {/* Input för nya taggar */}
+                  <div className="relative">
+                      <input
+                          ref={tagInputRef}
+                          type="text"
+                          placeholder="Skriv eller välj tagg..."
+                          className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500"
+                          value={tagInput}
+                          onChange={(e) => {
+                              setTagInput(e.target.value);
+                              setTagSuggestions(getTagSuggestions(e.target.value));
+                          }}
+                          onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ',') {
+                                  e.preventDefault();
+                                  const trimmed = tagInput.trim();
+                                  if (trimmed) {
+                                      handleAddTag(trimmed);
+                                  }
+                              }
+                          }}
+                          onFocus={(e) => {
+                              e.target.select();
+                              if (tagInput) {
+                                  setTagSuggestions(getTagSuggestions(tagInput));
+                              }
+                          }}
+                          onBlur={() => {
+                              // Vänta lite innan vi stänger dropdown så att klick på förslag fungerar
+                              setTimeout(() => setTagSuggestions([]), 200);
+                          }}
+                          autoComplete="off"
+                      />
+                      
+                      {/* Autocomplete dropdown */}
+                      {tagSuggestions.length > 0 && tagInput && (
+                          <div className="absolute z-50 w-full mt-1 bg-slate-800 border border-slate-600 rounded shadow-lg max-h-40 overflow-y-auto">
+                              {tagSuggestions.map((suggestion, idx) => (
+                                  <button
+                                      key={idx}
+                                      onClick={(e) => {
+                                          e.preventDefault();
+                                          handleAddTag(suggestion);
+                                          setTagInput('');
+                                          setTagSuggestions([]);
+                                      }}
+                                      className="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 transition-colors flex items-center gap-2"
+                                  >
+                                      <Tag size={12} className="text-slate-500" />
+                                      <span>{suggestion}</span>
+                                  </button>
+                              ))}
+                          </div>
+                      )}
                   </div>
+                  
+                  <p className="text-[10px] text-slate-500">Tryck Enter eller "," för att lägga till tagg</p>
               </div>
 
               {/* EXIF & METADATA SEKTION */}
@@ -2289,7 +2661,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
           </button>
         </div>
       )}
-
     </div>
+    </>
   );
 }
