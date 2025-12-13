@@ -33,6 +33,59 @@ ipcMain.handle('save-database', async (event, fileHandle, data) => {
   if (!dbPath) return { error: 'Ingen fil angiven' };
   try {
     const db = new sqlite3.Database(dbPath);
+    
+    // VIKTIGT: Kör migration FÖRST (innan CREATE TABLE)
+    // Om tabellen redan finns utan media-kolumnen, måste vi lägga till den
+    console.log('[save-database] Startar migration för media-kolumn (FÖRE CREATE TABLE)...');
+    try {
+      // Kontrollera om tabellen finns
+      const tableExists = await new Promise((resolve, reject) => {
+        db.all(`SELECT name FROM sqlite_master WHERE type='table' AND name='people'`, (err, rows) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(rows.length > 0);
+          }
+        });
+      });
+      
+      if (tableExists) {
+        // Tabellen finns - kontrollera om media-kolumnen finns
+        const columnExists = await new Promise((resolve, reject) => {
+          db.all(`PRAGMA table_info(people)`, (err, rows) => {
+            if (err) {
+              reject(err);
+            } else {
+              const hasMediaColumn = rows.some(row => row.name === 'media');
+              resolve(hasMediaColumn);
+            }
+          });
+        });
+        
+        if (!columnExists) {
+          console.log('[save-database] Tabellen finns men saknar media-kolumn, lägger till...');
+          await new Promise((resolve, reject) => {
+            db.run(`ALTER TABLE people ADD COLUMN media TEXT`, (err) => {
+              if (err) {
+                console.error('[save-database] ❌ Kunde inte lägga till media-kolumn:', err.message);
+                reject(err);
+              } else {
+                console.log('[save-database] ✅ Media-kolumn tillagd');
+                resolve();
+              }
+            });
+          });
+        } else {
+          console.log('[save-database] ✅ Media-kolumn finns redan');
+        }
+      } else {
+        console.log('[save-database] Tabellen finns inte än, kommer skapas med media-kolumn');
+      }
+    } catch (migrationErr) {
+      console.error('[save-database] ❌ Migration misslyckades:', migrationErr.message);
+      // Fortsätt ändå - tabellen kanske inte finns än
+    }
+    
     // Create tables if missing
     await new Promise((resolve, reject) => {
       db.run(`CREATE TABLE IF NOT EXISTS people (
@@ -44,9 +97,49 @@ ipcMain.handle('save-database', async (event, fileHandle, data) => {
         events TEXT,
         notes TEXT,
         links TEXT,
-        relations TEXT
+        relations TEXT,
+        media TEXT
       )`, err => err ? reject(err) : resolve());
     });
+    // Ytterligare kontroll EFTER CREATE TABLE (för säkerhets skull)
+    // Kontrollera först om kolumnen finns, annars lägg till den
+    console.log('[save-database] Startar migration för media-kolumn...');
+    try {
+      const columnExists = await new Promise((resolve, reject) => {
+        db.all(`PRAGMA table_info(people)`, (err, rows) => {
+          if (err) {
+            console.error('[save-database] Fel vid PRAGMA table_info:', err.message);
+            reject(err);
+          } else {
+            console.log('[save-database] PRAGMA table_info resultat:', rows.map(r => r.name));
+            const hasMediaColumn = rows.some(row => row.name === 'media');
+            console.log('[save-database] Media-kolumn finns:', hasMediaColumn);
+            resolve(hasMediaColumn);
+          }
+        });
+      });
+      
+      if (!columnExists) {
+        console.log('[save-database] Försöker lägga till media-kolumn...');
+        await new Promise((resolve, reject) => {
+          db.run(`ALTER TABLE people ADD COLUMN media TEXT`, (err) => {
+            if (err) {
+              console.error('[save-database] Kunde inte lägga till media-kolumn:', err.message);
+              reject(err);
+            } else {
+              console.log('[save-database] ✅ Media-kolumn tillagd via migration');
+              resolve();
+            }
+          });
+        });
+      } else {
+        console.log('[save-database] ✅ Media-kolumn finns redan');
+      }
+    } catch (migrationErr) {
+      // Om migrationen misslyckas, försök ändå att spara (kolumnen kanske redan finns)
+      console.error('[save-database] ❌ Migration misslyckades, fortsätter ändå:', migrationErr.message);
+      console.error('[save-database] Migration error stack:', migrationErr.stack);
+    }
     await new Promise((resolve, reject) => {
       db.run(`CREATE TABLE IF NOT EXISTS sources (
         id TEXT PRIMARY KEY,
@@ -99,6 +192,43 @@ ipcMain.handle('save-database', async (event, fileHandle, data) => {
         note TEXT
       )`, err => err ? reject(err) : resolve());
     });
+    
+    // Säkerställ att media-kolumnen finns INNAN vi försöker spara
+    // Dubbelkolla en sista gång
+    try {
+      const finalCheck = await new Promise((resolve, reject) => {
+        db.all(`PRAGMA table_info(people)`, (err, rows) => {
+          if (err) {
+            reject(err);
+          } else {
+            const hasMediaColumn = rows.some(row => row.name === 'media');
+            resolve(hasMediaColumn);
+          }
+        });
+      });
+      
+      if (!finalCheck) {
+        console.error('[save-database] ⚠️ Media-kolumn saknas EFTER migration! Försöker lägga till igen...');
+        await new Promise((resolve, reject) => {
+          db.run(`ALTER TABLE people ADD COLUMN media TEXT`, (err) => {
+            if (err) {
+              console.error('[save-database] ❌ Kunde INTE lägga till media-kolumn:', err.message);
+              // Kasta fel så att vi inte försöker spara utan kolumnen
+              reject(new Error(`Media-kolumn saknas och kunde inte läggas till: ${err.message}`));
+            } else {
+              console.log('[save-database] ✅ Media-kolumn tillagd i sista kontrollen');
+              resolve();
+            }
+          });
+        });
+      } else {
+        console.log('[save-database] ✅ Media-kolumn verifierad före INSERT');
+      }
+    } catch (finalCheckErr) {
+      console.error('[save-database] ❌ Kunde inte verifiera media-kolumn:', finalCheckErr.message);
+      throw finalCheckErr; // Kasta fel så att sparningen stoppas
+    }
+    
     // Clear tables before insert (simple overwrite)
     await new Promise((resolve, reject) => db.run('DELETE FROM people', err => err ? reject(err) : resolve()));
     await new Promise((resolve, reject) => db.run('DELETE FROM sources', err => err ? reject(err) : resolve()));
@@ -106,14 +236,23 @@ ipcMain.handle('save-database', async (event, fileHandle, data) => {
     await new Promise((resolve, reject) => db.run('DELETE FROM meta', err => err ? reject(err) : resolve()));
     await new Promise((resolve, reject) => db.run('DELETE FROM media', err => err ? reject(err) : resolve()));
     // Insert people
+    console.log('[save-database] Försöker spara', data.people?.length || 0, 'personer...');
     for (const p of data.people || []) {
       await new Promise((resolve, reject) => {
-        db.run(`INSERT INTO people (id, refNumber, firstName, lastName, gender, events, notes, links, relations) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [p.id, p.refNumber, p.firstName, p.lastName, p.gender || '', JSON.stringify(p.events || []), p.notes || '', JSON.stringify(p.links || {}), JSON.stringify(p.relations || {})],
-          err => err ? reject(err) : resolve()
+        db.run(`INSERT INTO people (id, refNumber, firstName, lastName, gender, events, notes, links, relations, media) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [p.id, p.refNumber, p.firstName, p.lastName, p.gender || '', JSON.stringify(p.events || []), p.notes || '', JSON.stringify(p.links || {}), JSON.stringify(p.relations || {}), JSON.stringify(p.media || [])],
+          err => {
+            if (err) {
+              console.error(`[save-database] ❌ Fel vid INSERT person ${p.id}:`, err.message);
+              reject(err);
+            } else {
+              resolve();
+            }
+          }
         );
       });
     }
+    console.log('[save-database] ✅ Alla personer sparade');
     // Insert sources
     for (const s of data.sources || []) {
       await new Promise((resolve, reject) => {
@@ -307,7 +446,7 @@ ipcMain.handle('open-database', async (event, filePath) => {
           });
         });
       }
-      const people = await readTable('people', ['events', 'links', 'relations']);
+      const people = await readTable('people', ['events', 'links', 'relations', 'media']);
       const sources = await readTable('sources');
       const places = await readTable('places');
       // Meta-data: försök läsa tabellen 'meta', annars tomt objekt
@@ -694,10 +833,20 @@ ipcMain.handle('create-new-database', async (event) => {
         events TEXT,
         notes TEXT,
         links TEXT,
-        relations TEXT
+        relations TEXT,
+        media TEXT
       )`, (err) => {
         if (err) reject(err);
-        else resolve();
+        else {
+          // Migration: Lägg till media-kolumn om den saknas (för befintliga databaser)
+          db.run(`ALTER TABLE people ADD COLUMN media TEXT`, (alterErr) => {
+            // Ignorera felet om kolumnen redan finns
+            if (alterErr && !alterErr.message.includes('duplicate column name') && !alterErr.message.includes('duplicate column')) {
+              console.warn('[create-new-database] Kunde inte lägga till media-kolumn:', alterErr.message);
+            }
+            resolve();
+          });
+        }
       });
       // Skapa även relations-tabellen
       db.run(`CREATE TABLE IF NOT EXISTS relations (
@@ -720,29 +869,6 @@ ipcMain.handle('create-new-database', async (event) => {
   };
 });
 ipcMain.handle('save-file', async (event, filePath, data) => {
-        // Skapa tabeller om de saknas
-        await new Promise((resolve, reject) => {
-          db.run(`CREATE TABLE IF NOT EXISTS people (
-            id TEXT PRIMARY KEY,
-            refNumber INTEGER,
-            firstName TEXT,
-            lastName TEXT,
-            gender TEXT,
-            events TEXT,
-            notes TEXT,
-            links TEXT,
-            relations TEXT
-          )`, err => err ? reject(err) : resolve());
-        });
-        await new Promise((resolve, reject) => {
-          db.run(`CREATE TABLE IF NOT EXISTS relations (
-            id TEXT PRIMARY KEY,
-            person1Id TEXT,
-            person2Id TEXT,
-            type TEXT,
-            details TEXT
-          )`, err => err ? reject(err) : resolve());
-        });
     // FULL LOGGNING AV TECKENKODNING
     if (typeof filePath === 'string') {
       console.log('[save-file] filePath (string):', filePath);
@@ -765,6 +891,59 @@ ipcMain.handle('save-file', async (event, filePath, data) => {
       const peopleCount = data && Array.isArray(data.people) ? data.people.length : 0;
       console.log('[save-file] Antal personer som sparas:', peopleCount);
       const db = new sqlite3.Database(dbPath);
+      
+      // VIKTIGT: Kör migration FÖRST (innan CREATE TABLE)
+      // Om tabellen redan finns utan media-kolumnen, måste vi lägga till den
+      console.log('[save-file] Startar migration för media-kolumn (FÖRE CREATE TABLE)...');
+      try {
+        // Kontrollera om tabellen finns
+        const tableExists = await new Promise((resolve, reject) => {
+          db.all(`SELECT name FROM sqlite_master WHERE type='table' AND name='people'`, (err, rows) => {
+            if (err) {
+              reject(err);
+            } else {
+              resolve(rows.length > 0);
+            }
+          });
+        });
+        
+        if (tableExists) {
+          // Tabellen finns - kontrollera om media-kolumnen finns
+          const columnExists = await new Promise((resolve, reject) => {
+            db.all(`PRAGMA table_info(people)`, (err, rows) => {
+              if (err) {
+                reject(err);
+              } else {
+                const hasMediaColumn = rows.some(row => row.name === 'media');
+                resolve(hasMediaColumn);
+              }
+            });
+          });
+          
+          if (!columnExists) {
+            console.log('[save-file] Tabellen finns men saknar media-kolumn, lägger till...');
+            await new Promise((resolve, reject) => {
+              db.run(`ALTER TABLE people ADD COLUMN media TEXT`, (err) => {
+                if (err) {
+                  console.error('[save-file] ❌ Kunde inte lägga till media-kolumn:', err.message);
+                  reject(err);
+                } else {
+                  console.log('[save-file] ✅ Media-kolumn tillagd');
+                  resolve();
+                }
+              });
+            });
+          } else {
+            console.log('[save-file] ✅ Media-kolumn finns redan');
+          }
+        } else {
+          console.log('[save-file] Tabellen finns inte än, kommer skapas med media-kolumn');
+        }
+      } catch (migrationErr) {
+        console.error('[save-file] ❌ Migration misslyckades:', migrationErr.message);
+        // Fortsätt ändå - tabellen kanske inte finns än
+      }
+      
       console.log('[save-file] Skapar tabeller om de saknas...');
       await new Promise((resolve, reject) => {
         db.run(`CREATE TABLE IF NOT EXISTS people (
@@ -776,7 +955,8 @@ ipcMain.handle('save-file', async (event, filePath, data) => {
           events TEXT,
           notes TEXT,
           links TEXT,
-          relations TEXT
+          relations TEXT,
+          media TEXT
         )`, err => {
           if (err) {
             console.error('[save-file] Fel vid CREATE TABLE people:', err);
@@ -787,6 +967,81 @@ ipcMain.handle('save-file', async (event, filePath, data) => {
           }
         });
       });
+      // Ytterligare kontroll EFTER CREATE TABLE (för säkerhets skull)
+      // Kontrollera först om kolumnen finns, annars lägg till den
+      console.log('[save-file] Startar migration för media-kolumn...');
+      try {
+        const columnExists = await new Promise((resolve, reject) => {
+          db.all(`PRAGMA table_info(people)`, (err, rows) => {
+            if (err) {
+              console.error('[save-file] Fel vid PRAGMA table_info:', err.message);
+              reject(err);
+            } else {
+              console.log('[save-file] PRAGMA table_info resultat:', rows.map(r => r.name));
+              const hasMediaColumn = rows.some(row => row.name === 'media');
+              console.log('[save-file] Media-kolumn finns:', hasMediaColumn);
+              resolve(hasMediaColumn);
+            }
+          });
+        });
+        
+        if (!columnExists) {
+          console.log('[save-file] Försöker lägga till media-kolumn...');
+          await new Promise((resolve, reject) => {
+            db.run(`ALTER TABLE people ADD COLUMN media TEXT`, (err) => {
+              if (err) {
+                console.error('[save-file] Kunde inte lägga till media-kolumn:', err.message);
+                reject(err);
+              } else {
+                console.log('[save-file] ✅ Media-kolumn tillagd via migration');
+                resolve();
+              }
+            });
+          });
+        } else {
+          console.log('[save-file] ✅ Media-kolumn finns redan');
+        }
+      } catch (migrationErr) {
+        // Om migrationen misslyckas, försök ändå att spara (kolumnen kanske redan finns)
+        console.error('[save-file] ❌ Migration misslyckades, fortsätter ändå:', migrationErr.message);
+        console.error('[save-file] Migration error stack:', migrationErr.stack);
+      }
+      
+      // Säkerställ att media-kolumnen finns INNAN vi försöker spara
+      // Dubbelkolla en sista gång
+      try {
+        const finalCheck = await new Promise((resolve, reject) => {
+          db.all(`PRAGMA table_info(people)`, (err, rows) => {
+            if (err) {
+              reject(err);
+            } else {
+              const hasMediaColumn = rows.some(row => row.name === 'media');
+              resolve(hasMediaColumn);
+            }
+          });
+        });
+        
+        if (!finalCheck) {
+          console.error('[save-file] ⚠️ Media-kolumn saknas EFTER migration! Försöker lägga till igen...');
+          await new Promise((resolve, reject) => {
+            db.run(`ALTER TABLE people ADD COLUMN media TEXT`, (err) => {
+              if (err) {
+                console.error('[save-file] ❌ Kunde INTE lägga till media-kolumn:', err.message);
+                // Kasta fel så att vi inte försöker spara utan kolumnen
+                reject(new Error(`Media-kolumn saknas och kunde inte läggas till: ${err.message}`));
+              } else {
+                console.log('[save-file] ✅ Media-kolumn tillagd i sista kontrollen');
+                resolve();
+              }
+            });
+          });
+        } else {
+          console.log('[save-file] ✅ Media-kolumn verifierad före INSERT');
+        }
+      } catch (finalCheckErr) {
+        console.error('[save-file] ❌ Kunde inte verifiera media-kolumn:', finalCheckErr.message);
+        throw finalCheckErr; // Kasta fel så att sparningen stoppas
+      }
       await new Promise((resolve, reject) => {
         db.run(`CREATE TABLE IF NOT EXISTS relations (
           id TEXT PRIMARY KEY,
@@ -820,8 +1075,8 @@ ipcMain.handle('save-file', async (event, filePath, data) => {
         console.log(`[save-file] Lägger in ${peopleCount} personer...`);
         for (const p of data.people) {
           await new Promise((resolve, reject) => {
-            db.run(`INSERT INTO people (id, refNumber, firstName, lastName, gender, events, notes, links, relations) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-              [p.id, p.refNumber, p.firstName, p.lastName, p.gender, JSON.stringify(p.events), p.notes, JSON.stringify(p.links), JSON.stringify(p.relations)],
+            db.run(`INSERT INTO people (id, refNumber, firstName, lastName, gender, events, notes, links, relations, media) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              [p.id, p.refNumber, p.firstName, p.lastName, p.gender, JSON.stringify(p.events), p.notes, JSON.stringify(p.links), JSON.stringify(p.relations), JSON.stringify(p.media || [])],
               err => {
                 if (err) {
                   console.error(`[save-file] Fel vid INSERT person ${p.id}:`, err);
@@ -1836,8 +2091,20 @@ ipcMain.handle('save-as-database', async (event, data) => {
         events TEXT,
         notes TEXT,
         links TEXT,
-        relations TEXT
+        relations TEXT,
+        media TEXT
       )`, err => err ? reject(err) : resolve());
+    });
+    // Migration: Lägg till media-kolumn om den saknas (för befintliga databaser)
+    await new Promise((resolve, reject) => {
+      db.run(`ALTER TABLE people ADD COLUMN media TEXT`, (err) => {
+        // Ignorera felet om kolumnen redan finns
+        if (err && !err.message.includes('duplicate column name') && !err.message.includes('duplicate column')) {
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
     });
     // Radera alla personer först (om du vill ha "ersätt allt")
     await new Promise((resolve, reject) => {
@@ -1847,8 +2114,8 @@ ipcMain.handle('save-as-database', async (event, data) => {
     if (data && Array.isArray(data.people)) {
       for (const p of data.people) {
         await new Promise((resolve, reject) => {
-          db.run(`INSERT INTO people (id, refNumber, firstName, lastName, gender, events, notes, links, relations) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [p.id, p.refNumber, p.firstName, p.lastName, p.gender, JSON.stringify(p.events), p.notes, JSON.stringify(p.links), JSON.stringify(p.relations)],
+          db.run(`INSERT INTO people (id, refNumber, firstName, lastName, gender, events, notes, links, relations, media) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [p.id, p.refNumber, p.firstName, p.lastName, p.gender, JSON.stringify(p.events), p.notes, JSON.stringify(p.links), JSON.stringify(p.relations), JSON.stringify(p.media || [])],
             err => err ? reject(err) : resolve()
           );
         });

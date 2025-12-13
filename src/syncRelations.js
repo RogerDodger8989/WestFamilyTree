@@ -65,7 +65,26 @@ export function syncRelations(person, allPeople) {
   });
 
   // Update this person in the list
-  updatedPeople = updatedPeople.map(p => p.id === person.id ? person : p);
+  // VIKTIGT: Behåll all data från den ursprungliga personen (inklusive media)
+  // men uppdatera med den nya personens data och behåll de synkade relationerna
+  updatedPeople = updatedPeople.map(p => {
+    if (p.id === person.id) {
+      // Behåll all data från den ursprungliga personen, men uppdatera med den nya personens data
+      // och behåll de synkade relationerna
+      // VIKTIGT: Om person-objektet har media, använd den. Annars behåll den ursprungliga.
+      const mediaToKeep = person.media && Array.isArray(person.media) && person.media.length > 0 
+        ? person.media 
+        : (p.media || []);
+      
+      return {
+        ...p, // Behåll all ursprunglig data
+        ...person, // Överskriv med den nya personens data
+        media: mediaToKeep, // Säkerställ att media bevaras
+        relations: p.relations // Men behåll de synkade relationerna
+      };
+    }
+    return p;
+  });
 
   return updatedPeople;
 }

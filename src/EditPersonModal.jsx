@@ -361,7 +361,7 @@ const SourceModal = ({ isOpen, onClose, onAdd, eventType }) => {
 
 // --- HUVUDKOMPONENT ---
 
-export default function EditPersonModal({ person: initialPerson, allPlaces, onSave, onClose, onOpenSourceDrawer, allSources, allPeople, onOpenEditModal, allMediaItems = [], onUpdateAllMedia = () => {} }) {
+export default function EditPersonModal({ person: initialPerson, allPlaces, onSave, onClose, onChange, onOpenSourceDrawer, allSources, allPeople, onOpenEditModal, allMediaItems = [], onUpdateAllMedia = () => {} }) {
     // Relation linking modal state
     const [relationModalOpen, setRelationModalOpen] = useState(false);
     const [relationTypeToAdd, setRelationTypeToAdd] = useState(null);
@@ -959,6 +959,8 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
 
   const handleSave = async () => {
     try {
+      console.log('[EditPersonModal] handleSave anropad, person.media:', person.media);
+      console.log('[EditPersonModal] person-objektet:', JSON.stringify(person, null, 2));
       if (onSave) {
         await onSave(person);
       }
@@ -1517,7 +1519,12 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                 <MediaSelector
                   media={person.media || []}
                   onMediaChange={(newMedia) => {
-                    setPerson(prev => ({ ...prev, media: newMedia }));
+                    const updatedPerson = { ...person, media: newMedia };
+                    setPerson(updatedPerson);
+                    // Uppdatera också i dbData direkt så att media sparas
+                    if (onChange) {
+                      onChange(updatedPerson);
+                    }
                   }}
                   entityType="person"
                   entityId={person.id}

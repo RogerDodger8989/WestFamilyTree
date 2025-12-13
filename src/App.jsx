@@ -662,6 +662,13 @@ function App() {
   };
 
   const patchedHandleSavePersonDetails = (person) => {
+    console.log('[App.jsx] patchedHandleSavePersonDetails anropad, person.media:', person.media);
+    
+    // VIKTIGT: Spara personens media INNAN syncRelations anropas
+    // Detta säkerställer att media inte försvinner även om syncRelations anropas flera gånger
+    const personMediaToPreserve = person.media && Array.isArray(person.media) ? person.media : [];
+    console.log('[App.jsx] personMediaToPreserve:', personMediaToPreserve);
+    
     setDbData(prev => {
       // Synka ALLA relationer tvåvägs (partners, barn, föräldrar)
       let updatedPeople = syncRelations(person, prev.people || []);
@@ -740,7 +747,31 @@ function App() {
         });
       }
       
+      // VIKTIGT: Säkerställ att personens media-array bevaras EFTER alla synkningar
+      // Detta görs i slutet för att säkerställa att media inte försvinner efter syncRelations-anrop
+      const finalPersonIndex = updatedPeople.findIndex(p => p.id === person.id);
+      if (finalPersonIndex !== -1) {
+        // Behåll all person-data inklusive media, men behåll de synkade relationerna
+        // VIKTIGT: Använd den sparade media-arrayen som vi sparade i början
+        const mediaToKeep = personMediaToPreserve.length > 0 
+          ? personMediaToPreserve 
+          : (person.media && Array.isArray(person.media) && person.media.length > 0 
+            ? person.media 
+            : (updatedPeople[finalPersonIndex].media || []));
+        
+        console.log('[App.jsx] Media som ska bevaras:', mediaToKeep);
+        
+        updatedPeople[finalPersonIndex] = {
+          ...updatedPeople[finalPersonIndex],
+          ...person, // Överskriv med all data från person-objektet
+          media: mediaToKeep, // Säkerställ att media bevaras
+          relations: updatedPeople[finalPersonIndex].relations // Men behåll de synkade relationerna
+        };
+      }
+      
       // Bygg relations-array från people så att dbData.relations är synkad
+      const finalPerson = updatedPeople.find(p => p.id === person.id);
+      console.log('[App.jsx] Före return, finalPerson.media:', finalPerson?.media);
       const relations = buildRelationsFromPeople(updatedPeople);
       return { ...prev, people: updatedPeople, relations };
     });

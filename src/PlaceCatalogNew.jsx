@@ -43,6 +43,7 @@ import WindowFrame from './WindowFrame.jsx';
 import PlaceEditModal from './PlaceEditModal.jsx';
 import PlaceCreateModal from './PlaceCreateModal.jsx';
 import Editor from './MaybeEditor.jsx';
+import { User, X } from 'lucide-react';
 
 // Ikoner för varje platstyp
 const PLACE_TYPE_ICONS = {
@@ -213,7 +214,7 @@ const ContextMenu = ({ x, y, node, onClose, onAction }) => {
   );
 };
 
-export default function PlaceCatalog({ catalogState, setCatalogState, onPick, onClose, isDrawerMode = false, onLinkPlace }) {
+export default function PlaceCatalog({ catalogState, setCatalogState, onPick, onClose, isDrawerMode = false, onLinkPlace, allPeople = [], onOpenEditModal }) {
   // Riksarkivet state
   const [riksarkivetResults, setRiksarkivetResults] = useState(null);
   const [riksarkivetLoading, setRiksarkivetLoading] = useState(false);
@@ -442,19 +443,15 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
   // Ladda personer kopplade till en plats
   const loadLinkedPeople = async (placeId) => {
     try {
-      // Hämta alla personer
-      const peopleRes = await fetch('http://127.0.0.1:5005/people');
-      const people = await peopleRes.json();
-      
-      // Hitta personer vars events har denna placeId
+      // Använd allPeople från props istället för att hämta från backend
       const linked = [];
-      for (const person of people) {
+      for (const person of allPeople) {
         if (person.events && Array.isArray(person.events)) {
           for (const event of person.events) {
             if (event.placeId == placeId || event.place_id == placeId) {
               linked.push({
                 personId: person.id,
-                personName: `${person.firstName || ''} ${person.lastName || ''}`.trim(),
+                person: person, // Spara hela person-objektet
                 eventType: event.type,
                 eventDate: event.date || '',
                 eventId: event.id
@@ -1233,18 +1230,93 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
                     </div>
                     <div className="bg-slate-900 rounded-md border border-slate-700 overflow-hidden">
                       {linkedPeople.length > 0 ? (
-                        linkedPeople.map((link) => (
-                          <div key={`${link.personId}-${link.eventId}`} className="flex items-center p-3 border-b border-slate-700 last:border-0 hover:bg-slate-800 transition-colors cursor-pointer">
-                            <span className="mr-3 text-slate-500">👤</span>
-                            <div className="flex-1">
-                              <div className="text-sm text-slate-100 font-medium">{link.personName}</div>
-                              <div className="text-xs text-slate-400">
-                                {link.eventType}
-                                {link.eventDate && ` (${link.eventDate})`}
+                        linkedPeople.map((link) => {
+                          const person = link.person || allPeople.find(p => p.id === link.personId);
+                          if (!person) {
+                            // Fallback om personen inte hittas
+                            return (
+                              <div key={`${link.personId}-${link.eventId}`} className="flex items-center justify-between bg-slate-900 p-2 rounded border border-slate-700 text-xs">
+                                <div><span className="text-slate-200 font-medium block">Okänd person</span></div>
+                              </div>
+                            );
+                          }
+                          
+                          // Extrahera födelse- och dödsdata från events (samma format som MediaManager)
+                          const birthEvent = person.events?.find(e => e.type === 'Födelse');
+                          const deathEvent = person.events?.find(e => e.type === 'Död');
+                          
+                          const birthDate = birthEvent?.date || '';
+                          const birthPlace = birthEvent?.place || '';
+                          const deathDate = deathEvent?.date || '';
+                          const deathPlace = deathEvent?.place || '';
+                          
+                          // Formatera kön (samma format som EditPersonModal)
+                          const sex = person.gender || person.sex || 'U';
+                          const sexLabel = sex === 'M' || sex === 'Man' ? 'M' : sex === 'K' || sex === 'Kvinna' || sex === 'F' ? 'F' : 'U';
+                          
+                          // Hämta profilbild (samma logik som MediaManager)
+                          const profileImage = person.media && person.media.length > 0 ? person.media[0].url : null;
+                          
+                          return (
+                            <div 
+                              key={`${link.personId}-${link.eventId}`} 
+                              className="flex items-start gap-2 bg-slate-900 p-2 rounded border border-slate-700 text-xs cursor-pointer hover:bg-slate-800 transition-colors"
+                              onClick={() => {
+                                if (onOpenEditModal) {
+                                  onOpenEditModal(link.personId);
+                                }
+                              }}
+                            >
+                              {/* Rund thumbnail (samma som MediaManager) */}
+                              <div className="w-10 h-10 rounded-full bg-slate-600 flex-shrink-0 overflow-hidden border-2 border-slate-500">
+                                {profileImage ? (
+                                  <img 
+                                    src={profileImage} 
+                                    alt={`${person.firstName} ${person.lastName}`} 
+                                    className="w-full h-full object-cover" 
+                                  />
+                                ) : (
+                                  <User className="w-full h-full p-2 text-slate-400" />
+                                )}
+                              </div>
+                              
+                              {/* Personinfo */}
+                              <div className="flex-1 min-w-0">
+                                {/* Namn */}
+                                <div className="text-slate-200 font-medium mb-0.5">
+                                  {person.firstName} {person.lastName}
+                                </div>
+                                
+                                {/* Eventtyp och datum */}
+                                <div className="text-[10px] text-slate-500 mb-0.5">
+                                  {link.eventType}
+                                  {link.eventDate && ` (${link.eventDate})`}
+                                </div>
+                                
+                                {/* Födelsedatum och plats */}
+                                {(birthDate || birthPlace) && (
+                                  <div className="text-[10px] text-slate-400 mb-0.5">
+                                    * {birthDate || '????-??-??'} {birthPlace && ` ${birthPlace}`} ({sexLabel})
+                                  </div>
+                                )}
+                                
+                                {/* Dödsdatum och plats */}
+                                {(deathDate || deathPlace) && (
+                                  <div className="text-[10px] text-slate-400">
+                                    + {deathDate || '????-??-??'} {deathPlace && ` ${deathPlace}`} ({sexLabel})
+                                  </div>
+                                )}
+                                
+                                {/* Om inga datum finns */}
+                                {!birthDate && !deathDate && (
+                                  <div className="text-[10px] text-slate-500 italic">
+                                    Inga datum registrerade
+                                  </div>
+                                )}
                               </div>
                             </div>
-                          </div>
-                        ))
+                          );
+                        })
                       ) : (
                         <div className="p-4 text-sm text-slate-400 italic">
                           Inga personer kopplade till denna plats.

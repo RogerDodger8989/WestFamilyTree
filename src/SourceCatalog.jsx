@@ -3,7 +3,8 @@ import { useApp } from './AppContext';
 import ImageGallery from './ImageGallery.jsx';
 import Editor from './MaybeEditor.jsx';
 import Button from './Button.jsx';
-import TagInput from './TagInput.jsx'; 
+import TagInput from './TagInput.jsx';
+import { User } from 'lucide-react'; 
 
 // --- HJÄLPFUNKTIONER (Oförändrad) ---
 
@@ -570,7 +571,7 @@ export default function SourceCatalog({
             <div className="flex-1 overflow-y-auto p-6">
                 
                 {activeRightTab === 'info' && (
-                    <div className="max-w-4xl mx-auto">
+                    <div>
                         {/* ... (Källdetaljer oförändrade) ... */}
                         <div className="grid grid-cols-2 gap-4 mb-4">
                             <div><label className="block text-xs font-bold text-slate-300 uppercase">Arkiv (Top)</label><input className="w-full border border-slate-600 rounded px-2 py-1 bg-slate-900 text-slate-200 focus:border-blue-500 focus:outline-none" value={selectedSource.archiveTop || ''} onChange={e => handleSave({ archiveTop: e.target.value })} /></div>
@@ -682,6 +683,19 @@ export default function SourceCatalog({
                                 {linkedData.map((item, index) => (
                                     <div key={index} className="bg-slate-900 border border-slate-700 rounded-md overflow-hidden">
                                         <div className="flex items-center p-3 bg-slate-800 border-b border-slate-700 hover:bg-slate-700 transition-colors">
+                                            {/* Rund thumbnail till vänster */}
+                                            <div className="w-10 h-10 rounded-full bg-slate-600 flex-shrink-0 overflow-hidden border-2 border-slate-500 mr-3">
+                                                {item.person.media && item.person.media.length > 0 ? (
+                                                    <img 
+                                                        src={item.person.media[0].url} 
+                                                        alt={`${item.person.firstName} ${item.person.lastName}`} 
+                                                        className="w-full h-full object-cover" 
+                                                    />
+                                                ) : (
+                                                    <User className="w-full h-full p-2 text-slate-400" />
+                                                )}
+                                            </div>
+                                            
                                             {item.isLinkedToImageRegion && (
                                                 <span className="text-green-600 mr-2" title="Personen är taggad i en bild från denna källa">🖼️</span>
                                             )}
