@@ -460,6 +460,44 @@ function App() {
     }
   };
 
+  // Öppna källkatalogen som modal med en specifik källa vald (för MediaManager)
+  const handleOpenSourceInModal = (sourceId) => {
+    const source = dbData.sources.find(s => s.id === sourceId);
+    if (source) {
+      setSourceCatalogState(prev => ({ ...prev, selectedSourceId: sourceId, searchTerm: source.title || source.id, expanded: {} }));
+      if (!isSourceDrawerOpen) {
+        if (typeof setIsSourceDrawerOpen === 'function') {
+          setIsSourceDrawerOpen(true);
+        } else {
+          handleToggleSourceDrawer();
+        }
+      }
+    }
+  };
+
+  // Öppna platsregistret som modal med en specifik plats vald (för MediaManager)
+  const handleOpenPlaceInModal = (placeId) => {
+    console.log('[App.jsx] handleOpenPlaceInModal anropad med placeId:', placeId);
+    // Hitta platsen i dbData.places eller använd placeId direkt
+    const place = dbData.places?.find(p => p.id === placeId);
+    const placeName = place?.name || placeId;
+    
+    console.log('[App.jsx] Hittade plats:', place, 'placeName:', placeName);
+    
+    // Sätt selectedPlaceId i state
+    setPlaceCatalogState(prev => ({ ...prev, selectedPlaceId: placeId, searchTerm: placeName, expanded: {} }));
+    
+    // Öppna modalen - använd handleTogglePlaceDrawer
+    // Om modalen redan är öppen med samma plats, gör ingenting (den är redan öppen)
+    // Om modalen inte är öppen, eller om en annan plats är vald, öppna den
+    if (!isPlaceDrawerOpen || placeCatalogState.selectedPlaceId !== placeId) {
+      console.log('[App.jsx] Öppnar platsmodal med handleTogglePlaceDrawer');
+      handleTogglePlaceDrawer(placeId);
+    } else {
+      console.log('[App.jsx] Modalen är redan öppen med samma plats');
+    }
+  };
+
   const openPersonDrawer = (person, opts) => {
     const id = person && typeof person === 'object' ? person.id : person;
     setPersonDrawerId(id || null);
@@ -926,8 +964,11 @@ function App() {
           {activeTab === 'audit' && ( <AuditPanel /> )}
           {activeTab === 'media' && ( 
             <MediaManager 
-              allPeople={visiblePeople} 
+              allPeople={visiblePeople}
+              allSources={dbData.sources || []}
               onOpenEditModal={handleOpenEditModal}
+              onNavigateToSource={handleOpenSourceInModal}
+              onNavigateToPlace={handleOpenPlaceInModal}
               mediaItems={dbData.media || []}
               onUpdateMedia={(updatedMedia) => {
                 const mediaMedKopplingar = updatedMedia.filter(m => {

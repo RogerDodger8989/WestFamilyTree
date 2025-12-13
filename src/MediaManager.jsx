@@ -33,6 +33,7 @@ import {
   Download, Upload, RefreshCw, Database, Info, Trash, FolderOpen,
   ArrowUpDown, Filter, SlidersHorizontal
 } from 'lucide-react';
+import Button from './Button.jsx';
 
 const SYSTEM_LIBRARIES = [
   { id: 'all', label: 'Alla bilder', icon: Layers, type: 'system', path: '' },
@@ -636,7 +637,31 @@ const LibraryButton = ({ lib, isActive, onClick, onDrop, onDelete }) => {
     );
 };
 
-export function MediaManager({ allPeople = [], onOpenEditModal = () => {}, mediaItems: initialMedia = [], onUpdateMedia = () => {}, setIsSourceDrawerOpen = () => {}, setIsPlaceDrawerOpen = () => {}, onSelectMedia = null, selectedMediaIds = [] }) {
+// Översätt plats-typer till svenska
+const translatePlaceType = (type) => {
+  if (!type) return '';
+  const typeMap = {
+    'Country': 'Land',
+    'Landscape': 'Landskap',
+    'County': 'Län',
+    'Municipality': 'Kommun',
+    'Parish': 'Församling/socken',
+    'Village': 'By/Ort',
+    'Building': 'Byggnad',
+    'Cemetary': 'Kyrkogård',
+    'village': 'By/Ort',
+    'parish': 'Församling/socken',
+    'municipality': 'Kommun',
+    'county': 'Län',
+    'country': 'Land',
+    'building': 'Byggnad',
+    'cemetary': 'Kyrkogård',
+    'default': 'Plats'
+  };
+  return typeMap[type] || type;
+};
+
+export function MediaManager({ allPeople = [], allSources = [], onOpenEditModal = () => {}, onNavigateToSource = () => {}, onNavigateToPlace = () => {}, mediaItems: initialMedia = [], onUpdateMedia = () => {}, setIsSourceDrawerOpen = () => {}, setIsPlaceDrawerOpen = () => {}, onSelectMedia = null, selectedMediaIds = [] }) {
   const { showUndoToast, showStatus } = useApp();
 
   // UI State
@@ -715,11 +740,8 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {}, media
   }, [initialMedia]);
   
   
-  // Get all available sources and places (after mediaItems is defined)
-  const allSources = mediaItems
-    .flatMap(m => m.connections.sources || [])
-    .filter((s, i, arr) => arr.findIndex(x => x.id === s.id) === i); // Unique by id
-  
+  // Get all available places (after mediaItems is defined)
+  // Note: allSources now comes from props, not extracted from mediaItems
   const allPlaces = mediaItems
     .flatMap(m => m.connections.places || [])
     .filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i); // Unique by id
@@ -2848,14 +2870,100 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                         
                         return people.map((p, idx) => {
                           const personId = typeof p === 'object' ? p.id : p;
-                          const personName = typeof p === 'object' ? p.name : p;
-                          const personDates = typeof p === 'object' ? p.dates : '';
+                          
+                          // Hitta personobjektet från allPeople för att få full information
+                          const person = allPeople.find(pp => pp.id === personId);
+                          
+                          if (!person) {
+                            // Fallback om personen inte hittas
+                            const personName = typeof p === 'object' ? p.name : p;
+                            return (
+                              <div key={personId || idx} className="flex items-center justify-between bg-slate-900 p-2 rounded border border-slate-700 text-xs">
+                                <div><span className="text-slate-200 font-medium block">{personName}</span></div>
+                                <button className="text-slate-500 hover:text-red-400"><X size={12}/></button>
+                              </div>
+                            );
+                          }
+                          
+                          // Extrahera födelse- och dödsdata från events (samma format som EditPersonModal)
+                          const birthEvent = person.events?.find(e => e.type === 'Födelse');
+                          const deathEvent = person.events?.find(e => e.type === 'Död');
+                          
+                          const birthDate = birthEvent?.date || '';
+                          const birthPlace = birthEvent?.place || '';
+                          const deathDate = deathEvent?.date || '';
+                          const deathPlace = deathEvent?.place || '';
+                          
+                          // Formatera kön (samma format som EditPersonModal)
+                          const sex = person.sex || 'U';
+                          const sexLabel = sex === 'M' ? 'M' : sex === 'K' ? 'F' : 'U';
+                          
+                          // Hämta profilbild (samma logik som EditPersonModal)
+                          const profileImage = person.media && person.media.length > 0 ? person.media[0].url : null;
                           
                           return (
-                            <div key={personId || idx} className="flex items-center justify-between bg-slate-900 p-2 rounded border border-slate-700 text-xs">
-                                <div><span className="text-slate-200 font-medium block">{personName}</span><span className="text-[10px] text-slate-500">{personDates}</span></div>
-                              <button className="text-slate-500 hover:text-red-400"><X size={12}/></button>
-                          </div>
+                            <div 
+                              key={personId || idx} 
+                              className="flex items-start gap-2 bg-slate-900 p-2 rounded border border-slate-700 text-xs cursor-pointer hover:bg-slate-800 transition-colors"
+                              onClick={() => {
+                                if (onOpenEditModal) {
+                                  onOpenEditModal(personId);
+                                }
+                              }}
+                            >
+                              {/* Rund thumbnail (samma som EditPersonModal) */}
+                              <div className="w-10 h-10 rounded-full bg-slate-600 flex-shrink-0 overflow-hidden border-2 border-slate-500">
+                                {profileImage ? (
+                                  <img 
+                                    src={profileImage} 
+                                    alt={`${person.firstName} ${person.lastName}`} 
+                                    className="w-full h-full object-cover" 
+                                  />
+                                ) : (
+                                  <User className="w-full h-full p-2 text-slate-400" />
+                                )}
+                              </div>
+                              
+                              {/* Personinfo */}
+                              <div className="flex-1 min-w-0">
+                                {/* Namn */}
+                                <div className="text-slate-200 font-medium mb-0.5">
+                                  {person.firstName} {person.lastName}
+                                </div>
+                                
+                                {/* Födelsedatum och plats */}
+                                {(birthDate || birthPlace) && (
+                                  <div className="text-[10px] text-slate-400 mb-0.5">
+                                    * {birthDate || '????-??-??'} {birthPlace && ` ${birthPlace}`} ({sexLabel})
+                                  </div>
+                                )}
+                                
+                                {/* Dödsdatum och plats */}
+                                {(deathDate || deathPlace) && (
+                                  <div className="text-[10px] text-slate-400">
+                                    + {deathDate || '????-??-??'} {deathPlace && ` ${deathPlace}`} ({sexLabel})
+                                  </div>
+                                )}
+                                
+                                {/* Om inga datum finns */}
+                                {!birthDate && !deathDate && (
+                                  <div className="text-[10px] text-slate-500 italic">
+                                    Inga datum registrerade
+                                  </div>
+                                )}
+                              </div>
+                              
+                              <button 
+                                className="text-slate-500 hover:text-red-400 ml-2 flex-shrink-0"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  // TODO: Ta bort koppling
+                                }}
+                                title="Ta bort koppling"
+                              >
+                                <X size={12}/>
+                              </button>
+                            </div>
                           );
                         });
                       })()}
@@ -2876,15 +2984,131 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                           <label className="text-[10px] font-bold text-slate-400">Källor</label>
                       </div>
                       {Array.isArray(safeDisplayImage?.connections?.sources) && safeDisplayImage.connections.sources.length > 0 ? (
-                        safeDisplayImage.connections.sources.map((s, idx) => (
-                          <div key={s.id || idx} className="flex items-center justify-between bg-slate-900 p-2 rounded border border-slate-700 text-xs">
-                              <div>
-                                  <span className="text-slate-200 font-medium block">{s.name || s.title || 'Ingen titel'}</span>
-                                  <span className="text-[10px] text-slate-500">{s.ref || s.reference || 'Ingen ref'}</span>
+                        safeDisplayImage.connections.sources.map((s, idx) => {
+                          // Hitta källobjektet från allSources
+                          const sourceId = typeof s === 'object' ? s.id : s;
+                          const source = allSources.find(src => src.id === sourceId);
+                          
+                          if (!source) {
+                            // Fallback om källan inte hittas
+                            return (
+                              <div key={sourceId || idx} className="flex items-center justify-between bg-slate-900 p-2 rounded border border-slate-700 text-xs">
+                                <div>
+                                  <span className="text-slate-200 font-medium block">{typeof s === 'object' ? (s.name || s.title) : s}</span>
+                                </div>
+                                <button className="text-slate-500 hover:text-red-400"><X size={12}/></button>
                               </div>
-                              <button className="text-slate-500 hover:text-red-400"><X size={12}/></button>
-                          </div>
-                        ))
+                            );
+                          }
+                          
+                          // Bygg hierarki-titel (samma format som källträdet)
+                          // Format: "Löderup (L, M) AI:6 (182-1826)"
+                          const title = source.title || 'Okänd Titel';
+                          const volume = source.volume || '';
+                          const date = source.date ? ` (${source.date})` : '';
+                          const hierarchyTitle = volume ? `${title} ${volume}${date}` : `${title}${date}`;
+                          
+                          // Bygg bild/sida-label (samma logik som SourceCatalog)
+                          const pageParts = [];
+                          if (source.imagePage) {
+                            const isJustNumbers = /^\d+$/.test(source.imagePage);
+                            pageParts.push(isJustNumbers ? `Bild ${source.imagePage}` : source.imagePage);
+                          }
+                          if (source.page) {
+                            const isJustNumbers = /^\d+$/.test(source.page);
+                            pageParts.push(isJustNumbers ? `sid ${source.page}` : source.page);
+                          }
+                          const pageLabel = pageParts.length > 0 ? pageParts.join(' / ') : '';
+                          
+                          return (
+                            <div key={sourceId || idx} className="bg-slate-900 p-2 rounded border border-slate-700 text-xs">
+                              {/* Hierarki-titel (klickbar för att öppna i källträdet) */}
+                              <div 
+                                className="text-slate-200 font-medium mb-1 cursor-pointer hover:text-blue-400 transition-colors"
+                                onClick={() => {
+                                  if (onNavigateToSource) {
+                                    onNavigateToSource(sourceId);
+                                  }
+                                }}
+                                title="Klicka för att öppna i källträdet"
+                              >
+                                {hierarchyTitle}
+                              </div>
+                              
+                              {/* Bild / Sid med AD RA NAD-knappar på samma rad */}
+                              <div className="flex items-center gap-2 mb-1.5">
+                                {pageLabel && (
+                                  <div className="text-[10px] text-slate-400">
+                                    {pageLabel}
+                                  </div>
+                                )}
+                                
+                                {/* AD RA NAD-knappar (samma som SourceCatalog) */}
+                                <div className="flex gap-1 items-center">
+                                <Button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (source.aid) {
+                                      window.open(`http://www.arkivdigital.se/aid/show/${source.aid}`, '_blank');
+                                    }
+                                  }}
+                                  variant={source.aid ? "success" : "ghost"}
+                                  size="xs"
+                                  title={source.aid ? `Öppna AID: ${source.aid}` : "Ingen AID"}
+                                  className={source.aid ? "" : "opacity-50 border border-slate-600"}
+                                  disabled={!source.aid}
+                                >
+                                  AD
+                                </Button>
+                                <Button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (source.bildid) {
+                                      window.open(`https://sok.riksarkivet.se/bildvisning/${source.bildid}`, '_blank');
+                                    }
+                                  }}
+                                  variant={source.bildid ? "success" : "ghost"}
+                                  size="xs"
+                                  title={source.bildid ? `Öppna RA: ${source.bildid}` : "Ingen RA-länk"}
+                                  className={source.bildid ? "" : "opacity-50 border border-slate-600"}
+                                  disabled={!source.bildid}
+                                >
+                                  RA
+                                </Button>
+                                <Button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (source.nad) {
+                                      window.open(`https://sok.riksarkivet.se/?postid=ArkisRef%20${source.nad}`, '_blank');
+                                    }
+                                  }}
+                                  variant={source.nad ? "success" : "ghost"}
+                                  size="xs"
+                                  title={source.nad ? `Öppna NAD: ${source.nad}` : "Ingen NAD-länk"}
+                                  className={source.nad ? "" : "opacity-50 border border-slate-600"}
+                                  disabled={!source.nad}
+                                >
+                                  NAD
+                                </Button>
+                                </div>
+                              </div>
+                              
+                              {/* Ta bort-knapp */}
+                              <div className="flex justify-end">
+                                <button 
+                                  className="text-slate-500 hover:text-red-400"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    // TODO: Ta bort koppling
+                                  }}
+                                  title="Ta bort koppling"
+                                >
+                                  <X size={12}/>
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })
                       ) : (
                         <div className="text-xs text-slate-500 italic py-2">Inga källor kopplade</div>
                       )}
@@ -2902,25 +3126,53 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                       </div>
                       {Array.isArray(safeDisplayImage?.connections?.places) && safeDisplayImage.connections.places.length > 0 ? (
                         safeDisplayImage.connections.places.map(p => (
-                          <div key={p.id} className="flex items-center justify-between bg-slate-900 p-2 rounded border border-slate-700 text-xs">
-                              <div><span className="text-slate-200 font-medium block">{p.name}</span><span className="text-[10px] text-slate-500">{p.type}</span></div>
-                              <button 
-                                onClick={() => {
-                                  updateMedia(prev => prev.map(item => {
-                                    if (item.id !== safeDisplayImage?.id) return item;
-                                    return {
-                                      ...item,
-                                      connections: {
-                                        ...item.connections,
-                                        places: item.connections.places.filter(place => place.id !== p.id)
-                                      }
-                                    };
-                                  }));
+                          <div key={p.id} className="bg-slate-900 p-2 rounded border border-slate-700 text-xs">
+                              {/* Platsnamn (klickbar för att öppna i platsregistret) */}
+                              <div 
+                                className="text-slate-200 font-medium mb-1 cursor-pointer hover:text-blue-400 transition-colors"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  console.log('[MediaManager] Klickade på plats:', p.id, p.name, 'onNavigateToPlace:', typeof onNavigateToPlace);
+                                  if (onNavigateToPlace && p.id) {
+                                    onNavigateToPlace(p.id);
+                                  } else {
+                                    console.warn('[MediaManager] onNavigateToPlace saknas eller p.id saknas');
+                                  }
                                 }}
-                                className="text-slate-500 hover:text-red-400"
+                                title="Klicka för att öppna i platsregistret"
                               >
-                                <X size={12}/>
-                              </button>
+                                {p.name}
+                              </div>
+                              
+                              {/* Plats-typ (på svenska) */}
+                              {p.type && (
+                                <div className="text-[10px] text-slate-400 mb-1">
+                                  {translatePlaceType(p.type)}
+                                </div>
+                              )}
+                              
+                              {/* Ta bort-knapp */}
+                              <div className="flex justify-end">
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    updateMedia(prev => prev.map(item => {
+                                      if (item.id !== safeDisplayImage?.id) return item;
+                                      return {
+                                        ...item,
+                                        connections: {
+                                          ...item.connections,
+                                          places: item.connections.places.filter(place => place.id !== p.id)
+                                        }
+                                      };
+                                    }));
+                                  }}
+                                  className="text-slate-500 hover:text-red-400"
+                                  title="Ta bort koppling"
+                                >
+                                  <X size={12}/>
+                                </button>
+                              </div>
                           </div>
                         ))
                       ) : (

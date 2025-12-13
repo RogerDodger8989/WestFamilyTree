@@ -101,6 +101,7 @@ const TreeNode = ({
   return (
     <div>
       <div 
+        data-place-id={node.id}
         className={`flex items-center py-1 px-2 cursor-pointer select-none hover:bg-slate-700 transition-colors ${
           isSelected ? 'bg-blue-600 border-l-4 border-blue-400' : ''
         }`}
@@ -626,6 +627,63 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
       }
     }
   }, [searchTerm, tree]);
+
+  // Hitta en nod i trädet rekursivt
+  const findNodeById = (nodes, targetId, parentIds = []) => {
+    for (const node of nodes) {
+      if (node.id === targetId || node.metadata?.id === targetId) {
+        return { node, parentIds };
+      }
+      if (node.children && node.children.length > 0) {
+        const result = findNodeById(node.children, targetId, [...parentIds, node.id]);
+        if (result) return result;
+      }
+    }
+    return null;
+  };
+
+  // Auto-välj och expandera plats när selectedPlaceId sätts från props
+  useEffect(() => {
+    const selectedPlaceId = catalogState?.selectedPlaceId;
+    if (!selectedPlaceId || !tree.length || loading) return;
+
+    const result = findNodeById(tree, selectedPlaceId);
+    if (result) {
+      const { node, parentIds } = result;
+      
+      // Expanderar alla föräldranoder så att noden är synlig
+      const newExpanded = new Set(expandedNodes);
+      let hasChanges = false;
+      parentIds.forEach(id => {
+        if (!newExpanded.has(id)) {
+          newExpanded.add(id);
+          hasChanges = true;
+        }
+      });
+      if (hasChanges) {
+        setExpandedNodes(newExpanded);
+      }
+      
+      // Sätt selectedNode
+      setSelectedNode(node);
+      
+      // Scrolla till noden efter en kort delay (för att vänta på att DOM uppdateras)
+      setTimeout(() => {
+        const element = document.querySelector(`[data-place-id="${node.id}"]`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Markera temporärt
+          element.style.backgroundColor = '#fef08a';
+          setTimeout(() => {
+            if (element) {
+              element.style.transition = 'background-color 1s';
+              element.style.backgroundColor = '';
+            }
+          }, 1000);
+        }
+      }, 100);
+    }
+  }, [catalogState?.selectedPlaceId, tree, loading]);
 
   // Expandera nod
   const toggleExpand = (id) => {
