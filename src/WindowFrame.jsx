@@ -217,7 +217,7 @@ export function WindowFrame({ windowId, children, title, icon: Icon = Layers, in
                 <>
                     <div className="flex-1 overflow-hidden">
                         {/* children klonas för att injicera setDynamicFooter funktionen */}
-                        {React.isValidElement(children) 
+                        {React.isValidElement(children) && typeof children.type === 'function'
                             ? React.cloneElement(children, { setDynamicFooter: setDynamicFooter })
                             : children
                         }

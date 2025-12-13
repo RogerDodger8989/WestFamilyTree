@@ -86,11 +86,28 @@ ipcMain.handle('save-database', async (event, fileHandle, data) => {
         value TEXT
       )`, err => err ? reject(err) : resolve());
     });
+    await new Promise((resolve, reject) => {
+      db.run(`CREATE TABLE IF NOT EXISTS media (
+        id TEXT PRIMARY KEY,
+        url TEXT,
+        name TEXT,
+        date TEXT,
+        description TEXT,
+        tags TEXT,
+        connections TEXT,
+        faces TEXT,
+        libraryId TEXT,
+        filePath TEXT,
+        fileSize INTEGER,
+        note TEXT
+      )`, err => err ? reject(err) : resolve());
+    });
     // Clear tables before insert (simple overwrite)
     await new Promise((resolve, reject) => db.run('DELETE FROM people', err => err ? reject(err) : resolve()));
     await new Promise((resolve, reject) => db.run('DELETE FROM sources', err => err ? reject(err) : resolve()));
     await new Promise((resolve, reject) => db.run('DELETE FROM places', err => err ? reject(err) : resolve()));
     await new Promise((resolve, reject) => db.run('DELETE FROM meta', err => err ? reject(err) : resolve()));
+    await new Promise((resolve, reject) => db.run('DELETE FROM media', err => err ? reject(err) : resolve()));
     // Insert people
     for (const p of data.people || []) {
       await new Promise((resolve, reject) => {
@@ -127,6 +144,28 @@ ipcMain.handle('save-database', async (event, fileHandle, data) => {
         );
       });
     }
+    // Insert media
+    for (const m of data.media || []) {
+      await new Promise((resolve, reject) => {
+        db.run(`INSERT INTO media (id, url, name, date, description, tags, connections, faces, libraryId, filePath, fileSize, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            m.id || '',
+            m.url || '',
+            m.name || '',
+            m.date || '',
+            m.description || '',
+            JSON.stringify(m.tags || []),
+            JSON.stringify(m.connections || {}),
+            JSON.stringify(m.faces || m.regions || []),
+            m.libraryId || '',
+            m.filePath || '',
+            m.fileSize || 0,
+            m.note || ''
+          ],
+          err => err ? reject(err) : resolve()
+        );
+      });
+    }
     db.close();
     return { success: true, dbPath };
   } catch (err) {
@@ -154,59 +193,6 @@ ipcMain.handle('open-database', async (event, filePath) => {
     settings.lastOpenedFile = filePath;
     saveSettings(settings);
   }
-  // IPC handler for opening a SQLite .db file and reading all people
-  ipcMain.handle('open-database', async (event, filePath) => {
-    // Spara senaste öppnade fil
-    if (filePath) {
-      const settings = loadSettings();
-      settings.lastOpenedFile = filePath;
-      saveSettings(settings);
-    }
-    const sqlite3 = require('sqlite3').verbose();
-    let dbPath = filePath;
-    if (!dbPath) return { error: 'Ingen fil angiven' };
-    try {
-      const db = new sqlite3.Database(dbPath);
-      // Helper to read a table and parse JSON columns
-      function readTable(table, jsonCols = []) {
-        return new Promise((resolve, reject) => {
-          db.all(`SELECT * FROM ${table}`, (err, rows) => {
-            if (err) return resolve([]); // tom array om tabellen saknas
-            resolve(rows.map(row => {
-              const parsed = { ...row };
-              for (const col of jsonCols) {
-                if (parsed[col]) {
-                  try { parsed[col] = JSON.parse(parsed[col]); } catch (e) { parsed[col] = null; }
-                }
-              }
-              return parsed;
-            }));
-          });
-        });
-      }
-      const people = await readTable('people', ['events', 'links', 'relations']);
-      const sources = await readTable('sources');
-      const places = await readTable('places');
-      // Meta-data: försök läsa tabellen 'meta', annars tomt objekt
-      const metaRows = await readTable('meta');
-      let meta = {};
-      if (metaRows.length > 0) {
-        // Om meta-tabellen har en 'key' och 'value' kolumn, bygg objekt
-        if ('key' in metaRows[0] && 'value' in metaRows[0]) {
-          meta = {};
-          for (const row of metaRows) {
-            meta[row.key] = row.value;
-          }
-        } else {
-          meta = metaRows[0];
-        }
-      }
-      db.close();
-      return { people, sources, places, meta, dbPath };
-    } catch (err) {
-      return { error: err.message, dbPath };
-    }
-  });
   const sqlite3 = require('sqlite3').verbose();
   let dbPath = filePath;
   if (!dbPath) return { error: 'Ingen fil angiven' };
@@ -246,12 +232,185 @@ ipcMain.handle('open-database', async (event, filePath) => {
         meta = metaRows[0];
       }
     }
+    
+    // Läs media från databasen
+    const mediaRows = await readTable('media', ['tags', 'connections', 'faces']);
+    let mediaFromDb = [];
+    if (mediaRows.length > 0) {
+      mediaFromDb = mediaRows.map(row => ({
+        id: row.id,
+        url: row.url,
+        name: row.name,
+        date: row.date,
+        description: row.description || '',
+        tags: row.tags || [],
+        connections: row.connections || { people: [], places: [], sources: [] },
+        faces: row.faces || [],
+        regions: row.faces || [], // Alias för kompatibilitet
+        libraryId: row.libraryId || 'temp',
+        filePath: row.filePath || '',
+        fileSize: row.fileSize || 0,
+        note: row.note || ''
+      }));
+    }
+    
     db.close();
-    return { people, sources, places, meta, dbPath };
+    
+    // Skanna media-mappen och merga med media från databasen
+    let media = [];
+    try {
+      const mediaResult = await scanMediaFolder();
+      if (mediaResult && mediaResult.success) {
+        const mediaFromFiles = mediaResult.media || [];
+        
+        // Skapa en map av media från databasen (keyed by filePath eller url)
+        const dbMediaMap = new Map();
+        mediaFromDb.forEach(m => {
+          const key = m.filePath || m.url || m.id;
+          dbMediaMap.set(key, m);
+        });
+        
+        // Merga: använd metadata från databasen om den finns, annars från filsystemet
+        media = mediaFromFiles.map(fileMedia => {
+          const key = fileMedia.filePath || fileMedia.url || fileMedia.id;
+          const dbMedia = dbMediaMap.get(key);
+          
+          if (dbMedia) {
+            // Merga: använd metadata från databasen, men behåll filsystemets URL/filePath
+            return {
+              ...dbMedia,
+              url: fileMedia.url, // Använd filsystemets URL (kan ha ändrats)
+              filePath: fileMedia.filePath, // Använd filsystemets filePath
+              fileSize: fileMedia.fileSize // Uppdatera filstorlek från filsystemet
+            };
+          } else {
+            // Ny bild från filsystemet som inte finns i databasen
+            return fileMedia;
+          }
+        });
+        
+        // Lägg till media från databasen som inte finns i filsystemet (kan ha flyttats/borttagits)
+        mediaFromDb.forEach(dbMedia => {
+          const key = dbMedia.filePath || dbMedia.url || dbMedia.id;
+          const existsInFiles = mediaFromFiles.some(fm => 
+            (fm.filePath || fm.url || fm.id) === key
+          );
+          if (!existsInFiles) {
+            // Media finns i databasen men inte i filsystemet - behåll den ändå
+            media.push(dbMedia);
+          }
+        });
+        
+        console.log(`[open-database] Mergade ${media.length} bilder (${mediaFromDb.length} från databas, ${mediaFromFiles.length} från filsystem)`);
+      } else {
+        // Om skanning misslyckades, använd bara media från databasen
+        media = mediaFromDb;
+        console.log(`[open-database] Använder ${media.length} bilder från databasen (filskanning misslyckades)`);
+      }
+    } catch (mediaErr) {
+      console.error('[open-database] Error scanning media folder:', mediaErr);
+      // Fallback: använd bara media från databasen
+      media = mediaFromDb;
+    }
+    
+    return { people, sources, places, meta, media, dbPath };
   } catch (err) {
     return { error: err.message, dbPath };
   }
 });
+
+// Hjälpfunktion för att skanna media-mappen
+async function scanMediaFolder() {
+  const path = require('path');
+  const fs = require('fs');
+  const IMAGE_ROOT = path.join(__dirname, '..', 'media');
+  
+  try {
+    const mediaItems = [];
+    
+    // Hjälpfunktion för att rekursivt skanna en mapp
+    const scanDirectory = async (dir, relativePath = '') => {
+      try {
+        const entries = await fs.promises.readdir(dir, { withFileTypes: true });
+        
+        for (const entry of entries) {
+          const fullPath = path.join(dir, entry.name);
+          const relPath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
+          
+          if (entry.isDirectory()) {
+            // Rekursivt skanna undermappar
+            await scanDirectory(fullPath, relPath);
+          } else if (entry.isFile()) {
+            // Kontrollera om det är en bildfil
+            const ext = path.extname(entry.name).toLowerCase();
+            const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.webp'];
+            
+            if (imageExtensions.includes(ext)) {
+              const stats = await fs.promises.stat(fullPath);
+              const fileName = entry.name;
+              
+              // Bestäm libraryId baserat på mapp
+              let libraryId = 'temp';
+              if (relPath.startsWith('persons/')) {
+                libraryId = 'persons';
+              } else if (relPath.startsWith('sources/')) {
+                libraryId = 'sources';
+              } else if (relPath.startsWith('places/')) {
+                libraryId = 'places';
+              } else if (relPath.startsWith('custom/')) {
+                // För custom-mappar, extrahera mappnamnet
+                const customMatch = relPath.match(/^custom\/([^\/]+)\//);
+                if (customMatch) {
+                  libraryId = `custom_${customMatch[1]}`;
+                }
+              }
+              
+              // Skapa stabilt ID baserat på filnamn och sökväg (hash av relPath)
+              const crypto = require('crypto');
+              const pathHash = crypto.createHash('md5').update(relPath).digest('hex').slice(0, 12);
+              const stableId = `img_${pathHash}`;
+              
+              // Skapa media-item
+              const mediaItem = {
+                id: stableId,
+                url: `media://${encodeURIComponent(relPath)}`,
+                name: fileName,
+                date: stats.mtime.toISOString().split('T')[0], // Använd ändringsdatum som standard
+                description: '',
+                tags: [],
+                connections: {
+                  people: [],
+                  places: [],
+                  sources: []
+                },
+                faces: [],
+                libraryId: libraryId,
+                filePath: relPath,
+                fileSize: stats.size,
+                note: ''
+              };
+              
+              mediaItems.push(mediaItem);
+            }
+          }
+        }
+      } catch (err) {
+        console.error(`[scanMediaFolder] Error scanning ${dir}:`, err);
+      }
+    };
+    
+    // Skanna media-mappen rekursivt
+    if (fs.existsSync(IMAGE_ROOT)) {
+      await scanDirectory(IMAGE_ROOT);
+    }
+    
+    console.log(`[scanMediaFolder] Hittade ${mediaItems.length} bilder i media-mappen`);
+    return { success: true, media: mediaItems };
+  } catch (error) {
+    console.error('[scanMediaFolder] Error:', error);
+    return { success: false, error: error.message, media: [] };
+  }
+}
 const path = require('path');
 const fs = require('fs');
 

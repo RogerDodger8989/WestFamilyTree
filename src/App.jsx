@@ -149,6 +149,10 @@ function App() {
       setRelationshipCatalogState({});
       setIsRelationshipDrawerOpen(false);
     };
+
+  // Guard: prevent multiple dialogs (useRef for true sync) - MÅSTE vara före useApp() för konsistent hook-ordning
+  const openDialogActiveRef = useRef(false);
+
   const {
     dbData, setDbData, fileHandle, isDirty, setIsDirty, newFirstName, setNewFirstName, newLastName, setNewLastName,
     showSettings, setShowSettings, editingPerson, activeTab, focusPair, bookmarks,
@@ -177,36 +181,26 @@ function App() {
     setCurrentView
   } = useApp();
 
-  // Visa loader om dbData inte är laddad
-  if (!dbData) {
-    if (window.dbInitError) {
-      return <div style={{padding:40, textAlign:'center', color:'red'}}>
-        Kunde inte skapa ny databas:<br/>
-        <pre>{window.dbInitError.message}</pre>
-      </div>;
-    }
-    const isElectronApi = !!(window && window.electronAPI && typeof window.electronAPI.createNewDatabase === 'function');
-    return <div style={{padding:40, textAlign:'center'}}>
-      {!isElectronApi && (
-        <div style={{color:'red',fontWeight:'bold',fontSize:'2rem',marginBottom:24}}>
-          <div>VARNING: Electron-API saknas!</div>
-          <div>Stäng alla webbläsarfönster och använd endast Electron-fönstret.</div>
-          <div>Om felet kvarstår, bygg appen för produktion.</div>
-        </div>
-      )}
-      Laddar databas...
-    </div>;
-  }
-
-  const handleCloseEditModalSafe = () => {
-    handleCloseEditModal();
-  };
-
+  // ALLA HOOKS MÅSTE VARA FÖRE CONDITIONAL RETURN!
   // Helper to detect Electron
   const isElectron = !!(window && window.electronAPI && typeof window.electronAPI.saveFileAs === 'function');
+  
+  const [personDrawerId, setPersonDrawerId] = useState(null);
+  const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
+  const [isMergesPanelOpen, setIsMergesPanelOpen] = useState(false);
+  const [showDuplicateMerge, setShowDuplicateMerge] = useState(false);
+  const [mergeInitialPair, setMergeInitialPair] = useState(null);
+  const [showRelationSettings, setShowRelationSettings] = useState(false);
+  const [personDrawerLocked, setPersonDrawerLocked] = useState(true);
+  const [sourceDrawerLocked, setSourceDrawerLocked] = useState(false);
+  const [placeDrawerLocked, setPlaceDrawerLocked] = useState(false);
+  const [isGedcomImporterOpen, setIsGedcomImporterOpen] = useState(false);
+  const [linkPersonModal, setLinkPersonModal] = useState({ isOpen: false, preSelectedPersonId: null });
+  const [showArchived, setShowArchived] = useState(false);
+  const [auditBackupDir, setAuditBackupDirState] = useState((dbData?.meta && dbData.meta.auditBackupDir) || '');
+  const [newPersonToEditId, setNewPersonToEditId] = useState(null);
+  const [isOAIHarvesterOpen, setIsOAIHarvesterOpen] = useState(false);
 
-  // Guard: prevent multiple dialogs (useRef for true sync)
-  const openDialogActiveRef = useRef(false);
   // Listen for Electron menu actions and trigger save handlers
   React.useEffect(() => {
     if (isElectron && window.electronAPI && window.electronAPI.on) {
@@ -253,51 +247,111 @@ function App() {
         window.removeEventListener('menu-action', handler);
       };
     }
-  }, [handleSaveFile, handleSaveFileAs, isElectron]);
-  
-
-  
-  const [personDrawerId, setPersonDrawerId] = useState(null);
-  const personDrawer = (dbData && dbData.people ? dbData.people : []).find(p => p.id === personDrawerId) || null;
-  const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
-  const [isMergesPanelOpen, setIsMergesPanelOpen] = useState(false);
-  const [showDuplicateMerge, setShowDuplicateMerge] = useState(false);
-  const [mergeInitialPair, setMergeInitialPair] = useState(null);
-  const [showRelationSettings, setShowRelationSettings] = useState(false);
-  
-  const [personDrawerLocked, setPersonDrawerLocked] = useState(true);
-  const [sourceDrawerLocked, setSourceDrawerLocked] = useState(false);
-  const [placeDrawerLocked, setPlaceDrawerLocked] = useState(false);
-  const [isGedcomImporterOpen, setIsGedcomImporterOpen] = useState(false);
-  const [linkPersonModal, setLinkPersonModal] = useState({ isOpen: false, preSelectedPersonId: null });
-  const [showArchived, setShowArchived] = useState(false);
-  const [auditBackupDir, setAuditBackupDirState] = useState((dbData?.meta && dbData.meta.auditBackupDir) || '');
-  const [newPersonToEditId, setNewPersonToEditId] = useState(null);
-  const [isOAIHarvesterOpen, setIsOAIHarvesterOpen] = useState(false); 
+  }, [handleSaveFile, handleSaveFileAs, isElectron, handleNewFile, handleOpenFile]);
 
   useEffect(() => {
     setAuditBackupDirState((dbData?.meta && dbData.meta.auditBackupDir) || '');
   }, [dbData?.meta?.auditBackupDir]);
 
-  const visiblePeople = React.useMemo(() => (dbData.people || []).filter(p => showArchived ? true : !p._archived), [dbData.people, showArchived]);
-
   // Öppna edit-modal när en ny person skapats
   useEffect(() => {
-    if (newPersonToEditId) {
+    if (newPersonToEditId && dbData?.people) {
       const newPerson = dbData.people.find(p => p.id === newPersonToEditId);
       if (newPerson) {
-        handleOpenEditModal(newPerson.id);
+        handleOpenEditModal(newPerson);
         setNewPersonToEditId(null);
       }
     }
-  }, [newPersonToEditId, dbData.people]);
+  }, [newPersonToEditId, dbData?.people, handleOpenEditModal]);
 
+  // Ytterligare hooks som måste vara före conditional return
+  const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, targetPersonId: null });
+  const [personDrawerEditContext, setPersonDrawerEditContext] = useState(null);
+  const creationSnapshotsRef = useRef({});
+
+  // useMemo hooks måste också vara före conditional return
+  const visiblePeople = React.useMemo(() => (dbData?.people || []).filter(p => showArchived ? true : !p._archived), [dbData?.people, showArchived]);
   const alreadyLinkedIds = React.useMemo(() => {
       if (!sourcingEventInfo || !editingPerson) return [];
       const evt = editingPerson.events?.find(e => e.id === sourcingEventInfo.eventId);
       if (!evt || !evt.sources) return [];
       return evt.sources.map(s => typeof s === 'object' ? s.sourceId : s);
   }, [sourcingEventInfo, editingPerson]);
+
+  // personDrawer måste vara före conditional return eftersom den används i useEffect dependencies
+  const personDrawer = (dbData && dbData.people ? dbData.people : []).find(p => p.id === personDrawerId) || null;
+
+  // Escape key handler
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return;
+      if (editingPerson) {
+        handleCloseEditModal();
+      } else if (isSourceDrawerOpen) {
+        handleToggleSourceDrawer();
+      } else if (isPlaceDrawerOpen) {
+        handleTogglePlaceDrawer();
+      } else if (isRelationshipDrawerOpen) {
+        handleToggleRelationshipDrawer();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [editingPerson, isSourceDrawerOpen, isPlaceDrawerOpen, isRelationshipDrawerOpen, handleCloseEditModal, handleToggleSourceDrawer, handleTogglePlaceDrawer, handleToggleRelationshipDrawer]);
+
+  // Click outside modal handler
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.button !== 0) return;
+      if (e.target.closest('.modal-content') || e.target.closest('[role="dialog"]')) return;
+      if (editingPerson) {
+        handleCloseEditModal();
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [editingPerson, handleCloseEditModal]);
+
+  // Place unlink handler (WFT:unlinkPlaceFromEvent)
+  useEffect(() => {
+    const handler = (e) => {
+      const detail = (e && e.detail) || {}; const { placeId, eventId } = detail; if (!placeId || !eventId) return;
+      if (window.__WFT_lastUnlink && window.__WFT_lastUnlink.placeId === placeId && window.__WFT_lastUnlink.eventId === eventId && (Date.now() - window.__WFT_lastUnlink.ts) < 1000) return;
+      let newDbResult = null;
+      setDbData(prev => {
+        const updated = { ...prev, people: (prev.people || []).map(p => ({ ...p, events: (p.events || []).map(ev => (ev.id === eventId && ev.placeId === placeId) ? { ...ev, placeId: null, place: '' } : ev) })) };
+        newDbResult = updated; return updated;
+      });
+      setIsDirty(true); showStatus('Koppling borttagen.'); window.__WFT_lastUnlink = { placeId, eventId, ts: Date.now() };
+      try { if (newDbResult) { if (editingPerson && editingPerson.id) { const updatedPerson = newDbResult.people.find(p => p.id === editingPerson.id); if (updatedPerson) { handleEditFormChange(updatedPerson); } } if (personDrawer && personDrawer.id) { const updatedDrawerPerson = newDbResult.people.find(p => p.id === personDrawer.id); if (updatedDrawerPerson) { handleEditFormChange(updatedDrawerPerson); } } } } catch (err) { }
+    };
+    window.addEventListener('WFT:unlinkPlaceFromEvent', handler); return () => window.removeEventListener('WFT:unlinkPlaceFromEvent', handler);
+  }, [editingPerson, personDrawer, setDbData, setIsDirty, showStatus, handleEditFormChange]);
+
+  // Visa loader om dbData inte är laddad
+  if (!dbData) {
+    if (window.dbInitError) {
+      return <div style={{padding:40, textAlign:'center', color:'red'}}>
+        Kunde inte skapa ny databas:<br/>
+        <pre>{window.dbInitError.message}</pre>
+      </div>;
+    }
+    const isElectronApi = !!(window && window.electronAPI && typeof window.electronAPI.createNewDatabase === 'function');
+    return <div style={{padding:40, textAlign:'center'}}>
+      {!isElectronApi && (
+        <div style={{color:'red',fontWeight:'bold',fontSize:'2rem',marginBottom:24}}>
+          <div>VARNING: Electron-API saknas!</div>
+          <div>Stäng alla webbläsarfönster och använd endast Electron-fönstret.</div>
+          <div>Om felet kvarstår, bygg appen för produktion.</div>
+        </div>
+      )}
+      Laddar databas...
+    </div>;
+  }
+
+  const handleCloseEditModalSafe = () => {
+    handleCloseEditModal();
+  };
 
   const forceCloseSourceModal = () => {
       if (sourcingEventInfo) {
@@ -415,7 +469,6 @@ function App() {
     }
   };
   const closePersonDrawer = () => setPersonDrawerId(null);
-  const creationSnapshotsRef = useRef({});
 
   const cancelPersonCreation = (personId) => {
     const p = dbData.people.find(x => x.id === personId);
@@ -658,36 +711,9 @@ function App() {
     handleCloseEditModalSafe();
   };
 
-  useEffect(() => {
-    const onKey = (e) => {
-      if (e.key !== 'Escape') return;
-      
-      // WindowFrame hanterar ESC själv - om det finns en WindowFrame öppen, gör ingenting här
-      // editingPerson, linkPersonModal, och källkatalog använder WindowFrame
-      
-      if (isSourceDrawerOpen) { e.preventDefault(); e.stopPropagation(); forceCloseSourceModal(); return; }
-      if (isPlaceDrawerOpen && !placeDrawerLocked) { e.preventDefault(); e.stopPropagation(); handleTogglePlaceDrawer(placeCatalogState.selectedPlaceId); return; }
-      if (personDrawer && !personDrawerLocked) { closePersonDrawer(); }
-    };
-    window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey);
-  }, [isSourceDrawerOpen, isPlaceDrawerOpen, personDrawer, personDrawerLocked]); 
-
-  useEffect(() => {
-    const handler = (e) => {
-      if (e.button !== 0) return;
-      if (e.target.closest('.modal-content') || e.target.closest('[role="dialog"]')) return;
-      if (!personDrawer) return;
-      const drawerEl = document.querySelector('.drawer-inner'); if (drawerEl && drawerEl.contains(e.target)) return;
-      const treeEl = document.querySelector('[data-family-tree="1"]'); if (treeEl && treeEl.contains(e.target)) return;
-      cancelPersonCreation(personDrawer.id);
-    };
-    window.addEventListener('mousedown', handler, true); return () => window.removeEventListener('mousedown', handler, true);
-  }, [personDrawer]);
-
-  const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, targetPersonId: null });
+  // Dessa funktioner kan vara efter conditional return eftersom de inte är hooks
   const showContextMenu = (personOrId, x, y) => { const id = personOrId && typeof personOrId === 'object' ? personOrId.id : personOrId; setContextMenu({ visible: true, x, y, targetPersonId: id }); };
-  const hideContextMenu = () => setContextMenu({ visible: false, x: 0, y: 0, targetPersonId: null });
-  const [personDrawerEditContext, setPersonDrawerEditContext] = useState(null); 
+  const hideContextMenu = () => setContextMenu({ visible: false, x: 0, y: 0, targetPersonId: null }); 
 
   const createPersonAndLink = (targetId, relation) => {
     const maxRef = dbData.people.reduce((max, p) => p.refNumber > max ? p.refNumber : max, 0);
@@ -750,21 +776,6 @@ function App() {
   const canGoForward = (historyState?.future?.length || 0) > 0;
   const handleOpenSourceInDrawer = (sourceId, personId = null, eventId = null) => { handleToggleSourceDrawer(personId, eventId); };
   const onLocalTabChange = (tab) => { handleTabChange(tab); if (tab !== 'familyTree') { if (personDrawer) { setPersonDrawerId(null); setPersonDrawerLocked(false); } if (isSourceDrawerOpen) forceCloseSourceModal(); if (isPlaceDrawerOpen) handleTogglePlaceDrawer(placeCatalogState?.selectedPlaceId); } };
-
-  useEffect(() => {
-    const handler = (e) => {
-      const detail = (e && e.detail) || {}; const { placeId, eventId } = detail; if (!placeId || !eventId) return;
-      if (window.__WFT_lastUnlink && window.__WFT_lastUnlink.placeId === placeId && window.__WFT_lastUnlink.eventId === eventId && (Date.now() - window.__WFT_lastUnlink.ts) < 1000) return;
-      let newDbResult = null;
-      setDbData(prev => {
-        const updated = { ...prev, people: (prev.people || []).map(p => ({ ...p, events: (p.events || []).map(ev => (ev.id === eventId && ev.placeId === placeId) ? { ...ev, placeId: null, place: '' } : ev) })) };
-        newDbResult = updated; return updated;
-      });
-      setIsDirty(true); showStatus('Koppling borttagen.'); window.__WFT_lastUnlink = { placeId, eventId, ts: Date.now() };
-      try { if (newDbResult) { if (editingPerson && editingPerson.id) { const updatedPerson = newDbResult.people.find(p => p.id === editingPerson.id); if (updatedPerson) { handleEditFormChange(updatedPerson); } } if (personDrawer && personDrawer.id) { const updatedDrawerPerson = newDbResult.people.find(p => p.id === personDrawer.id); if (updatedDrawerPerson) { handleEditFormChange(updatedDrawerPerson); } } } } catch (err) { }
-    };
-    window.addEventListener('WFT:unlinkPlaceFromEvent', handler); return () => window.removeEventListener('WFT:unlinkPlaceFromEvent', handler);
-  }, []);
 
   const handleExportZip = async () => { try { if (window.electronAPI) showStatus('Export påbörjad... (inte implementerad i denna build)'); else showStatus('Export ej tillgänglig i webbläsarläge.'); } catch (err) { showStatus('Export misslyckades.'); } };
   const handleImportZip = async () => { try { showStatus('Import inte implementerad i denna version.'); } catch (err) { showStatus('Import misslyckades.'); } };
@@ -919,7 +930,37 @@ function App() {
               onOpenEditModal={handleOpenEditModal}
               mediaItems={dbData.media || []}
               onUpdateMedia={(updatedMedia) => {
-                setDbData(prev => ({ ...prev, media: updatedMedia }));
+                const mediaMedKopplingar = updatedMedia.filter(m => {
+                  const conn = m.connections;
+                  return conn && (conn.people?.length > 0 || conn.places?.length > 0 || conn.sources?.length > 0);
+                });
+                
+                console.log('[App.jsx] ✅ onUpdateMedia anropad:', {
+                  antalMedia: updatedMedia.length,
+                  mediaMedKopplingar: mediaMedKopplingar.length,
+                  allaMedia: updatedMedia.map(m => ({
+                    id: m.id,
+                    name: m.name,
+                    connections: m.connections,
+                    connectionsType: typeof m.connections,
+                    people: m.connections?.people,
+                    peopleType: typeof m.connections?.people,
+                    peopleIsArray: Array.isArray(m.connections?.people),
+                    peopleLength: Array.isArray(m.connections?.people) ? m.connections?.people.length : 'ej array'
+                  }))
+                });
+                
+                setDbData(prev => {
+                  const newDbData = { ...prev, media: updatedMedia };
+                  console.log('[App.jsx] setDbData med ny media:', {
+                    antalMedia: newDbData.media?.length || 0,
+                    mediaMedKopplingar: (newDbData.media || []).filter(m => {
+                      const conn = m.connections;
+                      return conn && (conn.people?.length > 0 || conn.places?.length > 0 || conn.sources?.length > 0);
+                    }).length
+                  });
+                  return newDbData;
+                });
                 setIsDirty(true);
               }}
               setIsSourceDrawerOpen={openSourceDrawerForSelection}

@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ImageViewer from './ImageViewer.jsx';
 import ImageEditorModal from './ImageEditorModal.jsx';
+import LinkPersonModal from './LinkPersonModal.jsx';
+import TrashModal from './TrashModal.jsx';
 import { useApp } from './AppContext.jsx';
 import { 
   Search, Image as ImageIcon, Grid, List, Tag, User, 
@@ -9,7 +11,7 @@ import {
   FolderPlus, Folder, CheckSquare, Square, MoveRight,
   Check, Edit2, FileWarning, PenTool, Mic, Link,
   X, Layers, FileText, MoreVertical, Save, Camera,
-  Download, Upload, RefreshCw, Database, Info
+  Download, Upload, RefreshCw, Database, Info, Trash
 } from 'lucide-react';
 
 const SYSTEM_LIBRARIES = [
@@ -235,7 +237,7 @@ const LibraryButton = ({ lib, isActive, onClick, onDrop, onDelete }) => {
     );
 };
 
-export function MediaManager({ allPeople = [], onOpenEditModal = () => {}, mediaItems: initialMedia = [], onUpdateMedia = () => {}, setIsSourceDrawerOpen = () => {}, setIsPlaceDrawerOpen = () => {} }) {
+export function MediaManager({ allPeople = [], onOpenEditModal = () => {}, mediaItems: initialMedia = [], onUpdateMedia = () => {}, setIsSourceDrawerOpen = () => {}, setIsPlaceDrawerOpen = () => {}, onSelectMedia = null, selectedMediaIds = [] }) {
   const { showUndoToast, showStatus } = useApp();
 
   // UI State
@@ -264,8 +266,50 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {}, media
   
   // Synka mediaItems med initialMedia prop när den ändras
   useEffect(() => {
-    setMediaItems(initialMedia.length > 0 ? initialMedia : INITIAL_MEDIA);
+    // Parse connections om de är strängar
+    const parsedMedia = (initialMedia.length > 0 ? initialMedia : INITIAL_MEDIA).map(m => {
+      if (typeof m.connections === 'string') {
+        try {
+          return { ...m, connections: JSON.parse(m.connections) };
+        } catch (e) {
+          console.error('[MediaManager] Error parsing connections for', m.id, ':', e);
+          return { ...m, connections: { people: [], places: [], sources: [] } };
+        }
+      }
+      // Säkerställ att connections alltid är ett objekt med arrays
+      return {
+        ...m,
+        connections: {
+          people: Array.isArray(m.connections?.people) ? m.connections.people : [],
+          places: Array.isArray(m.connections?.places) ? m.connections.places : [],
+          sources: Array.isArray(m.connections?.sources) ? m.connections.sources : [],
+          ...(m.connections || {})
+        }
+      };
+    });
+    
+    const mediaMedKopplingar = parsedMedia.filter(m => {
+      const conn = m.connections;
+      return conn && (conn.people?.length > 0 || conn.places?.length > 0 || conn.sources?.length > 0);
+    });
+    const exempel = mediaMedKopplingar[0];
+    console.log('[MediaManager] Synkar mediaItems:', {
+      antal: parsedMedia.length,
+      medKopplingar: mediaMedKopplingar.length,
+      exempel: exempel ? {
+        id: exempel.id,
+        name: exempel.name,
+        connections: exempel.connections,
+        peopleCount: exempel.connections?.people?.length || 0,
+        people: exempel.connections?.people,
+        peopleType: typeof exempel.connections?.people,
+        isArray: Array.isArray(exempel.connections?.people)
+      } : null
+    });
+    
+    setMediaItems(parsedMedia);
   }, [initialMedia]);
+  
   
   // Get all available sources and places (after mediaItems is defined)
   const allSources = mediaItems
@@ -313,9 +357,7 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {}, media
         }
         break;
       case 'delete':
-        if (confirm(`Radera "${item.name}" permanent?`)) {
-          updateMedia(mediaItems.filter(m => m.id !== item.id));
-        }
+        handleDeleteImage(item);
         break;
     }
     setContextMenuOpen(false);
@@ -382,26 +424,121 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {}, media
     setPendingDeleteId(null);
 
     const removedImage = editingImage;
-    const deletionIndex = filteredMedia.findIndex(m => m.id === removedImage.id);
-
-    updateMedia(prev => prev.filter(m => m.id !== removedImage.id));
+    handleDeleteImage(removedImage);
     setIsImageEditorOpen(false);
     setEditingImage(null);
     setSelectedImage(current => (current && current.id === removedImage.id ? null : current));
-
-    if (typeof showStatus === 'function') showStatus(`"${removedImage.name}" har raderats.`, 'success');
-
-    if (typeof showUndoToast === 'function') {
-      showUndoToast(`"${removedImage.name}" har raderats. Ångra?`, () => {
-        updateMedia(prev => {
-          if (prev.some(m => m.id === removedImage.id)) return prev;
-          const newMedia = [...prev];
-          const insertAt = deletionIndex >= 0 ? Math.min(deletionIndex, newMedia.length) : newMedia.length;
-          newMedia.splice(insertAt, 0, removedImage);
-          return newMedia;
+  };
+  
+  // Hantera radering av bild (flytta till papperskorg)
+  const handleDeleteImage = async (item) => {
+    if (!item) {
+      console.warn('[MediaManager] handleDeleteImage: item är null');
+      return;
+    }
+    
+    console.log('[MediaManager] handleDeleteImage anropad:', {
+      id: item.id,
+      name: item.name,
+      filePath: item.filePath,
+      url: item.url,
+      hasElectronAPI: !!window.electronAPI,
+      hasMoveFileToTrash: !!(window.electronAPI && window.electronAPI.moveFileToTrash)
+    });
+    
+    if (!confirm(`Radera "${item.name}"? Filen flyttas till papperskorgen och raderas automatiskt efter 30 dagar.`)) {
+      return;
+    }
+    
+    try {
+      // Försök hitta filePath från olika källor
+      let filePathToDelete = item.filePath;
+      
+      // Om filePath inte finns, försök extrahera från url
+      if (!filePathToDelete && item.url) {
+        // Ta bort media:// prefix och decode URL
+        const urlPath = item.url.replace('media://', '').replace(/%2F/g, '/');
+        filePathToDelete = urlPath;
+        console.log('[MediaManager] Extraherade filePath från url:', filePathToDelete);
+      }
+      
+      // Flytta filen till papperskorgen om den finns på disk
+      if (filePathToDelete && window.electronAPI && window.electronAPI.moveFileToTrash) {
+        console.log('[MediaManager] Försöker flytta fil till papperskorg:', filePathToDelete);
+        const result = await window.electronAPI.moveFileToTrash(filePathToDelete);
+        console.log('[MediaManager] moveFileToTrash resultat:', result);
+        if (result && result.success) {
+          console.log('[MediaManager] ✅ Fil flyttad till papperskorg:', filePathToDelete);
+        } else {
+          console.warn('[MediaManager] ⚠️ Kunde inte flytta fil till papperskorg:', result?.error || 'Okänt fel');
+        }
+      } else {
+        console.warn('[MediaManager] ⚠️ Kan inte flytta fil till papperskorg:', {
+          filePathToDelete,
+          hasElectronAPI: !!window.electronAPI,
+          hasMoveFileToTrash: !!(window.electronAPI && window.electronAPI.moveFileToTrash)
         });
-        setSelectedImage(removedImage);
-      });
+      }
+      
+      // Ta bort från media-listan
+      const deletionIndex = mediaItems.findIndex(m => m.id === item.id);
+      updateMedia(prev => prev.filter(m => m.id !== item.id));
+      setSelectedImage(current => (current && current.id === item.id ? null : current));
+      
+      if (typeof showStatus === 'function') {
+        showStatus(`"${item.name}" har flyttats till papperskorgen.`, 'success');
+      }
+      
+      if (typeof showUndoToast === 'function') {
+        showUndoToast(`"${item.name}" har flyttats till papperskorgen. Ångra?`, async () => {
+          // Återställ från papperskorg om möjligt
+          if (item.filePath && window.electronAPI && window.electronAPI.restoreFileFromTrash) {
+            // Hitta trash-filen (den har timestamp prefix)
+            const trashFilesResult = await window.electronAPI.getTrashFiles();
+            if (trashFilesResult && trashFilesResult.success) {
+              const trashFile = trashFilesResult.files.find(f => 
+                f.originalName === item.name || f.path.includes(item.name)
+              );
+              if (trashFile) {
+                const restoreResult = await window.electronAPI.restoreFileFromTrash(
+                  trashFile.name,
+                  item.filePath
+                );
+                if (restoreResult && restoreResult.success) {
+                  // Lägg tillbaka i media-listan
+                  updateMedia(prev => {
+                    if (prev.some(m => m.id === item.id)) return prev;
+                    const newMedia = [...prev];
+                    const insertAt = deletionIndex >= 0 ? Math.min(deletionIndex, newMedia.length) : newMedia.length;
+                    newMedia.splice(insertAt, 0, item);
+                    return newMedia;
+                  });
+                  setSelectedImage(item);
+                  if (typeof showStatus === 'function') {
+                    showStatus(`"${item.name}" har återställts.`, 'success');
+                  }
+                  return;
+                }
+              }
+            }
+          }
+          
+          // Fallback: lägg tillbaka i listan även om återställning misslyckades
+          updateMedia(prev => {
+            if (prev.some(m => m.id === item.id)) return prev;
+            const newMedia = [...prev];
+            const insertAt = deletionIndex >= 0 ? Math.min(deletionIndex, newMedia.length) : newMedia.length;
+            newMedia.splice(insertAt, 0, item);
+            return newMedia;
+          });
+          setSelectedImage(item);
+        });
+      }
+    } catch (error) {
+      console.error('[MediaManager] Error deleting image:', error);
+      if (typeof showStatus === 'function') {
+        showStatus(`Fel vid radering: ${error.message}`, 'error');
+      }
     }
   };
   
@@ -498,6 +635,29 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
   const [lastSelectedId, setLastSelectedId] = useState(null); 
   const [showTranscription, setShowTranscription] = useState(false);
+  const [showLinkPersonModal, setShowLinkPersonModal] = useState(false);
+  const [showTrashModal, setShowTrashModal] = useState(false);
+  
+  // Uppdatera selectedImage när mediaItems ändras, så att connections alltid är aktuella
+  useEffect(() => {
+    if (selectedImage && mediaItems.length > 0) {
+      const updatedSelected = mediaItems.find(m => m.id === selectedImage.id);
+      if (updatedSelected) {
+        // Jämför connections för att se om de har ändrats
+        const oldConnections = JSON.stringify(selectedImage.connections || {});
+        const newConnections = JSON.stringify(updatedSelected.connections || {});
+        if (oldConnections !== newConnections) {
+          console.log('[MediaManager] Uppdaterar selectedImage med nya connections:', {
+            id: updatedSelected.id,
+            name: updatedSelected.name,
+            connections: updatedSelected.connections,
+            peopleCount: updatedSelected.connections?.people?.length || 0
+          });
+          setSelectedImage(updatedSelected);
+        }
+      }
+    }
+  }, [mediaItems, selectedImage?.id]);
   
   // EXIF State - läs automatiskt när bilden väljs
   const [exifData, setExifData] = useState(null);
@@ -524,6 +684,79 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
 
   // Läs alltid fresh data från mediaItems - använd selectedImage bara för att hitta ID
   const displayImage = selectedImage ? (mediaItems.find(m => m.id === selectedImage.id) || selectedImage) : null;
+  
+  // Debug: logga när displayImage ändras
+  useEffect(() => {
+    if (displayImage) {
+      console.log('[MediaManager] displayImage uppdaterad:', {
+        id: displayImage.id,
+        name: displayImage.name,
+        connections: displayImage.connections,
+        connectionsType: typeof displayImage.connections,
+        peopleCount: displayImage.connections?.people?.length || 0,
+        people: displayImage.connections?.people
+      });
+    }
+  }, [displayImage?.id, displayImage?.connections]);
+  
+  // Säkerställ att displayImage.connections alltid har people, places, och sources arrays
+  const safeDisplayImage = displayImage ? (() => {
+    console.log('[MediaManager] 🔧 Skapar safeDisplayImage från displayImage:', {
+      id: displayImage.id,
+      name: displayImage.name,
+      connections: displayImage.connections,
+      connectionsType: typeof displayImage.connections
+    });
+    
+    // Parse connections om det är en sträng (JSON)
+    let connections = displayImage.connections;
+    if (typeof connections === 'string') {
+      console.log('[MediaManager] Parsar connections från sträng:', connections);
+      try {
+        connections = JSON.parse(connections);
+        console.log('[MediaManager] ✅ Parsad connections:', connections);
+      } catch (e) {
+        console.error('[MediaManager] ❌ Error parsing connections:', e, connections);
+        connections = {};
+      }
+    }
+    
+    // Säkerställ att connections är ett objekt med arrays
+    const safeConnections = {
+      people: Array.isArray(connections?.people) ? connections.people : [],
+      places: Array.isArray(connections?.places) ? connections.places : [],
+      sources: Array.isArray(connections?.sources) ? connections.sources : [],
+      ...(connections || {})
+    };
+    
+    console.log('[MediaManager] ✅ safeConnections skapad:', {
+      people: safeConnections.people,
+      peopleType: typeof safeConnections.people,
+      peopleIsArray: Array.isArray(safeConnections.people),
+      peopleLength: safeConnections.people.length,
+      peopleContent: safeConnections.people.map((p, idx) => ({
+        index: idx,
+        p,
+        pType: typeof p,
+        pId: typeof p === 'object' ? p.id : p,
+        pName: typeof p === 'object' ? p.name : p
+      }))
+    });
+    
+    const result = {
+      ...displayImage,
+      connections: safeConnections
+    };
+    
+    console.log('[MediaManager] ✅ safeDisplayImage skapad:', {
+      id: result.id,
+      name: result.name,
+      connections: result.connections,
+      peopleCount: result.connections.people.length
+    });
+    
+    return result;
+  })() : null;
 
   const filteredMedia = mediaItems.filter(m => {
     const matchesLib = activeLib === 'all' || m.libraryId === activeLib;
@@ -623,6 +856,37 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
   };
 
   const handleImageClick = (item, e) => {
+      console.log('[MediaManager] 🖱️ handleImageClick anropad:', {
+        itemId: item.id,
+        itemName: item.name,
+        itemConnections: item.connections,
+        itemConnectionsType: typeof item.connections,
+        itemPeople: item.connections?.people,
+        itemPeopleType: typeof item.connections?.people,
+        itemPeopleIsArray: Array.isArray(item.connections?.people),
+        itemPeopleLength: Array.isArray(item.connections?.people) ? item.connections?.people.length : 'ej array',
+        onSelectMediaExists: !!onSelectMedia,
+        selectedMediaIds: selectedMediaIds
+      });
+      
+      // Om onSelectMedia finns, använd select mode för MediaSelector
+      if (onSelectMedia) {
+        console.log('[MediaManager] onSelectMedia mode - hoppar över normal hantering');
+        const isCurrentlySelected = selectedMediaIds.includes(item.id);
+        if (isCurrentlySelected) {
+          // Ta bort från valda
+          const newSelected = selectedMediaIds.filter(id => id !== item.id);
+          onSelectMedia(mediaItems.filter(m => newSelected.includes(m.id)));
+        } else {
+          // Lägg till i valda
+          const newSelected = [...selectedMediaIds, item.id];
+          onSelectMedia(mediaItems.filter(m => newSelected.includes(m.id)));
+        }
+        return;
+      }
+      
+      console.log('[MediaManager] Normal MediaManager-funktionalitet - sätter selectedImage');
+      // Normal MediaManager-funktionalitet
       console.log('🖱️ Image clicked:', { itemId: item.id, itemName: item.name, mediaItemsCount: mediaItems.length });
       let newSelected = new Set(selectedIds);
       if (e.ctrlKey || e.metaKey) {
@@ -648,11 +912,39 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
       setTransform({ x: 0, y: 0, scale: 1, rotate: 0 });
 
       if (newSelected.size === 1) {
-          const found = mediaItems.find(m => m.id === Array.from(newSelected)[0]);
-          console.log('✅ Setting selectedImage:', { found, findId: Array.from(newSelected)[0] });
+          const findId = Array.from(newSelected)[0];
+          const found = mediaItems.find(m => m.id === findId);
+          console.log('[MediaManager] ✅ Setting selectedImage (single selection):', {
+            findId,
+            found: found ? {
+              id: found.id,
+              name: found.name,
+              connections: found.connections,
+              connectionsType: typeof found.connections,
+              people: found.connections?.people,
+              peopleType: typeof found.connections?.people,
+              peopleIsArray: Array.isArray(found.connections?.people),
+              peopleLength: Array.isArray(found.connections?.people) ? found.connections?.people.length : 'ej array'
+            } : null,
+            foundInMediaItems: !!found
+          });
           setSelectedImage(found);
       } else {
-          console.log('⚠️ Multiple selected, setting to item or null:', newSelected.has(item.id));
+          console.log('[MediaManager] ⚠️ Multiple selected, setting to item or null:', {
+            newSelectedSize: newSelected.size,
+            hasItem: newSelected.has(item.id),
+            willSetToItem: newSelected.has(item.id),
+            item: newSelected.has(item.id) ? {
+              id: item.id,
+              name: item.name,
+              connections: item.connections,
+              connectionsType: typeof item.connections,
+              people: item.connections?.people,
+              peopleType: typeof item.connections?.people,
+              peopleIsArray: Array.isArray(item.connections?.people),
+              peopleLength: Array.isArray(item.connections?.people) ? item.connections?.people.length : 'ej array'
+            } : null
+          });
           setSelectedImage(newSelected.has(item.id) ? item : null);
       }
       setIsSelectMode(newSelected.size > 0);
@@ -1093,6 +1385,14 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
           >
           <UploadCloud size={16}/> Ladda upp
           </button>
+          
+          {/* Papperskorg-knapp */}
+          <button
+            onClick={() => setShowTrashModal(true)}
+            className="flex items-center justify-center gap-2 w-full bg-slate-800 hover:bg-slate-700 text-slate-300 py-2 rounded text-sm transition-colors font-medium border border-slate-700 mt-2"
+          >
+            <Trash size={16}/> Papperskorg
+          </button>
       </div>
       </div>
 
@@ -1146,10 +1446,17 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                   onContextMenu={(e) => handleContextMenu(e, item.id)}
                   draggable
                   onDragStart={(e) => handleItemDragStart(e, item.id)}
-                  className={`group relative aspect-square rounded-lg border-2 overflow-hidden cursor-pointer transition-all ${selectedIds.has(item.id) ? 'border-blue-500 ring-2 ring-blue-500/30' : (selectedImage?.id === item.id ? 'border-blue-500' : 'border-slate-700 hover:border-slate-500')}`}
+                  className={`group relative aspect-square rounded-lg border-2 overflow-hidden cursor-pointer transition-all ${(onSelectMedia && selectedMediaIds.includes(item.id)) ? 'border-green-500 ring-2 ring-green-500/50' : selectedIds.has(item.id) ? 'border-blue-500 ring-2 ring-blue-500/30' : (selectedImage?.id === item.id ? 'border-blue-500' : 'border-slate-700 hover:border-slate-500')}`}
               >
                   <img src={item.url} alt={item.name} className="w-full h-full object-cover" onContextMenu={(e) => handleContextMenu(e, item.id)} /> 
-                  {(isSelectMode || selectedIds.has(item.id)) && (
+                  {(onSelectMedia && selectedMediaIds.includes(item.id)) && (
+                      <div className="absolute inset-0 bg-green-500/20 flex items-center justify-center z-10">
+                          <div className="bg-green-500 text-white rounded-full p-2 shadow-lg">
+                              <CheckSquare size={24} fill="currentColor" className="text-white" />
+                          </div>
+                      </div>
+                  )}
+                  {(isSelectMode || selectedIds.has(item.id)) && !onSelectMedia && (
                       <div className="absolute top-2 right-2 z-20" onClick={(e) => { e.stopPropagation(); handleToggleSelect(item.id); }}>
                           {selectedIds.has(item.id) 
                               ? <div className="bg-blue-600 rounded text-white shadow-lg"><CheckSquare size={24} fill="currentColor" className="text-white" /></div>
@@ -1215,10 +1522,10 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
       </div>
 
       {/* HÖGER: Detaljpanel */}
-      {displayImage ? (
+      {safeDisplayImage ? (
       <div className="w-96 bg-slate-800 border-l border-slate-700 flex flex-col shrink-0 z-20 shadow-xl">
           <div className="p-4 border-b border-slate-700 flex justify-between bg-slate-800">
-              <h3 className="text-sm font-bold text-white truncate w-64">{displayImage.name}</h3>
+              <h3 className="text-sm font-bold text-white truncate w-64">{safeDisplayImage.name}</h3>
               <button onClick={() => setSelectedImage(null)} className="text-slate-400 hover:text-white"><X size={18}/></button>
           </div>
           
@@ -1228,13 +1535,13 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                       <label className="text-[10px] uppercase font-bold text-slate-500 block mb-1">Datering</label>
                       <div className="flex items-center bg-slate-900 border border-slate-600 rounded px-2 py-1.5">
                           <Calendar size={14} className="text-slate-500 mr-2"/>
-                          <input type="text" defaultValue={displayImage.date} className="bg-transparent text-sm text-white w-full focus:outline-none" />
+                          <input type="text" defaultValue={safeDisplayImage.date} className="bg-transparent text-sm text-white w-full focus:outline-none" />
                       </div>
                   </div>
                   <div>
                       <label className="text-[10px] uppercase font-bold text-slate-500 block mb-1">Bibliotek / Kategori</label>
                       <select 
-                          defaultValue={displayImage.libraryId}
+                          defaultValue={safeDisplayImage.libraryId}
                           className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500"
                       >
                           {SYSTEM_LIBRARIES.filter(l => l.id !== 'all').map(l => (
@@ -1250,11 +1557,11 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
               <div>
                   <label className="text-[10px] uppercase font-bold text-slate-500 block mb-1">Bildtext / Beskrivning</label>
                   <div className="bg-slate-900 border border-slate-600 rounded p-2">
-                      <textarea className="w-full bg-transparent text-sm text-white focus:outline-none resize-y min-h-[60px]" placeholder="Skriv en beskrivning..." defaultValue={displayImage.description} />
+                      <textarea className="w-full bg-transparent text-sm text-white focus:outline-none resize-y min-h-[60px]" placeholder="Skriv en beskrivning..." defaultValue={safeDisplayImage.description} />
                   </div>
               </div>
 
-              {displayImage.libraryId === 'sources' && (
+              {safeDisplayImage.libraryId === 'sources' && (
                   <div className="space-y-2">
                       <div className="flex justify-between items-center">
                           <label className="text-[10px] font-bold text-slate-500 uppercase">Transkribering</label>
@@ -1263,7 +1570,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                           </button>
                       </div>
                       {showTranscription && (
-                          <textarea className="w-full h-32 bg-slate-900 border border-slate-700 rounded p-2 text-sm text-slate-300 focus:outline-none focus:border-blue-500" placeholder="Skriv av texten här..." defaultValue={displayImage.transcription} />
+                          <textarea className="w-full h-32 bg-slate-900 border border-slate-700 rounded p-2 text-sm text-slate-300 focus:outline-none focus:border-blue-500" placeholder="Skriv av texten här..." defaultValue={safeDisplayImage.transcription} />
                       )}
                   </div>
               )}
@@ -1275,20 +1582,67 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                       <div className="flex justify-between items-center">
                           <label className="text-[10px] font-bold text-slate-400">Personer</label>
                       </div>
-                      {displayImage.connections.people.map(p => (
-                          <div key={p.id} className="flex items-center justify-between bg-slate-900 p-2 rounded border border-slate-700 text-xs">
-                              <div><span className="text-slate-200 font-medium block">{p.name}</span><span className="text-[10px] text-slate-500">{p.dates}</span></div>
-                              <button className="text-slate-500 hover:text-red-400"><X size={12}/></button>
-                          </div>
-                      ))}
-                      <button className="w-full py-1.5 border border-dashed border-slate-600 text-slate-400 text-xs rounded hover:text-white hover:border-slate-500 hover:bg-slate-700 transition-colors flex items-center justify-center gap-1"><Plus size={12}/> Koppla person</button>
+                      {(() => {
+                        const people = safeDisplayImage?.connections?.people;
+                        const isArray = Array.isArray(people);
+                        const hasPeople = isArray && people.length > 0;
+                        
+                        console.log('[MediaManager] Renderar personer-sektion:', {
+                          safeDisplayImageExists: !!safeDisplayImage,
+                          imageId: safeDisplayImage?.id,
+                          imageName: safeDisplayImage?.name,
+                          connections: safeDisplayImage?.connections,
+                          people: people,
+                          peopleType: typeof people,
+                          isArray: isArray,
+                          hasPeople: hasPeople,
+                          peopleLength: isArray ? people.length : 'ej array',
+                          peopleContent: isArray ? people : 'ej array'
+                        });
+                        
+                        if (!safeDisplayImage) {
+                          return <div className="text-xs text-slate-500 italic py-2">Ingen bild vald</div>;
+                        }
+                        
+                        if (!isArray) {
+                          return <div className="text-xs text-red-500 italic py-2">Fel: people är inte en array (typ: {typeof people})</div>;
+                        }
+                        
+                        if (!hasPeople) {
+                          return <div className="text-xs text-slate-500 italic py-2">Inga personer kopplade</div>;
+                        }
+                        
+                        return people.map((p, idx) => {
+                          const personId = typeof p === 'object' ? p.id : p;
+                          const personName = typeof p === 'object' ? p.name : p;
+                          const personDates = typeof p === 'object' ? p.dates : '';
+                          
+                          return (
+                            <div key={personId || idx} className="flex items-center justify-between bg-slate-900 p-2 rounded border border-slate-700 text-xs">
+                                <div><span className="text-slate-200 font-medium block">{personName}</span><span className="text-[10px] text-slate-500">{personDates}</span></div>
+                                <button className="text-slate-500 hover:text-red-400"><X size={12}/></button>
+                            </div>
+                          );
+                        });
+                      })()}
+                      <button 
+                        onClick={() => {
+                          if (safeDisplayImage) {
+                            setShowLinkPersonModal(true);
+                          }
+                        }}
+                        className="w-full py-1.5 border border-dashed border-slate-600 text-slate-400 text-xs rounded hover:text-white hover:border-slate-500 hover:bg-slate-700 transition-colors flex items-center justify-center gap-1"
+                      >
+                        <Plus size={12}/> Koppla person
+                      </button>
                   </div>
 
                   <div className="space-y-2">
                       <div className="flex justify-between items-center">
                           <label className="text-[10px] font-bold text-slate-400">Källor</label>
                       </div>
-                      {displayImage.connections.sources.map((s, idx) => (
+                      {Array.isArray(safeDisplayImage?.connections?.sources) && safeDisplayImage.connections.sources.length > 0 ? (
+                        safeDisplayImage.connections.sources.map((s, idx) => (
                           <div key={s.id || idx} className="flex items-center justify-between bg-slate-900 p-2 rounded border border-slate-700 text-xs">
                               <div>
                                   <span className="text-slate-200 font-medium block">{s.name || s.title || 'Ingen titel'}</span>
@@ -1296,9 +1650,12 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                               </div>
                               <button className="text-slate-500 hover:text-red-400"><X size={12}/></button>
                           </div>
-                      ))}
+                        ))
+                      ) : (
+                        <div className="text-xs text-slate-500 italic py-2">Inga källor kopplade</div>
+                      )}
                         <button 
-                          onClick={() => setIsSourceDrawerOpen(displayImage)}
+                          onClick={() => setIsSourceDrawerOpen(safeDisplayImage)}
                           className="w-full py-1.5 border border-dashed border-slate-600 text-slate-400 text-xs rounded hover:text-white hover:border-slate-500 hover:bg-slate-700 transition-colors flex items-center justify-center gap-1"
                       >
                           <Link size={12}/> Koppla källa
@@ -1309,13 +1666,14 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                       <div className="flex justify-between items-center">
                           <label className="text-[10px] font-bold text-slate-400">Platser</label>
                       </div>
-                      {displayImage.connections.places.map(p => (
+                      {Array.isArray(safeDisplayImage?.connections?.places) && safeDisplayImage.connections.places.length > 0 ? (
+                        safeDisplayImage.connections.places.map(p => (
                           <div key={p.id} className="flex items-center justify-between bg-slate-900 p-2 rounded border border-slate-700 text-xs">
                               <div><span className="text-slate-200 font-medium block">{p.name}</span><span className="text-[10px] text-slate-500">{p.type}</span></div>
                               <button 
                                 onClick={() => {
                                   updateMedia(prev => prev.map(item => {
-                                    if (item.id !== displayImage.id) return item;
+                                    if (item.id !== safeDisplayImage?.id) return item;
                                     return {
                                       ...item,
                                       connections: {
@@ -1330,9 +1688,12 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                                 <X size={12}/>
                               </button>
                           </div>
-                      ))}
+                        ))
+                      ) : (
+                        <div className="text-xs text-slate-500 italic py-2">Inga platser kopplade</div>
+                      )}
                         <button 
-                          onClick={() => setIsPlaceDrawerOpen(displayImage)}
+                          onClick={() => setIsPlaceDrawerOpen(safeDisplayImage)}
                           className="w-full py-1.5 border border-dashed border-slate-600 text-slate-400 text-xs rounded hover:text-white hover:border-slate-500 hover:bg-slate-700 transition-colors flex items-center justify-center gap-1"
                       >
                           <MapPin size={12}/> Koppla plats
@@ -1459,9 +1820,8 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
           <div className="p-4 border-t border-slate-700 bg-slate-900 flex justify-between items-center">
               <button 
                   onClick={() => {
-                      if (selectedImage && confirm(`Är du säker på att du vill ta bort "${selectedImage.name}"?`)) {
-                          updateMedia(prev => prev.filter(item => item.id !== selectedImage.id));
-                          setSelectedImage(null);
+                      if (selectedImage) {
+                          handleDeleteImage(selectedImage);
                       }
                   }}
                   className="px-3 py-1.5 bg-red-900/30 border border-red-700/50 text-red-300 text-xs rounded hover:bg-red-900/50 hover:border-red-600 transition-colors flex items-center gap-1 font-medium"
@@ -1507,6 +1867,178 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
               <p className="text-slate-400 text-sm">Välj en bild</p>
           </div>
       )}
+
+      {/* TRASH MODAL */}
+      <TrashModal
+        isOpen={showTrashModal}
+        onClose={() => setShowTrashModal(false)}
+        onRestore={async (filePath, originalName) => {
+          console.log('[MediaManager] Fil återställd:', filePath, 'originalName:', originalName);
+          
+          // Skapa ett media-objekt från den återställda filen
+          const fileName = originalName || filePath.split('/').pop();
+          const url = `media://${filePath.replace(/\//g, '%2F')}`;
+          
+          // Generera ett stabilt ID baserat på filePath (samma logik som i Electron - MD5 hash)
+          // Använd enkel hash-funktion eftersom Web Crypto kan vara långsam
+          let hash = 0;
+          for (let i = 0; i < filePath.length; i++) {
+            const char = filePath.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // Convert to 32bit integer
+          }
+          const hashHex = Math.abs(hash).toString(16).padStart(12, '0').slice(0, 12);
+          const mediaId = `img_${hashHex}`;
+          
+          // Skapa media-objekt (samma struktur som i Electron)
+          const restoredMediaItem = {
+            id: mediaId,
+            name: fileName,
+            filePath: filePath,
+            url: url,
+            date: new Date().toISOString().split('T')[0],
+            description: '',
+            tags: [],
+            connections: {
+              people: [],
+              places: [],
+              sources: []
+            },
+            faces: [],
+            libraryId: filePath.startsWith('persons/') ? 'persons' : 
+                      filePath.startsWith('sources/') ? 'sources' : 
+                      filePath.startsWith('places/') ? 'places' : 'temp',
+            fileSize: 0, // Kommer att uppdateras vid nästa scan
+            note: ''
+          };
+          
+          // Lägg till den återställda filen i media-listan om den inte redan finns
+          updateMedia(prev => {
+            const exists = prev.some(m => m.id === mediaId || m.filePath === filePath);
+            if (exists) {
+              // Uppdatera befintlig
+              return prev.map(m => 
+                (m.id === mediaId || m.filePath === filePath) ? restoredMediaItem : m
+              );
+            } else {
+              // Lägg till ny
+              return [...prev, restoredMediaItem];
+            }
+          });
+          
+          if (typeof showStatus === 'function') {
+            showStatus(`"${fileName}" har återställts och lagts till i biblioteket.`, 'success');
+          }
+        }}
+        onEmptyTrash={(deletedCount) => {
+          if (typeof showStatus === 'function') {
+            showStatus(`${deletedCount} filer raderade från papperskorgen.`, 'success');
+          }
+        }}
+      />
+
+      {/* LINK PERSON MODAL */}
+      <LinkPersonModal
+        isOpen={showLinkPersonModal}
+        onClose={() => setShowLinkPersonModal(false)}
+        people={allPeople}
+        onLink={(personId) => {
+          console.log('[MediaManager] LinkPersonModal onLink anropad:', {
+            personId,
+            safeDisplayImageExists: !!safeDisplayImage,
+            safeDisplayImageId: safeDisplayImage?.id,
+            safeDisplayImageName: safeDisplayImage?.name,
+            safeDisplayImageConnections: safeDisplayImage?.connections,
+            mediaItemsCount: mediaItems.length
+          });
+          
+          if (safeDisplayImage && personId) {
+            const person = allPeople.find(p => p.id === personId);
+            console.log('[MediaManager] Person hittad:', {
+              personFound: !!person,
+              personId,
+              personName: person ? `${person.firstName} ${person.lastName}` : null
+            });
+            
+            if (person) {
+              const existingPeople = safeDisplayImage.connections?.people || [];
+              console.log('[MediaManager] Befintliga personer:', {
+                existingPeople,
+                existingPeopleType: typeof existingPeople,
+                isArray: Array.isArray(existingPeople),
+                length: Array.isArray(existingPeople) ? existingPeople.length : 'ej array'
+              });
+              
+              const personAlreadyLinked = existingPeople.some(p => (typeof p === 'string' ? p : p.id) === personId);
+              console.log('[MediaManager] Person redan kopplad?', personAlreadyLinked);
+              
+              if (!personAlreadyLinked) {
+                const personToAdd = {
+                  id: person.id,
+                  name: `${person.firstName} ${person.lastName}`,
+                  ref: person.refNumber || '',
+                  dates: '' // Kan fyllas i senare
+                };
+                console.log('[MediaManager] Lägger till person:', personToAdd);
+                
+                const updatedMedia = mediaItems.map(item => {
+                  if (item.id === safeDisplayImage.id) {
+                    const oldConnections = item.connections || {};
+                    const newConnections = {
+                      ...oldConnections,
+                      people: [...(Array.isArray(oldConnections.people) ? oldConnections.people : []), personToAdd],
+                      places: Array.isArray(oldConnections.places) ? oldConnections.places : [],
+                      sources: Array.isArray(oldConnections.sources) ? oldConnections.sources : []
+                    };
+                    console.log('[MediaManager] Uppdaterar item:', {
+                      itemId: item.id,
+                      oldConnections,
+                      newConnections,
+                      peopleCount: newConnections.people.length
+                    });
+                    return {
+                      ...item,
+                      connections: newConnections
+                    };
+                  }
+                  return item;
+                });
+                
+                const updatedItem = updatedMedia.find(m => m.id === safeDisplayImage.id);
+                console.log('[MediaManager] ✅ Uppdaterad media:', {
+                  imageId: safeDisplayImage.id,
+                  imageName: safeDisplayImage.name,
+                  personToAdd,
+                  updatedItem,
+                  updatedItemConnections: updatedItem?.connections,
+                  updatedItemPeople: updatedItem?.connections?.people,
+                  updatedItemPeopleType: typeof updatedItem?.connections?.people,
+                  updatedItemPeopleIsArray: Array.isArray(updatedItem?.connections?.people),
+                  updatedItemPeopleLength: Array.isArray(updatedItem?.connections?.people) ? updatedItem?.connections?.people.length : 'ej array'
+                });
+                
+                updateMedia(updatedMedia);
+                
+                setSelectedImage({
+                  ...safeDisplayImage,
+                  connections: {
+                    ...safeDisplayImage.connections,
+                    people: [...existingPeople, personToAdd]
+                  }
+                });
+                
+                showStatus(`Person kopplad till ${safeDisplayImage.name}`);
+              } else {
+                showStatus('Personen är redan kopplad till bilden');
+              }
+            }
+          }
+          setShowLinkPersonModal(false);
+        }}
+        skipEventSelection={true}
+        excludePersonIds={(safeDisplayImage?.connections?.people || []).map(p => typeof p === 'string' ? p : p.id).filter(Boolean)}
+        zIndex={6000}
+      />
 
       {/* IMAGE VIEWER FOR FACE TAGGING */}
       <ImageViewer 

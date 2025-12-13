@@ -1,12 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   Image as ImageIcon, Plus, Trash2, Star, MoreHorizontal,
-  Search, X, Grid, Eye, UploadCloud, Check, User, FileText, MapPin,
-  Edit2, Link as LinkIcon
+  Search, X, Grid, List, Eye, UploadCloud, Check, User, FileText, MapPin,
+  Edit2, Link as LinkIcon, Folder, FolderPlus, Layers, MoveRight,
+  ChevronRight, ChevronDown
 } from 'lucide-react';
 import ImageViewer from './ImageViewer.jsx';
 import WindowFrame from './WindowFrame.jsx';
 import Editor from './MaybeEditor.jsx';
+import { MediaManager } from './MediaManager.jsx';
 
 /**
  * Återanvändbar komponent för att hantera media (bilder) för personer, källor, platser, etc.
@@ -46,7 +48,78 @@ export default function MediaSelector({
   const fileInputRef = useRef(null);
   const dropZoneRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
+  
+  // Bibliotekssystem
+  const [activeLibrary, setActiveLibrary] = useState('all');
+  const [customLibraries, setCustomLibraries] = useState([]);
+  const [expandedFolders, setExpandedFolders] = useState(new Set());
+  const [isCreatingLibrary, setIsCreatingLibrary] = useState(false);
+  const [newLibraryName, setNewLibraryName] = useState('');
+  const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
+  const [itemToMove, setItemToMove] = useState(null);
+  
+  // Systembibliotek
+  const SYSTEM_LIBRARIES = [
+    { id: 'all', label: 'Alla bilder', icon: Layers, type: 'system', path: '' },
+    { id: 'persons', label: 'Personer', icon: User, type: 'system', path: 'persons/' },
+    { id: 'sources', label: 'Källor', icon: FileText, type: 'system', path: 'sources/' },
+    { id: 'places', label: 'Platser', icon: MapPin, type: 'system', path: 'places/' },
+    { id: 'temp', label: 'Tillfälliga', icon: Folder, type: 'system', path: 'temp/' }
+  ];
 
+  // Hjälpfunktion för att få alla bibliotek (system + custom)
+  const allLibraries = [...SYSTEM_LIBRARIES, ...customLibraries];
+  
+  // Hjälpfunktion för att filtrera media baserat på aktivt bibliotek
+  const getFilteredMediaByLibrary = (items) => {
+    if (activeLibrary === 'all') {
+      return items;
+    }
+    
+    const activeLib = allLibraries.find(lib => lib.id === activeLibrary);
+    if (!activeLib) return items;
+    
+    // Filtrera baserat på bibliotekets path eller libraryId
+    return items.filter(item => {
+      // Om item har libraryId, matcha mot det
+      if (item.libraryId === activeLibrary) {
+        return true;
+      }
+      
+      // Annars matcha mot URL path
+      if (item.url && activeLib.path) {
+        // Extrahera path från media:// URL
+        let urlPath = item.url;
+        if (urlPath.startsWith('media://')) {
+          try {
+            urlPath = decodeURIComponent(urlPath.replace('media://', ''));
+          } catch (e) {
+            urlPath = urlPath.replace('media://', '');
+          }
+        }
+        // Kontrollera om path matchar
+        if (activeLib.path && urlPath.includes(activeLib.path)) {
+          return true;
+        }
+      }
+      
+      // För systembibliotek, matcha mot path i URL
+      if (activeLib.type === 'system' && activeLib.path) {
+        let urlPath = item.url || '';
+        if (urlPath.startsWith('media://')) {
+          try {
+            urlPath = decodeURIComponent(urlPath.replace('media://', ''));
+          } catch (e) {
+            urlPath = urlPath.replace('media://', '');
+          }
+        }
+        return urlPath.includes(activeLib.path);
+      }
+      
+      return false;
+    });
+  };
+  
   // Filtrera media baserat på sökterm
   const filteredMedia = media.filter(item => {
     if (!searchTerm) return true;
@@ -184,6 +257,12 @@ export default function MediaSelector({
           console.warn('[MediaSelector] window.electronAPI.saveFileBufferToMedia finns inte!');
         }
         
+        // Bestäm libraryId baserat på entityType
+        let libraryId = 'temp';
+        if (entityType === 'person') libraryId = 'persons';
+        else if (entityType === 'source') libraryId = 'sources';
+        else if (entityType === 'place') libraryId = 'places';
+        
         const newImage = {
           id: `img_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
           url: imageUrl,
@@ -192,7 +271,8 @@ export default function MediaSelector({
           date: new Date().toISOString().split('T')[0],
           description: '',
           tags: [],
-          connections: {}
+          connections: {},
+          libraryId: libraryId // Lägg till libraryId
         };
         
         // Om det är en person, lägg till personen i connections
@@ -214,7 +294,15 @@ export default function MediaSelector({
       }
     }
     if (newImages.length > 0) {
+      // Uppdatera lokal media
       onMediaChange([...media, ...newImages]);
+      
+      // Lägg till i global media-lista (dbData.media) så de syns i biblioteket
+      // VIKTIGT: Uppdatera connections i global media också
+      if (onUpdateAllMedia) {
+        const updatedAllMedia = [...(allMediaItems || []), ...newImages];
+        onUpdateAllMedia(updatedAllMedia);
+      }
     }
   };
 
@@ -609,8 +697,105 @@ export default function MediaSelector({
         )}
       </div>
 
-      {/* MediaManagerModal - Använder WindowFrame */}
+      {/* MediaManager som modal för att välja bilder */}
       {isMediaManagerOpen && (
+        <WindowFrame
+          title="Välj bilder från bibliotek"
+          icon={ImageIcon}
+          onClose={() => setIsMediaManagerOpen(false)}
+          initialWidth={1400}
+          initialHeight={800}
+          zIndex={5000}
+        >
+          <div className="h-full w-full bg-slate-900">
+            <MediaManager
+              allPeople={allPeople}
+              onOpenEditModal={onOpenEditModal}
+              mediaItems={allMediaItems}
+              onUpdateMedia={(updatedMedia) => {
+                // Uppdatera global media-lista
+                if (onUpdateAllMedia) {
+                  onUpdateAllMedia(updatedMedia);
+                }
+              }}
+              setIsSourceDrawerOpen={() => {}}
+              setIsPlaceDrawerOpen={() => {}}
+              onSelectMedia={(selectedItems) => {
+                // Lägg till valda bilder i personens media-lista
+                const newItems = selectedItems.filter(item => !media.some(m => m.id === item.id));
+                if (newItems.length > 0) {
+                  const itemsToAdd = newItems.map(item => {
+                    const newItem = {
+                      id: item.id,
+                      url: item.url,
+                      name: item.name,
+                      date: item.date || new Date().toISOString().split('T')[0],
+                      description: item.description || '',
+                      tags: item.tags || [],
+                      regions: item.faces || item.regions || [],
+                      connections: item.connections || {},
+                      libraryId: item.libraryId,
+                      note: item.note || ''
+                    };
+                    
+                    // Om det är en person, lägg till personen i connections om den inte redan finns
+                    if (entityType === 'person' && entityId) {
+                      const person = allPeople.find(p => p.id === entityId);
+                      if (person) {
+                        const existingPeople = newItem.connections.people || [];
+                        const personAlreadyLinked = existingPeople.some(p => p.id === entityId);
+                        
+                        if (!personAlreadyLinked) {
+                          newItem.connections = {
+                            ...newItem.connections,
+                            people: [
+                              ...existingPeople,
+                              {
+                                id: person.id,
+                                name: `${person.firstName} ${person.lastName}`,
+                                ref: person.refNumber || '',
+                                dates: ''
+                              }
+                            ]
+                          };
+                        }
+                      }
+                    }
+                    
+                    return newItem;
+                  });
+                  
+                  onMediaChange([...media, ...itemsToAdd]);
+                  
+                  // Uppdatera även i global media-lista
+                  if (onUpdateAllMedia && allMediaItems) {
+                    const updatedAllMedia = allMediaItems.map(m => {
+                      const addedItem = itemsToAdd.find(item => item.id === m.id);
+                      if (addedItem) {
+                        return { ...m, connections: addedItem.connections };
+                      }
+                      return m;
+                    });
+                    onUpdateAllMedia(updatedAllMedia);
+                  }
+                } else {
+                  // Ta bort bilder som inte längre är valda
+                  const currentIds = selectedItems.map(item => item.id);
+                  const itemsToRemove = media.filter(m => !currentIds.includes(m.id));
+                  if (itemsToRemove.length > 0) {
+                    const newMedia = media.filter(m => currentIds.includes(m.id));
+                    onMediaChange(newMedia);
+                  }
+                }
+              }}
+              selectedMediaIds={media.map(m => m.id)}
+            />
+          </div>
+        </WindowFrame>
+      )}
+      
+      {/* Gammal modal-kod (kommenterad ut) */}
+      {false && isMediaManagerOpen && (
         <WindowFrame
           title="Välj bilder från bibliotek"
           icon={ImageIcon}
@@ -620,88 +805,358 @@ export default function MediaSelector({
           zIndex={5000}
         >
           <div className="h-full flex flex-col bg-slate-800">
-            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-              {allMediaItems.length === 0 ? (
-                <div className="text-center py-12 text-slate-400">
-                  <ImageIcon size={48} className="mx-auto mb-4 opacity-50" />
-                  <p>Inga bilder i biblioteket ännu</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4">
-                  {allMediaItems.map((item) => {
-                    const isSelected = media.some(m => m.id === item.id);
-                    return (
-                      <div
-                        key={item.id}
-                        onClick={() => {
-                          if (!isSelected) {
-                            const newItem = {
-                              id: item.id,
-                              url: item.url,
-                              name: item.name,
-                              date: item.date || new Date().toISOString().split('T')[0],
-                              description: item.description || '',
-                              tags: item.tags || [],
-                              regions: item.faces || [],
-                              connections: item.connections || {}
-                            };
-                            
-                            // Om det är en person, lägg till personen i connections om den inte redan finns
-                            if (entityType === 'person' && entityId) {
-                              const person = allPeople.find(p => p.id === entityId);
-                              if (person) {
-                                const existingPeople = newItem.connections.people || [];
-                                const personAlreadyLinked = existingPeople.some(p => p.id === entityId);
-                                
-                                if (!personAlreadyLinked) {
-                                  newItem.connections = {
-                                    ...newItem.connections,
-                                    people: [
-                                      ...existingPeople,
-                                      {
-                                        id: person.id,
-                                        name: `${person.firstName} ${person.lastName}`,
-                                        ref: person.refNumber || '',
-                                        dates: '' // Kan fyllas i senare
-                                      }
-                                    ]
-                                  };
-                                }
+            <div className="flex flex-1 overflow-hidden">
+              {/* Vänster sidebar: Bibliotek */}
+              <div className="w-64 bg-slate-800/50 border-r border-slate-700 flex flex-col shrink-0">
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
+                  <div className="space-y-1">
+                    <p className="px-3 py-1 text-[10px] font-bold text-slate-500 uppercase">Bibliotek</p>
+                    {SYSTEM_LIBRARIES.map(lib => {
+                      const Icon = lib.icon;
+                      return (
+                        <button
+                          key={lib.id}
+                          onClick={() => setActiveLibrary(lib.id)}
+                          className={`flex items-center gap-3 w-full px-3 py-2 rounded text-sm transition-colors ${
+                            activeLibrary === lib.id
+                              ? 'bg-blue-600 text-white'
+                              : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                          }`}
+                        >
+                          <Icon size={16} />
+                          <span className="flex-1 text-left">{lib.label}</span>
+                        </button>
+                      );
+                    })}
+                    
+                    {/* Custom libraries */}
+                    {customLibraries.length > 0 && (
+                      <>
+                        <div className="px-3 py-1 text-[10px] font-bold text-slate-500 uppercase mt-2">Egna mappar</div>
+                        {customLibraries.map(lib => {
+                          const Icon = lib.icon || Folder;
+                          return (
+                            <button
+                              key={lib.id}
+                              onClick={() => setActiveLibrary(lib.id)}
+                              className={`flex items-center gap-3 w-full px-3 py-2 rounded text-sm transition-colors ${
+                                activeLibrary === lib.id
+                                  ? 'bg-blue-600 text-white'
+                                  : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                              }`}
+                            >
+                              <Icon size={16} />
+                              <span className="flex-1 text-left">{lib.label}</span>
+                            </button>
+                          );
+                        })}
+                      </>
+                    )}
+                    
+                    {/* Skapa nytt bibliotek */}
+                    <div className="border-t border-slate-700/50 mt-2 pt-2">
+                      {isCreatingLibrary ? (
+                        <div className="px-3 py-2">
+                          <input
+                            type="text"
+                            value={newLibraryName}
+                            onChange={(e) => setNewLibraryName(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && newLibraryName.trim()) {
+                                const newLib = {
+                                  id: `lib_${Date.now()}`,
+                                  label: newLibraryName.trim(),
+                                  icon: Folder,
+                                  type: 'custom',
+                                  path: `custom/${newLibraryName.trim().toLowerCase().replace(/\s+/g, '_')}/`
+                                };
+                                setCustomLibraries([...customLibraries, newLib]);
+                                setNewLibraryName('');
+                                setIsCreatingLibrary(false);
+                                setActiveLibrary(newLib.id);
+                              } else if (e.key === 'Escape') {
+                                setIsCreatingLibrary(false);
+                                setNewLibraryName('');
                               }
-                            }
-                            
-                            onMediaChange([...media, newItem]);
-                          }
-                        }}
-                        className={`relative aspect-square rounded-lg border-2 overflow-hidden cursor-pointer transition-all group ${
-                          isSelected 
-                            ? 'border-green-500 ring-2 ring-green-500/50' 
-                            : 'border-slate-700 hover:border-blue-500'
-                        }`}
-                      >
-                        <img 
-                          src={item.url} 
-                          alt={item.name} 
-                          className="w-full h-full object-cover"
-                        />
-                        {isSelected && (
-                          <div className="absolute inset-0 bg-green-500/20 flex items-center justify-center">
-                            <div className="bg-green-500 text-white rounded-full p-2">
-                              <Check size={20} />
-                            </div>
-                          </div>
-                        )}
-                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <p className="text-white text-xs truncate">{item.name}</p>
-                          {item.date && (
-                            <p className="text-white/70 text-[10px]">{item.date}</p>
-                          )}
+                            }}
+                            placeholder="Mappnamn..."
+                            className="w-full px-2 py-1 bg-slate-700 text-white text-sm rounded border border-slate-600 focus:outline-none focus:border-blue-500"
+                            autoFocus
+                          />
                         </div>
+                      ) : (
+                        <button
+                          onClick={() => setIsCreatingLibrary(true)}
+                          className="flex items-center gap-3 w-full px-3 py-2 rounded text-sm text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+                        >
+                          <FolderPlus size={16} />
+                          <span>Skapa mapp</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Huvudområde: Bilderna */}
+              <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                {/* Sök och filter */}
+                <div className="mb-4 flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder="Sök bilder..."
+                      className="w-full pl-10 pr-4 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <button
+                    onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+                    className="p-2 bg-slate-700 hover:bg-slate-600 rounded text-white"
+                    title={viewMode === 'grid' ? 'Listvy' : 'Rutnätsvy'}
+                  >
+                    {viewMode === 'grid' ? <Grid size={18} /> : <List size={18} />}
+                  </button>
+                </div>
+                
+                {/* Filtrera media baserat på aktivt bibliotek och sökterm */}
+                {(() => {
+                  const libraryFiltered = getFilteredMediaByLibrary(allMediaItems);
+                  const searchFiltered = libraryFiltered.filter(item => {
+                    if (!searchTerm) return true;
+                    const search = searchTerm.toLowerCase();
+                    return (item.name || '').toLowerCase().includes(search) ||
+                           (item.description || '').toLowerCase().includes(search) ||
+                           (item.tags || []).some(tag => tag.toLowerCase().includes(search));
+                  });
+                  
+                  if (searchFiltered.length === 0) {
+                    return (
+                      <div className="text-center py-12 text-slate-400">
+                        <ImageIcon size={48} className="mx-auto mb-4 opacity-50" />
+                        <p>Inga bilder hittades</p>
                       </div>
                     );
-                  })}
-                </div>
-              )}
+                  }
+                  
+                  return (
+                    <div className={viewMode === 'grid' 
+                      ? "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4"
+                      : "space-y-2"
+                    }>
+                      {searchFiltered.map((item) => {
+                        const isSelected = media.some(m => m.id === item.id);
+                        return (
+                          <div
+                            key={item.id}
+                            onClick={() => {
+                              if (!isSelected) {
+                                const newItem = {
+                                  id: item.id,
+                                  url: item.url,
+                                  name: item.name,
+                                  date: item.date || new Date().toISOString().split('T')[0],
+                                  description: item.description || '',
+                                  tags: item.tags || [],
+                                  regions: item.faces || item.regions || [],
+                                  connections: item.connections || {},
+                                  libraryId: item.libraryId,
+                                  note: item.note || ''
+                                };
+                                
+                                // Om det är en person, lägg till personen i connections om den inte redan finns
+                                if (entityType === 'person' && entityId) {
+                                  const person = allPeople.find(p => p.id === entityId);
+                                  if (person) {
+                                    const existingPeople = newItem.connections.people || [];
+                                    const personAlreadyLinked = existingPeople.some(p => p.id === entityId);
+                                    
+                                    if (!personAlreadyLinked) {
+                                      newItem.connections = {
+                                        ...newItem.connections,
+                                        people: [
+                                          ...existingPeople,
+                                          {
+                                            id: person.id,
+                                            name: `${person.firstName} ${person.lastName}`,
+                                            ref: person.refNumber || '',
+                                            dates: '' // Kan fyllas i senare
+                                          }
+                                        ]
+                                      };
+                                      
+                                      // Uppdatera även i global media-lista om bilden redan finns där
+                                      if (onUpdateAllMedia && allMediaItems) {
+                                        const updatedAllMedia = allMediaItems.map(m => 
+                                          m.id === item.id ? { ...m, connections: newItem.connections } : m
+                                        );
+                                        onUpdateAllMedia(updatedAllMedia);
+                                      }
+                                    }
+                                  }
+                                }
+                                
+                                // Lägg till bilden i personens media-lista
+                                onMediaChange([...media, newItem]);
+                              } else {
+                                // Om bilden redan är vald, ta bort den
+                                const newMedia = media.filter(m => m.id !== item.id);
+                                onMediaChange(newMedia);
+                              }
+                            }}
+                            className={viewMode === 'grid' 
+                              ? `relative aspect-square rounded-lg border-2 overflow-hidden cursor-pointer transition-all group ${
+                                  isSelected 
+                                    ? 'border-green-500 ring-2 ring-green-500/50' 
+                                    : 'border-slate-700 hover:border-blue-500'
+                                }`
+                              : `flex items-center gap-4 p-2 rounded border cursor-pointer ${
+                                  isSelected 
+                                    ? 'bg-green-500/20 border-green-500' 
+                                    : 'bg-slate-800/30 border-slate-700 hover:bg-slate-800'
+                                }`
+                            }
+                          >
+                            {viewMode === 'grid' ? (
+                              <>
+                                <img 
+                                  src={item.url} 
+                                  alt={item.name} 
+                                  className="w-full h-full object-cover"
+                                />
+                                {isSelected && (
+                                  <div className="absolute inset-0 bg-green-500/20 flex items-center justify-center">
+                                    <div className="bg-green-500 text-white rounded-full p-2">
+                                      <Check size={20} />
+                                    </div>
+                                  </div>
+                                )}
+                                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <div className="flex gap-1">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setItemToMove(item);
+                                        setIsMoveModalOpen(true);
+                                      }}
+                                      className="p-1.5 bg-slate-800/90 hover:bg-slate-700 rounded text-white"
+                                      title="Flytta till annan mapp"
+                                    >
+                                      <MoveRight size={14} />
+                                    </button>
+                                  </div>
+                                </div>
+                                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <p className="text-white text-xs truncate">{item.name}</p>
+                                  {item.date && (
+                                    <p className="text-white/70 text-[10px]">{item.date}</p>
+                                  )}
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div className="w-16 h-16 bg-slate-900 rounded overflow-hidden shrink-0 border border-slate-600">
+                                  <img src={item.url} alt={item.name} className="w-full h-full object-cover" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm text-slate-200 font-medium truncate">{item.name}</p>
+                                  {item.date && <p className="text-xs text-slate-400">{item.date}</p>}
+                                  {item.description && (
+                                    <p className="text-xs text-slate-500 truncate mt-1">{item.description}</p>
+                                  )}
+                                </div>
+                                {isSelected && (
+                                  <div className="shrink-0">
+                                    <Check size={20} className="text-green-500" />
+                                  </div>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          </div>
+        </WindowFrame>
+      )}
+
+      {/* Flytta bild-modal */}
+      {isMoveModalOpen && itemToMove && (
+        <WindowFrame
+          title="Flytta bild"
+          icon={MoveRight}
+          onClose={() => {
+            setIsMoveModalOpen(false);
+            setItemToMove(null);
+          }}
+          initialWidth={400}
+          initialHeight={300}
+          zIndex={5001}
+        >
+          <div className="p-4 bg-slate-800">
+            <p className="text-slate-200 mb-4">Välj mapp att flytta bilden till:</p>
+            <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
+              {allLibraries.filter(lib => lib.id !== 'all').map(lib => {
+                const Icon = lib.icon;
+                return (
+                  <button
+                    key={lib.id}
+                    onClick={async () => {
+                      await handleMoveImage(itemToMove, lib.id);
+                      setIsMoveModalOpen(false);
+                      setItemToMove(null);
+                    }}
+                    className="w-full flex items-center gap-3 px-3 py-2 rounded text-sm text-slate-300 hover:bg-slate-700 transition-colors"
+                  >
+                    <Icon size={16} />
+                    <span className="flex-1 text-left">{lib.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </WindowFrame>
+      )}
+
+      {/* Flytta bild-modal */}
+      {isMoveModalOpen && itemToMove && (
+        <WindowFrame
+          title="Flytta bild"
+          icon={MoveRight}
+          onClose={() => {
+            setIsMoveModalOpen(false);
+            setItemToMove(null);
+          }}
+          initialWidth={400}
+          initialHeight={300}
+          zIndex={5001}
+        >
+          <div className="p-4 bg-slate-800">
+            <p className="text-slate-200 mb-4">Välj mapp att flytta bilden till:</p>
+            <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
+              {allLibraries.filter(lib => lib.id !== 'all').map(lib => {
+                const Icon = lib.icon;
+                return (
+                  <button
+                    key={lib.id}
+                    onClick={async () => {
+                      await handleMoveImage(itemToMove, lib.id);
+                      setIsMoveModalOpen(false);
+                      setItemToMove(null);
+                    }}
+                    className="w-full flex items-center gap-3 px-3 py-2 rounded text-sm text-slate-300 hover:bg-slate-700 transition-colors"
+                  >
+                    <Icon size={16} />
+                    <span className="flex-1 text-left">{lib.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </WindowFrame>

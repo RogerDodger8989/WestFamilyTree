@@ -83,11 +83,28 @@ ipcMain.handle('save-database', async (event, fileHandle, data) => {
         value TEXT
       )`, err => err ? reject(err) : resolve());
     });
+    await new Promise((resolve, reject) => {
+      db.run(`CREATE TABLE IF NOT EXISTS media (
+        id TEXT PRIMARY KEY,
+        url TEXT,
+        name TEXT,
+        date TEXT,
+        description TEXT,
+        tags TEXT,
+        connections TEXT,
+        faces TEXT,
+        libraryId TEXT,
+        filePath TEXT,
+        fileSize INTEGER,
+        note TEXT
+      )`, err => err ? reject(err) : resolve());
+    });
     // Clear tables before insert (simple overwrite)
     await new Promise((resolve, reject) => db.run('DELETE FROM people', err => err ? reject(err) : resolve()));
     await new Promise((resolve, reject) => db.run('DELETE FROM sources', err => err ? reject(err) : resolve()));
     await new Promise((resolve, reject) => db.run('DELETE FROM places', err => err ? reject(err) : resolve()));
     await new Promise((resolve, reject) => db.run('DELETE FROM meta', err => err ? reject(err) : resolve()));
+    await new Promise((resolve, reject) => db.run('DELETE FROM media', err => err ? reject(err) : resolve()));
     // Insert people
     for (const p of data.people || []) {
       await new Promise((resolve, reject) => {
@@ -124,14 +141,131 @@ ipcMain.handle('save-database', async (event, fileHandle, data) => {
         );
       });
     }
+    // Insert media
+    for (const m of data.media || []) {
+      await new Promise((resolve, reject) => {
+        db.run(`INSERT INTO media (id, url, name, date, description, tags, connections, faces, libraryId, filePath, fileSize, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            m.id || '',
+            m.url || '',
+            m.name || '',
+            m.date || '',
+            m.description || '',
+            JSON.stringify(m.tags || []),
+            JSON.stringify(m.connections || {}),
+            JSON.stringify(m.faces || m.regions || []),
+            m.libraryId || '',
+            m.filePath || '',
+            m.fileSize || 0,
+            m.note || ''
+          ],
+          err => err ? reject(err) : resolve()
+        );
+      });
+    }
     db.close();
     return { success: true, dbPath };
   } catch (err) {
     return { error: err.message, dbPath };
   }
 });
+// Hjälpfunktion för att skanna media-mappen (MÅSTE vara definierad före open-database)
+async function scanMediaFolder() {
+  const path = require('path');
+  const fs = require('fs');
+  const IMAGE_ROOT = path.join(__dirname, '..', 'media');
+  const TRASH_ROOT = path.join(IMAGE_ROOT, '.trash');
+  
+  try {
+    const mediaItems = [];
+    
+    // Hjälpfunktion för att rekursivt skanna en mapp
+    const scanDirectory = async (dir, relativePath = '') => {
+      try {
+        const entries = await fs.promises.readdir(dir, { withFileTypes: true });
+        
+        for (const entry of entries) {
+          const fullPath = path.join(dir, entry.name);
+          const relPath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
+          
+          if (entry.isDirectory()) {
+            // Rekursivt skanna undermappar
+            await scanDirectory(fullPath, relPath);
+          } else if (entry.isFile()) {
+            // Kontrollera om det är en bildfil
+            const ext = path.extname(entry.name).toLowerCase();
+            const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.webp'];
+            
+            if (imageExtensions.includes(ext)) {
+              const stats = await fs.promises.stat(fullPath);
+              const fileName = entry.name;
+              
+              // Bestäm libraryId baserat på mapp
+              let libraryId = 'temp';
+              if (relPath.startsWith('persons/')) {
+                libraryId = 'persons';
+              } else if (relPath.startsWith('sources/')) {
+                libraryId = 'sources';
+              } else if (relPath.startsWith('places/')) {
+                libraryId = 'places';
+              } else if (relPath.startsWith('custom/')) {
+                // För custom-mappar, extrahera mappnamnet
+                const customMatch = relPath.match(/^custom\/([^\/]+)\//);
+                if (customMatch) {
+                  libraryId = `custom_${customMatch[1]}`;
+                }
+              }
+              
+              // Skapa stabilt ID baserat på filnamn och sökväg (hash av relPath)
+              const crypto = require('crypto');
+              const pathHash = crypto.createHash('md5').update(relPath).digest('hex').slice(0, 12);
+              const stableId = `img_${pathHash}`;
+              
+              // Skapa media-item
+              const mediaItem = {
+                id: stableId,
+                url: `media://${encodeURIComponent(relPath)}`,
+                name: fileName,
+                date: stats.mtime.toISOString().split('T')[0], // Använd ändringsdatum som standard
+                description: '',
+                tags: [],
+                connections: {
+                  people: [],
+                  places: [],
+                  sources: []
+                },
+                faces: [],
+                libraryId: libraryId,
+                filePath: relPath,
+                fileSize: stats.size,
+                note: ''
+              };
+              
+              mediaItems.push(mediaItem);
+            }
+          }
+        }
+      } catch (err) {
+        console.error(`[scanMediaFolder] Error scanning ${dir}:`, err);
+      }
+    };
+    
+    // Skanna media-mappen rekursivt
+    if (fs.existsSync(IMAGE_ROOT)) {
+      await scanDirectory(IMAGE_ROOT);
+    }
+    
+    console.log(`[scanMediaFolder] Hittade ${mediaItems.length} bilder i media-mappen`);
+    return { success: true, media: mediaItems };
+  } catch (error) {
+    console.error('[scanMediaFolder] Error:', error);
+    return { success: false, error: error.message, media: [] };
+  }
+}
+
 // IPC handler for open-database-dialog (for opening .db/.sqlite files)
 ipcMain.handle('open-database-dialog', async (event) => {
+  const { dialog } = require('electron');
   const win = BrowserWindow.getFocusedWindow();
   const result = await dialog.showOpenDialog(win, {
     title: 'Öppna databas...',
@@ -190,12 +324,104 @@ ipcMain.handle('open-database', async (event, filePath) => {
           meta = metaRows[0];
         }
       }
+      
+      // Läs media från databasen
+      const mediaRows = await readTable('media', ['tags', 'connections', 'faces']);
+      let mediaFromDb = [];
+      if (mediaRows.length > 0) {
+        mediaFromDb = mediaRows.map(row => ({
+          id: row.id,
+          url: row.url,
+          name: row.name,
+          date: row.date,
+          description: row.description || '',
+          tags: row.tags || [],
+          connections: row.connections || { people: [], places: [], sources: [] },
+          faces: row.faces || [],
+          regions: row.faces || [], // Alias för kompatibilitet
+          libraryId: row.libraryId || 'temp',
+          filePath: row.filePath || '',
+          fileSize: row.fileSize || 0,
+          note: row.note || ''
+        }));
+      }
+      
       db.close();
-      return { people, sources, places, meta, dbPath };
+      
+      // Skanna media-mappen och merga med media från databasen
+      let media = [];
+      try {
+        const mediaResult = await scanMediaFolder();
+        if (mediaResult && mediaResult.success) {
+          const mediaFromFiles = mediaResult.media || [];
+          
+          // Skapa en map av media från databasen (keyed by filePath eller url)
+          const dbMediaMap = new Map();
+          mediaFromDb.forEach(m => {
+            const key = m.filePath || m.url || m.id;
+            dbMediaMap.set(key, m);
+          });
+          
+          // Merga: använd metadata från databasen om den finns, annars från filsystemet
+          media = mediaFromFiles.map(fileMedia => {
+            const key = fileMedia.filePath || fileMedia.url || fileMedia.id;
+            const dbMedia = dbMediaMap.get(key);
+            
+            if (dbMedia) {
+              // Merga: använd metadata från databasen, men behåll filsystemets URL/filePath
+              return {
+                ...dbMedia,
+                url: fileMedia.url, // Använd filsystemets URL (kan ha ändrats)
+                filePath: fileMedia.filePath, // Använd filsystemets filePath
+                fileSize: fileMedia.fileSize // Uppdatera filstorlek från filsystemet
+              };
+            } else {
+              // Ny bild från filsystemet som inte finns i databasen
+              return fileMedia;
+            }
+          });
+          
+          // Lägg till media från databasen som inte finns i filsystemet (kan ha flyttats/borttagits)
+          mediaFromDb.forEach(dbMedia => {
+            const key = dbMedia.filePath || dbMedia.url || dbMedia.id;
+            const existsInFiles = mediaFromFiles.some(fm => 
+              (fm.filePath || fm.url || fm.id) === key
+            );
+            if (!existsInFiles) {
+              // Media finns i databasen men inte i filsystemet - behåll den ändå
+              media.push(dbMedia);
+            }
+          });
+          
+          console.log(`[open-database] Mergade ${media.length} bilder (${mediaFromDb.length} från databas, ${mediaFromFiles.length} från filsystem)`);
+        } else {
+          // Om skanning misslyckades, använd bara media från databasen
+          media = mediaFromDb;
+          console.log(`[open-database] Använder ${media.length} bilder från databasen (filskanning misslyckades)`);
+        }
+      } catch (mediaErr) {
+        console.error('[open-database] Error scanning media folder:', mediaErr);
+        // Fallback: använd bara media från databasen
+        media = mediaFromDb;
+      }
+      
+      return { people, sources, places, meta, media, dbPath };
     } catch (err) {
-      return { error: err.message, dbPath };
+      console.error('[open-database] FEL:', err);
+      // Säkerställ att media alltid returneras, även vid fel
+      let media = [];
+      try {
+        const mediaResult = await scanMediaFolder();
+        if (mediaResult && mediaResult.success) {
+          media = mediaResult.media || [];
+        }
+      } catch (mediaErr) {
+        console.error('[open-database] Error scanning media folder (fallback):', mediaErr);
+      }
+      return { error: err.message, dbPath, people: [], sources: [], places: [], meta: {}, media };
     }
   });
+
 const path = require('path');
 const fs = require('fs');
 
@@ -1029,6 +1255,287 @@ ipcMain.handle('import-images', async (event) => {
     console.error('[import-images] Error:', error);
     return { success: false, error: error.message };
   }
+});
+
+// Flytta fil till papperskorgen
+ipcMain.handle('move-file-to-trash', async (event, filePath) => {
+	try {
+		const path = require('path');
+		const fs = require('fs');
+		const IMAGE_ROOT = path.join(__dirname, '..', 'media');
+		const TRASH_ROOT = path.join(IMAGE_ROOT, '.trash');
+		
+		const normalizedPath = path.normalize(filePath);
+		
+		// Försök hitta filen - testa olika sökvägar
+		let sourcePath = null;
+		let relativePath = null;
+		
+		// Testa om filePath redan är absolut
+		if (path.isAbsolute(normalizedPath)) {
+			sourcePath = normalizedPath;
+			relativePath = path.relative(IMAGE_ROOT, sourcePath).replace(/\\/g, '/');
+		} else {
+			// Testa olika möjliga sökvägar
+			const possiblePaths = [
+				path.join(IMAGE_ROOT, normalizedPath), // Direkt
+				path.join(IMAGE_ROOT, 'persons', normalizedPath), // persons/
+				path.join(IMAGE_ROOT, 'sources', normalizedPath), // sources/
+				path.join(IMAGE_ROOT, 'places', normalizedPath), // places/
+			];
+			
+			for (const testPath of possiblePaths) {
+				if (fs.existsSync(testPath)) {
+					sourcePath = testPath;
+					relativePath = path.relative(IMAGE_ROOT, testPath).replace(/\\/g, '/');
+					console.log('[move-file-to-trash] Hittade fil på:', relativePath);
+					break;
+				}
+			}
+		}
+		
+		if (!sourcePath || !fs.existsSync(sourcePath)) {
+			console.error('[move-file-to-trash] Fil finns inte:', {
+				filePath,
+				normalizedPath,
+				testedPaths: possiblePaths
+			});
+			return { success: false, error: 'Fil finns inte' };
+		}
+		
+		// Skapa papperskorg-mapp om den inte finns
+		await fs.promises.mkdir(TRASH_ROOT, { recursive: true });
+		
+		// Skapa unikt filnamn i papperskorgen (lägg till timestamp och originalPath)
+		const fileName = path.basename(sourcePath);
+		const timestamp = Date.now();
+		// Spara originalPath i filnamnet: timestamp_originalPath_filename
+		const pathHash = relativePath.replace(/\//g, '_').replace(/\\/g, '_');
+		const trashFileName = `${timestamp}_${pathHash}_${fileName}`;
+		const trashPath = path.join(TRASH_ROOT, trashFileName);
+		
+		// Flytta filen
+		await fs.promises.rename(sourcePath, trashPath);
+		
+		console.log('[move-file-to-trash] ✅ Fil flyttad till papperskorg:', {
+			source: sourcePath,
+			relativePath: relativePath,
+			destination: trashPath,
+			trashFileName: trashFileName
+		});
+		
+		return { success: true, trashPath: `.trash/${trashFileName}`, originalPath: relativePath };
+	} catch (error) {
+		console.error('[move-file-to-trash] Error:', error);
+		return { success: false, error: error.message };
+	}
+});
+
+// Hämta filer i papperskorgen
+ipcMain.handle('get-trash-files', async (event) => {
+	try {
+		const path = require('path');
+		const fs = require('fs');
+		const IMAGE_ROOT = path.join(__dirname, '..', 'media');
+		const TRASH_ROOT = path.join(IMAGE_ROOT, '.trash');
+		
+		if (!fs.existsSync(TRASH_ROOT)) {
+			return { success: true, files: [] };
+		}
+		
+		const entries = await fs.promises.readdir(TRASH_ROOT, { withFileTypes: true });
+		const files = [];
+		
+		for (const entry of entries) {
+			if (entry.isFile()) {
+				const fullPath = path.join(TRASH_ROOT, entry.name);
+				const stats = await fs.promises.stat(fullPath);
+				const parts = entry.name.split('_');
+				const timestamp = parseInt(parts[0]);
+				
+				// Nytt format: timestamp_pathHash_filename
+				// Gammalt format: timestamp_filename
+				let originalName, originalPath;
+				if (parts.length >= 3) {
+					// Nytt format - extrahera originalPath och filename
+					originalPath = parts.slice(1, -1).join('_').replace(/_/g, '/'); // Återställ / från _
+					originalName = parts[parts.length - 1];
+				} else {
+					// Gammalt format - bara filnamn
+					originalName = parts.slice(1).join('_');
+					originalPath = null; // Vi vet inte var den låg
+				}
+				
+				const daysOld = Math.floor((Date.now() - timestamp) / (1000 * 60 * 60 * 24));
+				
+				files.push({
+					name: entry.name,
+					originalName: originalName,
+					originalPath: originalPath, // Spara originalPath om den finns
+					path: `.trash/${entry.name}`,
+					size: stats.size,
+					deletedAt: new Date(timestamp).toISOString(),
+					daysOld: daysOld,
+					willBeDeleted: daysOld >= 30
+				});
+			}
+		}
+		
+		// Sortera efter datum (nyast först)
+		files.sort((a, b) => b.deletedAt.localeCompare(a.deletedAt));
+		
+		return { success: true, files };
+	} catch (error) {
+		console.error('[get-trash-files] Error:', error);
+		return { success: false, error: error.message, files: [] };
+	}
+});
+
+// Återställ fil från papperskorgen
+ipcMain.handle('restore-file-from-trash', async (event, trashFileName, originalPath) => {
+	try {
+		const path = require('path');
+		const fs = require('fs');
+		const IMAGE_ROOT = path.join(__dirname, '..', 'media');
+		const TRASH_ROOT = path.join(IMAGE_ROOT, '.trash');
+		
+		const trashPath = path.join(TRASH_ROOT, trashFileName);
+		
+		console.log('[restore-file-from-trash] Försöker återställa:', {
+			trashFileName,
+			originalPath,
+			trashPath,
+			trashExists: fs.existsSync(trashPath)
+		});
+		
+		if (!fs.existsSync(trashPath)) {
+			console.error('[restore-file-from-trash] ❌ Fil finns inte i papperskorgen:', trashPath);
+			return { success: false, error: 'Fil finns inte i papperskorgen' };
+		}
+		
+		// Extrahera originalPath från trash-filnamn om den inte skickades med
+		let finalOriginalPath = originalPath;
+		if (!finalOriginalPath) {
+			// Försök extrahera från trash-filnamn (nytt format: timestamp_pathHash_filename)
+			const parts = trashFileName.split('_');
+			if (parts.length >= 3) {
+				// Nytt format - extrahera originalPath
+				finalOriginalPath = parts.slice(1, -1).join('_').replace(/_/g, '/');
+				console.log('[restore-file-from-trash] Extraherade originalPath från filnamn:', finalOriginalPath);
+			}
+		}
+		
+		// Bestäm destination baserat på originalPath eller filnamn
+		let destPath;
+		if (finalOriginalPath && !finalOriginalPath.startsWith('.trash/')) {
+			// Använd originalPath direkt
+			destPath = path.join(IMAGE_ROOT, finalOriginalPath);
+			console.log('[restore-file-from-trash] Använder originalPath:', destPath);
+		} else {
+			// Extrahera originalnamn från trash-filnamn
+			const parts = trashFileName.split('_');
+			const originalName = parts.length >= 3 ? parts[parts.length - 1] : trashFileName.substring(trashFileName.indexOf('_') + 1);
+			
+			// Försök gissa mapp - kolla om det finns en persons/ mapp
+			const testPath = path.join(IMAGE_ROOT, 'persons', originalName);
+			if (fs.existsSync(path.dirname(testPath))) {
+				destPath = testPath;
+				console.log('[restore-file-from-trash] Gissar persons/ från filnamn:', destPath);
+			} else {
+				destPath = path.join(IMAGE_ROOT, originalName);
+				console.log('[restore-file-from-trash] Använder root från filnamn:', destPath);
+			}
+		}
+		
+		// Skapa mappar om de inte finns
+		const destDir = path.dirname(destPath);
+		await fs.promises.mkdir(destDir, { recursive: true });
+		console.log('[restore-file-from-trash] Skapade mapp:', destDir);
+		
+		// Flytta tillbaka filen
+		await fs.promises.rename(trashPath, destPath);
+		
+		const relativePath = path.relative(IMAGE_ROOT, destPath);
+		console.log('[restore-file-from-trash] ✅ Fil återställd:', {
+			trash: trashPath,
+			destination: destPath,
+			relativePath: relativePath
+		});
+		
+		return { success: true, filePath: relativePath.replace(/\\/g, '/') };
+	} catch (error) {
+		console.error('[restore-file-from-trash] ❌ Error:', error);
+		return { success: false, error: error.message };
+	}
+});
+
+// Permanent radera fil från papperskorgen
+ipcMain.handle('permanently-delete-from-trash', async (event, trashFileName) => {
+	try {
+		const path = require('path');
+		const fs = require('fs');
+		const IMAGE_ROOT = path.join(__dirname, '..', 'media');
+		const TRASH_ROOT = path.join(IMAGE_ROOT, '.trash');
+		
+		const trashPath = path.join(TRASH_ROOT, trashFileName);
+		
+		if (!fs.existsSync(trashPath)) {
+			return { success: false, error: 'Fil finns inte i papperskorgen' };
+		}
+		
+		await fs.promises.unlink(trashPath);
+		
+		console.log('[permanently-delete-from-trash] ✅ Fil permanent raderad:', trashPath);
+		
+		return { success: true };
+	} catch (error) {
+		console.error('[permanently-delete-from-trash] Error:', error);
+		return { success: false, error: error.message };
+	}
+});
+
+// Töm papperskorgen (radera filer äldre än 30 dagar)
+ipcMain.handle('empty-trash', async (event, olderThanDays = 30) => {
+	try {
+		const path = require('path');
+		const fs = require('fs');
+		const IMAGE_ROOT = path.join(__dirname, '..', 'media');
+		const TRASH_ROOT = path.join(IMAGE_ROOT, '.trash');
+		
+		if (!fs.existsSync(TRASH_ROOT)) {
+			return { success: true, deletedCount: 0 };
+		}
+		
+		const entries = await fs.promises.readdir(TRASH_ROOT, { withFileTypes: true });
+		let deletedCount = 0;
+		const now = Date.now();
+		const maxAge = olderThanDays * 24 * 60 * 60 * 1000;
+		
+		for (const entry of entries) {
+			if (entry.isFile()) {
+				const fullPath = path.join(TRASH_ROOT, entry.name);
+				const timestamp = parseInt(entry.name.split('_')[0]);
+				const age = now - timestamp;
+				
+				if (age >= maxAge) {
+					try {
+						await fs.promises.unlink(fullPath);
+						deletedCount++;
+						console.log('[empty-trash] ✅ Raderad fil:', entry.name);
+					} catch (err) {
+						console.error('[empty-trash] Error raderar fil:', entry.name, err);
+					}
+				}
+			}
+		}
+		
+		console.log(`[empty-trash] ✅ Tömt papperskorg: ${deletedCount} filer raderade`);
+		
+		return { success: true, deletedCount };
+	} catch (error) {
+		console.error('[empty-trash] Error:', error);
+		return { success: false, error: error.message, deletedCount: 0 };
+	}
 });
 
 // Get media file path (för att visa bilder från media-mappen)

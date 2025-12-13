@@ -42,12 +42,23 @@ export async function openFile(filePath) {
 export async function saveFile(fileHandle, data) {
     if (window.electronAPI && typeof window.electronAPI.saveDatabase === 'function') {
         // DEBUG: Logga vad som skickas till Electron
+        const mediaMedKopplingar = (data?.media || []).filter(m => m.connections && (m.connections.people?.length > 0 || m.connections.places?.length > 0 || m.connections.sources?.length > 0));
         console.log('[database.js] saveFile:', {
             fileHandle,
             antalPersoner: Array.isArray(data?.people) ? data.people.length : 'ej array',
-            personer: (Array.isArray(data?.people) && data.people.length > 0) ? data.people.map(p => ({ id: p.id, firstName: p.firstName, lastName: p.lastName })) : data?.people
+            antalMedia: Array.isArray(data?.media) ? data.media.length : 'ej array',
+            mediaMedKopplingar: mediaMedKopplingar.length,
+            kopplingar: mediaMedKopplingar.map(m => ({ 
+                id: m.id, 
+                name: m.name, 
+                connections: m.connections,
+                connectionsString: JSON.stringify(m.connections)
+            }))
         });
-        return await window.electronAPI.saveDatabase(fileHandle, data);
+        const result = await window.electronAPI.saveDatabase(fileHandle, data);
+        console.log('[database.js] saveFile result:', result);
+        // Returnera true om det lyckades, annars false
+        return result && (result.success !== false) && !result.error;
     } else {
         throw new Error('Kan bara spara databas i desktop/Electron-läge!');
     }

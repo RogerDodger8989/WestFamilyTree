@@ -22,9 +22,80 @@ export default function useAppContext() {
                 console.log('[useAppContext] getLastOpenedFile svar:', lastFile);
                 if (lastFile) {
                     const result = await openFile(lastFile);
-                    console.log('[useAppContext] openFile svar:', result);
+                    const mediaMedKopplingar = (result?.media || []).filter(m => {
+                        const conn = typeof m.connections === 'string' ? JSON.parse(m.connections) : m.connections;
+                        return conn && (conn.people?.length > 0 || conn.places?.length > 0 || conn.sources?.length > 0);
+                    });
+                    console.log('[useAppContext] openFile svar:', {
+                        antalPersoner: Array.isArray(result?.people) ? result.people.length : 0,
+                        antalMedia: Array.isArray(result?.media) ? result.media.length : 0,
+                        mediaMedKopplingar: mediaMedKopplingar.length,
+                        kopplingar: mediaMedKopplingar.map(m => {
+                            const conn = typeof m.connections === 'string' ? JSON.parse(m.connections) : m.connections;
+                            return { 
+                                id: m.id, 
+                                name: m.name, 
+                                connections: conn,
+                                connectionsType: typeof m.connections,
+                                connectionsString: JSON.stringify(m.connections),
+                                peopleCount: conn?.people?.length || 0,
+                                people: conn?.people
+                            };
+                        }),
+                        allaMedia: result?.media?.map(m => ({
+                            id: m.id,
+                            name: m.name,
+                            connectionsType: typeof m.connections,
+                            connections: m.connections
+                        }))
+                    });
                     if (result && result.people) {
-                        setDbData({ ...result, meta: result.meta || {} });
+                        // Parse connections om de är strängar (från databasen)
+                        const parsedMedia = (result.media || []).map(m => {
+                            if (typeof m.connections === 'string') {
+                                try {
+                                    const parsed = JSON.parse(m.connections);
+                                    return { ...m, connections: parsed };
+                                } catch (e) {
+                                    console.error('[useAppContext] Error parsing connections for', m.id, ':', e, m.connections);
+                                    return { ...m, connections: { people: [], places: [], sources: [] } };
+                                }
+                            }
+                            // Säkerställ att connections alltid är ett objekt med arrays
+                            return {
+                                ...m,
+                                connections: {
+                                    people: Array.isArray(m.connections?.people) ? m.connections.people : [],
+                                    places: Array.isArray(m.connections?.places) ? m.connections.places : [],
+                                    sources: Array.isArray(m.connections?.sources) ? m.connections.sources : [],
+                                    ...(m.connections || {})
+                                }
+                            };
+                        });
+                        
+                        const mediaMedKopplingar = parsedMedia.filter(m => {
+                            const conn = m.connections;
+                            return conn && (conn.people?.length > 0 || conn.places?.length > 0 || conn.sources?.length > 0);
+                        });
+                        console.log('[useAppContext] Parsar media connections:', {
+                            antal: parsedMedia.length,
+                            medKopplingar: mediaMedKopplingar.length,
+                            exempel: mediaMedKopplingar[0] ? {
+                                id: mediaMedKopplingar[0].id,
+                                name: mediaMedKopplingar[0].name,
+                                connections: mediaMedKopplingar[0].connections,
+                                peopleCount: mediaMedKopplingar[0].connections?.people?.length || 0,
+                                people: mediaMedKopplingar[0].connections?.people,
+                                peopleType: typeof mediaMedKopplingar[0].connections?.people,
+                                isArray: Array.isArray(mediaMedKopplingar[0].connections?.people)
+                            } : null
+                        });
+                        
+                        setDbData({ 
+                            ...result, 
+                            meta: result.meta || {},
+                            media: parsedMedia // Använd parsade media med korrekt connections-format
+                        });
                         setFileHandle({ name: lastFile.split(/[\\/]/).pop(), path: lastFile });
                         return;
                     }
@@ -61,6 +132,23 @@ export default function useAppContext() {
 
     const [focusPair, setFocusPair] = useState({ primary: null, secondary: null });
     const [bookmarks, setBookmarks] = useState([]);
+    
+    // Refs för auto-save
+    const dbDataRef = useRef(null);
+    const focusPairRef = useRef({ primary: null, secondary: null });
+    const bookmarksRef = useRef([]);
+    
+    // Uppdatera refs när state ändras
+    useEffect(() => {
+        dbDataRef.current = dbData;
+    }, [dbData]);
+    useEffect(() => {
+        focusPairRef.current = focusPair;
+    }, [focusPair]);
+    useEffect(() => {
+        bookmarksRef.current = bookmarks;
+    }, [bookmarks]);
+    
     // State för att komma ihåg vyn i källkatalogen
     const [sourceCatalogState, setSourceCatalogState] = useState({
         selectedSourceId: null,
@@ -77,17 +165,6 @@ export default function useAppContext() {
     });
 
     // State för relations-vyn (både modal och flik)
-        // Autospar: spara till fil varje gång dbData ändras (om Electron och fil finns)
-        useEffect(() => {
-            if (!dbData) return;
-            if (!(window && window.electronAPI && typeof window.electronAPI.saveDatabase === 'function')) return;
-            if (!fileHandle || !fileHandle.path) return;
-            // Spara automatiskt
-            const dataToSave = { ...dbData, meta: { ...dbData.meta, focusPair, bookmarks } };
-            window.electronAPI.saveDatabase(fileHandle, dataToSave)
-                .then(() => setIsDirty(false))
-                .catch(() => {});
-        }, [dbData, fileHandle, focusPair, bookmarks]);
     const [familyTreeFocusPersonId, setFamilyTreeFocusPersonId] = useState(null);
     const [editingRelationsForPerson, setEditingRelationsForPerson] = useState(null);
 
@@ -379,12 +456,16 @@ export default function useAppContext() {
         if (!filePath) return;
         const result = await openFile(filePath);
         if (result) {
-            setDbData(result.people ? { ...result, meta: {} } : result.data);
+            setDbData(result.people ? { 
+                ...result, 
+                meta: result.meta || {},
+                media: result.media || [] // Lägg till media från filsystemet
+            } : result.data);
             setBookmarks(result.meta?.bookmarks || []);
             setFocusPair(result.meta?.focusPair || { primary: null, secondary: null });
             setFileHandle({ name: filePath.split(/[\\/]/).pop(), path: filePath });
             setIsDirty(false);
-            showStatus(`Filen '${filePath.split(/[\\/]/).pop()}' öppnades.`);
+            showStatus(`Filen '${filePath.split(/[\\/]/).pop()}' öppnades. ${result.media?.length || 0} bilder hittades i media-mappen.`);
         }
     };
 
@@ -402,7 +483,11 @@ export default function useAppContext() {
         if (saveAsInProgressRef.current) return;
         saveAsInProgressRef.current = true;
         try {
-            const dataToSave = { ...dbData, meta: { ...dbData.meta, focusPair, bookmarks } };
+            const dataToSave = { 
+            ...dbData, 
+            meta: { ...dbData.meta, focusPair, bookmarks },
+            media: dbData.media || [] // Säkerställ att media alltid är en array
+        };
             const newHandle = await saveFileAs(dataToSave);
             if (newHandle) {
                 setFileHandle(newHandle);
@@ -424,11 +509,16 @@ export default function useAppContext() {
             handle = await handleSaveFileAs();
             if (!handle) return;
         }
-        const dataToSave = { ...dbData, meta: { ...dbData.meta, focusPair, bookmarks } };
+        const dataToSave = { 
+            ...dbData, 
+            meta: { ...dbData.meta, focusPair, bookmarks },
+            media: dbData.media || [] // Säkerställ att media alltid är en array
+        };
         // DEBUG: Logga vad som försöker sparas
         console.log('[DEBUG] Sparar till backend:', {
             fileHandle: handle,
             antalPersoner: Array.isArray(dataToSave.people) ? dataToSave.people.length : 'ej array',
+            antalMedia: Array.isArray(dataToSave.media) ? dataToSave.media.length : 'ej array',
             personer: (Array.isArray(dataToSave.people) && dataToSave.people.length > 0) ? dataToSave.people.map(p => ({ id: p.id, firstName: p.firstName, lastName: p.lastName })) : dataToSave.people
         });
         const success = await saveFile(handle, dataToSave);
@@ -437,6 +527,61 @@ export default function useAppContext() {
             showStatus("Sparad!");
         }
     };
+    
+    // Auto-save när isDirty blir true (debounced)
+    const autoSaveTimeoutRef = useRef(null);
+    const isSavingRef = useRef(false);
+    useEffect(() => {
+        if (isDirty && fileHandle && !isSavingRef.current) {
+            // Rensa tidigare timeout
+            if (autoSaveTimeoutRef.current) {
+                clearTimeout(autoSaveTimeoutRef.current);
+            }
+            // Spara efter 500ms av inaktivitet (snabbare än manuell save)
+            autoSaveTimeoutRef.current = setTimeout(async () => {
+                if (isSavingRef.current) return; // Redan sparar
+                isSavingRef.current = true;
+                
+                const currentDbData = dbDataRef.current;
+                const currentFocusPair = focusPairRef.current;
+                const currentBookmarks = bookmarksRef.current;
+                
+                if (currentDbData && fileHandle) {
+                    const dataToSave = { 
+                        ...currentDbData, 
+                        meta: { ...currentDbData.meta, focusPair: currentFocusPair, bookmarks: currentBookmarks },
+                        media: currentDbData.media || [] // Säkerställ att media alltid är en array
+                    };
+                    try {
+                        // Debug: kontrollera connections i media
+                        const mediaWithConnections = (dataToSave.media || []).filter(m => m.connections && (m.connections.people?.length > 0 || m.connections.places?.length > 0 || m.connections.sources?.length > 0));
+                        console.log('[auto-save] Sparar automatiskt:', {
+                            antalPersoner: Array.isArray(dataToSave.people) ? dataToSave.people.length : 0,
+                            antalMedia: Array.isArray(dataToSave.media) ? dataToSave.media.length : 0,
+                            mediaMedKopplingar: mediaWithConnections.length,
+                            kopplingar: mediaWithConnections.map(m => ({ id: m.id, name: m.name, connections: m.connections }))
+                        });
+                        const success = await saveFile(fileHandle, dataToSave);
+                        if (success) {
+                            setIsDirty(false);
+                            console.log('[auto-save] Sparat automatiskt!');
+                        }
+                    } catch (err) {
+                        console.error('[auto-save] Error:', err);
+                    } finally {
+                        isSavingRef.current = false;
+                    }
+                } else {
+                    isSavingRef.current = false;
+                }
+            }, 500);
+        }
+        return () => {
+            if (autoSaveTimeoutRef.current) {
+                clearTimeout(autoSaveTimeoutRef.current);
+            }
+        };
+    }, [isDirty, fileHandle]);
 
     const handleSetFocusPair = (type, personId) => {
         setFocusPair(prev => {

@@ -46,6 +46,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Media operations
   copyFileToMedia: (sourcePath, fileName) => ipcRenderer.invoke('copy-file-to-media', sourcePath, fileName),
   saveFileBufferToMedia: (fileBuffer, fileName) => ipcRenderer.invoke('save-file-buffer-to-media', fileBuffer, fileName),
+  moveFileInMedia: (oldPath, newPath) => ipcRenderer.invoke('move-file-in-media', oldPath, newPath),
+  moveFileToTrash: (filePath) => ipcRenderer.invoke('move-file-to-trash', filePath),
+  getTrashFiles: () => ipcRenderer.invoke('get-trash-files'),
+  restoreFileFromTrash: (trashFileName, originalPath) => ipcRenderer.invoke('restore-file-from-trash', trashFileName, originalPath),
+  permanentlyDeleteFromTrash: (trashFileName) => ipcRenderer.invoke('permanently-delete-from-trash', trashFileName),
+  emptyTrash: (olderThanDays) => ipcRenderer.invoke('empty-trash', olderThanDays),
   importImages: () => ipcRenderer.invoke('import-images'),
   // Add generic event listener for menu actions
   on: (channel, listener) => {

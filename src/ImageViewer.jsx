@@ -433,7 +433,9 @@ export default function ImageViewer({
     // Lägg till personer från connections.people
     if (connections.people && Array.isArray(connections.people)) {
         connections.people.forEach(conn => {
-            const person = people.find(p => p.id === conn.id);
+            // Hantera både objekt ({id, name, ...}) och strängar (bara id)
+            const personId = typeof conn === 'string' ? conn : (conn?.id || conn);
+            const person = people.find(p => p.id === personId);
             if (person && !allConnectedPeople.has(person.id)) {
                 allConnectedPeople.set(person.id, {
                     ...person,
