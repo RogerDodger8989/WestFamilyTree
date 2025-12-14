@@ -372,7 +372,7 @@ const SourceModal = ({ isOpen, onClose, onAdd, eventType }) => {
 
 // --- HUVUDKOMPONENT ---
 
-export default function EditPersonModal({ person: initialPerson, allPlaces, onSave, onClose, onChange, onOpenSourceDrawer, allSources, allPeople, onOpenEditModal, allMediaItems = [], onUpdateAllMedia = () => {}, isDocked = false }) {
+export default function EditPersonModal({ person: initialPerson, allPlaces, onSave, onClose, onChange, onOpenSourceDrawer, allSources, allPeople, onOpenEditModal, allMediaItems = [], onUpdateAllMedia = () => {}, isDocked = false, onNavigateToPlace }) {
     // Relation linking modal state
     const [relationModalOpen, setRelationModalOpen] = useState(false);
     const [relationTypeToAdd, setRelationTypeToAdd] = useState(null);
@@ -934,9 +934,15 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
     setEventModalOpen(true);
   };
 
-  const handleEditEvent = (index) => {
-    setEditingEventIndex(index);
-    setNewEvent(person.events[index]);
+  const handleEditEvent = (eventId) => {
+    // Hitta rätt index i den ursprungliga person.events arrayen baserat på eventId
+    const actualIndex = person.events.findIndex(e => e.id === eventId);
+    if (actualIndex === -1) {
+      console.error('[EditPersonModal] Kunde inte hitta händelse med id:', eventId);
+      return;
+    }
+    setEditingEventIndex(actualIndex);
+    setNewEvent(person.events[actualIndex]);
     setEventModalOpen(true);
   };
 
@@ -1106,37 +1112,37 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
       <div className="w-full h-full bg-slate-800 flex flex-col overflow-hidden">
         {/* HEADER - Döljs när isDocked är true, MEN flikarna behålls */}
         {!isDocked ? (
-          <div className="modal-header h-16 bg-slate-700 border-b border-slate-600 flex items-center justify-between px-6 shrink-0">
-            <div className="flex items-center gap-4 select-none">
-              <div className="w-10 h-10 rounded-full bg-slate-600 overflow-hidden border-2 border-slate-500 pointer-events-none">
-                {person.media?.length > 0 ? (
+        <div className="modal-header h-16 bg-slate-700 border-b border-slate-600 flex items-center justify-between px-6 shrink-0">
+          <div className="flex items-center gap-4 select-none">
+            <div className="w-10 h-10 rounded-full bg-slate-600 overflow-hidden border-2 border-slate-500 pointer-events-none">
+              {person.media?.length > 0 ? (
                   <MediaImage url={person.media[0].url} alt="Profil" className="w-full h-full object-cover" />
-                ) : (
-                  <User className="w-full h-full p-1 text-slate-400" />
-                )}
-              </div>
-              <div>
-                <h1 className="text-lg font-bold text-slate-200 leading-tight">
-                  {person.firstName} {person.lastName}
-                </h1>
-                <p className="text-xs text-slate-400">
-                  {(() => {
-                    const { birthYear, deathYear, lifeSpan } = getLifeInfo(person);
-                    if (birthYear && deathYear && lifeSpan !== null) {
-                      return `${birthYear} — ${deathYear} (ca. ${lifeSpan} år)`;
-                    } else if (birthYear && deathYear) {
-                      return `${birthYear} — ${deathYear}`;
-                    } else if (birthYear) {
-                      return `${birthYear} — Levande`;
-                    } else {
-                      return '? — ?';
-                    }
-                  })()}
-                </p>
-              </div>
+              ) : (
+                <User className="w-full h-full p-1 text-slate-400" />
+              )}
             </div>
-            <div className="flex items-center gap-2">
-              <nav className="flex gap-1">
+            <div>
+              <h1 className="text-lg font-bold text-slate-200 leading-tight">
+                {person.firstName} {person.lastName}
+              </h1>
+              <p className="text-xs text-slate-400">
+                {(() => {
+                  const { birthYear, deathYear, lifeSpan } = getLifeInfo(person);
+                  if (birthYear && deathYear && lifeSpan !== null) {
+                    return `${birthYear} — ${deathYear} (ca. ${lifeSpan} år)`;
+                  } else if (birthYear && deathYear) {
+                    return `${birthYear} — ${deathYear}`;
+                  } else if (birthYear) {
+                    return `${birthYear} — Levande`;
+                  } else {
+                    return '? — ?';
+                  }
+                })()}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+             <nav className="flex gap-1">
                 {[
                   { id: 'info', icon: User, label: 'Info' },
                   { id: 'relations', icon: Users, label: 'Relationer' },
@@ -1157,9 +1163,9 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                     <span>{tab.label}</span>
                   </button>
                 ))}
-              </nav>
-            </div>
+             </nav>
           </div>
+        </div>
         ) : (
           // När dockad: Visa bara flikarna (utan header med profilbild/namn)
           <div className="border-b border-slate-600 bg-slate-700 px-4 py-2 shrink-0">
@@ -1189,8 +1195,8 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
         )}
 
         {/* CONTENT AREA */}
-        <div className="flex-1 overflow-hidden flex bg-slate-900 relative">
-          <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+        <div className="flex-1 overflow-hidden flex bg-slate-900 relative min-h-0">
+          <div className="flex-1 overflow-y-auto p-6 custom-scrollbar min-h-0">
             
             {/* FLIK: INFO */}
             {activeTab === 'info' && (
@@ -1391,20 +1397,21 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                     <table className="w-full text-sm text-left">
                       <thead className="bg-slate-800 text-slate-300 text-xs uppercase">
                         <tr>
-                          <th className="p-3">Ålder</th>
-                          <th className="p-3">Typ</th>
-                          <th className="p-3">Datum</th>
-                          <th className="p-3">Plats</th>
-                          <th className="p-3">Info</th>
-                          <th className="p-3 text-center">Info</th>
-                          <th className="p-3 text-right"></th>
+                          <th className="p-2 w-16">Ålder</th>
+                          <th className="p-2 w-24">Typ</th>
+                          <th className="p-2 w-28">Datum</th>
+                          <th className="p-2 w-32">Plats</th>
+                          <th className="p-2 w-24">Info</th>
+                          <th className="p-2 text-center w-32">Info</th>
+                          <th className="p-2 text-right w-20"></th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
                         {sortedEvents().map((evt, idx) => {
                           const age = calculateAgeAtEvent(person.events?.find(e => e.type === 'Födelse')?.date, evt.date);
                           let partnerName = '';
-                          if (evt.type === 'Vigsel' && evt.partnerId && person.relations?.partners?.length > 0) {
+                          // Hitta partner-namn för vigsel, lysning, samlevnad, skilsmässa, förlovning
+                          if (['Vigsel', 'Lysning', 'Samlevnad', 'Skilsmässa', 'Förlovning'].includes(evt.type) && evt.partnerId && person.relations?.partners?.length > 0) {
                             const partner = person.relations.partners.find(p => p.id === evt.partnerId);
                             partnerName = partner ? partner.name : '';
                           }
@@ -1420,57 +1427,93 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                 selectedEventIndex === idx && editingEventIndex === null ? 'bg-blue-900/30 border-l-4 border-blue-500' : ''
                               }`}
                             >
-                              <td className="p-3 text-slate-300">{age !== null ? `${age} år` : '-'}</td>
-                              <td className="p-3 font-medium text-slate-200">{evt.type}</td>
-                              <td className="p-3 font-mono text-slate-300">{evt.date || '-'}</td>
+                              <td className="p-2 text-slate-300 text-xs whitespace-nowrap">{age !== null ? `${age} år` : '-'}</td>
+                              <td className="p-2 font-medium text-slate-200 text-xs">{evt.type}</td>
+                              <td className="p-2 font-mono text-slate-300 text-xs whitespace-nowrap">{evt.date || '-'}</td>
                               <td 
-                                className="p-3 text-blue-600 hover:underline cursor-pointer flex items-center gap-1"
+                                className="p-2 text-slate-200 hover:text-blue-400 hover:underline cursor-pointer flex items-center gap-1 text-xs"
                                 title={getPlaceHierarchy(evt)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (evt.placeId && onNavigateToPlace) {
+                                    onNavigateToPlace(evt.placeId);
+                                  }
+                                }}
                               >
-                                 <MapPin size={12} /> {evt.place || '-'}
+                                 <MapPin size={10} /> <span className="truncate max-w-[100px]">{evt.place || '-'}</span>
                               </td>
-                              <td className="p-3 text-slate-200">{partnerName}</td>
-                              <td className="p-3">
-                                <div className="flex justify-center gap-3 text-xs text-slate-400">
+                              <td className="p-2 text-slate-200 text-xs">
+                                {/* För vigsel, lysning, samlevnad, skilsmässa, förlovning: visa partner-namn */}
+                                {['Vigsel', 'Lysning', 'Samlevnad', 'Skilsmässa', 'Förlovning'].includes(evt.type) ? (
+                                  <span className="truncate block max-w-[80px]" title={partnerName || ''}>
+                                    {partnerName || '-'}
+                                  </span>
+                                ) : (
+                                  /* För andra händelser: visa noteringar (trunkerat till 15 tecken, strip HTML, klickbar) */
+                                  evt.notes ? (() => {
+                                    // Ta bort HTML-taggar för att visa ren text
+                                    const textContent = evt.notes.replace(/<[^>]*>/g, '').trim();
+                                    const displayText = textContent.length > 15 ? `${textContent.substring(0, 15)}...` : textContent;
+                                    return (
+                                      <span 
+                                        className="truncate block max-w-[80px] cursor-pointer hover:text-blue-400 hover:underline" 
+                                        title={textContent.length > 15 ? textContent : ''}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleEditEvent(evt.id);
+                                        }}
+                                      >
+                                        {displayText}
+                                      </span>
+                                    );
+                                  })() : (
+                                    '-'
+                                  )
+                                )}
+                              </td>
+                              <td className="p-2">
+                                <div className="flex justify-center gap-2 text-xs text-slate-400">
                                   <span 
-                                    className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${evt.sources?.length > 0 ? 'text-slate-200' : ''}`}
+                                    className={`flex items-center gap-0.5 cursor-pointer hover:text-blue-600 ${evt.sources?.length > 0 ? 'text-slate-200' : ''}`}
                                     onClick={(e) => { 
                                       e.stopPropagation(); 
                                       setSelectedEventIndex(idx); 
                                       setEventDetailView('sources');
                                     }}
+                                    title="Källor"
                                   >
-                                    <LinkIcon size={12}/> {evt.sources?.length || 0}
+                                    <LinkIcon size={10}/> {evt.sources?.length || 0}
                                   </span>
                                   <span 
-                                    className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${evt.notes ? 'text-slate-200' : ''}`}
+                                    className={`flex items-center gap-0.5 cursor-pointer hover:text-blue-600 ${evt.notes ? 'text-slate-200' : ''}`}
                                     onClick={(e) => { 
                                       e.stopPropagation(); 
                                       setSelectedEventIndex(idx); 
                                       setEventDetailView('notes');
                                     }}
-                                    title={evt.notes || ''}
+                                    title={evt.notes || 'Noteringar'}
                                   >
-                                    <FileText size={12}/> {evt.notes ? 1 : 0}
+                                    <FileText size={10}/> {evt.notes ? 1 : 0}
                                   </span>
                                   <span 
-                                    className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${(Array.isArray(evt.images) ? evt.images.length : (evt.images || 0)) > 0 ? 'text-slate-200' : ''}`}
+                                    className={`flex items-center gap-0.5 cursor-pointer hover:text-blue-600 ${(Array.isArray(evt.images) ? evt.images.length : (evt.images || 0)) > 0 ? 'text-slate-200' : ''}`}
                                     onClick={(e) => { 
                                       e.stopPropagation(); 
                                       setSelectedEventIndex(idx); 
                                       setEventDetailView('images');
                                     }}
+                                    title="Bilder"
                                   >
-                                    <ImageIcon size={12}/> {Array.isArray(evt.images) ? evt.images.length : (evt.images || 0)}
+                                    <ImageIcon size={10}/> {Array.isArray(evt.images) ? evt.images.length : (evt.images || 0)}
                                   </span>
                                 </div>
                               </td>
-                              <td className="p-3 text-right flex gap-2 justify-end">
-                                <button onClick={(e) => { e.stopPropagation(); handleEditEvent(idx); }} className="text-slate-400 hover:text-slate-300 p-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <Edit3 size={14} />
+                              <td className="p-2 text-right flex gap-1 justify-end">
+                                <button onClick={(e) => { e.stopPropagation(); handleEditEvent(evt.id); }} className="text-slate-400 hover:text-slate-300 p-1 opacity-0 group-hover:opacity-100 transition-opacity" title="Redigera">
+                                  <Edit3 size={12} />
                                 </button>
-                                <button onClick={(e) => { e.stopPropagation(); handleDeleteEvent(idx); }} className="text-slate-400 hover:text-red-600 p-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <Trash2 size={14} />
+                                <button onClick={(e) => { e.stopPropagation(); handleDeleteEvent(idx); }} className="text-slate-400 hover:text-red-600 p-1 opacity-0 group-hover:opacity-100 transition-opacity" title="Ta bort">
+                                  <Trash2 size={12} />
                                 </button>
                               </td>
                             </tr>
@@ -2448,9 +2491,9 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
             {/* Källa-sektion */}
             {eventDetailView === 'sources' && (
               <>
-                {person.events[selectedEventIndex].sources && person.events[selectedEventIndex].sources.length > 0 ? (
-                  <div className="space-y-2" key={`sources-${sourceRefreshKey}`}>
-                    {person.events[selectedEventIndex].sources.map((sourceId) => {
+            {person.events[selectedEventIndex].sources && person.events[selectedEventIndex].sources.length > 0 ? (
+              <div className="space-y-2" key={`sources-${sourceRefreshKey}`}>
+                {person.events[selectedEventIndex].sources.map((sourceId) => {
                   // Hämta källan från allSources
                   let source = allSources?.find(s => s.id === sourceId);
                   
@@ -2622,11 +2665,11 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                       </div>
                     </div>
                   );
-                    })}
-                  </div>
-                ) : (
-                  <p className="text-xs text-slate-400">Ingen källa kopplad till denna händelse</p>
-                )}
+                })}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-400">Ingen källa kopplad till denna händelse</p>
+            )}
               </>
             )}
 
@@ -2651,8 +2694,8 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                 ) : (
                   <p className="text-xs text-slate-400">Inga noteringar för denna händelse</p>
                 )}
-              </div>
-            )}
+          </div>
+        )}
 
             {/* Bilder-sektion */}
             {eventDetailView === 'images' && (
@@ -2692,11 +2735,11 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                             {mediaItem.date && (
                               <p className="text-white/70 text-[10px]">{mediaItem.date}</p>
                             )}
-                          </div>
+          </div>
                           <div className="absolute top-2 right-2 bg-black/50 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <ImageIcon size={14} className="text-white" />
-                          </div>
-                        </div>
+          </div>
+        </div>
                       ))}
                     </div>
                   );
@@ -2961,9 +3004,9 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                   <div className="bg-slate-900 border border-slate-600 rounded p-2 min-h-[100px]">
                     <Editor
                       value={newEvent.notes || ''}
-                      onChange={(e) => setNewEvent({...newEvent, notes: e.target.value})}
-                      placeholder="Lägg till noter för denna händelse..."
-                    />
+                    onChange={(e) => setNewEvent({...newEvent, notes: e.target.value})}
+                    placeholder="Lägg till noter för denna händelse..."
+                  />
                   </div>
                 </div>
               </div>
