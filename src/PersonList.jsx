@@ -74,7 +74,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
   const bookmarkedPeople = sortedPeople.filter(p => bookmarks.includes(p.id));
   const otherPeople = sortedPeople.filter(p => !bookmarks.includes(p.id));
 
-  const { dbData, undoMerge, restorePerson, showStatus, setFamilyTreeFocusPersonId, familyTreeFocusPersonId } = useApp();
+  const { dbData, undoMerge, restorePerson, showStatus, setFamilyTreeFocusPersonId, familyTreeFocusPersonId, setIsDirty } = useApp();
 
   const PersonRow = ({ person }) => {
     const handleRestore = (e) => {
@@ -132,17 +132,12 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
         </div>
         <div className="flex gap-2 items-center">
           <button
-            onClick={async (e) => {
-              e.stopPropagation();
-              setFamilyTreeFocusPersonId(person.id);
-              await new Promise(resolve => setTimeout(resolve, 100));
-              if (typeof window.handleSaveFile === 'function') {
-                await window.handleSaveFile();
-              } else if (typeof handleSaveFile === 'function') {
-                await handleSaveFile();
-              }
-              showStatus('Huvudperson sparad!');
-            }}
+        onClick={(e) => {
+          e.stopPropagation();
+          setFamilyTreeFocusPersonId(person.id);
+          // setFamilyTreeFocusPersonId wrapper sätter automatiskt isDirty
+          showStatus('Huvudperson sparad!');
+        }}
             title="Huvudperson - sätt som fokus i trädvyn"
             className={`px-2 py-0.5 text-xs border rounded ${familyTreeFocusPersonId === person.id ? 'bg-yellow-600 border-yellow-500 text-yellow-100' : 'bg-slate-700 border-slate-600 text-slate-300 hover:bg-slate-600'}`}
           >

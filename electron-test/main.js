@@ -24,10 +24,13 @@ ipcMain.handle('set-last-opened-file', async (event, filePath) => {
 ipcMain.handle('save-database', async (event, fileHandle, data) => {
   // DEBUG: Logga vad som sparas (allra först)
   const dbPath = fileHandle && fileHandle.path ? fileHandle.path : fileHandle;
-  console.log('SPARAR TILL SQLITE:', {
+  console.log('[save-database] SPARAR TILL SQLITE:', {
     dbPath,
     antalPersoner: Array.isArray(data?.people) ? data.people.length : 'ej array',
-    personer: (Array.isArray(data?.people) && data.people.length > 0) ? data.people.map(p => ({ id: p.id, firstName: p.firstName, lastName: p.lastName })) : data?.people
+    personer: (Array.isArray(data?.people) && data.people.length > 0) ? data.people.map(p => ({ id: p.id, firstName: p.firstName, lastName: p.lastName, sex: p.sex, gender: p.gender, refNumber: p.refNumber })) : data?.people,
+    relationsCount: Array.isArray(data?.relations) ? data.relations.length : 0,
+    relations: Array.isArray(data?.relations) ? data.relations.map(r => ({ id: r.id, fromPersonId: r.fromPersonId, toPersonId: r.toPersonId, type: r.type })) : [],
+    meta: data?.meta
   });
   const sqlite3 = require('sqlite3').verbose();
   if (!dbPath) return { error: 'Ingen fil angiven' };
@@ -229,30 +232,94 @@ ipcMain.handle('save-database', async (event, fileHandle, data) => {
       throw finalCheckErr; // Kasta fel så att sparningen stoppas
     }
     
+    // VIKTIGT: Använd transaktion för att säkerställa atomisk sparning
+    await new Promise((resolve, reject) => db.run('BEGIN TRANSACTION', err => err ? reject(err) : resolve()));
+    
     // Clear tables before insert (simple overwrite)
     await new Promise((resolve, reject) => db.run('DELETE FROM people', err => err ? reject(err) : resolve()));
-    await new Promise((resolve, reject) => db.run('DELETE FROM sources', err => err ? reject(err) : resolve()));
-    await new Promise((resolve, reject) => db.run('DELETE FROM places', err => err ? reject(err) : resolve()));
-    await new Promise((resolve, reject) => db.run('DELETE FROM meta', err => err ? reject(err) : resolve()));
-    await new Promise((resolve, reject) => db.run('DELETE FROM media', err => err ? reject(err) : resolve()));
+      await new Promise((resolve, reject) => db.run('DELETE FROM sources', err => err ? reject(err) : resolve()));
+      await new Promise((resolve, reject) => db.run('DELETE FROM places', err => err ? reject(err) : resolve()));
+      await new Promise((resolve, reject) => db.run('DELETE FROM meta', err => err ? reject(err) : resolve()));
+      await new Promise((resolve, reject) => db.run('DELETE FROM media', err => err ? reject(err) : resolve()));
     // Insert people
     console.log('[save-database] Försöker spara', data.people?.length || 0, 'personer...');
     for (const p of data.people || []) {
       await new Promise((resolve, reject) => {
-        db.run(`INSERT INTO people (id, refNumber, firstName, lastName, gender, events, notes, links, relations, media) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [p.id, p.refNumber, p.firstName, p.lastName, p.gender || '', JSON.stringify(p.events || []), p.notes || '', JSON.stringify(p.links || {}), JSON.stringify(p.relations || {}), JSON.stringify(p.media || [])],
-          err => {
+        // VIKTIGT: Mappa sex till gender för SQLite (person-objektet använder 'sex', men databasen använder 'gender')
+        const genderValue = p.sex || p.gender || '';
+        const personData = {
+          id: p.id,
+          refNumber: p.refNumber,
+          firstName: p.firstName || '',
+          lastName: p.lastName || '',
+          gender: genderValue,
+          events: JSON.stringify(p.events || []),
+          notes: p.notes || '',
+          links: JSON.stringify(p.links || {}),
+          relations: JSON.stringify(p.relations || {}),
+          media: JSON.stringify(p.media || [])
+        };
+        console.log(`[save-database] Sparar person ${p.id}:`, {
+          firstName: personData.firstName,
+          lastName: personData.lastName,
+          sex: p.sex,
+          gender: personData.gender,
+          refNumber: personData.refNumber,
+          mediaCount: Array.isArray(p.media) ? p.media.length : 0
+        });
+        db.run(`INSERT OR REPLACE INTO people (id, refNumber, firstName, lastName, gender, events, notes, links, relations, media) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [personData.id, personData.refNumber, personData.firstName, personData.lastName, personData.gender, personData.events, personData.notes, personData.links, personData.relations, personData.media],
+          function(err) {
             if (err) {
               console.error(`[save-database] ❌ Fel vid INSERT person ${p.id}:`, err.message);
               reject(err);
             } else {
-              resolve();
+              console.log(`[save-database] ✅ Person ${p.id} (${personData.firstName} ${personData.lastName}) sparad:`, {
+                gender: personData.gender,
+                refNumber: personData.refNumber,
+                rowsAffected: this.changes
+              });
+              // VERIFIERA direkt efter INSERT
+              db.get(`SELECT id, firstName, lastName, gender, refNumber FROM people WHERE id = ?`, [personData.id], (verifyErr, row) => {
+                if (verifyErr) {
+                  console.error(`[save-database] ❌ Fel vid verifiering av person ${p.id}:`, verifyErr);
+                } else if (row) {
+                  console.log(`[save-database] ✅ Verifierad i databasen:`, {
+                    id: row.id,
+                    firstName: row.firstName,
+                    lastName: row.lastName,
+                    gender: row.gender,
+                    refNumber: row.refNumber
+                  });
+                } else {
+                  console.error(`[save-database] ❌ Person ${p.id} hittades INTE i databasen efter INSERT!`);
+                }
+                resolve();
+              });
             }
           }
         );
       });
     }
     console.log('[save-database] ✅ Alla personer sparade');
+    // VERIFIERA: Läs tillbaka alla personer för att bekräfta att de sparas korrekt
+    const verifyPeople = await new Promise((resolve, reject) => {
+      db.all(`SELECT id, firstName, lastName, gender, refNumber FROM people`, (err, rows) => {
+        if (err) {
+          console.error('[save-database] Fel vid verifiering:', err);
+          reject(err);
+        } else {
+          console.log('[save-database] ✅ Verifierade personer i databasen:', rows.map(r => ({
+            id: r.id,
+            firstName: r.firstName,
+            lastName: r.lastName,
+            gender: r.gender,
+            refNumber: r.refNumber
+          })));
+          resolve(rows);
+        }
+      });
+    });
     // Insert sources
     for (const s of data.sources || []) {
       await new Promise((resolve, reject) => {
@@ -271,10 +338,10 @@ ipcMain.handle('save-database', async (event, fileHandle, data) => {
         );
       });
     }
-    // Insert meta
+    // Insert or replace meta (för att undvika UNIQUE constraint errors)
     for (const [key, value] of Object.entries(data.meta || {})) {
       await new Promise((resolve, reject) => {
-        db.run(`INSERT INTO meta (key, value) VALUES (?, ?)`,
+        db.run(`INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)`,
           [key, typeof value === 'object' ? JSON.stringify(value) : String(value)],
           err => err ? reject(err) : resolve()
         );
@@ -302,9 +369,93 @@ ipcMain.handle('save-database', async (event, fileHandle, data) => {
         );
       });
     }
-    db.close();
-    return { success: true, dbPath };
+    // SLUTLIG VERIFIERING: Läs tillbaka ALLA personer för att bekräfta att de sparas korrekt
+    console.log('[save-database] Slutlig verifiering - läser alla personer från databasen...');
+    const finalVerify = await new Promise((resolve, reject) => {
+      db.all(`SELECT id, firstName, lastName, gender, refNumber FROM people ORDER BY refNumber`, (err, rows) => {
+        if (err) {
+          console.error('[save-database] ❌ Fel vid slutlig verifiering:', err);
+          reject(err);
+        } else {
+          console.log('[save-database] ✅ SLUTLIG VERIFIERING - Personer i databasen:', rows.map(r => ({
+            id: r.id,
+            firstName: r.firstName,
+            lastName: r.lastName,
+            gender: r.gender,
+            refNumber: r.refNumber
+          })));
+          resolve(rows);
+        }
+      });
+    });
+    
+    // COMMIT transaktionen för att säkerställa att allt sparas
+    await new Promise((resolve, reject) => {
+      db.run('COMMIT', (err) => {
+        if (err) {
+          console.error('[save-database] ❌ Fel vid COMMIT:', err);
+          reject(err);
+        } else {
+          console.log('[save-database] ✅ Transaktion committad');
+          resolve();
+        }
+      });
+    });
+    
+    // Stäng databasen (vänta på att den stängs korrekt)
+    await new Promise((resolve, reject) => {
+      db.close((err) => {
+        if (err) {
+          console.error('[save-database] ❌ Fel vid stängning av databas:', err);
+          reject(err);
+        } else {
+          console.log('[save-database] ✅ Databas stängd korrekt');
+          resolve();
+        }
+      });
+    });
+    
+    // VIKTIGT: Öppna databasen igen för att verifiera att data faktiskt sparas
+    console.log('[save-database] Öppnar databasen igen för verifiering...');
+    const verifyDb = new sqlite3.Database(dbPath);
+    const finalCheck = await new Promise((resolve, reject) => {
+      verifyDb.all(`SELECT id, firstName, lastName, gender, refNumber FROM people ORDER BY refNumber`, (err, rows) => {
+        if (err) {
+          console.error('[save-database] ❌ Fel vid slutlig verifiering:', err);
+          reject(err);
+        } else {
+          console.log('[save-database] ✅ SLUTLIG VERIFIERING EFTER STÄNGNING - Personer i databasen:', rows.map(r => ({
+            id: r.id,
+            firstName: r.firstName,
+            lastName: r.lastName,
+            gender: r.gender,
+            refNumber: r.refNumber
+          })));
+          resolve(rows);
+        }
+      });
+    });
+    
+    verifyDb.close();
+    
+    return { success: true, dbPath, verifiedCount: finalCheck.length };
   } catch (err) {
+    // Om något går fel, rollback transaktionen
+    try {
+      await new Promise((resolve, reject) => {
+        db.run('ROLLBACK', (rollbackErr) => {
+          if (rollbackErr) {
+            console.error('[save-database] ❌ Fel vid ROLLBACK:', rollbackErr);
+          } else {
+            console.log('[save-database] ✅ Transaktion rollbackad');
+          }
+          resolve();
+        });
+      });
+      db.close();
+    } catch (rollbackErr) {
+      console.error('[save-database] ❌ Kunde inte rollbacka:', rollbackErr);
+    }
     return { error: err.message, dbPath };
   }
 });
@@ -447,8 +598,33 @@ ipcMain.handle('open-database', async (event, filePath) => {
         });
       }
       const people = await readTable('people', ['events', 'links', 'relations', 'media']);
+      // VIKTIGT: Mappa gender till sex för att matcha appens struktur
+      const peopleWithSex = people.map(p => {
+        // Om personen har gender men inte sex, kopiera gender till sex
+        if (p.gender && !p.sex) {
+          p.sex = p.gender;
+        }
+        // Om personen har sex men inte gender, kopiera sex till gender (för bakåtkompatibilitet)
+        if (p.sex && !p.gender) {
+          p.gender = p.sex;
+        }
+        return p;
+      });
+      console.log('[open-database] Laddade personer:', peopleWithSex.map(p => ({ 
+        id: p.id, 
+        firstName: p.firstName, 
+        lastName: p.lastName, 
+        sex: p.sex, 
+        gender: p.gender,
+        refNumber: p.refNumber,
+        mediaCount: Array.isArray(p.media) ? p.media.length : 0,
+        relations: p.relations ? Object.keys(p.relations).length : 0
+      })));
       const sources = await readTable('sources');
       const places = await readTable('places');
+      // Läs relations från databasen
+      const relations = await readTable('relations', ['sourceIds']);
+      console.log('[open-database] Laddade relationer:', relations.length, relations.map(r => ({ id: r.id, fromPersonId: r.fromPersonId, toPersonId: r.toPersonId, type: r.type })));
       // Meta-data: försök läsa tabellen 'meta', annars tomt objekt
       const metaRows = await readTable('meta');
       let meta = {};
@@ -544,7 +720,19 @@ ipcMain.handle('open-database', async (event, filePath) => {
         media = mediaFromDb;
       }
       
-      return { people, sources, places, meta, media, dbPath };
+      const result = { people: peopleWithSex, sources, places, meta, media, dbPath };
+      console.log('[open-database] Returnerar data:', {
+        antalPersoner: result.people.length,
+        personer: result.people.map(p => ({ 
+          id: p.id, 
+          firstName: p.firstName, 
+          lastName: p.lastName, 
+          sex: p.sex, 
+          gender: p.gender,
+          refNumber: p.refNumber
+        }))
+      });
+      return result;
     } catch (err) {
       console.error('[open-database] FEL:', err);
       // Säkerställ att media alltid returneras, även vid fel
@@ -1045,10 +1233,18 @@ ipcMain.handle('save-file', async (event, filePath, data) => {
       await new Promise((resolve, reject) => {
         db.run(`CREATE TABLE IF NOT EXISTS relations (
           id TEXT PRIMARY KEY,
-          person1Id TEXT,
-          person2Id TEXT,
+          fromPersonId TEXT,
+          toPersonId TEXT,
           type TEXT,
-          details TEXT
+          startDate TEXT,
+          endDate TEXT,
+          certainty TEXT,
+          note TEXT,
+          sourceIds TEXT,
+          reason TEXT,
+          createdAt TEXT,
+          modifiedAt TEXT,
+          _archived BOOLEAN
         )`, err => {
           if (err) {
             console.error('[save-file] Fel vid CREATE TABLE relations:', err);
@@ -1059,41 +1255,193 @@ ipcMain.handle('save-file', async (event, filePath, data) => {
           }
         });
       });
-      console.log('[save-file] Raderar alla personer...');
-      await new Promise((resolve, reject) => {
-        db.run('DELETE FROM people', err => {
-          if (err) {
-            console.error('[save-file] Fel vid DELETE FROM people:', err);
-            reject(err);
-          } else {
-            console.log('[save-file] Alla personer raderade');
-            resolve();
-          }
-        });
-      });
+      // Clear tables before insert (same as save-database)
+      console.log('[save-file] Raderar alla tabeller...');
+      await new Promise((resolve, reject) => db.run('DELETE FROM people', err => err ? reject(err) : resolve()));
+      await new Promise((resolve, reject) => db.run('DELETE FROM sources', err => err ? reject(err) : resolve()));
+      await new Promise((resolve, reject) => db.run('DELETE FROM places', err => err ? reject(err) : resolve()));
+      await new Promise((resolve, reject) => db.run('DELETE FROM meta', err => err ? reject(err) : resolve()));
+      await new Promise((resolve, reject) => db.run('DELETE FROM media', err => err ? reject(err) : resolve()));
+      await new Promise((resolve, reject) => db.run('DELETE FROM relations', err => err ? reject(err) : resolve()));
+      
+      // Insert people
       if (peopleCount > 0) {
         console.log(`[save-file] Lägger in ${peopleCount} personer...`);
-        for (const p of data.people) {
+        for (const p of data.people || []) {
           await new Promise((resolve, reject) => {
+            // VIKTIGT: Mappa sex till gender för SQLite (person-objektet använder 'sex', men databasen använder 'gender')
+            const genderValue = p.sex || p.gender || '';
+            const personData = {
+              id: p.id,
+              refNumber: p.refNumber,
+              firstName: p.firstName || '',
+              lastName: p.lastName || '',
+              gender: genderValue,
+              events: JSON.stringify(p.events || []),
+              notes: p.notes || '',
+              links: JSON.stringify(p.links || {}),
+              relations: JSON.stringify(p.relations || {}),
+              media: JSON.stringify(p.media || [])
+            };
+            console.log(`[save-file] Sparar person ${p.id}:`, {
+              firstName: personData.firstName,
+              lastName: personData.lastName,
+              sex: p.sex,
+              gender: personData.gender,
+              genderValue: genderValue,
+              mediaCount: Array.isArray(p.media) ? p.media.length : 0,
+              relations: p.relations ? Object.keys(p.relations).length : 0,
+              refNumber: personData.refNumber,
+              eventsCount: Array.isArray(p.events) ? p.events.length : 0
+            });
             db.run(`INSERT INTO people (id, refNumber, firstName, lastName, gender, events, notes, links, relations, media) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-              [p.id, p.refNumber, p.firstName, p.lastName, p.gender, JSON.stringify(p.events), p.notes, JSON.stringify(p.links), JSON.stringify(p.relations), JSON.stringify(p.media || [])],
-              err => {
+              [personData.id, personData.refNumber, personData.firstName, personData.lastName, personData.gender, personData.events, personData.notes, personData.links, personData.relations, personData.media],
+              function(err) {
                 if (err) {
-                  console.error(`[save-file] Fel vid INSERT person ${p.id}:`, err);
+                  console.error(`[save-file] ❌ Fel vid INSERT person ${p.id}:`, err);
                   reject(err);
                 } else {
-                  console.log(`[save-file] Person ${p.id} sparad`);
-                  resolve();
+                  console.log(`[save-file] ✅ Person ${p.id} (${personData.firstName} ${personData.lastName}) sparad:`, {
+                    gender: personData.gender,
+                    refNumber: personData.refNumber,
+                    mediaLength: personData.media ? personData.media.length : 0,
+                    eventsLength: personData.events ? personData.events.length : 0,
+                    rowsAffected: this.changes
+                  });
+                  // VERIFIERA direkt efter INSERT
+                  db.get(`SELECT id, firstName, lastName, gender, refNumber FROM people WHERE id = ?`, [personData.id], (verifyErr, row) => {
+                    if (verifyErr) {
+                      console.error(`[save-file] ❌ Fel vid verifiering av person ${p.id}:`, verifyErr);
+                    } else if (row) {
+                      console.log(`[save-file] ✅ Verifierad i databasen:`, {
+                        id: row.id,
+                        firstName: row.firstName,
+                        lastName: row.lastName,
+                        gender: row.gender,
+                        refNumber: row.refNumber
+                      });
+                    } else {
+                      console.error(`[save-file] ❌ Person ${p.id} hittades INTE i databasen efter INSERT!`);
+                    }
+                    resolve();
+                  });
                 }
               }
             );
           });
         }
       }
+      
+      // Insert sources
+      for (const s of data.sources || []) {
+        await new Promise((resolve, reject) => {
+          db.run(`INSERT INTO sources (id, title, archive, volume, page, date, tags, note, aid, nad, bildid, imagePage, dateAdded, trust) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [s.id, s.title || '', s.archive || '', s.volume || '', s.page || '', s.date || '', s.tags || '', s.note || '', s.aid || '', s.nad || '', s.bildid || '', s.imagePage || '', s.dateAdded || '', s.trust || 0],
+            err => err ? reject(err) : resolve()
+          );
+        });
+      }
+      
+      // Insert places
+      for (const pl of data.places || []) {
+        await new Promise((resolve, reject) => {
+          db.run(`INSERT INTO places (id, country, region, municipality, parish, village, specific, matched_place_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [pl.id, pl.country || '', pl.region || '', pl.municipality || '', pl.parish || '', pl.village || '', pl.specific || '', pl.matched_place_id || ''],
+            err => err ? reject(err) : resolve()
+          );
+        });
+      }
+      
+      // Insert or replace meta (för att undvika UNIQUE constraint errors)
+      for (const [key, value] of Object.entries(data.meta || {})) {
+        await new Promise((resolve, reject) => {
+          db.run(`INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)`,
+            [key, typeof value === 'object' ? JSON.stringify(value) : String(value)],
+            err => err ? reject(err) : resolve()
+          );
+        });
+      }
+      
+      // Insert or replace relations (för att undvika UNIQUE constraint errors)
+      console.log(`[save-file] Sparar ${(data.relations || []).length} relationer...`);
+      for (const r of data.relations || []) {
+        await new Promise((resolve, reject) => {
+          db.run(`INSERT OR REPLACE INTO relations (id, fromPersonId, toPersonId, type, startDate, endDate, certainty, note, sourceIds, reason, createdAt, modifiedAt, _archived) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              r.id, 
+              r.fromPersonId, 
+              r.toPersonId, 
+              r.type, 
+              r.startDate || '', 
+              r.endDate || '', 
+              r.certainty || '', 
+              r.note || '', 
+              JSON.stringify(r.sourceIds || []), 
+              r.reason || '', 
+              r.createdAt || new Date().toISOString(), 
+              r.modifiedAt || new Date().toISOString(), 
+              r._archived ? 1 : 0
+            ],
+            err => {
+              if (err) {
+                console.error(`[save-file] Fel vid INSERT relation ${r.id}:`, err);
+                reject(err);
+              } else {
+                resolve();
+              }
+            }
+          );
+        });
+      }
+      
+      // Insert or replace media
+      for (const m of data.media || []) {
+        await new Promise((resolve, reject) => {
+          db.run(`INSERT OR REPLACE INTO media (id, url, name, date, description, tags, connections, faces, libraryId, filePath, fileSize, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              m.id || '',
+              m.url || '',
+              m.name || '',
+              m.date || '',
+              m.description || '',
+              JSON.stringify(m.tags || []),
+              JSON.stringify(m.connections || {}),
+              JSON.stringify(m.faces || m.regions || []),
+              m.libraryId || '',
+              m.filePath || '',
+              m.fileSize || 0,
+              m.note || ''
+            ],
+            err => err ? reject(err) : resolve()
+          );
+        });
+      }
+      
+      // VERIFIERA: Läs tillbaka data för att bekräfta att den sparas korrekt
+      console.log('[save-file] Verifierar sparad data...');
+      const verifyPeople = await new Promise((resolve, reject) => {
+        db.all(`SELECT id, firstName, lastName, gender, refNumber FROM people`, (err, rows) => {
+          if (err) {
+            console.error('[save-file] Fel vid verifiering:', err);
+            reject(err);
+          } else {
+            console.log('[save-file] ✅ Verifierade personer i databasen:', rows.map(r => ({
+              id: r.id,
+              firstName: r.firstName,
+              lastName: r.lastName,
+              gender: r.gender,
+              refNumber: r.refNumber
+            })));
+            resolve(rows);
+          }
+        });
+      });
+      
       db.close();
       const existsAfter = fs.existsSync(dbPath);
       const sizeAfter = existsAfter ? fs.statSync(dbPath).size : 0;
       console.log(`[save-file] Filen finns efter: ${existsAfter}, storlek efter: ${sizeAfter} bytes`);
+      console.log(`[save-file] ✅ Verifiering: ${verifyPeople.length} personer sparade korrekt i databasen`);
       return { success: true, savedPath: dbPath, sizeBefore, sizeAfter };
     } catch (err) {
       console.error('[save-file] ERROR:', err);

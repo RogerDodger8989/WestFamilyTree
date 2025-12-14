@@ -3,15 +3,38 @@ import { createNewDatabase, openFile, saveFile, saveFileAs, openDatabaseDialog, 
 import { parseSourceString, generateImagePath, buildSourceString } from './parsing.js';
 import { simulateMerge } from './mergeUtils.js';
 import { remapAndDedupeRelations, transferEventsAndLinks } from './mergeHelpers.js';
+import { buildRelationsFromPeople } from './App.jsx';
 
 export default function useAppContext() {
     // ...state hooks och refs deklareras här...
     // ==========================================
     // 1. REACT STATE (Applikationens minne)
     // ==========================================
-    const [dbData, setDbData] = useState(null);
+    const [dbData, setDbDataRaw] = useState(null);
     const [fileHandle, setFileHandle] = useState(null);
     const [isDirty, setIsDirty] = useState(false);
+    const isInitialLoadRef = useRef(true);
+    
+    // Wrapper för setDbData som automatiskt sätter isDirty när data ändras
+    // Detta säkerställer att ALLA ändringar automatiskt sparas
+    const setDbData = useCallback((updater) => {
+        setDbDataRaw(prev => {
+            const newData = typeof updater === 'function' ? updater(prev) : updater;
+            // Om det är första laddningen, sätt inte isDirty
+            if (isInitialLoadRef.current) {
+                isInitialLoadRef.current = false;
+                return newData;
+            }
+            // Om data faktiskt har ändrats (och det inte är null), sätt isDirty för att trigga auto-save
+            // VIKTIGT: Sätt alltid isDirty när setDbData anropas (förutom vid initial load)
+            // Detta säkerställer att ALLA ändringar sparas automatiskt
+            if (prev !== null && newData !== null) {
+                setIsDirty(true);
+                console.log('[setDbData wrapper] Data ändrad, sätter isDirty=true');
+            }
+            return newData;
+        });
+    }, []);
 
     // Initiera databas asynkront vid mount
     useEffect(() => {
@@ -91,22 +114,26 @@ export default function useAppContext() {
                             } : null
                         });
                         
-                        setDbData({ 
+                        // Vid första laddningen, använd setDbDataRaw direkt för att undvika att trigga isDirty
+                        setDbDataRaw({ 
                             ...result, 
                             meta: result.meta || {},
                             media: parsedMedia // Använd parsade media med korrekt connections-format
                         });
+                        isInitialLoadRef.current = true; // Markera som initial load
                         setFileHandle({ name: lastFile.split(/[\\/]/).pop(), path: lastFile });
                         return;
                     }
                 }
                 // Om ingen fil, skapa ny
                 const db = await createNewDatabase();
-                setDbData(db);
+                setDbDataRaw(db);
+                isInitialLoadRef.current = true; // Markera som initial load
                 setFileHandle(null);
             } catch (err) {
                 console.error('[useAppContext] FEL vid initDb:', err);
-                setDbData(null);
+                setDbDataRaw(null);
+                isInitialLoadRef.current = true; // Markera som initial load
                 window.dbInitError = err;
                 if (typeof showStatus === 'function') {
                     showStatus('Fel vid laddning av databas: ' + (err.message || err), 'error');
@@ -130,13 +157,35 @@ export default function useAppContext() {
     // State för flikar
     const [activeTab, setActiveTab] = useState('people'); // 'people', 'sources', 'places', 'familyTree'
 
-    const [focusPair, setFocusPair] = useState({ primary: null, secondary: null });
-    const [bookmarks, setBookmarks] = useState([]);
+    const [focusPair, setFocusPairRaw] = useState({ primary: null, secondary: null });
+    const [bookmarks, setBookmarksRaw] = useState([]);
+    
+    // Wrappers för focusPair och bookmarks som automatiskt sätter isDirty
+    const setFocusPair = useCallback((updater) => {
+        setFocusPairRaw(prev => {
+            const newData = typeof updater === 'function' ? updater(prev) : updater;
+            if (isInitialLoadRef.current) return newData;
+            setIsDirty(true);
+            console.log('[setFocusPair] Data ändrad, sätter isDirty=true');
+            return newData;
+        });
+    }, []);
+    
+    const setBookmarks = useCallback((updater) => {
+        setBookmarksRaw(prev => {
+            const newData = typeof updater === 'function' ? updater(prev) : updater;
+            if (isInitialLoadRef.current) return newData;
+            setIsDirty(true);
+            console.log('[setBookmarks] Data ändrad, sätter isDirty=true');
+            return newData;
+        });
+    }, []);
     
     // Refs för auto-save
     const dbDataRef = useRef(null);
     const focusPairRef = useRef({ primary: null, secondary: null });
     const bookmarksRef = useRef([]);
+    const familyTreeFocusPersonIdRef = useRef(null);
     
     // Uppdatera refs när state ändras
     useEffect(() => {
@@ -165,8 +214,21 @@ export default function useAppContext() {
     });
 
     // State för relations-vyn (både modal och flik)
-    const [familyTreeFocusPersonId, setFamilyTreeFocusPersonId] = useState(null);
+    const [familyTreeFocusPersonId, setFamilyTreeFocusPersonIdRaw] = useState(null);
+    
+    // Wrapper för familyTreeFocusPersonId som automatiskt sätter isDirty
+    const setFamilyTreeFocusPersonId = useCallback((personId) => {
+        setFamilyTreeFocusPersonIdRaw(personId);
+        if (isInitialLoadRef.current) return;
+        setIsDirty(true);
+        console.log('[setFamilyTreeFocusPersonId] Data ändrad, sätter isDirty=true');
+    }, []);
     const [editingRelationsForPerson, setEditingRelationsForPerson] = useState(null);
+    
+    // Uppdatera ref för familyTreeFocusPersonId när state ändras
+    useEffect(() => {
+        familyTreeFocusPersonIdRef.current = familyTreeFocusPersonId;
+    }, [familyTreeFocusPersonId]);
 
     // State för käll-modalen
     const [sourcingEventInfo, setSourcingEventInfo] = useState(null);
@@ -407,9 +469,11 @@ export default function useAppContext() {
         if (window.electronAPI && window.electronAPI.onInitialData) {
             window.electronAPI.onInitialData(({ data, filePath }) => {
                 console.log("Mottog initial data från senast öppnade fil:", filePath);
-                setDbData(data);
-                setBookmarks(data.meta?.bookmarks || []);
-                setFocusPair(data.meta?.focusPair || { primary: null, secondary: null });
+                setDbDataRaw(data);
+                isInitialLoadRef.current = true; // Markera som initial load
+                setBookmarksRaw(data.meta?.bookmarks || []);
+                setFocusPairRaw(data.meta?.focusPair || { primary: null, secondary: null });
+                setFamilyTreeFocusPersonIdRaw(data.meta?.familyTreeFocusPersonId || null);
                 showStatus(`Öppnade senast använda fil: ${filePath.split(/[\\/]/).pop()}`);
             });
         }
@@ -438,7 +502,8 @@ export default function useAppContext() {
             showStatus("Skapande avbrutet.");
             return;
         }
-        setDbData({ people: [], relations: [] });
+        setDbDataRaw({ people: [], relations: [] });
+        isInitialLoadRef.current = true; // Markera som initial load
         setFileHandle({ name: result.dbPath ? result.dbPath.split(/[\\/]/).pop() : 'namnlös.db', path: result.dbPath });
         setIsDirty(false);
         showStatus(`Ny databas skapad: ${result.dbPath}`);
@@ -456,13 +521,15 @@ export default function useAppContext() {
         if (!filePath) return;
         const result = await openFile(filePath);
         if (result) {
-            setDbData(result.people ? { 
+            setDbDataRaw(result.people ? { 
                 ...result, 
                 meta: result.meta || {},
                 media: result.media || [] // Lägg till media från filsystemet
             } : result.data);
-            setBookmarks(result.meta?.bookmarks || []);
-            setFocusPair(result.meta?.focusPair || { primary: null, secondary: null });
+            isInitialLoadRef.current = true; // Markera som initial load
+            setBookmarksRaw(result.meta?.bookmarks || []);
+            setFocusPairRaw(result.meta?.focusPair || { primary: null, secondary: null });
+            setFamilyTreeFocusPersonIdRaw(result.meta?.familyTreeFocusPersonId || null);
             setFileHandle({ name: filePath.split(/[\\/]/).pop(), path: filePath });
             setIsDirty(false);
             showStatus(`Filen '${filePath.split(/[\\/]/).pop()}' öppnades. ${result.media?.length || 0} bilder hittades i media-mappen.`);
@@ -511,7 +578,7 @@ export default function useAppContext() {
         }
         const dataToSave = { 
             ...dbData, 
-            meta: { ...dbData.meta, focusPair, bookmarks },
+            meta: { ...dbData.meta, focusPair, bookmarks, familyTreeFocusPersonId: familyTreeFocusPersonIdRef.current },
             media: dbData.media || [] // Säkerställ att media alltid är en array
         };
         // DEBUG: Logga vad som försöker sparas
@@ -537,7 +604,7 @@ export default function useAppContext() {
             if (autoSaveTimeoutRef.current) {
                 clearTimeout(autoSaveTimeoutRef.current);
             }
-            // Spara efter 500ms av inaktivitet (snabbare än manuell save)
+            // Spara efter 300ms av inaktivitet (snabbare för realtid-sparning)
             autoSaveTimeoutRef.current = setTimeout(async () => {
                 if (isSavingRef.current) return; // Redan sparar
                 isSavingRef.current = true;
@@ -545,21 +612,42 @@ export default function useAppContext() {
                 const currentDbData = dbDataRef.current;
                 const currentFocusPair = focusPairRef.current;
                 const currentBookmarks = bookmarksRef.current;
+                const currentFamilyTreeFocusPersonId = familyTreeFocusPersonIdRef.current;
                 
                 if (currentDbData && fileHandle) {
+                    // Säkerställ att relations är uppdaterade från people
+                    const relationsFromPeople = buildRelationsFromPeople(currentDbData.people || []);
                     const dataToSave = { 
                         ...currentDbData, 
-                        meta: { ...currentDbData.meta, focusPair: currentFocusPair, bookmarks: currentBookmarks },
-                        media: currentDbData.media || [] // Säkerställ att media alltid är en array
+                        meta: { ...currentDbData.meta, focusPair: currentFocusPair, bookmarks: currentBookmarks, familyTreeFocusPersonId: currentFamilyTreeFocusPersonId },
+                        media: currentDbData.media || [], // Säkerställ att media alltid är en array
+                        relations: relationsFromPeople // Använd relations byggda från people för att säkerställa konsistens
                     };
+                    console.log('[auto-save] Relations som ska sparas:', {
+                        fromPeople: relationsFromPeople.length,
+                        fromDbData: (currentDbData.relations || []).length,
+                        relations: relationsFromPeople.map(r => ({ id: r.id, fromPersonId: r.fromPersonId, toPersonId: r.toPersonId, type: r.type }))
+                    });
                     try {
                         // Debug: kontrollera connections i media
                         const mediaWithConnections = (dataToSave.media || []).filter(m => m.connections && (m.connections.people?.length > 0 || m.connections.places?.length > 0 || m.connections.sources?.length > 0));
+                        // DEBUG: Logga vad som faktiskt sparas
                         console.log('[auto-save] Sparar automatiskt:', {
                             antalPersoner: Array.isArray(dataToSave.people) ? dataToSave.people.length : 0,
+                            personer: Array.isArray(dataToSave.people) ? dataToSave.people.map(p => ({
+                                id: p.id,
+                                firstName: p.firstName,
+                                lastName: p.lastName,
+                                sex: p.sex,
+                                gender: p.gender,
+                                refNumber: p.refNumber
+                            })) : [],
                             antalMedia: Array.isArray(dataToSave.media) ? dataToSave.media.length : 0,
                             mediaMedKopplingar: mediaWithConnections.length,
-                            kopplingar: mediaWithConnections.map(m => ({ id: m.id, name: m.name, connections: m.connections }))
+                            kopplingar: mediaWithConnections.map(m => ({ id: m.id, name: m.name, connections: m.connections })),
+                            meta: dataToSave.meta,
+                            familyTreeFocusPersonId: currentFamilyTreeFocusPersonId,
+                            relationsCount: Array.isArray(dataToSave.relations) ? dataToSave.relations.length : 0
                         });
                         const success = await saveFile(fileHandle, dataToSave);
                         if (success) {
@@ -589,7 +677,7 @@ export default function useAppContext() {
             if (type === 'secondary' && personId === prev.primary) return { primary: prev.secondary, secondary: personId };
             return { ...prev, [type]: personId };
         });
-        setIsDirty(true);
+        // setFocusPair wrapper sätter automatiskt isDirty
         const typeText = type === 'primary' ? 'Primär' : 'Sekundär';
         showStatus(`Ny ${typeText} Fokusperson vald.`);
     };
@@ -658,7 +746,7 @@ export default function useAppContext() {
             ...prev,
             places: prev.places.map(p => p.id === normPlace.id ? normPlace : p)
         }));
-        setIsDirty(true);
+        // setDbData wrapper sätter automatiskt isDirty, så setIsDirty är redundant men gör ingen skada
         showStatus("Platsen har sparats.");
         if (process.env.NODE_ENV !== 'production') console.debug('[handleSavePlace] dbData.places now has', (Array.isArray(dbData.places) ? dbData.places.length : 'no-places'));
         // If a person is currently open in the editor/drawer, force a shallow
@@ -677,11 +765,15 @@ export default function useAppContext() {
             const isBookmarked = prev.includes(personId);
             return isBookmarked ? prev.filter(id => id !== personId) : [...prev, personId];
         });
-        setIsDirty(true);
+        // setBookmarks wrapper sätter automatiskt isDirty
     };
 
-    const handleSwapFocus = () => setFocusPair(prev => ({ primary: prev.secondary, secondary: prev.primary }));
-    const handleClearFocus = () => setFocusPair({ primary: null, secondary: null });
+    const handleSwapFocus = () => {
+        setFocusPair(prev => ({ primary: prev.secondary, secondary: prev.primary }));
+    };
+    const handleClearFocus = () => {
+        setFocusPair({ primary: null, secondary: null });
+    };
 
     const handleAddPerson = (e) => {
         e.preventDefault();
@@ -777,17 +869,51 @@ export default function useAppContext() {
     };
 
     const handleEditFormChange = (updatedPerson) => {
-        if (!updatedPerson) return;
+        if (!updatedPerson || !updatedPerson.id) {
+            console.warn('[handleEditFormChange] Ogiltig person:', updatedPerson);
+            return;
+        }
+        console.log('[handleEditFormChange] Uppdaterar person:', {
+            id: updatedPerson.id,
+            firstName: updatedPerson.firstName,
+            lastName: updatedPerson.lastName,
+            sex: updatedPerson.sex,
+            refNumber: updatedPerson.refNumber,
+            eventsCount: Array.isArray(updatedPerson.events) ? updatedPerson.events.length : 0,
+            mediaCount: Array.isArray(updatedPerson.media) ? updatedPerson.media.length : 0
+        });
         // Only update the `editingPerson` modal state if the modal is open.
         // When editing inline in the tree-drawer we don't want to switch into
         // the full editing view — so avoid setting `editingPerson` in that case.
         if (editingPerson) setEditingPerson(updatedPerson);
-        const personIndex = (dbData && dbData.people ? dbData.people : []).findIndex(p => p.id === updatedPerson.id);
-        if (personIndex === -1) return;
-        const updatedPeople = dbData && dbData.people ? [...dbData.people] : [];
-        updatedPeople[personIndex] = updatedPerson;
-        setDbData(prevDb => ({ ...prevDb, people: updatedPeople }));
-        setIsDirty(true);
+        // VIKTIGT: Använd dbDataRef.current för att få senaste data, inte closure-värdet
+        const currentDbData = dbDataRef.current || dbData;
+        if (!currentDbData || !currentDbData.people) {
+            console.warn('[handleEditFormChange] Ingen dbData eller people-array');
+            return;
+        }
+        const personIndex = currentDbData.people.findIndex(p => p.id === updatedPerson.id);
+        if (personIndex === -1) {
+            console.warn('[handleEditFormChange] Person hittades inte:', updatedPerson.id);
+            // Om personen inte finns, lägg till den (för nya personer)
+            const updatedPeople = [...currentDbData.people, updatedPerson];
+            const relations = buildRelationsFromPeople(updatedPeople);
+            setDbData(prevDb => ({ ...prevDb, people: updatedPeople, relations }));
+            return;
+        }
+        // Uppdatera personen i arrayen - VIKTIGT: Behåll alla fält från updatedPerson
+        const updatedPeople = [...currentDbData.people];
+        // Skapa en DIUP kopia av updatedPerson för att säkerställa att ALLA fält bevaras
+        updatedPeople[personIndex] = JSON.parse(JSON.stringify(updatedPerson));
+        // Bygg relations-array från people så att dbData.relations är synkad
+        const relations = buildRelationsFromPeople(updatedPeople);
+        console.log('[handleEditFormChange] Sparar person med relations:', relations.length, 'people:', updatedPeople.length);
+        // setDbData kommer automatiskt sätta isDirty via wrapper-funktionen
+        setDbData(prevDb => {
+            const newData = { ...prevDb, people: updatedPeople, relations };
+            console.log('[handleEditFormChange] setDbData anropad, antal personer:', newData.people.length, 'person:', newData.people[personIndex]?.firstName, newData.people[personIndex]?.sex);
+            return newData;
+        });
         // Debounced audit for inline edits: record before snapshot once, then commit after idle
         try {
             const id = updatedPerson.id;
@@ -855,7 +981,8 @@ export default function useAppContext() {
     const handleSaveRelations = (updatedPerson) => {
         const originalDbData = dbData;
         const updatedPeople = dbData.people.map(p => p.id === updatedPerson.id ? updatedPerson : p);
-        setDbData(prev => ({ ...prev, people: updatedPeople }));
+        const relations = buildRelationsFromPeople(updatedPeople);
+        setDbData(prev => ({ ...prev, people: updatedPeople, relations }));
         setIsDirty(true);
         showUndoToast("Relationer har uppdaterats.", () => setDbData(originalDbData));
     };
@@ -1712,7 +1839,7 @@ export default function useAppContext() {
             }
             return { ...prev, sources: newSources, people: updatedPeopleList || prev.people };
         });
-        setIsDirty(true);
+        // setDbData wrapper sätter automatiskt isDirty, så setIsDirty är redundant men gör ingen skada
         try {
             const existed = Array.isArray(dbData.sources) && dbData.sources.some(s => s.id === updatedSource.id);
             const action = existed ? 'edit' : 'create';

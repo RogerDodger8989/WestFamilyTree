@@ -49,6 +49,9 @@ export default function MediaSelector({
   const dropZoneRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
   
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState({ open: false, x: 0, y: 0, itemIndex: null });
+  
   // Bibliotekssystem
   const [activeLibrary, setActiveLibrary] = useState('all');
   const [customLibraries, setCustomLibraries] = useState([]);
@@ -357,6 +360,45 @@ export default function MediaSelector({
     return () => window.removeEventListener('paste', handlePaste);
   }, [media]);
 
+  // Hantera högerklick för context menu
+  const handleContextMenu = (e, itemIndex) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({
+      open: true,
+      x: e.clientX,
+      y: e.clientY,
+      itemIndex
+    });
+  };
+
+  // Stäng context menu när man klickar utanför
+  useEffect(() => {
+    if (!contextMenu.open) return;
+    
+    const handleClickOutside = () => {
+      setContextMenu({ open: false, x: 0, y: 0, itemIndex: null });
+    };
+    
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        setContextMenu({ open: false, x: 0, y: 0, itemIndex: null });
+      }
+    };
+    
+    // Använd setTimeout för att inte stänga direkt när menyn öppnas
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('click', handleClickOutside);
+    }, 100);
+    
+    document.addEventListener('keydown', handleEscape);
+    
+    return () => {
+      clearTimeout(timeoutId);
+      document.removeEventListener('click', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [contextMenu.open]);
 
   return (
     <div className="h-full flex flex-col">
@@ -451,6 +493,7 @@ export default function MediaSelector({
                   onDragLeave={handleDragLeave}
                   onDrop={(e) => handleDrop(e, originalIndex)}
                   onDragEnd={handleDragEnd}
+                  onContextMenu={(e) => handleContextMenu(e, originalIndex)}
                   className={`group relative rounded-lg border-2 overflow-hidden transition-all ${
                     dragOverIndex === originalIndex 
                       ? 'border-blue-500 ring-2 ring-blue-500/50 scale-105' 
@@ -466,6 +509,7 @@ export default function MediaSelector({
                         setSelectedImageIndex(originalIndex);
                         setIsImageViewerOpen(true);
                       }}
+                      onContextMenu={(e) => handleContextMenu(e, originalIndex)}
                     >
                       <img 
                         src={item.url} 
@@ -477,61 +521,6 @@ export default function MediaSelector({
                           <Star size={14} fill="currentColor" />
                         </div>
                       )}
-                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1 transition-opacity">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setIsImageViewerOpen(true);
-                            setSelectedImageIndex(originalIndex);
-                          }}
-                          className="p-2 bg-slate-700 rounded hover:bg-slate-600 text-white"
-                          title="Visa"
-                        >
-                          <Eye size={14} />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingNoteIndex(originalIndex);
-                          }}
-                          className="p-2 bg-blue-600 rounded hover:bg-blue-700 text-white"
-                          title="Redigera notiser"
-                        >
-                          <Edit2 size={14} />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowConnectionsIndex(showConnectionsIndex === originalIndex ? null : originalIndex);
-                          }}
-                          className={`p-2 rounded text-white ${showConnectionsIndex === originalIndex ? 'bg-purple-700' : 'bg-purple-600 hover:bg-purple-700'}`}
-                          title="Kopplingar"
-                        >
-                          <LinkIcon size={14} />
-                        </button>
-                        {entityType === 'person' && !isProfile && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleSetAsProfile(originalIndex);
-                            }}
-                            className="p-2 bg-yellow-600 rounded hover:bg-yellow-700 text-white"
-                            title="Sätt som profilbild"
-                          >
-                            <Star size={14} />
-                          </button>
-                        )}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleRemoveImage(originalIndex);
-                          }}
-                          className="p-2 bg-red-600 rounded hover:bg-red-700 text-white"
-                          title="Ta bort"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
                       <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <p className="text-white text-xs font-medium truncate">{item.name || 'Namnlös'}</p>
                         {item.date && (
@@ -587,6 +576,7 @@ export default function MediaSelector({
                       setSelectedImageIndex(originalIndex);
                       setIsImageViewerOpen(true);
                     }}
+                    onContextMenu={(e) => handleContextMenu(e, originalIndex)}
                   >
                     <img 
                       src={item.url} 
@@ -635,59 +625,20 @@ export default function MediaSelector({
                       </div>
                     )}
                   </div>
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                  <div 
+                    className="flex items-center gap-1 flex-shrink-0"
+                    onContextMenu={(e) => handleContextMenu(e, originalIndex)}
+                  >
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         setIsImageViewerOpen(true);
                         setSelectedImageIndex(originalIndex);
                       }}
-                      className="p-2 bg-slate-700 rounded hover:bg-slate-600 text-white"
+                      className="p-2 bg-slate-700 rounded hover:bg-slate-600 text-white opacity-0 group-hover:opacity-100 transition-opacity"
                       title="Visa"
                     >
                       <Eye size={14} />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEditingNoteIndex(originalIndex);
-                      }}
-                      className="p-2 bg-blue-600 rounded hover:bg-blue-700 text-white"
-                      title="Redigera notiser"
-                    >
-                      <Edit2 size={14} />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowConnectionsIndex(showConnectionsIndex === originalIndex ? null : originalIndex);
-                      }}
-                      className={`p-2 rounded text-white ${showConnectionsIndex === originalIndex ? 'bg-purple-700' : 'bg-purple-600 hover:bg-purple-700'}`}
-                      title="Kopplingar"
-                    >
-                      <LinkIcon size={14} />
-                    </button>
-                    {entityType === 'person' && !isProfile && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleSetAsProfile(originalIndex);
-                        }}
-                        className="p-2 bg-yellow-600 rounded hover:bg-yellow-700 text-white"
-                        title="Sätt som profilbild"
-                      >
-                        <Star size={14} />
-                      </button>
-                    )}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRemoveImage(originalIndex);
-                      }}
-                      className="p-2 bg-red-600 rounded hover:bg-red-700 text-white"
-                      title="Ta bort"
-                    >
-                      <Trash2 size={14} />
                     </button>
                   </div>
                 </div>
@@ -1199,6 +1150,80 @@ export default function MediaSelector({
           }}
           onClose={() => setEditingNoteIndex(null)}
         />
+      )}
+
+      {/* Context Menu */}
+      {contextMenu.open && contextMenu.itemIndex !== null && (
+        <div
+          className="fixed z-[10000] bg-slate-800 border border-slate-600 rounded-lg shadow-2xl py-1 min-w-[180px]"
+          style={{
+            left: `${contextMenu.x}px`,
+            top: `${contextMenu.y}px`
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsImageViewerOpen(true);
+              setSelectedImageIndex(contextMenu.itemIndex);
+              setContextMenu({ open: false, x: 0, y: 0, itemIndex: null });
+            }}
+            className="w-full px-4 py-2 text-left text-sm text-white hover:bg-slate-700 flex items-center gap-2"
+          >
+            <Eye size={16} />
+            <span>Visa bild</span>
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setEditingNoteIndex(contextMenu.itemIndex);
+              setContextMenu({ open: false, x: 0, y: 0, itemIndex: null });
+            }}
+            className="w-full px-4 py-2 text-left text-sm text-white hover:bg-slate-700 flex items-center gap-2"
+          >
+            <Edit2 size={16} />
+            <span>Redigera notiser</span>
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowConnectionsIndex(showConnectionsIndex === contextMenu.itemIndex ? null : contextMenu.itemIndex);
+              setContextMenu({ open: false, x: 0, y: 0, itemIndex: null });
+            }}
+            className={`w-full px-4 py-2 text-left text-sm text-white hover:bg-slate-700 flex items-center gap-2 ${
+              showConnectionsIndex === contextMenu.itemIndex ? 'bg-purple-900/50' : ''
+            }`}
+          >
+            <LinkIcon size={16} />
+            <span>Kopplingar</span>
+          </button>
+          {entityType === 'person' && contextMenu.itemIndex !== 0 && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleSetAsProfile(contextMenu.itemIndex);
+                setContextMenu({ open: false, x: 0, y: 0, itemIndex: null });
+              }}
+              className="w-full px-4 py-2 text-left text-sm text-white hover:bg-slate-700 flex items-center gap-2"
+            >
+              <Star size={16} />
+              <span>Sätt som profilbild</span>
+            </button>
+          )}
+          <div className="border-t border-slate-700 my-1"></div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleRemoveImage(contextMenu.itemIndex);
+              setContextMenu({ open: false, x: 0, y: 0, itemIndex: null });
+            }}
+            className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-red-900/30 flex items-center gap-2"
+          >
+            <Trash2 size={16} />
+            <span>Ta bort</span>
+          </button>
+        </div>
       )}
 
       {/* Kopplingar Modal */}

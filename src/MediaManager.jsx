@@ -195,7 +195,7 @@ const BatchEditModal = ({ isOpen, onClose, onSave, count }) => {
                                 onChange={(e) => setDescription(e.target.value)}
                                 placeholder="Skriv en beskrivning som ska gälla för alla valda bilder..."
                             />
-                        </div>
+                </div>
                         <p className="text-[10px] text-slate-500 mt-1">Lämna tomt för att behålla befintliga beskrivningar.</p>
                     </div>
                     <div>
@@ -575,7 +575,7 @@ const OcrResultModal = ({ isOpen, image, ocrResult, setOcrResult, onClose, onSav
         </div>
       </div>
     </WindowFrame>
-  );
+    );
 };
 
 const LibraryButton = ({ lib, isActive, onClick, onDrop, onDelete }) => {
@@ -2711,7 +2711,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
               <div className="flex justify-between items-start mb-2">
                   <h3 className="text-sm font-bold text-white truncate flex-1">{safeDisplayImage.name}</h3>
                   <button onClick={() => setSelectedImage(null)} className="text-slate-400 hover:text-white shrink-0 ml-2"><X size={18}/></button>
-              </div>
+          </div>
               {safeDisplayImage.filePath && (
                   <button
                       onClick={(e) => {
@@ -2873,8 +2873,8 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                             return (
                               <div key={personId || idx} className="flex items-center justify-between bg-slate-900 p-2 rounded border border-slate-700 text-xs">
                                 <div><span className="text-slate-200 font-medium block">{personName}</span></div>
-                                <button className="text-slate-500 hover:text-red-400"><X size={12}/></button>
-                              </div>
+                              <button className="text-slate-500 hover:text-red-400"><X size={12}/></button>
+                          </div>
                             );
                           }
                           
@@ -2986,11 +2986,11 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                             // Fallback om källan inte hittas
                             return (
                               <div key={sourceId || idx} className="flex items-center justify-between bg-slate-900 p-2 rounded border border-slate-700 text-xs">
-                                <div>
+                              <div>
                                   <span className="text-slate-200 font-medium block">{typeof s === 'object' ? (s.name || s.title) : s}</span>
-                                </div>
-                                <button className="text-slate-500 hover:text-red-400"><X size={12}/></button>
                               </div>
+                              <button className="text-slate-500 hover:text-red-400"><X size={12}/></button>
+                          </div>
                             );
                           }
                           
@@ -3088,7 +3088,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                               
                               {/* Ta bort-knapp */}
                               <div className="flex justify-end">
-                                <button 
+                        <button 
                                   className="text-slate-500 hover:text-red-400"
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -3146,26 +3146,26 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                               
                               {/* Ta bort-knapp */}
                               <div className="flex justify-end">
-                                <button 
+                              <button 
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    updateMedia(prev => prev.map(item => {
+                                  updateMedia(prev => prev.map(item => {
                                       if (item.id !== safeDisplayImage?.id) return item;
-                                      return {
-                                        ...item,
-                                        connections: {
-                                          ...item.connections,
-                                          places: item.connections.places.filter(place => place.id !== p.id)
-                                        }
-                                      };
-                                    }));
-                                  }}
-                                  className="text-slate-500 hover:text-red-400"
+                                    return {
+                                      ...item,
+                                      connections: {
+                                        ...item.connections,
+                                        places: item.connections.places.filter(place => place.id !== p.id)
+                                      }
+                                    };
+                                  }));
+                                }}
+                                className="text-slate-500 hover:text-red-400"
                                   title="Ta bort koppling"
-                                >
-                                  <X size={12}/>
-                                </button>
-                              </div>
+                              >
+                                <X size={12}/>
+                              </button>
+                          </div>
                           </div>
                         ))
                       ) : (
@@ -3177,6 +3177,66 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                       >
                           <MapPin size={12}/> Koppla plats
                       </button>
+                  </div>
+
+                  <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                          <label className="text-[10px] font-bold text-slate-400">Händelser</label>
+              </div>
+                      {(() => {
+                        // Hitta alla händelser som är kopplade till denna bild
+                        // Gå igenom alla personer och deras händelser
+                        const eventConnections = [];
+                        
+                        if (allPeople && safeDisplayImage) {
+                          allPeople.forEach(person => {
+                            if (person.events && Array.isArray(person.events)) {
+                              person.events.forEach(event => {
+                                // Kontrollera om bilden finns i event.images
+                                const eventImages = Array.isArray(event.images) ? event.images : [];
+                                if (eventImages.includes(safeDisplayImage.id)) {
+                                  eventConnections.push({
+                                    personId: person.id,
+                                    personName: `${person.firstName} ${person.lastName}`,
+                                    eventId: event.id,
+                                    eventType: event.type,
+                                    eventDate: event.date || '',
+                                    eventPlace: event.place || ''
+                                  });
+                                }
+                              });
+                            }
+                          });
+                        }
+                        
+                        if (eventConnections.length === 0) {
+                          return <div className="text-xs text-slate-500 italic py-2">Inga händelser kopplade</div>;
+                        }
+                        
+                        return eventConnections.map((conn, idx) => (
+                          <div 
+                            key={`${conn.personId}-${conn.eventId}-${idx}`} 
+                            className="bg-slate-900 p-2 rounded border border-slate-700 text-xs cursor-pointer hover:bg-slate-800 transition-colors"
+                            onClick={() => {
+                              if (onOpenEditModal) {
+                                onOpenEditModal(conn.personId);
+                              }
+                            }}
+                          >
+                            {/* Personnamn */}
+                            <div className="text-slate-200 font-medium mb-1">
+                              {conn.personName}
+                            </div>
+                            
+                            {/* Händelsetyp och datum */}
+                            <div className="text-[10px] text-slate-400">
+                              {conn.eventType}
+                              {conn.eventDate && ` - ${conn.eventDate}`}
+                              {conn.eventPlace && ` (${conn.eventPlace})`}
+                            </div>
+                          </div>
+                        ));
+                      })()}
                   </div>
               </div>
 

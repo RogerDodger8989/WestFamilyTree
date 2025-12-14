@@ -27,7 +27,7 @@ import OAIArchiveHarvesterModal from './OAIArchiveHarvesterModal.jsx';
 import Button from './Button.jsx'; 
 
 // Helper: Build relations array from people array to keep dbData.relations in sync
-function buildRelationsFromPeople(people = []) {
+export function buildRelationsFromPeople(people = []) {
   const relations = [];
   const seen = new Set();
   
@@ -513,7 +513,18 @@ function App() {
     if (!p) { closePersonDrawer(); return; }
     const snap = creationSnapshotsRef.current[personId];
     if (snap) { setDbData(snap.dbData); try { setFamilyTreeFocusPersonId(snap.prevFocus || null); } catch (err) { } const prev = snap.prevFocus || null; delete creationSnapshotsRef.current[personId]; setPersonDrawerEditContext(null); if (prev) setPersonDrawerId(prev); else setPersonDrawerId(null); setIsDirty(true); showStatus('Ändringar avbröts.'); return; }
-    if (p._isPlaceholder) { setDbData(prev => ({ ...prev, people: (prev.people || []).filter(x => x.id !== personId) })); setPersonDrawerEditContext(null); setPersonDrawerId(null); setIsDirty(true); showStatus('Skapandet av avbröts.'); return; }
+    if (p._isPlaceholder) { 
+      setDbData(prev => {
+        const updatedPeople = (prev.people || []).filter(x => x.id !== personId);
+        const relations = buildRelationsFromPeople(updatedPeople);
+        return { ...prev, people: updatedPeople, relations };
+      }); 
+      setPersonDrawerEditContext(null); 
+      setPersonDrawerId(null); 
+      setIsDirty(true); 
+      showStatus('Skapandet av avbröts.'); 
+      return; 
+    }
     if (!personDrawerLocked) closePersonDrawer();
   };
 
@@ -1094,7 +1105,7 @@ function App() {
           )}
 
           {/* HÄR VISAS SLÄKTTRÄDET ÄVEN NÄR EDITINGPERSON ÄR TRUE */}
-          {activeTab === 'familyTree' && (<FamilyTreeView allPeople={visiblePeople} focusPersonId={familyTreeFocusPersonId} onSetFocus={(personId) => setFamilyTreeFocusPersonId(personId)} onOpenEditModal={handleOpenEditModal} onOpenPersonDrawer={openPersonDrawer} onSave={handleSaveRelations} onCreatePersonAndLink={createPersonAndLink} onOpenContextMenu={showContextMenu} onDeletePerson={handleDeletePerson} highlightPlaceholderId={personDrawerEditContext?.id || (personDrawer && personDrawer._isPlaceholder ? personDrawer.id : null)} onRequestOpenDuplicateMerge={() => setShowDuplicateMerge(true)} />)}
+          {activeTab === 'familyTree' && (<FamilyTreeView allPeople={visiblePeople} focusPersonId={familyTreeFocusPersonId} onSetFocus={(personId) => { setFamilyTreeFocusPersonId(personId); }} onOpenEditModal={handleOpenEditModal} onOpenPersonDrawer={openPersonDrawer} onSave={handleSaveRelations} onCreatePersonAndLink={createPersonAndLink} onOpenContextMenu={showContextMenu} onDeletePerson={handleDeletePerson} highlightPlaceholderId={personDrawerEditContext?.id || (personDrawer && personDrawer._isPlaceholder ? personDrawer.id : null)} onRequestOpenDuplicateMerge={() => setShowDuplicateMerge(true)} />)}
           
           {activeTab === 'farmArchive' && (<FarmArchiveView places={dbData.places || []} people={visiblePeople} allSources={dbData.sources || []} onSavePlace={handleSavePlace} onOpenPerson={handleOpenEditModal} onViewInFamilyTree={handleViewInFamilyTree} onNavigateToSource={handleNavigateToSource} onOpenSourceDrawer={handleToggleSourceDrawer} onNavigateToPlace={handleNavigateToPlace} onOpenPlaceDrawer={handleTogglePlaceDrawer} onOpenSourceInDrawer={handleOpenSourceInDrawer} />)}
 

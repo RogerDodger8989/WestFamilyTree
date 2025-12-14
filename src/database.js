@@ -43,20 +43,43 @@ export async function saveFile(fileHandle, data) {
     if (window.electronAPI && typeof window.electronAPI.saveDatabase === 'function') {
         // DEBUG: Logga vad som skickas till Electron
         const mediaMedKopplingar = (data?.media || []).filter(m => m.connections && (m.connections.people?.length > 0 || m.connections.places?.length > 0 || m.connections.sources?.length > 0));
-        console.log('[database.js] saveFile:', {
-            fileHandle,
+        console.log('[database.js] saveFile: SKICKAR TILL ELECTRON:', {
+            fileHandle: fileHandle ? { path: fileHandle.path || fileHandle, exists: !!fileHandle } : 'INGEN FILEHANDLE!',
             antalPersoner: Array.isArray(data?.people) ? data.people.length : 'ej array',
+            personer: Array.isArray(data?.people) ? data.people.map(p => ({
+                id: p.id,
+                firstName: p.firstName,
+                lastName: p.lastName,
+                sex: p.sex,
+                gender: p.gender,
+                refNumber: p.refNumber,
+                mediaCount: Array.isArray(p.media) ? p.media.length : 0
+            })) : [],
             antalMedia: Array.isArray(data?.media) ? data.media.length : 'ej array',
             mediaMedKopplingar: mediaMedKopplingar.length,
             kopplingar: mediaMedKopplingar.map(m => ({ 
                 id: m.id, 
                 name: m.name, 
-                connections: m.connections,
-                connectionsString: JSON.stringify(m.connections)
-            }))
+                connections: m.connections
+            })),
+            relationsCount: Array.isArray(data?.relations) ? data.relations.length : 0,
+            relations: Array.isArray(data?.relations) ? data.relations.map(r => ({
+                id: r.id,
+                fromPersonId: r.fromPersonId,
+                toPersonId: r.toPersonId,
+                type: r.type
+            })) : [],
+            meta: data?.meta
         });
         const result = await window.electronAPI.saveDatabase(fileHandle, data);
-        console.log('[database.js] saveFile result:', result);
+        console.log('[database.js] saveFile result från Electron:', result);
+        if (result && result.success) {
+            console.log('[database.js] ✅ Fil sparad framgångsrikt till:', result.dbPath || result.savedPath);
+        } else if (result && result.error) {
+            console.error('[database.js] ❌ Fel vid sparning:', result.error);
+        } else {
+            console.error('[database.js] ❌ Okänt resultat från Electron:', result);
+        }
         // Returnera true om det lyckades, annars false
         return result && (result.success !== false) && !result.error;
     } else {

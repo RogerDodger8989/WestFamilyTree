@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   X, Save, User, Users, Image as ImageIcon, FileText, 
   Activity, Tag, Plus, Trash2, Calendar, MapPin, 
@@ -11,6 +11,7 @@ import PlacePicker from './PlacePicker.jsx';
 import ImageViewer from './ImageViewer.jsx';
 import Editor from './MaybeEditor.jsx';
 import MediaSelector from './MediaSelector.jsx';
+import ImageEditorModal from './ImageEditorModal.jsx';
 import { useApp } from './AppContext';
 
 // --- KONSTANTER ---
@@ -642,7 +643,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
       };
     }
   }, [isDragging, dragOffset]);
-  const [person, setPerson] = useState(() => {
+  const [personRaw, setPersonRaw] = useState(() => {
     const base = initialPerson || {
       id: 'I_new',
       refId: '',
@@ -684,6 +685,19 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
     
     return base;
   });
+  
+  // Wrapper för setPersonRaw som automatiskt anropar onChange för auto-save
+  // Detta säkerställer att ALLA ändringar sparas automatiskt i realtid
+  const onChangeTimeoutRef = useRef(null);
+  const setPerson = useCallback((updater) => {
+    setPersonRaw(prev => {
+      const newPerson = typeof updater === 'function' ? updater(prev) : updater;
+      return newPerson;
+    });
+  }, [onChange]);
+  
+  // Exponera personRaw som person för kompatibilitet
+  const person = personRaw;
 
   // Handle keyboard navigation in relation picker (moved after person definition)
   useEffect(() => {
@@ -760,7 +774,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
     place: '',
     placeId: '',
     sources: [],
-    images: 0,
+    images: [], // Ändrat från siffra till array av media-IDs
     notes: ''
   });
 
@@ -769,7 +783,10 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
   const tagInputRef = useRef(null);
   const { getAllTags } = useApp();
   const [selectedEventIndex, setSelectedEventIndex] = useState(null);
+  const [eventDetailView, setEventDetailView] = useState('sources'); // 'sources', 'notes', 'images'
   const [sourceRefreshKey, setSourceRefreshKey] = useState(0);
+  const [isImageEditorOpen, setIsImageEditorOpen] = useState(false);
+  const [editingImageIndex, setEditingImageIndex] = useState(null);
   
   // State för noteringar-fliken
   const [noteSearch, setNoteSearch] = useState('');
@@ -784,6 +801,69 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
   useEffect(() => {
     setSourceRefreshKey(prev => prev + 1);
   }, [allSources]);
+
+  // VIKTIGT: Auto-save när person-data ändras (debounced)
+  // Detta säkerställer att ALLA ändringar sparas automatiskt i realtid till SQLite
+  const personRef = useRef(null);
+  const onChangeTimeoutRef2 = useRef(null);
+  const isInitialMount = useRef(true);
+  const lastSavedPersonRef = useRef(null);
+  
+  useEffect(() => {
+    // Ignorera första mount (när person initialiseras)
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      personRef.current = person;
+      lastSavedPersonRef.current = person ? JSON.stringify(person) : null;
+      return;
+    }
+    
+    // Om person är null eller undefined, hoppa över
+    if (!person) return;
+    
+    // Jämför med senaste sparade versionen för att undvika onödiga sparningar
+    const currentPersonString = JSON.stringify(person);
+    if (currentPersonString === lastSavedPersonRef.current) {
+      // Inget har ändrats sedan senaste sparningen
+      personRef.current = person;
+      return;
+    }
+    
+    // Rensa tidigare timeout
+    if (onChangeTimeoutRef2.current) {
+      clearTimeout(onChangeTimeoutRef2.current);
+    }
+    
+    // Debounce onChange-anropet för att undvika för många uppdateringar
+    onChangeTimeoutRef2.current = setTimeout(() => {
+      const prevPerson = personRef.current;
+      // Kontrollera om person faktiskt har ändrats
+      if (prevPerson && person && prevPerson.id === person.id) {
+        // Person har ändrats - anropa onChange för att spara automatiskt till SQLite
+        if (onChange) {
+          console.log('[EditPersonModal] Person ändrad, anropar onChange för auto-save till SQLite', {
+            id: person.id,
+            firstName: person.firstName,
+            lastName: person.lastName,
+            sex: person.sex,
+            gender: person.gender,
+            refNumber: person.refNumber,
+            mediaCount: Array.isArray(person.media) ? person.media.length : 0,
+            eventsCount: Array.isArray(person.events) ? person.events.length : 0
+          });
+          onChange(person);
+          lastSavedPersonRef.current = JSON.stringify(person);
+        }
+      }
+      personRef.current = person;
+    }, 300); // 300ms debounce för att samla flera ändringar
+    
+    return () => {
+      if (onChangeTimeoutRef2.current) {
+        clearTimeout(onChangeTimeoutRef2.current);
+      }
+    };
+  }, [person, onChange]);
 
   // Kontrollera om en händelsetyp redan finns (för unique events)
   const canAddEventType = (eventType) => {
@@ -821,7 +901,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
     
     // Lägg till taggen
     setPerson({ ...person, tags: [...currentTags, tag] });
-    setTagInput('');
+      setTagInput('');
     setTagSuggestions([]);
     
     // Fokusera tagg-input igen efter att taggen lagts till
@@ -847,7 +927,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
       placeId: '',
       placeData: null,
       sources: [],
-      images: 0,
+      images: [], // Ändrat från siffra till array
       notes: ''
     });
     setEventModalOpen(true);
@@ -885,7 +965,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
       placeId: '',
       placeData: null,
       sources: [],
-      images: 0,
+      images: [], // Ändrat från siffra till array
       notes: ''
     });
   };
@@ -903,7 +983,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
       placeId: '',
       placeData: null,
       sources: [],
-      images: 0,
+      images: [], // Ändrat från siffra till array
       notes: ''
     });
   };
@@ -1100,29 +1180,38 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                 {/* Grunddata */}
                 <div className="grid grid-cols-12 gap-6">
                   <div className="col-span-2">
-                    <div className="aspect-[3/4] bg-slate-700 rounded-lg border border-slate-600 flex items-center justify-center relative group cursor-pointer overflow-hidden">
+                    <div className="aspect-[3/4] bg-slate-700 rounded-lg border border-slate-600 flex items-center justify-center relative overflow-hidden">
                        {person.media?.length > 0 ? (
                          <img src={person.media[0].url} alt="Profil" className="w-full h-full object-cover" />
                        ) : (
                          <User size={40} className="text-slate-400" />
                        )}
-                       <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                         <Camera size={20} className="text-white" />
-                       </div>
                     </div>
                   </div>
                   <div className="col-span-10 grid grid-cols-2 gap-4 content-start">
                     <div>
                       <label className="text-xs uppercase font-bold text-slate-300">Förnamn</label>
-                      <input type="text" value={person.firstName} onChange={e => setPerson({...person, firstName: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-slate-200 focus:border-blue-500 focus:outline-none" />
+                      <input type="text" value={person.firstName} onChange={e => {
+                        const updated = {...person, firstName: e.target.value};
+                        setPerson(updated);
+                        if (onChange) onChange(updated);
+                      }} className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-slate-200 focus:border-blue-500 focus:outline-none" />
                     </div>
                     <div>
                       <label className="text-xs uppercase font-bold text-slate-300">Efternamn</label>
-                      <input type="text" value={person.lastName} onChange={e => setPerson({...person, lastName: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-slate-200 focus:border-blue-500 focus:outline-none" />
+                      <input type="text" value={person.lastName} onChange={e => {
+                        const updated = {...person, lastName: e.target.value};
+                        setPerson(updated);
+                        if (onChange) onChange(updated);
+                      }} className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-slate-200 focus:border-blue-500 focus:outline-none" />
                     </div>
                     <div>
                       <label className="text-xs uppercase font-bold text-slate-300">Kön</label>
-                      <select value={person.sex} onChange={e => setPerson({...person, sex: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-slate-200 focus:border-blue-500 focus:outline-none">
+                      <select value={person.sex} onChange={e => {
+                        const updated = {...person, sex: e.target.value};
+                        setPerson(updated);
+                        if (onChange) onChange(updated);
+                      }} className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-slate-200 focus:border-blue-500 focus:outline-none">
                         <option value="M">Man</option>
                         <option value="K">Kvinna</option>
                         <option value="U">Okänd</option>
@@ -1141,14 +1230,18 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                               const num = parseInt(p.refNumber, 10);
                               return (!isNaN(num) && num > max) ? num : max;
                             }, 0) || 0;
-                            setPerson({...person, refNumber: String(maxRef + 1)});
+                            const updated = {...person, refNumber: String(maxRef + 1)};
+                            setPerson(updated);
+                            if (onChange) onChange(updated);
                           }
                         }}
                         onChange={e => {
                           const val = e.target.value;
                           // Tillåt endast siffror
                           if (val === '' || /^\d+$/.test(val)) {
-                            setPerson({...person, refNumber: val});
+                            const updated = {...person, refNumber: val};
+                            setPerson(updated);
+                            if (onChange) onChange(updated);
                           }
                         }}
                         onKeyDown={e => {
@@ -1156,17 +1249,17 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                             e.target.blur();
                             const val = e.target.value.trim();
                             if (val) {
-                              const isDuplicate = allPeople?.some(p => p.id !== person.id && String(p.refNumber) === String(val));
-                              if (isDuplicate) {
-                                alert('Ref Nr används redan av en annan person! Välj ett unikt nummer.');
-                                setPerson({...person, refNumber: ''});
-                              } else {
-                                setPerson({...person, refNumber: val});
+                          const isDuplicate = allPeople?.some(p => p.id !== person.id && String(p.refNumber) === String(val));
+                          if (isDuplicate) {
+                            alert('Ref Nr används redan av en annan person! Välj ett unikt nummer.');
+                            setPerson({...person, refNumber: ''});
+                          } else {
+                            setPerson({...person, refNumber: val});
                               }
                             }
                           }
                         }}
-                        className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-slate-200 focus:border-blue-500 focus:outline-none" 
+                        className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-slate-200 focus:border-blue-500 focus:outline-none"
                       />
                     </div>
                     <div className="col-span-2">
@@ -1322,22 +1415,34 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                 <div className="flex justify-center gap-3 text-xs text-slate-400">
                                   <span 
                                     className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${evt.sources?.length > 0 ? 'text-slate-200' : ''}`}
-                                    onClick={(e) => { e.stopPropagation(); setSelectedEventIndex(idx); }}
+                                    onClick={(e) => { 
+                                      e.stopPropagation(); 
+                                      setSelectedEventIndex(idx); 
+                                      setEventDetailView('sources');
+                                    }}
                                   >
                                     <LinkIcon size={12}/> {evt.sources?.length || 0}
                                   </span>
                                   <span 
                                     className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${evt.notes ? 'text-slate-200' : ''}`}
-                                    onClick={(e) => { e.stopPropagation(); }}
+                                    onClick={(e) => { 
+                                      e.stopPropagation(); 
+                                      setSelectedEventIndex(idx); 
+                                      setEventDetailView('notes');
+                                    }}
                                     title={evt.notes || ''}
                                   >
                                     <FileText size={12}/> {evt.notes ? 1 : 0}
                                   </span>
                                   <span 
-                                    className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${evt.images > 0 ? 'text-slate-200' : ''}`}
-                                    onClick={(e) => { e.stopPropagation(); }}
+                                    className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${(Array.isArray(evt.images) ? evt.images.length : (evt.images || 0)) > 0 ? 'text-slate-200' : ''}`}
+                                    onClick={(e) => { 
+                                      e.stopPropagation(); 
+                                      setSelectedEventIndex(idx); 
+                                      setEventDetailView('images');
+                                    }}
                                   >
-                                    <ImageIcon size={12}/> {evt.images || 0}
+                                    <ImageIcon size={12}/> {Array.isArray(evt.images) ? evt.images.length : (evt.images || 0)}
                                   </span>
                                 </div>
                               </td>
@@ -1551,10 +1656,10 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                           {/* Sökfält */}
                           <div className="relative">
                             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18}/>
-                            <input
-                              type="text"
-                              value={relationSearch}
-                              onChange={e => { setRelationSearch(e.target.value); setRelationSearchIndex(0); }}
+                        <input
+                          type="text"
+                          value={relationSearch}
+                          onChange={e => { setRelationSearch(e.target.value); setRelationSearchIndex(0); }}
                               placeholder="Sök på namn, ref, f.namn, e.namn..."
                               className="w-full bg-slate-900 border border-slate-700 rounded p-2 pl-10 text-white focus:border-blue-500 focus:outline-none"
                               autoFocus
@@ -1612,9 +1717,9 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                     className={`flex items-start gap-3 py-3 px-3 cursor-pointer hover:bg-slate-700 transition-colors ${
                                       idx === relationSearchIndex ? 'bg-blue-600 text-white' : 'text-slate-200'
                                     }`}
-                                    onClick={() => addRelation(p.id)}
-                                    onMouseEnter={() => setRelationSearchIndex(idx)}
-                                  >
+                                onClick={() => addRelation(p.id)}
+                                onMouseEnter={() => setRelationSearchIndex(idx)}
+                              >
                                     {/* Rund thumbnail */}
                                     <div className="w-12 h-12 rounded-full bg-slate-600 flex-shrink-0 overflow-hidden border-2 border-slate-500">
                                       {profileImage ? (
@@ -1622,7 +1727,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                       ) : (
                                         <User className="w-full h-full p-2 text-slate-400" />
                                       )}
-                                    </div>
+                              </div>
                                     
                                     {/* Personinfo */}
                                     <div className="flex-1 min-w-0">
@@ -1635,42 +1740,42 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                               p.relationship === 'child' ? 'Barn' : 
                                               p.relationship === 'sibling' ? 'Syskon' : ''})
                                           </span>
-                                        )}
-                                      </div>
+                          )}
+                        </div>
                                       
                                       {/* Födelsedatum och plats */}
                                       {(birthDate || birthPlace) && (
                                         <div className="text-sm text-slate-400 mb-0.5">
                                           * {birthDate || '????-??-??'} {birthPlace && ` ${birthPlace}`} ({sexLabel})
-                                        </div>
-                                      )}
+                  </div>
+                )}
                                       
                                       {/* Dödsdatum och plats */}
                                       {(deathDate || deathPlace) && (
                                         <div className="text-sm text-slate-400">
                                           + {deathDate || '????-??-??'} {deathPlace && ` ${deathPlace}`} ({sexLabel})
-                                        </div>
-                                      )}
-                                      
+              </div>
+            )}
+
                                       {/* Om inga datum finns */}
                                       {!birthDate && !deathDate && (
                                         <div className="text-sm text-slate-500 italic">
                                           Inga datum registrerade
-                                        </div>
+                          </div>
                                       )}
-                                    </div>
-                                  </div>
+                        </div>
+                      </div>
                                 );
                               })
                             )}
-                          </div>
-                        </div>
-                      </div>
+                    </div>
+                  </div>
+                </div>
                     </WindowFrame>
                   );
                 })()}
-              </div>
-            )}
+                    </div>
+                  )}
 
             {/* FLIK: MEDIA */}
             {activeTab === 'media' && (
@@ -1728,11 +1833,11 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                       }}
                       className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded flex items-center gap-1.5 transition-colors"
                     >
-                      <Plus size={14}/> Ny uppgift
-                    </button>
-                  </div>
+                     <Plus size={14}/> Ny uppgift
+                   </button>
+                </div>
 
-                  <div className="space-y-3">
+                <div className="space-y-3">
                     {(person.research?.tasks || []).length === 0 ? (
                       <div className="bg-slate-900 border border-slate-700 rounded-lg p-8 text-center">
                         <ClipboardList size={32} className="text-slate-500 mx-auto mb-2"/>
@@ -1744,10 +1849,10 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                         const status = TASK_STATUS.find(s => s.value === (task.status || 'not-started')) || TASK_STATUS[0];
                         const isEditing = editingTaskIndex === idx;
                         
-                        return (
+                     return (
                           <div key={task.id || idx} className="bg-slate-900 border border-slate-700 rounded-lg p-4 hover:border-slate-600 transition-colors">
                             <div className="flex justify-between items-start mb-3">
-                              <div className="flex-1">
+                             <div className="flex-1">
                                 <input 
                                   type="text" 
                                   value={task.task || ''}
@@ -1765,10 +1870,10 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                   placeholder="Beskriv uppgiften..."
                                   className="bg-transparent font-medium text-slate-200 w-full focus:outline-none focus:border-b border-blue-500 pb-1" 
                                 />
-                              </div>
+                             </div>
                               <div className="flex gap-2 ml-4 items-center">
                                 {/* Status */}
-                                <select 
+                               <select 
                                   value={task.status || 'not-started'}
                                   onChange={(e) => {
                                     const updatedTasks = [...(person.research?.tasks || [])];
@@ -1803,11 +1908,11 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                     });
                                   }}
                                   className={`bg-slate-800 border border-slate-700 text-xs rounded px-2 py-1 text-slate-200 ${prio.color}`}
-                                >
-                                  {PRIORITY_LEVELS.map(p => (
-                                    <option key={p.level} value={p.level}>{p.level} - {p.label}</option>
-                                  ))}
-                                </select>
+                               >
+                                 {PRIORITY_LEVELS.map(p => (
+                                   <option key={p.level} value={p.level}>{p.level} - {p.label}</option>
+                                 ))}
+                               </select>
                                 
                                 {/* Deadline */}
                                 <div className="relative">
@@ -1847,11 +1952,11 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                 >
                                   <Trash2 size={16}/>
                                 </button>
-                              </div>
-                            </div>
-                            
+                             </div>
+                          </div>
+                          
                             {/* Noteringar för uppgiften */}
-                            <div className="bg-slate-800 rounded border border-slate-700 mt-2">
+                          <div className="bg-slate-800 rounded border border-slate-700 mt-2">
                               <Editor
                                 value={task.notes || ''}
                                 onChange={(e) => {
@@ -1866,14 +1971,14 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                   });
                                 }}
                                 placeholder="Lägg till noteringar om denna uppgift..."
-                              />
-                            </div>
+                            />
                           </div>
-                        );
+                       </div>
+                     );
                       })
                     )}
-                  </div>
                 </div>
+              </div>
 
                 {/* FORSKNINGSNOTERINGAR */}
                 <div>
@@ -1908,8 +2013,8 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                   {/* Input för ny fråga */}
                   <div className="mb-4">
                     <div className="flex gap-2">
-                      <input
-                        type="text"
+                  <input 
+                    type="text" 
                         value={newQuestionInput}
                         onChange={(e) => setNewQuestionInput(e.target.value)}
                         onKeyDown={(e) => {
@@ -1956,7 +2061,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                       </button>
                     </div>
                     <p className="text-xs text-slate-500 mt-1">Tryck Enter eller klicka på "Lägg till" för att lägga till frågan</p>
-                  </div>
+                </div>
 
                   {/* Lista med frågor */}
                   <div className="space-y-2">
@@ -1964,7 +2069,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                       <div className="bg-slate-900 border border-slate-700 rounded-lg p-6 text-center">
                         <HelpCircle size={32} className="text-slate-500 mx-auto mb-2"/>
                         <p className="text-slate-400 text-sm">Inga frågor än. Lägg till frågor du behöver hitta svar på.</p>
-                      </div>
+                </div>
                     ) : (
                       (person.research?.questions || []).map((q, idx) => (
                         <div 
@@ -2136,7 +2241,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
               };
 
               return (
-                <div className="space-y-4 animate-in fade-in duration-300">
+              <div className="space-y-4 animate-in fade-in duration-300">
                    <div className="flex justify-between items-center mb-4">
                       <h3 className="text-lg font-bold text-slate-200">Noteringar</h3>
                       <button 
@@ -2158,7 +2263,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                       >
                         <Plus size={14}/> Ny notering
                       </button>
-                   </div>
+                 </div>
 
                    {/* Sökfält */}
                    <div className="relative mb-4">
@@ -2178,13 +2283,13 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                          <X size={18}/>
                        </button>
                      )}
-                   </div>
+                         </div>
                    
                    {(!notesWithDates || notesWithDates.length === 0) ? (
                      <div className="text-center py-12 text-slate-400">
                        <FileText size={48} className="mx-auto mb-4 opacity-50" />
                        <p className="text-sm">Inga noteringar ännu. Klicka på "Ny notering" för att lägga till en.</p>
-                     </div>
+                      </div>
                    ) : filteredNotes.length === 0 ? (
                      <div className="text-center py-12 text-slate-400">
                        <Search size={48} className="mx-auto mb-4 opacity-50" />
@@ -2230,8 +2335,8 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                    className="bg-transparent font-bold text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-2 py-1 flex-1"
                                    placeholder="Titel på notering..."
                                    onClick={(e) => e.stopPropagation()}
-                                 />
-                               </div>
+                      />
+                   </div>
                                <div className="flex gap-3 items-center ml-3">
                                  {/* Datum */}
                                  <div className="text-xs text-slate-500 flex flex-col items-end">
@@ -2241,7 +2346,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                    {note.modifiedAt && note.modifiedAt !== note.createdAt && (
                                      <span title="Senast ändrad" className="text-slate-600">Ändrad: {formatDate(note.modifiedAt)}</span>
                                    )}
-                                 </div>
+              </div>
                                  <button 
                                    onClick={(e) => {
                                      e.stopPropagation();
@@ -2298,27 +2403,35 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
               {/* INFO-rad kopiad från livshändelser */}
               <div className="flex gap-3 text-xs text-slate-400">
                 <span 
-                  className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${person.events[selectedEventIndex].sources?.length > 0 ? 'text-slate-200' : ''}`}
+                  className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${person.events[selectedEventIndex].sources?.length > 0 ? 'text-slate-200' : ''} ${eventDetailView === 'sources' ? 'text-blue-400' : ''}`}
+                  onClick={() => {
+                    setEventDetailView('sources');
+                  }}
                 >
                   <LinkIcon size={12}/> {person.events[selectedEventIndex].sources?.length || 0}
                 </span>
                 <span 
-                  className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${person.events[selectedEventIndex].notes ? 'text-slate-200' : ''}`}
+                  className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${person.events[selectedEventIndex].notes ? 'text-slate-200' : ''} ${eventDetailView === 'notes' ? 'text-blue-400' : ''}`}
+                  onClick={() => setEventDetailView('notes')}
                   title={person.events[selectedEventIndex].notes || ''}
                 >
                   <FileText size={12}/> {person.events[selectedEventIndex].notes ? 1 : 0}
                 </span>
                 <span 
-                  className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${person.events[selectedEventIndex].images > 0 ? 'text-slate-200' : ''}`}
+                  className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${(Array.isArray(person.events[selectedEventIndex].images) ? person.events[selectedEventIndex].images.length : (person.events[selectedEventIndex].images || 0)) > 0 ? 'text-slate-200' : ''} ${eventDetailView === 'images' ? 'text-blue-400' : ''}`}
+                  onClick={() => setEventDetailView('images')}
                 >
-                  <ImageIcon size={12}/> {person.events[selectedEventIndex].images || 0}
+                  <ImageIcon size={12}/> {Array.isArray(person.events[selectedEventIndex].images) ? person.events[selectedEventIndex].images.length : (person.events[selectedEventIndex].images || 0)}
                 </span>
               </div>
             </div>
             
-            {person.events[selectedEventIndex].sources && person.events[selectedEventIndex].sources.length > 0 ? (
-              <div className="space-y-2" key={`sources-${sourceRefreshKey}`}>
-                {person.events[selectedEventIndex].sources.map((sourceId) => {
+            {/* Källa-sektion */}
+            {eventDetailView === 'sources' && (
+              <>
+                {person.events[selectedEventIndex].sources && person.events[selectedEventIndex].sources.length > 0 ? (
+                  <div className="space-y-2" key={`sources-${sourceRefreshKey}`}>
+                    {person.events[selectedEventIndex].sources.map((sourceId) => {
                   // Hämta källan från allSources
                   let source = allSources?.find(s => s.id === sourceId);
                   
@@ -2490,10 +2603,110 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                       </div>
                     </div>
                   );
-                })}
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400">Ingen källa kopplad till denna händelse</p>
+                )}
+              </>
+            )}
+
+            {/* Notiser-sektion */}
+            {eventDetailView === 'notes' && (
+              <div className="space-y-2">
+                {person.events[selectedEventIndex].notes ? (
+                  <div className="bg-slate-900 border border-slate-700 rounded p-3">
+                    <div className="bg-slate-800 border border-slate-600 rounded p-3 min-h-[100px]">
+                      <Editor
+                        value={person.events[selectedEventIndex].notes || ''}
+                        onChange={(e) => {
+                          const updatedEvents = person.events.map((e, i) => 
+                            i === selectedEventIndex ? { ...e, notes: e.target.value } : e
+                          );
+                          setPerson({ ...person, events: updatedEvents });
+                        }}
+                        placeholder="Inga noteringar..."
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400">Inga noteringar för denna händelse</p>
+                )}
               </div>
-            ) : (
-              <p className="text-xs text-slate-400">Ingen källa kopplad till denna händelse</p>
+            )}
+
+            {/* Bilder-sektion */}
+            {eventDetailView === 'images' && (
+              <div className="space-y-2">
+                {(() => {
+                  const eventImages = Array.isArray(person.events[selectedEventIndex].images) 
+                    ? person.events[selectedEventIndex].images 
+                    : [];
+                  
+                  if (eventImages.length === 0) {
+                    return <p className="text-xs text-slate-400">Inga bilder kopplade till denna händelse</p>;
+                  }
+                  
+                  // Hämta media-objekt från allMediaItems
+                  const mediaObjects = allMediaItems.filter(m => eventImages.includes(m.id));
+                  
+                  return (
+                    <div className="grid grid-cols-8 gap-2">
+                      {mediaObjects.map((mediaItem, idx) => (
+                        <div 
+                          key={mediaItem.id}
+                          className="relative aspect-square bg-slate-900 rounded-lg border-2 border-slate-700 overflow-hidden cursor-pointer hover:border-blue-500 hover:shadow-lg transition-all group"
+                          onDoubleClick={() => {
+                            setEditingImageIndex(idx);
+                            setIsImageEditorOpen(true);
+                          }}
+                          title="Dubbelklicka för att öppna i bildredigerare"
+                        >
+                          <img 
+                            src={mediaItem.url} 
+                            alt={mediaItem.name || 'Bild'} 
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2">
+                            <p className="text-white text-xs font-medium truncate mb-0.5">{mediaItem.name || 'Namnlös'}</p>
+                            {mediaItem.date && (
+                              <p className="text-white/70 text-[10px]">{mediaItem.date}</p>
+                            )}
+                          </div>
+                          <div className="absolute top-2 right-2 bg-black/50 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <ImageIcon size={14} className="text-white" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
+            {/* Notiser-sektion */}
+            {eventDetailView === 'notes' && (
+              <div className="space-y-2">
+                {person.events[selectedEventIndex].notes ? (
+                  <div className="bg-slate-900 border border-slate-700 rounded p-3">
+                    <div className="bg-slate-800 border border-slate-600 rounded p-3 min-h-[100px]">
+                      <Editor
+                        value={person.events[selectedEventIndex].notes || ''}
+                        onChange={(e) => {
+                          const updatedEvents = person.events.map((e, i) => 
+                            i === selectedEventIndex ? { ...e, notes: e.target.value } : e
+                          );
+                          setPerson({ ...person, events: updatedEvents });
+                        }}
+                        placeholder="Inga noteringar..."
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400">Inga noteringar för denna händelse</p>
+                )}
+              </div>
             )}
           </div>
         )}
@@ -2704,16 +2917,45 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                   )}
                 </div>
                 
+                {/* Bilder */}
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="block text-xs font-bold text-slate-300 uppercase">Bilder</label>
+                  </div>
+                  <div className="bg-slate-900 border border-slate-700 rounded p-3 min-h-[200px]">
+                    <MediaSelector
+                      media={(() => {
+                        // Hämta media-objekt från allMediaItems baserat på IDs i newEvent.images
+                        if (!Array.isArray(newEvent.images) || newEvent.images.length === 0) return [];
+                        return allMediaItems.filter(m => newEvent.images.includes(m.id));
+                      })()}
+                      onMediaChange={(newMedia) => {
+                        // Uppdatera newEvent.images med IDs från valda media
+                        const imageIds = newMedia.map(m => m.id);
+                        setNewEvent({ ...newEvent, images: imageIds });
+                      }}
+                      entityType="event"
+                      entityId={newEvent.id}
+                      allPeople={allPeople || []}
+                      onOpenEditModal={onOpenEditModal}
+                      allMediaItems={allMediaItems}
+                      onUpdateAllMedia={onUpdateAllMedia}
+                      allSources={allSources || []}
+                      allPlaces={allPlaces || []}
+                    />
+                  </div>
+                </div>
+                
                 {/* Noteringar */}
                 <div>
                   <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Noteringar</label>
-                  <textarea
-                    value={newEvent.notes}
-                    onChange={(e) => setNewEvent({...newEvent, notes: e.target.value})}
-                    className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-slate-200 focus:border-blue-500 focus:outline-none text-sm resize-none"
-                    rows="3"
-                    placeholder="Lägg till noter för denna händelse..."
-                  />
+                  <div className="bg-slate-900 border border-slate-600 rounded p-2 min-h-[100px]">
+                    <Editor
+                      value={newEvent.notes || ''}
+                      onChange={(e) => setNewEvent({...newEvent, notes: e.target.value})}
+                      placeholder="Lägg till noter för denna händelse..."
+                    />
+                  </div>
                 </div>
               </div>
               <div className="bg-slate-800 p-4 border-t border-slate-700 flex justify-end gap-3">
@@ -2731,6 +2973,47 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
           </div>
         </WindowFrame>
       )}
+
+      {/* --- IMAGE EDITOR MODAL --- */}
+      {isImageEditorOpen && (() => {
+        const eventImages = selectedEventIndex !== null && person.events?.[selectedEventIndex]?.images
+          ? (Array.isArray(person.events[selectedEventIndex].images) 
+              ? person.events[selectedEventIndex].images 
+              : [])
+          : [];
+        
+        const mediaObjects = allMediaItems.filter(m => eventImages.includes(m.id));
+        const currentImage = editingImageIndex !== null ? mediaObjects[editingImageIndex] : null;
+        const prevImage = editingImageIndex !== null && editingImageIndex > 0 ? mediaObjects[editingImageIndex - 1] : null;
+        const nextImage = editingImageIndex !== null && editingImageIndex < mediaObjects.length - 1 ? mediaObjects[editingImageIndex + 1] : null;
+        
+        return (
+          <ImageEditorModal
+            isOpen={isImageEditorOpen}
+            onClose={() => {
+              setIsImageEditorOpen(false);
+              setEditingImageIndex(null);
+            }}
+            imageUrl={currentImage?.url}
+            imageName={currentImage?.name}
+            onSave={() => {
+              // Ingen sparning behövs här eftersom bilderna redan är kopplade
+            }}
+            onPrev={() => {
+              if (editingImageIndex !== null && editingImageIndex > 0) {
+                setEditingImageIndex(editingImageIndex - 1);
+              }
+            }}
+            onNext={() => {
+              if (editingImageIndex !== null && editingImageIndex < mediaObjects.length - 1) {
+                setEditingImageIndex(editingImageIndex + 1);
+              }
+            }}
+            hasPrev={!!prevImage}
+            hasNext={!!nextImage}
+          />
+        );
+      })()}
 
       {/* --- SOURCE MODAL (SUB-MODAL) --- */}
       <SourceModal 
