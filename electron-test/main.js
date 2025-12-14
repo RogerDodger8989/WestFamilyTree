@@ -931,6 +931,17 @@ function forceImageRoot(filePath) {
     relPath = relPath.toString('utf8');
   }
   
+  // VIKTIGT: Dekoda URL-encoding FÖRST (innan vi gör något annat)
+  // Detta hanterar %2F (/) och andra URL-kodade tecken
+  try {
+    relPath = decodeURIComponent(relPath);
+    console.log('[forceImageRoot] After decodeURIComponent:', relPath);
+  } catch (e) {
+    // Om decodeURIComponent misslyckas, försök manuellt
+    console.log('[forceImageRoot] decodeURIComponent failed, using manual replacement');
+    relPath = relPath.replace(/%2F/g, '/').replace(/%20/g, ' ').replace(/%5C/g, '\\');
+  }
+  
   // Normalisera till forward slashes
   relPath = relPath.replace(/\\/g, '/');
   
@@ -946,20 +957,36 @@ function forceImageRoot(filePath) {
     relPath = relPath.slice(idx + 6); // Efter 'media/'
   }
   
-  // Om det innehåller slashes, ta bara filnamnet
-  if (relPath.includes('/')) {
-    relPath = path.basename(relPath);
-  }
+  // BEHÅLL mappstrukturen om den finns (t.ex. persons/filename.png)
+  // Om det innehåller slashes OCH är en relativ sökväg (inte absolut), behåll strukturen
+  // Om det är en absolut sökväg med ':', ta bara filnamnet
+  // Annars behåll relPath som den är (inklusive mappstruktur)
   
   console.log('[forceImageRoot] Input:', filePath);
   console.log('[forceImageRoot] Processed relPath:', relPath);
   console.log('[forceImageRoot] IMAGE_ROOT:', IMAGE_ROOT);
   
   // Säkerställ att vi inte försöker gå "uppåt" i mappstrukturen (../)
-  const safeRelativePath = path.normalize(relPath).replace(/^(\.\.[/\\])+/, '');
+  // Men BEHÅLL mappstrukturen (t.ex. persons/filename.png)
+  let safeRelativePath = relPath;
+  
+  // Om det är en absolut sökväg (innehåller ':'), ta bara filnamnet
+  if (relPath.includes(':')) {
+    console.log('[forceImageRoot] Absolut sökväg, tar bara filnamnet');
+    safeRelativePath = path.basename(relPath);
+  } else {
+    // För relativ sökväg, normalisera men behåll strukturen
+    console.log('[forceImageRoot] Relativ sökväg, behåller mappstruktur:', relPath);
+    safeRelativePath = path.normalize(relPath).replace(/^(\.\.[/\\])+/, '');
+    // Ta bort eventuella leading slashes
+    safeRelativePath = safeRelativePath.replace(/^[/\\]+/, '');
+    console.log('[forceImageRoot] Efter normalisering:', safeRelativePath);
+  }
+  
   const fullPath = path.join(IMAGE_ROOT, safeRelativePath);
   
   console.log('[forceImageRoot] Final fullPath:', fullPath);
+  console.log('[forceImageRoot] File exists:', fs.existsSync(fullPath));
   
   // Kolla om filen finns
   // ...existing code...
@@ -1449,18 +1476,137 @@ ipcMain.handle('save-file', async (event, filePath, data) => {
     }
 });
 
+// Hjälpfunktion för att rekursivt söka efter en fil i en mapp och dess undermappar
+async function findFileInDirectory(dirPath, fileName) {
+  try {
+    const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
+    
+    // Först kolla om filen finns direkt i denna mapp
+    for (const entry of entries) {
+      if (entry.isFile() && entry.name === fileName) {
+        const fullPath = path.join(dirPath, entry.name);
+        console.log('[findFileInDirectory] ✅ Hittade fil direkt:', fullPath);
+        return fullPath;
+      }
+    }
+    
+    // Om filen inte hittades, sök rekursivt i undermappar
+    console.log('[findFileInDirectory] Söker i undermappar av:', dirPath);
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        const subDirPath = path.join(dirPath, entry.name);
+        console.log('[findFileInDirectory] Söker i undermapp:', subDirPath);
+        const found = await findFileInDirectory(subDirPath, fileName);
+        if (found) {
+          console.log('[findFileInDirectory] ✅ Hittade fil i undermapp:', found);
+          return found;
+        }
+      }
+    }
+    
+    console.log('[findFileInDirectory] Filen hittades inte i:', dirPath);
+    return null;
+  } catch (err) {
+    console.error('[findFileInDirectory] Fel vid sökning i:', dirPath, err.message);
+    return null;
+  }
+}
+
 // IPC handler for reading a file
+// VIKTIGT: Denna handler använder ALLTID relativa sökvägar från media/ mappen
+// och söker rekursivt i alla undermappar om filen inte hittas direkt
 ipcMain.handle('read-file', async (event, filePath) => {
   const path = require('path');
-  const forcedPath = forceImageRoot(filePath);
+  const IMAGE_ROOT = path.join(__dirname, '..', 'media');
+  
+  // VIKTIGT: Konvertera alla sökvägar till relativa sökvägar från media/ mappen
+  // BEHÅLL mappstrukturen (t.ex. persons/filename.png)
+  let relativePath = filePath;
+  
+  console.log('[read-file] IN (filePath):', filePath);
+  
+  // Om filePath är en media:// URL, ta bort prefixet och dekoda URL-encodingen
+  if (filePath && filePath.startsWith('media://')) {
+    relativePath = filePath.replace('media://', '');
+    // Dekoda URL-encoding (hantera %2F, %20, etc.)
+    try {
+      relativePath = decodeURIComponent(relativePath);
+    } catch (e) {
+      // Om decodeURIComponent misslyckas, försök manuellt
+      relativePath = relativePath.replace(/%2F/g, '/').replace(/%20/g, ' ').replace(/%5C/g, '\\');
+    }
+    console.log('[read-file] Decoded media:// URL till relativ sökväg:', relativePath);
+  }
+  
+  // Om det är en absolut sökväg (innehåller ':'), extrahera bara filnamnet
+  // MEN: Om det redan är en relativ sökväg med mappstruktur (t.ex. persons/filename.png), behåll den!
+  if (relativePath.includes(':')) {
+    // Detta är en absolut sökväg - ta bara filnamnet
+    relativePath = path.basename(relativePath);
+    console.log('[read-file] Absolut sökväg konverterad till filnamn:', relativePath);
+  }
+  
+  // Ta bort eventuella leading slashes och normalisera
+  relativePath = relativePath.replace(/^[/\\]+/, '').replace(/\\/g, '/');
+  
+  // Ta bort 'media/' om det finns i början (men BEHÅLL resten av mappstrukturen)
+  if (relativePath.startsWith('media/')) {
+    relativePath = relativePath.slice(6);
+  }
+  
+  console.log('[read-file] Relativ sökväg (efter normalisering):', relativePath);
+  
   try {
-    console.log('[read-file] IN:', filePath);
-    console.log('[read-file] OUT:', forcedPath);
-    // Använd fs.promises.readFile() för att få en Promise
-    const data = await fs.promises.readFile(forcedPath);
-    return data;
+    // Kontrollera att IMAGE_ROOT finns
+    if (!fs.existsSync(IMAGE_ROOT)) {
+      console.error('[read-file] ❌ IMAGE_ROOT finns inte:', IMAGE_ROOT);
+      return { error: `Media-mappen finns inte: ${IMAGE_ROOT}` };
+    }
+    
+    // Försök först läsa filen på den exakta relativa sökvägen
+    const exactPath = path.join(IMAGE_ROOT, relativePath);
+    console.log('[read-file] Försöker exakt sökväg:', relativePath, '->', exactPath);
+    console.log('[read-file] IMAGE_ROOT:', IMAGE_ROOT);
+    
+    if (fs.existsSync(exactPath)) {
+      console.log('[read-file] ✅ Filen hittades på exakt sökväg:', relativePath);
+      try {
+        const data = await fs.promises.readFile(exactPath);
+        console.log('[read-file] ✅ Filen lästes framgångsrikt från exakt sökväg');
+        return data;
+      } catch (readErr) {
+        console.error('[read-file] Fel vid läsning av exakt sökväg:', readErr.message);
+        // Fortsätt till rekursiv sökning
+      }
+    } else {
+      console.log('[read-file] Filen finns inte på exakt sökväg:', exactPath);
+      console.log('[read-file] Kontrollerar om mappen finns:', path.dirname(exactPath), '->', fs.existsSync(path.dirname(exactPath)));
+    }
+    
+    // Om filen inte hittas, sök rekursivt i alla undermappar
+    // VIKTIGT: Sök alltid rekursivt om exakt sökväg misslyckas
+    const fileName = path.basename(relativePath);
+    console.log('[read-file] Söker rekursivt i undermappar efter filnamn:', fileName);
+    console.log('[read-file] Startar rekursiv sökning från:', IMAGE_ROOT);
+    const foundPath = await findFileInDirectory(IMAGE_ROOT, fileName);
+    
+    if (foundPath && fs.existsSync(foundPath)) {
+      console.log('[read-file] ✅ Hittade fil i undermapp:', foundPath);
+      try {
+        const data = await fs.promises.readFile(foundPath);
+        return data;
+      } catch (readErr) {
+        console.error('[read-file] Fel vid läsning av hittad fil:', readErr.message);
+        return { error: `Kunde inte läsa filen: ${readErr.message}` };
+      }
+    }
+    
+    // Om filen fortfarande inte hittas, returnera fel (använd relativ sökväg i felmeddelandet)
+    console.error('[read-file] ❌ Filen hittades inte:', fileName, 'i', IMAGE_ROOT, 'eller dess undermappar');
+    console.error('[read-file] Sökte efter:', relativePath, '->', exactPath);
+    return { error: `Filen ${fileName} hittades inte i media-mappen eller dess undermappar` };
   } catch (err) {
-    console.error('[read-file] FEL:', err, 'Path:', forcedPath);
+    console.error('[read-file] FEL:', err.message, 'Relativ sökväg:', relativePath);
     return { error: err.message };
   }
 });
@@ -1576,12 +1722,48 @@ app.whenReady().then(() => {
   });
   
   // Registrera custom protocol för media-bilder
-  protocol.registerFileProtocol('media', (request, callback) => {
-    const encodedName = request.url.replace('media://', '');
-    const fileName = decodeURIComponent(encodedName);
-    const filePath = path.join(IMAGE_ROOT, fileName);
-    console.log('[media protocol] Loading:', encodedName, '->', filePath);
-    callback({ path: filePath });
+  // Registrera custom protocol för media-bilder med rekursiv sökning
+  protocol.registerFileProtocol('media', async (request, callback) => {
+    try {
+      const encodedName = request.url.replace('media://', '');
+      let relativePath = decodeURIComponent(encodedName);
+      
+      // Normalisera sökvägen (ta bort leading slashes, konvertera backslashes)
+      relativePath = relativePath.replace(/^[/\\]+/, '').replace(/\\/g, '/');
+      
+      // Ta bort 'media/' om det finns i början
+      if (relativePath.startsWith('media/')) {
+        relativePath = relativePath.slice(6);
+      }
+      
+      console.log('[media protocol] Relativ sökväg:', relativePath);
+      
+      // Först försök hitta filen på exakt sökväg
+      const exactPath = path.join(IMAGE_ROOT, relativePath);
+      if (fs.existsSync(exactPath)) {
+        console.log('[media protocol] ✅ Filen hittades på exakt sökväg:', relativePath);
+        callback({ path: exactPath });
+        return;
+      }
+      
+      // Om filen inte hittas, sök rekursivt i alla undermappar
+      console.log('[media protocol] Filen hittades inte, söker rekursivt...');
+      const fileName = path.basename(relativePath);
+      const foundPath = await findFileInDirectory(IMAGE_ROOT, fileName);
+      
+      if (foundPath && fs.existsSync(foundPath)) {
+        console.log('[media protocol] ✅ Hittade fil i undermapp:', foundPath);
+        callback({ path: foundPath });
+        return;
+      }
+      
+      // Om filen fortfarande inte hittas, returnera fel
+      console.error('[media protocol] ❌ Filen hittades inte:', fileName);
+      callback({ error: -6 }); // FILE_NOT_FOUND error code
+    } catch (err) {
+      console.error('[media protocol] FEL:', err.message);
+      callback({ error: -6 });
+    }
   });
   createWindow();
 });

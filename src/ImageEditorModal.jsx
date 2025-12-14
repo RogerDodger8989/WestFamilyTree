@@ -302,15 +302,121 @@ const ImageEditorModal = ({
   // Load image när modal öppnas
   useEffect(() => {
     if (!isOpen || !imageUrl) return;
-    const img = new Image();
-    img.onload = () => {
-      setImage(img);
-      fitToWindow(img);
-      resetTransforms();
-      initHistory();
+    
+    let currentBlobUrl = null;
+    
+    const loadImage = async () => {
+      try {
+        let finalImageUrl = imageUrl;
+        
+        // Hantera media:// URLs (Electron)
+        if (imageUrl && imageUrl.startsWith('media://')) {
+          if (window.electronAPI && typeof window.electronAPI.readFile === 'function') {
+            // Extrahera filvägen från media:// URL
+            let filePath = imageUrl.replace('media://', '');
+            // Decode URL encoding FÖRST (innan vi gör något annat)
+            try {
+              filePath = decodeURIComponent(filePath);
+            } catch (e) {
+              // Om decodeURIComponent misslyckas, försök manuellt
+              filePath = filePath.replace(/%2F/g, '/').replace(/%20/g, ' ');
+            }
+            // Ersätt %2F med / om det fortfarande finns kvar (extra säkerhet)
+            filePath = filePath.replace(/%2F/g, '/');
+            
+            console.log('[ImageEditorModal] Reading file:', filePath, 'from URL:', imageUrl);
+            
+            const fileData = await window.electronAPI.readFile(filePath);
+            
+            if (fileData && !fileData.error) {
+              // readFile returnerar data på olika sätt - hantera alla fall
+              let uint8Array;
+              
+              if (fileData instanceof ArrayBuffer) {
+                uint8Array = new Uint8Array(fileData);
+              } else if (fileData instanceof Uint8Array) {
+                uint8Array = fileData;
+              } else if (fileData.data) {
+                if (fileData.data instanceof Uint8Array) {
+                  uint8Array = fileData.data;
+                } else if (fileData.data instanceof ArrayBuffer) {
+                  uint8Array = new Uint8Array(fileData.data);
+                } else if (Array.isArray(fileData.data)) {
+                  uint8Array = new Uint8Array(fileData.data);
+                } else {
+                  uint8Array = new Uint8Array(fileData.data);
+                }
+              } else if (Array.isArray(fileData)) {
+                uint8Array = new Uint8Array(fileData);
+              } else if (typeof fileData === 'string') {
+                const binaryString = atob(fileData);
+                uint8Array = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                  uint8Array[i] = binaryString.charCodeAt(i);
+                }
+              } else {
+                try {
+                  uint8Array = new Uint8Array(fileData);
+                } catch (e) {
+                  console.error('[ImageEditorModal] Could not convert fileData to Uint8Array:', e);
+                  throw new Error('Kunde inte konvertera bilddata');
+                }
+              }
+              
+              // Bestäm MIME-typ baserat på filändelse
+              const ext = (imageName || filePath).split('.').pop()?.toLowerCase() || 'png';
+              const mimeTypes = {
+                'jpg': 'image/jpeg',
+                'jpeg': 'image/jpeg',
+                'png': 'image/png',
+                'gif': 'image/gif',
+                'webp': 'image/webp',
+                'bmp': 'image/bmp'
+              };
+              const mimeType = mimeTypes[ext] || 'image/png';
+              
+              const blob = new Blob([uint8Array], { type: mimeType });
+              const url = URL.createObjectURL(blob);
+              currentBlobUrl = url;
+              finalImageUrl = url;
+              console.log('[ImageEditorModal] Image loaded successfully from media://');
+            } else {
+              console.error('[ImageEditorModal] Error reading file:', fileData?.error);
+              throw new Error(fileData?.error || 'Kunde inte läsa filen');
+            }
+          } else {
+            throw new Error('Electron API är inte tillgänglig');
+          }
+        }
+        
+        // Ladda bilden
+        const img = new Image();
+        img.onload = () => {
+          setImage(img);
+          fitToWindow(img);
+          resetTransforms();
+          initHistory();
+        };
+        img.onerror = (e) => {
+          console.error('[ImageEditorModal] Error loading image:', e);
+          throw new Error('Kunde inte ladda bilden');
+        };
+        img.src = finalImageUrl;
+      } catch (error) {
+        console.error('[ImageEditorModal] Error loading image:', error);
+        // Visa felmeddelande i UI (kan läggas till senare om behövs)
+      }
     };
-    img.src = imageUrl;
-  }, [isOpen, imageUrl]);
+    
+    loadImage();
+    
+    return () => {
+      // Rensa blob URL om den skapades
+      if (currentBlobUrl && currentBlobUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(currentBlobUrl);
+      }
+    };
+  }, [isOpen, imageUrl, imageName]);
 
   const toggleCropMode = () => {
     setIsCropMode(v => !v);

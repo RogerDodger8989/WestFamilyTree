@@ -12,6 +12,7 @@ import ImageViewer from './ImageViewer.jsx';
 import Editor from './MaybeEditor.jsx';
 import MediaSelector from './MediaSelector.jsx';
 import ImageEditorModal from './ImageEditorModal.jsx';
+import MediaImage from './components/MediaImage.jsx';
 import { useApp } from './AppContext';
 
 // --- KONSTANTER ---
@@ -1118,7 +1119,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
           <div className="flex items-center gap-4 select-none">
             <div className="w-10 h-10 rounded-full bg-slate-600 overflow-hidden border-2 border-slate-500 pointer-events-none">
               {person.media?.length > 0 ? (
-                <img src={person.media[0].url} alt="Profil" className="w-full h-full object-cover" />
+                <MediaImage url={person.media[0].url} alt="Profil" className="w-full h-full object-cover" />
               ) : (
                 <User className="w-full h-full p-1 text-slate-400" />
               )}
@@ -1182,7 +1183,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                   <div className="col-span-2">
                     <div className="aspect-[3/4] bg-slate-700 rounded-lg border border-slate-600 flex items-center justify-center relative overflow-hidden">
                        {person.media?.length > 0 ? (
-                         <img src={person.media[0].url} alt="Profil" className="w-full h-full object-cover" />
+                         <MediaImage url={person.media[0].url} alt="Profil" className="w-full h-full object-cover" />
                        ) : (
                          <User size={40} className="text-slate-400" />
                        )}
@@ -1723,7 +1724,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                     {/* Rund thumbnail */}
                                     <div className="w-12 h-12 rounded-full bg-slate-600 flex-shrink-0 overflow-hidden border-2 border-slate-500">
                                       {profileImage ? (
-                                        <img src={profileImage} alt={`${p.firstName} ${p.lastName}`} className="w-full h-full object-cover" />
+                                        <MediaImage url={profileImage} alt={`${p.firstName} ${p.lastName}`} className="w-full h-full object-cover" />
                                       ) : (
                                         <User className="w-full h-full p-2 text-slate-400" />
                                       )}
@@ -2662,8 +2663,8 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                           }}
                           title="Dubbelklicka för att öppna i bildredigerare"
                         >
-                          <img 
-                            src={mediaItem.url} 
+                          <MediaImage 
+                            url={mediaItem.url} 
                             alt={mediaItem.name || 'Bild'} 
                             className="w-full h-full object-cover"
                             loading="lazy"

@@ -6,9 +6,11 @@ import {
   ChevronRight, ChevronDown
 } from 'lucide-react';
 import ImageViewer from './ImageViewer.jsx';
+import ImageEditorModal from './ImageEditorModal.jsx';
 import WindowFrame from './WindowFrame.jsx';
 import Editor from './MaybeEditor.jsx';
 import { MediaManager } from './MediaManager.jsx';
+import MediaImage from './components/MediaImage.jsx';
 
 /**
  * Återanvändbar komponent för att hantera media (bilder) för personer, källor, platser, etc.
@@ -39,6 +41,8 @@ export default function MediaSelector({
   const [selectedImageIndex, setSelectedImageIndex] = useState(null);
   const [isMediaManagerOpen, setIsMediaManagerOpen] = useState(false);
   const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
+  const [isImageEditorOpen, setIsImageEditorOpen] = useState(false);
+  const [editingImageIndex, setEditingImageIndex] = useState(null);
   const [viewMode, setViewMode] = useState('grid'); // 'grid' eller 'list'
   const [searchTerm, setSearchTerm] = useState('');
   const [draggedIndex, setDraggedIndex] = useState(null);
@@ -509,10 +513,15 @@ export default function MediaSelector({
                         setSelectedImageIndex(originalIndex);
                         setIsImageViewerOpen(true);
                       }}
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        setEditingImageIndex(originalIndex);
+                        setIsImageEditorOpen(true);
+                      }}
                       onContextMenu={(e) => handleContextMenu(e, originalIndex)}
                     >
-                      <img 
-                        src={item.url} 
+                      <MediaImage 
+                        url={item.url} 
                         alt={item.name || 'Bild'} 
                         className="w-full h-full object-cover"
                       />
@@ -575,6 +584,11 @@ export default function MediaSelector({
                     onClick={() => {
                       setSelectedImageIndex(originalIndex);
                       setIsImageViewerOpen(true);
+                    }}
+                    onDoubleClick={(e) => {
+                      e.stopPropagation();
+                      setEditingImageIndex(originalIndex);
+                      setIsImageEditorOpen(true);
                     }}
                     onContextMenu={(e) => handleContextMenu(e, originalIndex)}
                   >
@@ -1009,7 +1023,7 @@ export default function MediaSelector({
                             ) : (
                               <>
                                 <div className="w-16 h-16 bg-slate-900 rounded overflow-hidden shrink-0 border border-slate-600">
-                                  <img src={item.url} alt={item.name} className="w-full h-full object-cover" />
+                                  <MediaImage url={item.url} alt={item.name} className="w-full h-full object-cover" />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <p className="text-sm text-slate-200 font-medium truncate">{item.name}</p>
@@ -1355,6 +1369,76 @@ export default function MediaSelector({
           </div>
         </WindowFrame>
       )}
+
+      {/* IMAGE EDITOR MODAL */}
+      {isImageEditorOpen && editingImageIndex !== null && (() => {
+        const currentEditingImage = filteredMedia[editingImageIndex];
+        const prevEditingImage = editingImageIndex > 0 ? filteredMedia[editingImageIndex - 1] : null;
+        const nextEditingImage = editingImageIndex < filteredMedia.length - 1 ? filteredMedia[editingImageIndex + 1] : null;
+
+        const handlePrevEditing = () => {
+          if (editingImageIndex > 0) {
+            setEditingImageIndex(editingImageIndex - 1);
+          }
+        };
+
+        const handleNextEditing = () => {
+          if (editingImageIndex < filteredMedia.length - 1) {
+            setEditingImageIndex(editingImageIndex + 1);
+          }
+        };
+
+        const handleSaveEditedImage = (blob, createCopy) => {
+          if (!currentEditingImage) return;
+
+          // Convert blob to data URL
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const newImageUrl = reader.result;
+
+            if (createCopy) {
+              // Create new copy with new ID
+              const newId = `img_${Date.now()}_${Math.random()}`;
+              const newImage = {
+                ...currentEditingImage,
+                id: newId,
+                url: newImageUrl,
+                name: `${currentEditingImage.name?.replace(/\.[^/.]+$/, '') || 'bild'}_redigerad.jpg`
+              };
+              onMediaChange([...media, newImage]);
+            } else {
+              // Overwrite original
+              const originalIndex = media.findIndex(m => m.id === currentEditingImage.id);
+              if (originalIndex !== -1) {
+                const updatedMedia = [...media];
+                updatedMedia[originalIndex] = { ...updatedMedia[originalIndex], url: newImageUrl };
+                onMediaChange(updatedMedia);
+              }
+            }
+
+            setIsImageEditorOpen(false);
+            setEditingImageIndex(null);
+          };
+          reader.readAsDataURL(blob);
+        };
+
+        return (
+          <ImageEditorModal
+            isOpen={isImageEditorOpen}
+            onClose={() => {
+              setIsImageEditorOpen(false);
+              setEditingImageIndex(null);
+            }}
+            imageUrl={currentEditingImage?.url}
+            imageName={currentEditingImage?.name}
+            onSave={handleSaveEditedImage}
+            onPrev={handlePrevEditing}
+            onNext={handleNextEditing}
+            hasPrev={!!prevEditingImage}
+            hasNext={!!nextEditingImage}
+          />
+        );
+      })()}
     </div>
   );
 }
@@ -1405,7 +1489,7 @@ function NoteEditorModal({ imageName, initialNote, onSave, onClose }) {
           </button>
         </div>
       </div>
-    </WindowFrame>
-  );
-}
+      </WindowFrame>
+    );
+  }
 
