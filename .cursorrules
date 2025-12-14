@@ -89,7 +89,7 @@ WestFamilyTree är ett släktforskningsverktyg byggt med:
 - **Visning**: Visa kopplingar i `MediaManager`, `EditPersonModal`, `SourceCatalog`, `PlaceCatalogNew`
 
 ### 11. Tag-hantering
-- **Centraliserad**: Använd `useApp().getAllTags()` för att hämta alla taggar från people/sources/media
+- **Centraliserad**: Använd `useApp().getAllTags()` för att hämta alla taggar från people/sources/media/places
 - **Autocomplete**: Implementera autocomplete med `getAllTags()` i alla tag-inputs
 - **Format**: Array av strings, t.ex. `['family', 'test']`
 

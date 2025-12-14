@@ -79,6 +79,37 @@ function App() {
   const [mergeInitialPair, setMergeInitialPair] = useState(null);
   const [showRelationSettings, setShowRelationSettings] = useState(false);
   
+  // Dockning för EditPersonModal
+  const [isEditModalDocked, setIsEditModalDocked] = useState(() => {
+    try {
+      const saved = localStorage.getItem('editPersonModalDocked');
+      return saved === 'true';
+    } catch (e) {
+      return false;
+    }
+  });
+  
+  const toggleEditModalDock = () => {
+    const newValue = !isEditModalDocked;
+    setIsEditModalDocked(newValue);
+    try {
+      localStorage.setItem('editPersonModalDocked', String(newValue));
+    } catch (e) {
+      console.error('Kunde inte spara dockning-inställning:', e);
+    }
+  };
+  
+  // Lyssna på custom event från EditPersonModal
+  useEffect(() => {
+    const handleToggleDock = () => {
+      toggleEditModalDock();
+    };
+    window.addEventListener('toggleEditModalDock', handleToggleDock);
+    return () => {
+      window.removeEventListener('toggleEditModalDock', handleToggleDock);
+    };
+  }, [isEditModalDocked]);
+  
   const [personDrawerLocked, setPersonDrawerLocked] = useState(true);
   const [sourceDrawerLocked, setSourceDrawerLocked] = useState(false);
   const [placeDrawerLocked, setPlaceDrawerLocked] = useState(false);
@@ -611,6 +642,7 @@ function App() {
               onOpenContextMenu={showContextMenu}
               highlightPlaceholderId={personDrawerEditContext?.id || (personDrawer && personDrawer._isPlaceholder ? personDrawer.id : null)}
               onRequestOpenDuplicateMerge={() => setShowDuplicateMerge(true)}
+              getPersonRelations={getPersonRelations}
             />
           )}
 
@@ -630,12 +662,94 @@ function App() {
             />
           )}
 
-          {/* EDITING PERSON (SPLIT VIEW) */}
+          {/* EDITING PERSON (SPLIT VIEW eller DOCKAD) */}
           {editingPerson && (
             <>
-              <div className="w-full h-full flex flex-col bg-white shadow-2xl rounded-xl border">
+              {isEditModalDocked && activeTab === 'familyTree' ? (
+                // DOCKAD MODE: Sidebar till vänster, släktträd till höger
+                <div className="w-full h-full flex gap-4">
+                  {/* VÄNSTER: Dockad EditPersonModal */}
+                  <div className="w-96 flex-shrink-0 flex flex-col bg-white shadow-2xl rounded-xl border overflow-hidden">
+                    <div className="flex justify-between items-center border-b p-4 bg-gray-50 rounded-t-xl shrink-0">
+                      <div className="flex items-center gap-2">
+                        <button 
+                          onClick={toggleEditModalDock}
+                          className="p-1 hover:bg-gray-200 rounded text-gray-600 hover:text-gray-800"
+                          title="Frigör från dockning"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                        <h3 className="text-lg font-bold text-gray-800">
+                          {editingPerson.firstName} {editingPerson.lastName}
+                        </h3>
+                      </div>
+                      <button onClick={handleCloseEditModal} className="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto">
+                      <EditPersonModal 
+                        person={editingPerson}
+                        onClose={handleCloseEditModal}
+                        onSave={handleSavePersonDetails}
+                        onChange={handleEditFormChange}
+                        allSources={dbData.sources}
+                        allPlaces={dbData.places || []}
+                        allPeople={visiblePeople}
+                        onDeleteEvent={handleDeleteEvent}
+                        onOpenSourceDrawer={handleToggleSourceDrawer}
+                        onNavigateToSource={handleNavigateToSource}
+                        onNavigateToPlace={handleNavigateToPlace}
+                        onTogglePlaceDrawer={handleTogglePlaceDrawer}
+                        onViewInFamilyTree={handleViewInFamilyTree}
+                        focusPair={focusPair}
+                        onSetFocusPair={handleSetFocusPair}
+                        activeSourcingEventId={sourcingEventInfo?.eventId}
+                        isDocked={isEditModalDocked && activeTab === 'familyTree'}
+                      />
+                    </div>
+                  </div>
+                  
+                  {/* HÖGER: Släktträd */}
+                  <div className="flex-1 min-w-0">
+                    <FamilyTreeView
+                      allPeople={visiblePeople}
+                      focusPersonId={familyTreeFocusPersonId}
+                      onSetFocus={(personId) => setFamilyTreeFocusPersonId(personId)}
+                      onOpenEditModal={handleOpenEditModal}
+                      onOpenPersonDrawer={openPersonDrawer}
+                      onSave={handleSaveRelations}
+                      onCreateNewPerson={handleCreateAndEditPerson}
+                      onCreatePersonAndLink={createPersonAndLink}
+                      onOpenContextMenu={showContextMenu}
+                      highlightPlaceholderId={personDrawerEditContext?.id || (personDrawer && personDrawer._isPlaceholder ? personDrawer.id : null)}
+                      onRequestOpenDuplicateMerge={() => setShowDuplicateMerge(true)}
+                      getPersonRelations={getPersonRelations}
+                    />
+                  </div>
+                </div>
+              ) : (
+                // NORMAL MODE: Fullscreen modal
+                <div className="w-full h-full flex flex-col bg-white shadow-2xl rounded-xl border">
                 <div className="flex justify-between items-center border-b p-4 bg-gray-50 rounded-t-xl shrink-0">
-                  <div className={`${isPlaceDrawerOpen ? 'w-1/2' : 'w-full'}`}>
+                  <div className={`${isPlaceDrawerOpen ? 'w-1/2' : 'w-full'} flex items-center gap-2`}>
+                    {activeTab === 'familyTree' && (
+                      <button 
+                        onClick={toggleEditModalDock}
+                        className="p-1 hover:bg-gray-200 rounded text-gray-600 hover:text-gray-800"
+                        title={isEditModalDocked ? "Frigör från dockning" : "Docka till vänster"}
+                      >
+                        {isEditModalDocked ? (
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        ) : (
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        )}
+                      </button>
+                    )}
                     <h3 className="text-xl font-bold text-gray-800 flex items-center gap-3">
                       {editingPerson.id === focusPair.primary 
                         ? <span className="text-yellow-400 text-2xl" title="Primär Fokusperson">★</span>

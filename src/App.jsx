@@ -24,7 +24,9 @@ import { MediaManager } from './MediaManager.jsx';
 import WindowFrame from './WindowFrame.jsx';
 import LinkPersonModal from './LinkPersonModal.jsx';
 import OAIArchiveHarvesterModal from './OAIArchiveHarvesterModal.jsx';
-import Button from './Button.jsx'; 
+import Button from './Button.jsx';
+import MediaImage from './components/MediaImage.jsx';
+import { User } from 'lucide-react'; 
 
 // Helper: Build relations array from people array to keep dbData.relations in sync
 export function buildRelationsFromPeople(people = []) {
@@ -200,6 +202,29 @@ function App() {
   const [auditBackupDir, setAuditBackupDirState] = useState((dbData?.meta && dbData.meta.auditBackupDir) || '');
   const [newPersonToEditId, setNewPersonToEditId] = useState(null);
   const [isOAIHarvesterOpen, setIsOAIHarvesterOpen] = useState(false);
+  
+  // Collapse/Expand för EditPersonModal (alltid synlig i familyTree-vyn)
+  const [isEditModalCollapsed, setIsEditModalCollapsed] = useState(() => {
+    try {
+      const saved = localStorage.getItem('editPersonModalCollapsed');
+      return saved === 'true';
+    } catch (e) {
+      return false; // Default: expanderad
+    }
+  });
+  
+  const toggleEditModalCollapse = () => {
+    const newValue = !isEditModalCollapsed;
+    setIsEditModalCollapsed(newValue);
+    try {
+      localStorage.setItem('editPersonModalCollapsed', String(newValue));
+    } catch (e) {
+      console.error('Kunde inte spara collapse-inställning:', e);
+    }
+  };
+  
+  // OBS: Vi expanderar INTE automatiskt - låt användaren välja själv
+  // Om användaren vill expandera kan de klicka på hamburger-ikonen
 
   // Listen for Electron menu actions and trigger save handlers
   React.useEffect(() => {
@@ -285,7 +310,10 @@ function App() {
   useEffect(() => {
     const onKey = (e) => {
       if (e.key !== 'Escape') return;
-      if (editingPerson) {
+      // I familyTree-vyn: Kollapsa istället för att stänga
+      if (editingPerson && activeTab === 'familyTree') {
+        toggleEditModalCollapse();
+      } else if (editingPerson) {
         handleCloseEditModal();
       } else if (isSourceDrawerOpen) {
         handleToggleSourceDrawer();
@@ -297,20 +325,28 @@ function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [editingPerson, isSourceDrawerOpen, isPlaceDrawerOpen, isRelationshipDrawerOpen, handleCloseEditModal, handleToggleSourceDrawer, handleTogglePlaceDrawer, handleToggleRelationshipDrawer]);
+  }, [editingPerson, isSourceDrawerOpen, isPlaceDrawerOpen, isRelationshipDrawerOpen, handleCloseEditModal, handleToggleSourceDrawer, handleTogglePlaceDrawer, handleToggleRelationshipDrawer, activeTab, toggleEditModalCollapse]);
 
   // Click outside modal handler
   useEffect(() => {
     const handler = (e) => {
       if (e.button !== 0) return;
-      if (e.target.closest('.modal-content') || e.target.closest('[role="dialog"]')) return;
-      if (editingPerson) {
+      // Ignorera klick inuti modalen, på knappar, eller i sidebar
+      if (e.target.closest('.modal-content') || 
+          e.target.closest('[role="dialog"]') || 
+          e.target.closest('button') ||
+          e.target.closest('.bg-slate-800') ||
+          e.target.closest('.fixed.inset-0')) return; // Ignorera klick inuti sidebar eller fixed container
+      // I familyTree-vyn: Kollapsa istället för att stänga
+      if (editingPerson && activeTab === 'familyTree') {
+        toggleEditModalCollapse();
+      } else if (editingPerson) {
         handleCloseEditModal();
       }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, [editingPerson, handleCloseEditModal]);
+  }, [editingPerson, handleCloseEditModal, activeTab, toggleEditModalCollapse]);
 
   // Place unlink handler (WFT:unlinkPlaceFromEvent)
   useEffect(() => {
@@ -350,7 +386,12 @@ function App() {
   }
 
   const handleCloseEditModalSafe = () => {
-    handleCloseEditModal();
+    // I familyTree-vyn: Kollapsa istället för att stänga
+    if (activeTab === 'familyTree') {
+      toggleEditModalCollapse();
+    } else {
+      handleCloseEditModal();
+    }
   };
 
   const forceCloseSourceModal = () => {
@@ -1104,43 +1145,210 @@ function App() {
             />
           )}
 
-          {/* HÄR VISAS SLÄKTTRÄDET ÄVEN NÄR EDITINGPERSON ÄR TRUE */}
-          {activeTab === 'familyTree' && (<FamilyTreeView allPeople={visiblePeople} focusPersonId={familyTreeFocusPersonId} onSetFocus={(personId) => { setFamilyTreeFocusPersonId(personId); }} onOpenEditModal={handleOpenEditModal} onOpenPersonDrawer={openPersonDrawer} onSave={handleSaveRelations} onCreatePersonAndLink={createPersonAndLink} onOpenContextMenu={showContextMenu} onDeletePerson={handleDeletePerson} highlightPlaceholderId={personDrawerEditContext?.id || (personDrawer && personDrawer._isPlaceholder ? personDrawer.id : null)} onRequestOpenDuplicateMerge={() => setShowDuplicateMerge(true)} />)}
+          {/* HÄR VISAS SLÄKTTRÄDET NÄR EDITINGPERSON ÄR FALSE ELLER NÄR DET INTE ÄR DOCKAT */}
+          {activeTab === 'familyTree' && !editingPerson && (
+            <FamilyTreeView 
+              allPeople={visiblePeople} 
+              focusPersonId={familyTreeFocusPersonId} 
+              onSetFocus={(personId) => { setFamilyTreeFocusPersonId(personId); }} 
+              onOpenEditModal={handleOpenEditModal} 
+              onOpenPersonDrawer={openPersonDrawer} 
+              onSave={handleSaveRelations} 
+              onCreatePersonAndLink={createPersonAndLink} 
+              onOpenContextMenu={showContextMenu} 
+              onDeletePerson={handleDeletePerson} 
+              highlightPlaceholderId={personDrawerEditContext?.id || (personDrawer && personDrawer._isPlaceholder ? personDrawer.id : null)} 
+              onRequestOpenDuplicateMerge={() => setShowDuplicateMerge(true)}
+              getPersonRelations={getPersonRelations}
+            />
+          )}
           
           {activeTab === 'farmArchive' && (<FarmArchiveView places={dbData.places || []} people={visiblePeople} allSources={dbData.sources || []} onSavePlace={handleSavePlace} onOpenPerson={handleOpenEditModal} onViewInFamilyTree={handleViewInFamilyTree} onNavigateToSource={handleNavigateToSource} onOpenSourceDrawer={handleToggleSourceDrawer} onNavigateToPlace={handleNavigateToPlace} onOpenPlaceDrawer={handleTogglePlaceDrawer} onOpenSourceInDrawer={handleOpenSourceInDrawer} />)}
 
           {/* EDITING PERSON (MODAL) */}
           {editingPerson && (
-            <WindowFrame
-              title={`Redigera ${editingPerson.firstName || ''} ${editingPerson.lastName || ''}`}
-              onClose={handleCloseEditModalSafe}
-              initialWidth={1200}
-              initialHeight={800}
-            >
-              <EditPersonModal
-                person={editingPerson}
+            activeTab === 'familyTree' ? (
+              // FAMILYTREE MODE: Collapsible sidebar (alltid synlig)
+              <div className="fixed inset-0 z-[4000] bg-slate-900 flex flex-col">
+                {/* TOP MENUBAR (med pilar, appens namn, knappar) */}
+                <div className="menubar shadow-md shrink-0 bg-slate-900 border-b border-slate-700">
+                  <div className="flex items-center space-x-4">
+                    <h1 className="text-lg font-bold tracking-wide mr-2 text-slate-200">
+                      WestFamilyTree{fileHandle && fileHandle.name ? ` – [${fileHandle.name}]` : ''}
+                    </h1>
+                    <Button onClick={handleBack} disabled={!canGoBack} variant="secondary" size="sm" className={!canGoBack ? 'opacity-50' : ''}>←</Button>
+                    <Button onClick={handleForward} disabled={!canGoForward} variant="secondary" size="sm" className={!canGoForward ? 'opacity-50' : ''}>→</Button>
+                    <Button onClick={() => Promise.resolve(handleNewFile()).then(resetUiState)} variant="secondary" size="sm">Ny</Button>
+                    <Button onClick={handleOpenFile} variant="secondary" size="sm">Öppna fil...</Button>
+                    <Button onClick={() => window.close()} variant="primary" size="sm">Stäng</Button>
+                    <Button onClick={() => setShowSettings(true)} variant="secondary" size="sm">Inställningar</Button>
+                    <Button onClick={() => setIsMergeModalOpen(true)} variant="secondary" size="sm">Slå ihop</Button>
+                    <Button onClick={() => setIsMergesPanelOpen(true)} variant="secondary" size="sm">Merges</Button>
+                    <Button onClick={() => setIsGedcomImporterOpen(true)} variant="secondary" size="sm">GEDCOM import</Button>
+                  </div>
+                  <div className="text-xs text-slate-400"><span>{fileHandle ? `Öppen fil: ${fileHandle.name}` : 'Ny namnlös databas'}</span></div>
+                </div>
+                
+                {/* HUVUDMENY (TABS) */}
+                <div className="w-full border-b border-slate-700 bg-slate-900 shrink-0">
+                  <nav className="flex space-x-2 md:space-x-4 lg:space-x-8 px-4 py-2">
+                    {[
+                      { label: 'Personregister', value: 'people' },
+                      { label: 'Källkatalog', value: 'sources' },
+                      { label: 'Platsregister', value: 'places' },
+                      { label: 'Släktträd', value: 'familyTree' },
+                      { label: 'Gårdsarkivet', value: 'farmArchive' },
+                      { label: 'Orphan-arkivet', value: 'orphanArchive' },
+                      { label: 'Audit', value: 'audit' },
+                      { label: 'Media', value: 'media' },
+                    ].map(tab => (
+                      <button
+                        key={tab.value}
+                        onClick={() => onLocalTabChange(tab.value)}
+                        className={`whitespace-nowrap py-2 px-2 md:px-3 border-b-2 font-medium text-sm transition-colors duration-150
+                          ${activeTab === tab.value ? 'border-blue-500 text-white' : 'border-transparent text-slate-400 hover:text-white hover:border-slate-600'}`}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </nav>
+                </div>
+                
+                {/* HUVUDINNEHÅLL: Collapsible Sidebar + Släktträd */}
+                <div className="flex-1 flex gap-4 overflow-hidden p-4">
+                  {/* VÄNSTER: Collapsible EditPersonModal */}
+                  <div 
+                    className={`flex-shrink-0 flex flex-col bg-slate-800 shadow-2xl border-r border-slate-700 overflow-hidden rounded-lg transition-all duration-300 ease-in-out ${
+                      isEditModalCollapsed ? 'w-[50px]' : 'w-[600px]'
+                    }`}
+                    style={{ 
+                      width: isEditModalCollapsed ? '50px' : '600px',
+                      minWidth: isEditModalCollapsed ? '50px' : '600px',
+                      maxWidth: isEditModalCollapsed ? '50px' : '600px'
+                    }}
+                  >
+                    {isEditModalCollapsed ? (
+                      // KOLLAPSAD: Bara hamburger-ikon
+                      <div className="flex flex-col items-center h-full py-4">
+                        <button
+                          onClick={toggleEditModalCollapse}
+                          className="w-10 h-10 rounded-full bg-slate-700 hover:bg-slate-600 flex items-center justify-center text-slate-300 hover:text-white transition-all duration-200"
+                          title="Expandera personmodal"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                          </svg>
+                        </button>
+                      </div>
+                    ) : (
+                      // EXPANDERAD: Hela modalen
+                      <>
+                        {/* Header med collapse-knapp (X) */}
+                        <div className="flex justify-between items-center border-b border-slate-700 p-3 bg-slate-900 shrink-0">
+                          <h3 className="text-base font-bold text-slate-200 truncate flex-1 min-w-0">
+                            {editingPerson.firstName} {editingPerson.lastName}
+                          </h3>
+                          <button 
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              toggleEditModalCollapse();
+                            }}
+                            className="p-2 hover:bg-slate-700 rounded text-slate-400 hover:text-white transition-colors flex-shrink-0 text-xl font-bold w-8 h-8 flex items-center justify-center"
+                            title="Kollapsa"
+                          >
+                            &times;
+                          </button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto min-h-0">
+                          <EditPersonModal
+                            person={editingPerson}
+                            onClose={() => {
+                              toggleEditModalCollapse(); // Kollapsa istället för att stänga
+                            }}
+                            onSave={patchedHandleSavePersonDetails}
+                            onChange={handleEditFormChange}
+                            allSources={dbData.sources}
+                            allPlaces={dbData.places || []}
+                            allPeople={visiblePeople}
+                            onDeleteEvent={handleDeleteEvent}
+                            onOpenSourceDrawer={handleToggleSourceDrawer}
+                            onNavigateToSource={handleNavigateToSource}
+                            onNavigateToPlace={handleNavigateToPlace}
+                            onTogglePlaceDrawer={handleTogglePlaceDrawer}
+                            onViewInFamilyTree={handleViewInFamilyTree}
+                            focusPair={focusPair}
+                            onSetFocusPair={handleSetFocusPair}
+                            activeSourcingEventId={sourcingEventInfo?.eventId}
+                            allMediaItems={dbData.media || []}
+                            onUpdateAllMedia={(updatedMedia) => {
+                              setDbData(prev => ({ ...prev, media: updatedMedia }));
+                              setIsDirty(true);
+                            }}
+                            setIsSourceDrawerOpen={openSourceDrawerForSelection}
+                            setIsPlaceDrawerOpen={openPlaceDrawerForSelection}
+                            isDocked={true}
+                          />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  
+                  {/* HÖGER: Släktträd */}
+                  <div className="flex-1 min-w-0 overflow-hidden">
+                    <FamilyTreeView
+                      allPeople={visiblePeople}
+                      focusPersonId={familyTreeFocusPersonId}
+                      onSetFocus={(personId) => { setFamilyTreeFocusPersonId(personId); }}
+                      onOpenEditModal={handleOpenEditModal}
+                      onOpenPersonDrawer={openPersonDrawer}
+                      onSave={handleSaveRelations}
+                      onCreatePersonAndLink={createPersonAndLink}
+                      onOpenContextMenu={showContextMenu}
+                      onDeletePerson={handleDeletePerson}
+                      highlightPlaceholderId={personDrawerEditContext?.id || (personDrawer && personDrawer._isPlaceholder ? personDrawer.id : null)}
+                      onRequestOpenDuplicateMerge={() => setShowDuplicateMerge(true)}
+                      getPersonRelations={getPersonRelations}
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              // NORMAL MODE: WindowFrame modal (för andra tabs)
+              <WindowFrame
+                title={`Redigera ${editingPerson.firstName || ''} ${editingPerson.lastName || ''}`}
                 onClose={handleCloseEditModalSafe}
-                onSave={patchedHandleSavePersonDetails}
-                onChange={handleEditFormChange}
-                allSources={dbData.sources}
-                allPlaces={dbData.places || []}
-                allPeople={visiblePeople}
-                onDeleteEvent={handleDeleteEvent}
-                onOpenSourceDrawer={handleToggleSourceDrawer}
-                onNavigateToSource={handleNavigateToSource}
-                onNavigateToPlace={handleNavigateToPlace}
-                onTogglePlaceDrawer={handleTogglePlaceDrawer}
-                onViewInFamilyTree={handleViewInFamilyTree}
-                focusPair={focusPair}
-                onSetFocusPair={handleSetFocusPair}
-                activeSourcingEventId={sourcingEventInfo?.eventId}
-                allMediaItems={dbData.media || []}
-                onUpdateAllMedia={(updatedMedia) => {
-                  setDbData(prev => ({ ...prev, media: updatedMedia }));
-                  setIsDirty(true);
-                }}
-              />
-            </WindowFrame>
+                initialWidth={1200}
+                initialHeight={800}
+              >
+                <EditPersonModal
+                  person={editingPerson}
+                  onClose={handleCloseEditModalSafe}
+                  onSave={patchedHandleSavePersonDetails}
+                  onChange={handleEditFormChange}
+                  allSources={dbData.sources}
+                  allPlaces={dbData.places || []}
+                  allPeople={visiblePeople}
+                  onDeleteEvent={handleDeleteEvent}
+                  onOpenSourceDrawer={handleToggleSourceDrawer}
+                  onNavigateToSource={handleNavigateToSource}
+                  onNavigateToPlace={handleNavigateToPlace}
+                  onTogglePlaceDrawer={handleTogglePlaceDrawer}
+                  onViewInFamilyTree={handleViewInFamilyTree}
+                  focusPair={focusPair}
+                  onSetFocusPair={handleSetFocusPair}
+                  activeSourcingEventId={sourcingEventInfo?.eventId}
+                  allMediaItems={dbData.media || []}
+                  onUpdateAllMedia={(updatedMedia) => {
+                    setDbData(prev => ({ ...prev, media: updatedMedia }));
+                    setIsDirty(true);
+                  }}
+                  setIsSourceDrawerOpen={openSourceDrawerForSelection}
+                  setIsPlaceDrawerOpen={openPlaceDrawerForSelection}
+                  isDocked={false}
+                />
+              </WindowFrame>
+            )
           )}
         </div>
       </div>

@@ -7,12 +7,14 @@ import {
 } from 'lucide-react';
 import WindowFrame from './WindowFrame.jsx';
 import Button from './Button.jsx';
+import SelectFatherModal from './SelectFatherModal.jsx';
+import MediaImage from './components/MediaImage.jsx';
 
 // --- KONSTANTER ---
-const CARD_WIDTH = 280;
-const FOCUS_WIDTH = 320; 
-const CARD_HEIGHT = 130;
-const FOCUS_HEIGHT = 160;
+const CARD_WIDTH = 400;
+const FOCUS_WIDTH = 440; 
+const CARD_HEIGHT = 170;
+const FOCUS_HEIGHT = 200;
 const INDENT_X = 60;   
 const GAP_Y = 160;     
 const SIBLING_GAP = 340;
@@ -52,6 +54,66 @@ const getPath = (source, target, type) => {
   return `M ${sx} ${sy} L ${tx} ${ty}`;
 };
 
+// Beräkna ålder eller livslängd
+const calculateAge = (birthDate, deathDate) => {
+    if (!birthDate) return null;
+    const birth = new Date(birthDate);
+    const end = deathDate ? new Date(deathDate) : new Date();
+    if (isNaN(birth.getTime())) return null;
+    
+    let years = end.getFullYear() - birth.getFullYear();
+    const monthDiff = end.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && end.getDate() < birth.getDate())) {
+        years--;
+    }
+    return years >= 0 ? years : null;
+};
+
+// Beräkna status (komplett/ofullständig)
+const calculateStatus = (person, birthDate, deathDate) => {
+    let score = 0;
+    let maxScore = 0;
+    
+    // Födelsedatum
+    maxScore += 2;
+    if (birthDate) score += 2;
+    
+    // Födelseplats
+    maxScore += 1;
+    const birthEvent = person.events?.find(e => e.type === 'BIRT' || e.type === 'Födelse');
+    if (birthEvent?.place) score += 1;
+    
+    // Dödsdatum (om personen är död)
+    if (deathDate) {
+        maxScore += 2;
+        score += 2;
+        
+        // Dödsplats
+        maxScore += 1;
+        const deathEvent = person.events?.find(e => e.type === 'DEAT' || e.type === 'Död');
+        if (deathEvent?.place) score += 1;
+    }
+    
+    // Profilbild
+    maxScore += 1;
+    if (person.media && person.media.length > 0) score += 1;
+    
+    // Yrke/titel
+    maxScore += 1;
+    if (person.occupation || person.title) score += 1;
+    
+    // Förnamn och efternamn
+    maxScore += 2;
+    if (person.firstName) score += 1;
+    if (person.lastName) score += 1;
+    
+    const percentage = maxScore > 0 ? (score / maxScore) * 100 : 0;
+    
+    if (percentage >= 80) return 'complete'; // Grön
+    if (percentage >= 50) return 'partial'; // Gul
+    return 'incomplete'; // Röd
+};
+
 // Konvertera databas-person till visningsformat
 const convertPersonForDisplay = (person) => {
     if (!person) return null;
@@ -60,20 +122,31 @@ const convertPersonForDisplay = (person) => {
     const birthEvent = person.events?.find(e => e.type === 'BIRT' || e.type === 'Födelse');
     const deathEvent = person.events?.find(e => e.type === 'DEAT' || e.type === 'Död');
     
+    const birthDate = birthEvent?.date || '';
+    const deathDate = deathEvent?.date || '';
+    const age = calculateAge(birthDate, deathDate);
+    const status = calculateStatus(person, birthDate, deathDate);
+    const childrenCount = (person.relations?.children || []).length;
+    
     return {
         id: person.id,
         firstName: person.firstName || 'Okänd',
         lastName: person.lastName || '',
-        gender: person.gender || 'unknown',
-        birthDate: birthEvent?.date || '',
+        gender: person.gender || person.sex || 'unknown',
+        birthDate: birthDate,
         birthPlace: birthEvent?.place || '',
-        deathDate: deathEvent?.date || '',
+        deathDate: deathDate,
         deathPlace: deathEvent?.place || '',
-        title: person.occupation || '',
+        title: person.occupation || person.title || '',
         photoUrl: person.photoUrl || '',
+        media: person.media || [],
         hasExtendedFamily: (person.relations?.children?.length > 0 || person.relations?.parents?.length > 0),
         isBookmarked: person.isBookmarked || false,
-        refNumber: person.refNumber || person.id
+        refNumber: person.refNumber || person.id,
+        age: age,
+        status: status,
+        childrenCount: childrenCount,
+        isPlaceholder: person._isPlaceholder || false
     };
 };
 
@@ -385,7 +458,7 @@ const PartnerSelectModal = ({ partners, onSelect, onClose, people }) => {
 
 
 // --- MAIN APP ---
-export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFocus, onOpenEditModal, onCreatePersonAndLink, onDeletePerson }) {
+export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFocus, onOpenEditModal, onCreatePersonAndLink, onDeletePerson, getPersonRelations }) {
     // Konvertera data till visningsformat
     const displayPeople = allPeople.map(convertPersonForDisplay).filter(Boolean);
     const peopleById = {};
@@ -535,6 +608,7 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
   const [isAdvancedSearchOpen, setIsAdvancedSearchOpen] = useState(false);
   const [editPerson, setEditPerson] = useState(null);
   const [partnerSelect, setPartnerSelect] = useState(null);
+  const [selectFatherModal, setSelectFatherModal] = useState(null); // { mother: person }
 
   // Sök & Historik states
   const [searchResults, setSearchResults] = useState([]);
@@ -576,15 +650,8 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
   };
 
   const handleAddChild = (parent) => {
-      const partners = data.relationships.partners || [];
-      
-      if (partners.length > 1) {
-          setPartnerSelect({ parentId: parent.id, partners: partners });
-      } else if (partners.length === 1) {
-          handleCreateChildWithPartners(parent.id, partners[0].id);
-      } else {
-          handleCreateChildWithPartners(parent.id, null);
-      }
+      // Öppna modal för att välja far
+      setSelectFatherModal({ mother: parent });
   };
 
   const handleCreateChildWithPartners = (p1, p2) => {
@@ -600,6 +667,89 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
             isNew: true
         });
       }
+  };
+
+  // Handler när far är vald i SelectFatherModal
+  const handleFatherSelected = (fatherId, isNew) => {
+    const mother = selectFatherModal?.mother;
+    if (!mother) return;
+    
+    setSelectFatherModal(null);
+    
+    // Skapa barnet med båda föräldrarna
+    if (onCreatePersonAndLink) {
+      // Spara tiden innan vi skapar barnet för att hitta det senare
+      const beforeTime = Date.now();
+      
+      // Skapa barnet med modern som target - detta skapar barnet och länkar det till modern
+      onCreatePersonAndLink(mother.id, 'child');
+      
+      // Vänta lite för att barnet ska skapas, sedan hitta det och öppna EditPersonModal
+      setTimeout(() => {
+        // Hitta det nyaste barnet (högsta ID/timestamp) som skapades efter beforeTime
+        const allPeopleSorted = [...allPeople].sort((a, b) => {
+          const aTime = parseInt(a.id.split('_')[1] || '0');
+          const bTime = parseInt(b.id.split('_')[1] || '0');
+          return bTime - aTime;
+        });
+        const newestChild = allPeopleSorted.find(p => {
+          const pTime = parseInt(p.id.split('_')[1] || '0');
+          return pTime >= beforeTime && 
+                 p._isPlaceholder && 
+                 p._placeholderRelation === 'child' &&
+                 p._placeholderTargetId === mother.id;
+        });
+        
+        if (newestChild && onOpenEditModal) {
+          // Lägg till fadern som förälder till barnet
+          // Detta görs automatiskt av syncRelations när man sparar i EditPersonModal
+          // Men vi kan också lägga till fadern direkt i barnets relations.parents
+          if (newestChild.relations && !newestChild.relations.parents) {
+            newestChild.relations.parents = [];
+          }
+          if (newestChild.relations && !newestChild.relations.parents.some(p => p.id === fatherId)) {
+            const father = allPeople.find(p => p.id === fatherId);
+            if (father) {
+              newestChild.relations.parents.push({ 
+                id: fatherId, 
+                name: `${father.firstName} ${father.lastName}` 
+              });
+            }
+          }
+          
+          // Öppna EditPersonModal för det nya barnet
+          onOpenEditModal(newestChild.id);
+        }
+      }, 300);
+    }
+  };
+
+  // Handler när "Ny" klickas i SelectFatherModal (skapar placeholder far)
+  const handleCreateNewFather = () => {
+    const mother = selectFatherModal?.mother;
+    if (!mother || !onCreatePersonAndLink) return;
+    
+    // Skapa placeholder far
+    onCreatePersonAndLink(mother.id, 'spouse');
+    
+    // Vänta lite för att fadern ska skapas, sedan använd den för att skapa barnet
+    setTimeout(() => {
+      // Hitta den nyaste personen (högsta ID/timestamp) som är en placeholder spouse
+      const allPeopleSorted = [...allPeople].sort((a, b) => {
+        const aTime = parseInt(a.id.split('_')[1] || '0');
+        const bTime = parseInt(b.id.split('_')[1] || '0');
+        return bTime - aTime;
+      });
+      const newestFather = allPeopleSorted.find(p => 
+        p._isPlaceholder && 
+        p._placeholderRelation === 'spouse' &&
+        p._placeholderTargetId === mother.id
+      );
+      
+      if (newestFather) {
+        handleFatherSelected(newestFather.id, true);
+      }
+    }, 200);
   };
 
   const handleAddParent = (child) => {
@@ -938,6 +1088,17 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
           />
       )}
 
+      {selectFatherModal && (
+          <SelectFatherModal
+              mother={selectFatherModal.mother}
+              allPeople={allPeople}
+              getPersonRelations={getPersonRelations}
+              onSelect={handleFatherSelected}
+              onCreateNew={handleCreateNewFather}
+              onClose={() => setSelectFatherModal(null)}
+          />
+      )}
+
       {/* --- CANVAS --- */}
       <div 
         ref={containerRef}
@@ -972,6 +1133,15 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
                 const width = node.isFocus ? FOCUS_WIDTH : CARD_WIDTH;
                 const height = node.isFocus ? FOCUS_HEIGHT : CARD_HEIGHT;
                 
+                // Tooltip-innehåll
+                const tooltipContent = !isGhost ? [
+                    node.birthPlace && `Född: ${node.birthPlace}`,
+                    node.deathPlace && `Död: ${node.deathPlace}`,
+                    node.title && `Yrke: ${node.title}`,
+                    node.age !== null && `Ålder: ${node.age} år`,
+                    node.childrenCount > 0 && `${node.childrenCount} barn`
+                ].filter(Boolean).join('\n') : '';
+                
                 return (
                     <div 
                         key={node.id}
@@ -982,46 +1152,117 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
                         style={{ left: node.x - width / 2, top: node.y - height / 2, width, height }}
                         onDoubleClick={isGhost ? undefined : () => navigateToPerson(node.id)}
                         onContextMenu={(e) => { if (isGhost) return; handleTreeContextMenu(e, node); }}
+                        title={tooltipContent}
                     >
-                        <div className={`${isGhost ? 'bg-slate-700 text-slate-100 italic' : (node.gender === 'M' ? 'bg-blue-600' : node.gender === 'K' ? 'bg-rose-500' : 'bg-gray-500') + ' text-white'} px-3 py-1.5 flex items-center gap-2 shadow-sm`}>
+                        <div className={`${isGhost ? 'bg-slate-700 text-slate-100 italic' : (node.gender === 'M' ? 'bg-blue-600' : node.gender === 'K' ? 'bg-rose-500' : 'bg-gray-500') + ' text-white'} px-3 py-1.5 flex items-center gap-2 shadow-sm relative`}>
+                            {/* Korset före förnamnet om personen är död */}
+                            {!isGhost && node.deathDate && <span className="text-sm opacity-90">✝</span>}
                             <span className="font-bold truncate text-sm flex-1">{node.firstName} {node.lastName}</span>
-                            {!isGhost && node.isBookmarked && <Star size={12} className="fill-yellow-300 text-yellow-300"/>}
-                            {!isGhost && warnings.length > 0 && <AlertTriangle size={14} className="text-yellow-300 animate-pulse" />}
-                            {!isGhost && node.deathDate && <span className="text-xs opacity-70">✝</span>}
-                            {/* Ingifta-ikon */}
+                            {/* Släktträdsikon till vänster om REF */}
                             {!isGhost && node.isPartner && (
-                                <button title="Visa träd för denna person" className="ml-2 p-1 rounded hover:bg-blue-700/30" onClick={e => { e.stopPropagation(); navigateToPerson(node.id); }}>
+                                <button title="Visa träd för denna person" className="p-1 rounded hover:bg-blue-700/30" onClick={e => { e.stopPropagation(); navigateToPerson(node.id); }}>
                                     <Network size={16} className="text-blue-200" />
                                 </button>
+                            )}
+                            {/* Ref-nummer - samma storlek som namnet */}
+                            {!isGhost && node.refNumber && (
+                                <span className="font-bold text-sm">Ref: {node.refNumber}</span>
+                            )}
+                            {!isGhost && node.isBookmarked && <Star size={12} className="fill-yellow-300 text-yellow-300"/>}
+                            {!isGhost && warnings.length > 0 && <AlertTriangle size={14} className="text-yellow-300 animate-pulse" />}
+                            {!isGhost && node.isPlaceholder && (
+                                <span className="text-[9px] opacity-80 bg-slate-600 px-1.5 py-0.5 rounded">Placeholder</span>
                             )}
                             {isGhost && <span className="text-xs opacity-80">Saknad förälder</span>}
                         </div>
 
-                        <div className="flex flex-1 p-2 gap-3 relative group">
-                            <div className="flex flex-col items-center gap-0.5">
-                                <div className={`w-16 h-16 rounded overflow-hidden flex-shrink-0 shadow-inner ${isGhost ? 'bg-slate-700 border border-slate-500' : 'bg-gray-300 border border-gray-400'}`}>
-                                    {isGhost ? <Plus className="w-full h-full p-2 text-slate-200" /> : <User className="w-full h-full p-2 text-gray-500" />}
+                        <div className="flex flex-1 p-3 gap-3 relative group">
+                            <div className="flex flex-col items-start gap-0.5 relative">
+                                <div 
+                                    className={`w-20 h-20 rounded overflow-hidden flex-shrink-0 shadow-inner cursor-pointer hover:opacity-80 transition-opacity ${
+                                        isGhost 
+                                            ? 'bg-slate-700 border border-slate-500' 
+                                            : node.gender === 'M' 
+                                                ? 'bg-blue-300 border border-blue-400' 
+                                                : node.gender === 'K' 
+                                                    ? 'bg-rose-300 border border-rose-400' 
+                                                    : 'bg-gray-300 border border-gray-400'
+                                    }`}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (!isGhost && onOpenEditModal) {
+                                            onOpenEditModal(node.id);
+                                        }
+                                    }}
+                                >
+                                    {isGhost ? (
+                                        <Plus className="w-full h-full p-2 text-slate-200" />
+                                    ) : node.media && node.media.length > 0 && node.media[0]?.url ? (
+                                        <MediaImage 
+                                            url={node.media[0].url} 
+                                            alt={`${node.firstName} ${node.lastName}`}
+                                            className="w-full h-full object-cover"
+                                        />
+                                    ) : (
+                                        <User className={`w-full h-full p-2 ${
+                                            node.gender === 'M' 
+                                                ? 'text-blue-600' 
+                                                : node.gender === 'K' 
+                                                    ? 'text-rose-600' 
+                                                    : 'text-gray-500'
+                                        }`} />
+                                    )}
                                 </div>
+                                {/* Ålder under profilbilden - centrerat */}
+                                {!isGhost && node.age !== null && (
+                                    <div className="flex flex-col items-center mt-1">
+                                        <span className={`text-sm font-medium ${isGhost ? 'text-slate-200' : 'text-slate-700'}`}>
+                                            {node.age} år
+                                        </span>
+                                    </div>
+                                )}
+                                {/* Antal barn badge - vänsterjusterad */}
+                                {!isGhost && node.childrenCount > 0 && (
+                                    <div className="bg-blue-600 text-white text-[9px] font-bold rounded-full w-5 h-5 flex items-center justify-center border-2 border-white shadow-sm mt-1">
+                                        {node.childrenCount}
+                                    </div>
+                                )}
                             </div>
-                            <div className={`flex-1 flex flex-col text-xs space-y-1 justify-center ${isGhost ? 'text-slate-200' : 'text-slate-700'}`}>
+                            <div className={`flex-1 flex flex-col text-sm space-y-1 ${isGhost ? 'text-slate-200' : 'text-slate-700'}`}>
                                 {isGhost ? (
                                     <>
-                                        <div className="font-semibold text-sm">Lägg till förälder</div>
-                                        <div className="text-[11px] opacity-80">Klicka för att lägga till saknad förälder</div>
+                                        <div className="font-semibold text-base">Lägg till förälder</div>
+                                        <div className="text-xs opacity-80">Klicka för att lägga till saknad förälder</div>
                                     </>
                                 ) : (
                                     <>
-                                {node.birthDate && (
-                                    <div className="flex flex-col">
-                                        <span className="opacity-70 flex items-center gap-1 font-semibold text-[10px] uppercase tracking-wide">Född</span>
-                                        <span className="font-medium truncate">{node.birthDate}</span>
-                                    </div>
-                                )}
-                                {node.deathDate && (
-                                    <div className="flex flex-col">
-                                        <span className="opacity-70 flex items-center gap-1 font-semibold text-[10px] uppercase tracking-wide">Död</span>
-                                        <span className="font-medium truncate">{node.deathDate}</span>
-                                    </div>
+                                        {/* Födelse och död i samma höjd som profilbilden */}
+                                        <div className="flex flex-col gap-1">
+                                            {node.birthDate && (
+                                                <div className="flex items-center gap-1.5 text-sm">
+                                                    <span className="text-slate-600 font-bold">*</span>
+                                                    <span className="font-medium">
+                                                        {node.birthDate}
+                                                        {node.birthPlace && `, ${node.birthPlace}`}
+                                                    </span>
+                                                </div>
+                                            )}
+                                            {node.deathDate && (
+                                                <div className="flex items-center gap-1.5 text-sm">
+                                                    <span className="text-slate-600 font-bold">+</span>
+                                                    <span className="font-medium">
+                                                        {node.deathDate}
+                                                        {node.deathPlace && `, ${node.deathPlace}`}
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </div>
+                                        {/* Yrke/titel */}
+                                        {node.title && (
+                                            <div className="flex flex-col mt-1">
+                                                <span className="opacity-70 flex items-center gap-1 font-semibold text-xs uppercase tracking-wide">Yrke</span>
+                                                <span className="font-medium truncate text-sm">{node.title}</span>
+                                            </div>
                                         )}
                                     </>
                                 )}

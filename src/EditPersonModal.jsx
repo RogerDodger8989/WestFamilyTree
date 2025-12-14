@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
-  X, Save, User, Users, Image as ImageIcon, FileText, 
+  X, User, Users, Image as ImageIcon, FileText, 
   Activity, Tag, Plus, Trash2, Calendar, MapPin, 
   Link as LinkIcon, Camera, Edit3, AlertCircle, Check, 
   ChevronDown, MoreHorizontal, Search, Globe, HelpCircle,
@@ -372,7 +372,7 @@ const SourceModal = ({ isOpen, onClose, onAdd, eventType }) => {
 
 // --- HUVUDKOMPONENT ---
 
-export default function EditPersonModal({ person: initialPerson, allPlaces, onSave, onClose, onChange, onOpenSourceDrawer, allSources, allPeople, onOpenEditModal, allMediaItems = [], onUpdateAllMedia = () => {} }) {
+export default function EditPersonModal({ person: initialPerson, allPlaces, onSave, onClose, onChange, onOpenSourceDrawer, allSources, allPeople, onOpenEditModal, allMediaItems = [], onUpdateAllMedia = () => {}, isDocked = false }) {
     // Relation linking modal state
     const [relationModalOpen, setRelationModalOpen] = useState(false);
     const [relationTypeToAdd, setRelationTypeToAdd] = useState(null);
@@ -1098,54 +1098,45 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
 
   // Image paste handler - TAS BORT: MediaSelector hanterar paste nu
 
-  const handleSave = async () => {
-    try {
-      console.log('[EditPersonModal] handleSave anropad, person.media:', person.media);
-      console.log('[EditPersonModal] person-objektet:', JSON.stringify(person, null, 2));
-      if (onSave) {
-        await onSave(person);
-      }
-      if (onClose) onClose();
-    } catch (error) {
-      console.error('Error saving person:', error);
-    }
-  };
+  // handleSave borttagen - ändringar sparas automatiskt via onChange
 
   return (
     <>
       {/* BARA INNEHÅL - WindowFrame hanterar containern */}
-      <div className="w-full h-full bg-slate-800 flex flex-col overflow-hidden">        {/* HEADER */}
-        <div className="modal-header h-16 bg-slate-700 border-b border-slate-600 flex items-center justify-between px-6 shrink-0">
-          <div className="flex items-center gap-4 select-none">
-            <div className="w-10 h-10 rounded-full bg-slate-600 overflow-hidden border-2 border-slate-500 pointer-events-none">
-              {person.media?.length > 0 ? (
-                <MediaImage url={person.media[0].url} alt="Profil" className="w-full h-full object-cover" />
-              ) : (
-                <User className="w-full h-full p-1 text-slate-400" />
-              )}
+      <div className="w-full h-full bg-slate-800 flex flex-col overflow-hidden">
+        {/* HEADER - Döljs när isDocked är true, MEN flikarna behålls */}
+        {!isDocked ? (
+          <div className="modal-header h-16 bg-slate-700 border-b border-slate-600 flex items-center justify-between px-6 shrink-0">
+            <div className="flex items-center gap-4 select-none">
+              <div className="w-10 h-10 rounded-full bg-slate-600 overflow-hidden border-2 border-slate-500 pointer-events-none">
+                {person.media?.length > 0 ? (
+                  <MediaImage url={person.media[0].url} alt="Profil" className="w-full h-full object-cover" />
+                ) : (
+                  <User className="w-full h-full p-1 text-slate-400" />
+                )}
+              </div>
+              <div>
+                <h1 className="text-lg font-bold text-slate-200 leading-tight">
+                  {person.firstName} {person.lastName}
+                </h1>
+                <p className="text-xs text-slate-400">
+                  {(() => {
+                    const { birthYear, deathYear, lifeSpan } = getLifeInfo(person);
+                    if (birthYear && deathYear && lifeSpan !== null) {
+                      return `${birthYear} — ${deathYear} (ca. ${lifeSpan} år)`;
+                    } else if (birthYear && deathYear) {
+                      return `${birthYear} — ${deathYear}`;
+                    } else if (birthYear) {
+                      return `${birthYear} — Levande`;
+                    } else {
+                      return '? — ?';
+                    }
+                  })()}
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-lg font-bold text-slate-200 leading-tight">
-                {person.firstName} {person.lastName}
-              </h1>
-              <p className="text-xs text-slate-400">
-                {(() => {
-                  const { birthYear, deathYear, lifeSpan } = getLifeInfo(person);
-                  if (birthYear && deathYear && lifeSpan !== null) {
-                    return `${birthYear} — ${deathYear} (ca. ${lifeSpan} år)`;
-                  } else if (birthYear && deathYear) {
-                    return `${birthYear} — ${deathYear}`;
-                  } else if (birthYear) {
-                    return `${birthYear} — Levande`;
-                  } else {
-                    return '? — ?';
-                  }
-                })()}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-             <nav className="flex gap-1">
+            <div className="flex items-center gap-2">
+              <nav className="flex gap-1">
                 {[
                   { id: 'info', icon: User, label: 'Info' },
                   { id: 'relations', icon: Users, label: 'Relationer' },
@@ -1166,9 +1157,36 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                     <span>{tab.label}</span>
                   </button>
                 ))}
-             </nav>
+              </nav>
+            </div>
           </div>
-        </div>
+        ) : (
+          // När dockad: Visa bara flikarna (utan header med profilbild/namn)
+          <div className="border-b border-slate-600 bg-slate-700 px-4 py-2 shrink-0">
+            <nav className="flex gap-1">
+              {[
+                { id: 'info', icon: User, label: 'Info' },
+                { id: 'relations', icon: Users, label: 'Relationer' },
+                { id: 'media', icon: ImageIcon, label: 'Media' },
+                { id: 'notes', icon: FileText, label: 'Noteringar' },
+                { id: 'research', icon: Activity, label: 'Forskning' },
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all relative ${
+                    activeTab === tab.id 
+                    ? 'bg-slate-900 text-blue-400 border-b-2 border-blue-500' 
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 border-b-2 border-transparent'
+                  }`}
+                >
+                  <tab.icon size={16} />
+                  <span>{tab.label}</span>
+                </button>
+              ))}
+            </nav>
+          </div>
+        )}
 
         {/* CONTENT AREA */}
         <div className="flex-1 overflow-hidden flex bg-slate-900 relative">
@@ -2713,17 +2731,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
         )}
 
         {/* FOOTER */}
-        <div className="h-16 bg-slate-900 border-t border-slate-700 flex items-center justify-between px-6 shrink-0">
-          <div className="text-xs text-slate-400">
-            Senast ändrad: {new Date().toISOString().split('T')[0]}
-          </div>
-          <div className="flex gap-3">
-            <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-400 hover:text-white transition-colors">Avbryt</button>
-            <button onClick={handleSave} className="flex items-center gap-2 px-6 py-2 bg-green-600 hover:bg-green-500 text-white rounded font-medium shadow-lg transition-all transform hover:scale-[1.02]">
-              <Save size={18} /> Spara Ändringar
-            </button>
-          </div>
-        </div>
+        {/* Footer borttagen - ändringar sparas automatiskt */}
       </div>
 
       {/* --- EVENT MODAL (SUB-MODAL) --- */}

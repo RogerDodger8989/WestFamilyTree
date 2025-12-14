@@ -14,6 +14,7 @@ export default function useAppContext() {
     const [fileHandle, setFileHandle] = useState(null);
     const [isDirty, setIsDirty] = useState(false);
     const isInitialLoadRef = useRef(true);
+    const hasInitializedRef = useRef(false); // Guard för att förhindra omladdning vid re-mount
     
     // Wrapper för setDbData som automatiskt sätter isDirty när data ändras
     // Detta säkerställer att ALLA ändringar automatiskt sparas
@@ -38,7 +39,15 @@ export default function useAppContext() {
 
     // Initiera databas asynkront vid mount
     useEffect(() => {
+        // GUARD: Om initDb redan har körts, hoppa över
+        // Detta förhindrar oavsiktlig omladdning vid Vite HMR eller re-mount
+        if (hasInitializedRef.current) {
+            console.log('[useAppContext] initDb redan körts, hoppar över');
+            return;
+        }
+        
         async function initDb() {
+            hasInitializedRef.current = true; // Markera som initierad INNAN async operation
             try {
                 console.log('[useAppContext] Anropar getLastOpenedFile...');
                 const lastFile = await getLastOpenedFile();
@@ -141,7 +150,7 @@ export default function useAppContext() {
             }
         }
         initDb();
-    }, []);
+    }, []); // Tom dependency array - körs bara en gång vid mount
 
     // API-anropet är borttaget – nu får du alltid en tom databas vid 'Ny databas'.
 

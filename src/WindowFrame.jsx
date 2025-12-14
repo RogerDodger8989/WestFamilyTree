@@ -30,7 +30,7 @@ const LibraryButton = ({ lib, isActive, onClick }) => {
 
 // --- HUVUDKOMPONENT: WindowFrame ---
 
-export function WindowFrame({ windowId, children, title, icon: Icon = Layers, initialWidth = 1000, initialHeight = 700, onClose, zIndex = null, isActive = true, onActivate }) {
+export function WindowFrame({ windowId, children, title, icon: Icon = Layers, initialWidth = 1000, initialHeight = 700, onClose, zIndex = null, isActive = true, onActivate, showDockButton = false, onToggleDock, isDocked = false }) {
   
   // Generera unikt ID för detta WindowFrame om inget windowId ges
   const internalIdRef = useRef(windowId || `wf-${Date.now()}-${Math.random()}`);
@@ -204,6 +204,17 @@ export function WindowFrame({ windowId, children, title, icon: Icon = Layers, in
                     <Icon size={16}/> {title}
                 </div>
                 <div className="flex items-center gap-1">
+                    {showDockButton && (
+                        <button 
+                            onClick={onToggleDock} 
+                            className="p-1.5 hover:bg-slate-800 rounded text-slate-400 hover:text-white" 
+                            title={isDocked ? "Frigör från dockning" : "Docka till vänster"}
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                            </svg>
+                        </button>
+                    )}
                     <button onClick={toggleMinimize} className="p-1.5 hover:bg-slate-800 rounded text-slate-400 hover:text-white" title="Minimera"><Minus size={16}/></button>
                     <button onClick={toggleMaximize} className="p-1.5 hover:bg-slate-800 rounded text-slate-400 hover:text-white" title={winState.isMaximized ? "Återställ" : "Maximera"}>
                         {winState.isMaximized ? <Minimize2 size={16}/> : <Maximize2 size={16}/>}
