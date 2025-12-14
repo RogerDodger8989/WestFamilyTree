@@ -891,6 +891,89 @@ function App() {
     setIsDirty(true); hideContextMenu();
     setNewPersonToEditId(newPerson.id); // <-- Trigga useEffect för att öppna modal
     setFamilyTreeFocusPersonId(targetId); // Behåll fokus på den URSPRUNGLIGA personen
+    return newPerson.id; // Returnera ID för det nya barnet
+  };
+
+  // Funktion för att lägga till en förälder till ett barn och sätta föräldrarna som partners
+  const addParentToChildAndSetPartners = (childId, parentId, otherParentId) => {
+    if (!childId || !parentId || !otherParentId) return;
+    
+    setDbData(prev => {
+      let updatedPeople = prev.people.map(p => ({ ...p, relations: { ...p.relations } }));
+      
+      // Hitta barnet, fadern och modern
+      const childIndex = updatedPeople.findIndex(p => p.id === childId);
+      const parentIndex = updatedPeople.findIndex(p => p.id === parentId);
+      const otherParentIndex = updatedPeople.findIndex(p => p.id === otherParentId);
+      
+      if (childIndex === -1 || parentIndex === -1 || otherParentIndex === -1) return prev;
+      
+      const child = updatedPeople[childIndex];
+      const parent = updatedPeople[parentIndex];
+      const otherParent = updatedPeople[otherParentIndex];
+      
+      // Initiera relations om de saknas
+      child.relations = child.relations || { parents: [], children: [], spouseId: null, partners: [] };
+      parent.relations = parent.relations || { parents: [], children: [], spouseId: null, partners: [] };
+      otherParent.relations = otherParent.relations || { parents: [], children: [], spouseId: null, partners: [] };
+      
+      // Lägg till fadern som förälder till barnet (om den inte redan finns)
+      const childParents = (child.relations.parents || []).map(p => typeof p === 'object' ? p.id : p);
+      if (!childParents.includes(parentId)) {
+        child.relations.parents = child.relations.parents || [];
+        child.relations.parents.push({ 
+          id: parentId, 
+          name: `${parent.firstName || ''} ${parent.lastName || ''}`.trim() 
+        });
+      }
+      
+      // Lägg till barnet i faderns children-lista (om det inte redan finns)
+      const parentChildren = (parent.relations.children || []).map(c => typeof c === 'object' ? c.id : c);
+      if (!parentChildren.includes(childId)) {
+        parent.relations.children = parent.relations.children || [];
+        parent.relations.children.push({ 
+          id: childId, 
+          name: `${child.firstName || ''} ${child.lastName || ''}`.trim() 
+        });
+      }
+      
+      // Säkerställ att modern och fadern är partners
+      const parentPartners = (parent.relations.partners || []).map(p => typeof p === 'object' ? p.id : p);
+      if (!parentPartners.includes(otherParentId)) {
+        parent.relations.partners = parent.relations.partners || [];
+        parent.relations.partners.push({ 
+          id: otherParentId, 
+          name: `${otherParent.firstName || ''} ${otherParent.lastName || ''}`.trim(),
+          type: 'Okänd'
+        });
+      }
+      
+      const otherParentPartners = (otherParent.relations.partners || []).map(p => typeof p === 'object' ? p.id : p);
+      if (!otherParentPartners.includes(parentId)) {
+        otherParent.relations.partners = otherParent.relations.partners || [];
+        otherParent.relations.partners.push({ 
+          id: parentId, 
+          name: `${parent.firstName || ''} ${parent.lastName || ''}`.trim(),
+          type: 'Okänd'
+        });
+      }
+      
+      // Uppdatera arrays
+      updatedPeople[childIndex] = child;
+      updatedPeople[parentIndex] = parent;
+      updatedPeople[otherParentIndex] = otherParent;
+      
+      // Synka relations tvåvägs
+      updatedPeople = syncRelations(child, updatedPeople);
+      updatedPeople = syncRelations(parent, updatedPeople);
+      updatedPeople = syncRelations(otherParent, updatedPeople);
+      
+      // Säkerställ att föräldrarna är partners
+      updatedPeople = ensureParentsArePartners(updatedPeople, childId);
+      
+      return { ...prev, people: updatedPeople };
+    });
+    setIsDirty(true);
   };
 
   const canGoBack = (historyState?.past?.length || 0) > 0;
@@ -1155,6 +1238,7 @@ function App() {
               onOpenPersonDrawer={openPersonDrawer} 
               onSave={handleSaveRelations} 
               onCreatePersonAndLink={createPersonAndLink} 
+              onAddParentToChildAndSetPartners={addParentToChildAndSetPartners}
               onOpenContextMenu={showContextMenu} 
               onDeletePerson={handleDeletePerson} 
               highlightPlaceholderId={personDrawerEditContext?.id || (personDrawer && personDrawer._isPlaceholder ? personDrawer.id : null)} 
@@ -1304,6 +1388,7 @@ function App() {
                       onOpenPersonDrawer={openPersonDrawer}
                       onSave={handleSaveRelations}
                       onCreatePersonAndLink={createPersonAndLink}
+                      onAddParentToChildAndSetPartners={addParentToChildAndSetPartners}
                       onOpenContextMenu={showContextMenu}
                       onDeletePerson={handleDeletePerson}
                       highlightPlaceholderId={personDrawerEditContext?.id || (personDrawer && personDrawer._isPlaceholder ? personDrawer.id : null)}

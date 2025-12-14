@@ -3,18 +3,19 @@ import {
   Edit2, User, Heart, Network, HeartCrack, PlusCircle, Trash2, Users, 
   Copy, Plus, Minus, Home, Search, ArrowLeft, ArrowRight, AlertTriangle, 
   List, X, MapPin, Star, Baby, UserPlus, GitFork, Bookmark, Maximize2, Minimize2, Settings,
-  Link as LinkIcon, Layers
+  Link as LinkIcon, Layers, HeartHandshake, HelpCircle
 } from 'lucide-react';
 import WindowFrame from './WindowFrame.jsx';
 import Button from './Button.jsx';
 import SelectFatherModal from './SelectFatherModal.jsx';
+import { useApp } from './AppContext';
 import MediaImage from './components/MediaImage.jsx';
 
 // --- KONSTANTER ---
 const CARD_WIDTH = 400;
 const FOCUS_WIDTH = 440; 
-const CARD_HEIGHT = 170;
-const FOCUS_HEIGHT = 200;
+const CARD_HEIGHT = 200;
+const FOCUS_HEIGHT = 230;
 const INDENT_X = 60;   
 const GAP_Y = 160;     
 const SIBLING_GAP = 340;
@@ -128,6 +129,16 @@ const convertPersonForDisplay = (person) => {
     const status = calculateStatus(person, birthDate, deathDate);
     const childrenCount = (person.relations?.children || []).length;
     
+    // Hämta yrken från events med typ "Yrke"
+    const occupationEvents = (person.events || []).filter(e => e.type === 'Yrke' || e.type === 'OCCU');
+    const occupations = occupationEvents
+        .map(e => {
+            // Ta bort HTML-taggar från notes
+            const notes = e.notes ? e.notes.replace(/<[^>]*>/g, '').trim() : '';
+            return notes;
+        })
+        .filter(occ => occ && occ.length > 0);
+    
     return {
         id: person.id,
         firstName: person.firstName || 'Okänd',
@@ -138,6 +149,7 @@ const convertPersonForDisplay = (person) => {
         deathDate: deathDate,
         deathPlace: deathEvent?.place || '',
         title: person.occupation || person.title || '',
+        occupations: occupations, // Array av yrken
         photoUrl: person.photoUrl || '',
         media: person.media || [],
         hasExtendedFamily: (person.relations?.children?.length > 0 || person.relations?.parents?.length > 0),
@@ -458,7 +470,8 @@ const PartnerSelectModal = ({ partners, onSelect, onClose, people }) => {
 
 
 // --- MAIN APP ---
-export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFocus, onOpenEditModal, onCreatePersonAndLink, onDeletePerson, getPersonRelations }) {
+export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFocus, onOpenEditModal, onCreatePersonAndLink, onAddParentToChildAndSetPartners, onDeletePerson, getPersonRelations }) {
+    const app = useApp();
     // Konvertera data till visningsformat
     const displayPeople = allPeople.map(convertPersonForDisplay).filter(Boolean);
     const peopleById = {};
@@ -517,10 +530,15 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
                     
                     // Kontrollera om partnern redan finns i listan
                     if (!partners.some(p => p.id === partnerId)) {
+                        // Mappa partner-typ: 'Skild' -> 'divorced' för rendering
+                        let partnerType = (typeof partnerRef === 'object' && partnerRef.type) ? partnerRef.type : 'married';
+                        if (partnerType === 'Skild') {
+                            partnerType = 'divorced';
+                        }
                         partners.push({
                             id: partnerId,
                             children: children,
-                            type: (typeof partnerRef === 'object' && partnerRef.type) ? partnerRef.type : 'married',
+                            type: partnerType,
                             isPartner: true // markerar ingift
                         });
                     }
@@ -603,6 +621,7 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
   const containerRef = useRef(null);
   const [dragging, setDragging] = useState(false);
   const [lastPos, setLastPos] = useState({ x: 0, y: 0 });
+  const [heartContextMenu, setHeartContextMenu] = useState(null); // { x, y, person1Id, person2Id, currentType }
   
   // Modals state
   const [isAdvancedSearchOpen, setIsAdvancedSearchOpen] = useState(false);
@@ -629,6 +648,13 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
   // Stäng tree context menu vid klick
   useEffect(() => {
     const closeMenu = () => setTreeContextMenu(null);
+    window.addEventListener('click', closeMenu);
+    return () => window.removeEventListener('click', closeMenu);
+  }, []);
+
+  // Stäng heart context menu vid klick
+  useEffect(() => {
+    const closeMenu = () => setHeartContextMenu(null);
     window.addEventListener('click', closeMenu);
     return () => window.removeEventListener('click', closeMenu);
   }, []);
@@ -678,47 +704,34 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
     
     // Skapa barnet med båda föräldrarna
     if (onCreatePersonAndLink) {
-      // Spara tiden innan vi skapar barnet för att hitta det senare
-      const beforeTime = Date.now();
-      
       // Skapa barnet med modern som target - detta skapar barnet och länkar det till modern
-      onCreatePersonAndLink(mother.id, 'child');
+      const newChildId = onCreatePersonAndLink(mother.id, 'child');
       
-      // Vänta lite för att barnet ska skapas, sedan hitta det och öppna EditPersonModal
+      // Vänta lite för att barnet ska skapas i state, sedan lägg till fadern
       setTimeout(() => {
-        // Hitta det nyaste barnet (högsta ID/timestamp) som skapades efter beforeTime
-        const allPeopleSorted = [...allPeople].sort((a, b) => {
-          const aTime = parseInt(a.id.split('_')[1] || '0');
-          const bTime = parseInt(b.id.split('_')[1] || '0');
-          return bTime - aTime;
-        });
-        const newestChild = allPeopleSorted.find(p => {
-          const pTime = parseInt(p.id.split('_')[1] || '0');
-          return pTime >= beforeTime && 
-                 p._isPlaceholder && 
-                 p._placeholderRelation === 'child' &&
-                 p._placeholderTargetId === mother.id;
-        });
+        // Använd newChildId om det finns, annars hitta det nyaste barnet
+        const childId = newChildId || (() => {
+          const allPeopleSorted = [...allPeople].sort((a, b) => {
+            const aTime = parseInt(a.id.split('_')[1] || '0');
+            const bTime = parseInt(b.id.split('_')[1] || '0');
+            return bTime - aTime;
+          });
+          const newestChild = allPeopleSorted.find(p => 
+            p._isPlaceholder && 
+            p._placeholderRelation === 'child' &&
+            p._placeholderTargetId === mother.id
+          );
+          return newestChild?.id;
+        })();
         
-        if (newestChild && onOpenEditModal) {
-          // Lägg till fadern som förälder till barnet
-          // Detta görs automatiskt av syncRelations när man sparar i EditPersonModal
-          // Men vi kan också lägga till fadern direkt i barnets relations.parents
-          if (newestChild.relations && !newestChild.relations.parents) {
-            newestChild.relations.parents = [];
-          }
-          if (newestChild.relations && !newestChild.relations.parents.some(p => p.id === fatherId)) {
-            const father = allPeople.find(p => p.id === fatherId);
-            if (father) {
-              newestChild.relations.parents.push({ 
-                id: fatherId, 
-                name: `${father.firstName} ${father.lastName}` 
-              });
-            }
-          }
-          
+        if (childId && onAddParentToChildAndSetPartners) {
+          // Lägg till fadern som förälder till barnet och sätta modern och fadern som partners
+          onAddParentToChildAndSetPartners(childId, fatherId, mother.id);
+        }
+        
+        if (childId && onOpenEditModal) {
           // Öppna EditPersonModal för det nya barnet
-          onOpenEditModal(newestChild.id);
+          onOpenEditModal(childId);
         }
       }, 300);
     }
@@ -853,6 +866,12 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
             const partner = data.people[rel.id];
             // Ghost-parent om saknad partner men ensamstående barn finns
             const isGhost = !partner && rel.id === null;
+            
+            // Öka avståndet mellan partners till det dubbla (förutom första partnern)
+            if (idx > 0) {
+                cursorY = previousConnectionY + CARD_HEIGHT * 3; // Tredubbla avståndet för att göra linjerna längre
+            }
+            
             const nodeY = cursorY + (CARD_HEIGHT/2);
 
             if (partner || isGhost) {
@@ -863,7 +882,9 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
                     to: { x: 0, y: nodeY - (CARD_HEIGHT/2) + 10 },
                     type: 'straight-down',
                     midPoint: { x: 0, y: (previousConnectionY + nodeY - (CARD_HEIGHT/2)) / 2 },
-                    styleType: rel.type
+                    styleType: rel.type,
+                    person1Id: focusPersonId, // Huvudpersonen
+                    person2Id: rel.id // Partnern
                 });
                 previousConnectionY = nodeY + (CARD_HEIGHT/2) - 10;
             } else {
@@ -888,10 +909,21 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
                 const nextPartnerConnectionY = cursorY - GAP_Y + (CARD_HEIGHT/2) + 50;
                 edges.push({ from: { x: 0, y: previousConnectionY }, to: { x: 0, y: nextPartnerConnectionY }, type: 'straight-down' });
                 previousConnectionY = nextPartnerConnectionY;
-                cursorY += 50;
+                // Öka avståndet mellan partners till det dubbla (lägg till CARD_HEIGHT * 3 extra)
+                if (idx < (data.relationships.partners || []).length - 1) {
+                    cursorY = previousConnectionY + CARD_HEIGHT * 3; // Tredubbla avståndet
+                } else {
+                    cursorY += 50;
+                }
             } else {
-                cursorY += CARD_HEIGHT + 60;
-                previousConnectionY = cursorY - 70;
+                // Om inga barn: öka avståndet mellan partners till det dubbla
+                if (idx < (data.relationships.partners || []).length - 1) {
+                    cursorY = previousConnectionY + CARD_HEIGHT * 3; // Tredubbla avståndet
+                    previousConnectionY = cursorY - 70;
+                } else {
+                    cursorY += CARD_HEIGHT + 60;
+                    previousConnectionY = cursorY - 70;
+                }
             }
         });
 
@@ -1114,14 +1146,67 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
             <svg style={{ position: 'absolute', top: -50000, left: -50000, width: 100000, height: 100000, pointerEvents: 'none', zIndex: 0 }} viewBox="-50000 -50000 100000 100000">
                 {edges.map((edge, i) => (
                     <g key={i}>
-                        <path d={getPath(edge.from, edge.to, edge.type)} stroke="#475569" strokeWidth={3} fill="none" strokeLinecap="round" strokeLinejoin="round" strokeDasharray={edge.styleType === 'divorced' ? '6,6' : '0'} />
-                        {edge.midPoint && edge.type === 'straight-down' && (
-                            <foreignObject x={edge.midPoint.x - 12} y={edge.midPoint.y - 12} width="24" height="24">
-                                <div className="w-6 h-6 bg-slate-800 rounded-full flex items-center justify-center border-2 border-slate-600 z-10 shadow-lg">
-                                     {edge.styleType === 'divorced' ? <HeartCrack size={12} className="text-red-400 opacity-75"/> : <Heart size={12} className="text-rose-500"/>}
-                                </div>
-                            </foreignObject>
-                        )}
+                        <path d={getPath(edge.from, edge.to, edge.type)} stroke="#475569" strokeWidth={3} fill="none" strokeLinecap="round" strokeLinejoin="round" strokeDasharray={(edge.styleType === 'divorced' || edge.styleType === 'Skild') ? '6,6' : '0'} />
+                        {edge.midPoint && edge.type === 'straight-down' && (() => {
+                            // Bestäm ikon och färg baserat på partner-typ
+                            let IconComponent;
+                            let iconColor;
+                            
+                            if (edge.styleType === 'divorced' || edge.styleType === 'Skild') {
+                                IconComponent = HeartCrack;
+                                iconColor = 'text-blue-300';
+                            } else if (edge.styleType === 'Förlovad') {
+                                IconComponent = Heart;
+                                iconColor = 'text-yellow-400';
+                            } else if (edge.styleType === 'Sambo') {
+                                IconComponent = HeartHandshake;
+                                iconColor = 'text-green-400';
+                            } else if (edge.styleType === 'Okänd') {
+                                // För okänd: visa både Heart och HelpCircle
+                                return (
+                                    <foreignObject x={edge.midPoint.x - 24} y={edge.midPoint.y - 24} width="48" height="48" style={{ pointerEvents: 'all' }}>
+                                        <div 
+                                            className="w-12 h-12 bg-slate-800 rounded-full flex items-center justify-center border-2 border-slate-600 z-10 shadow-lg relative cursor-pointer hover:bg-slate-700 transition-colors"
+                                            onContextMenu={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                if (edge.person1Id && edge.person2Id) {
+                                                    const x = Math.min(e.clientX, window.innerWidth - 200);
+                                                    const y = Math.min(e.clientY, window.innerHeight - 300);
+                                                    setHeartContextMenu({ x, y, person1Id: edge.person1Id, person2Id: edge.person2Id, currentType: edge.styleType || 'Okänd' });
+                                                }
+                                            }}
+                                        >
+                                            <Heart size={20} className="text-slate-400 absolute" />
+                                            <HelpCircle size={12} className="text-slate-500 absolute -top-1 -right-1 bg-slate-800 rounded-full" />
+                                        </div>
+                                    </foreignObject>
+                                );
+                            } else {
+                                // Gift eller married (default)
+                                IconComponent = Heart;
+                                iconColor = 'text-rose-500';
+                            }
+                            
+                            return (
+                                <foreignObject x={edge.midPoint.x - 24} y={edge.midPoint.y - 24} width="48" height="48" style={{ pointerEvents: 'all' }}>
+                                    <div 
+                                        className="w-12 h-12 bg-slate-800 rounded-full flex items-center justify-center border-2 border-slate-600 z-10 shadow-lg cursor-pointer hover:bg-slate-700 transition-colors"
+                                        onContextMenu={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            if (edge.person1Id && edge.person2Id) {
+                                                const x = Math.min(e.clientX, window.innerWidth - 200);
+                                                const y = Math.min(e.clientY, window.innerHeight - 300);
+                                                setHeartContextMenu({ x, y, person1Id: edge.person1Id, person2Id: edge.person2Id, currentType: edge.styleType || 'Gift' });
+                                            }
+                                        }}
+                                    >
+                                        <IconComponent size={24} className={iconColor}/>
+                                    </div>
+                                </foreignObject>
+                            );
+                        })()}
                     </g>
                 ))}
             </svg>
@@ -1156,7 +1241,7 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
                     >
                         <div className={`${isGhost ? 'bg-slate-700 text-slate-100 italic' : (node.gender === 'M' ? 'bg-blue-600' : node.gender === 'K' ? 'bg-rose-500' : 'bg-gray-500') + ' text-white'} px-3 py-1.5 flex items-center gap-2 shadow-sm relative`}>
                             {/* Korset före förnamnet om personen är död */}
-                            {!isGhost && node.deathDate && <span className="text-sm opacity-90">✝</span>}
+                            {!isGhost && node.deathDate && <span className="text-xl font-bold text-red-600">✝</span>}
                             <span className="font-bold truncate text-sm flex-1">{node.firstName} {node.lastName}</span>
                             {/* Släktträdsikon till vänster om REF */}
                             {!isGhost && node.isPartner && (
@@ -1177,9 +1262,9 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
                         </div>
 
                         <div className="flex flex-1 p-3 gap-3 relative group">
-                            <div className="flex flex-col items-start gap-0.5 relative">
+                            <div className="flex flex-col items-center gap-0.5 relative">
                                 <div 
-                                    className={`w-20 h-20 rounded overflow-hidden flex-shrink-0 shadow-inner cursor-pointer hover:opacity-80 transition-opacity ${
+                                    className={`w-20 h-20 rounded overflow-hidden flex-shrink-0 shadow-inner cursor-pointer hover:opacity-80 transition-opacity relative ${
                                         isGhost 
                                             ? 'bg-slate-700 border border-slate-500' 
                                             : node.gender === 'M' 
@@ -1198,19 +1283,35 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
                                     {isGhost ? (
                                         <Plus className="w-full h-full p-2 text-slate-200" />
                                     ) : node.media && node.media.length > 0 && node.media[0]?.url ? (
-                                        <MediaImage 
-                                            url={node.media[0].url} 
-                                            alt={`${node.firstName} ${node.lastName}`}
-                                            className="w-full h-full object-cover"
-                                        />
+                                        <>
+                                            <MediaImage 
+                                                url={node.media[0].url} 
+                                                alt={`${node.firstName} ${node.lastName}`}
+                                                className="w-full h-full object-cover"
+                                            />
+                                            {/* Svart snedstreck för avlidna personer */}
+                                            {node.deathDate && (
+                                                <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
+                                                    <div className="absolute top-0 left-0 bg-black" style={{ transform: 'rotate(-45deg)', transformOrigin: 'top left', width: '141%', height: '4px', top: '-2px', left: '-2px' }}></div>
+                                                </div>
+                                            )}
+                                        </>
                                     ) : (
-                                        <User className={`w-full h-full p-2 ${
-                                            node.gender === 'M' 
-                                                ? 'text-blue-600' 
-                                                : node.gender === 'K' 
-                                                    ? 'text-rose-600' 
-                                                    : 'text-gray-500'
-                                        }`} />
+                                        <>
+                                            <User className={`w-full h-full p-2 ${
+                                                node.gender === 'M' 
+                                                    ? 'text-blue-600' 
+                                                    : node.gender === 'K' 
+                                                        ? 'text-rose-600' 
+                                                        : 'text-gray-500'
+                                            }`} />
+                                            {/* Svart snedstreck för avlidna personer */}
+                                            {node.deathDate && (
+                                                <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
+                                                    <div className="absolute top-0 left-0 bg-black" style={{ transform: 'rotate(-45deg)', transformOrigin: 'top left', width: '141%', height: '4px', top: '-2px', left: '-2px' }}></div>
+                                                </div>
+                                            )}
+                                        </>
                                     )}
                                 </div>
                                 {/* Ålder under profilbilden - centrerat */}
@@ -1256,14 +1357,16 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
                                                     </span>
                                                 </div>
                                             )}
+                                            {/* Yrken under dödsdatumet */}
+                                            {node.occupations && node.occupations.length > 0 && (
+                                                <div className="flex items-center gap-1.5 text-sm mt-0.5">
+                                                    <span className="text-slate-600 font-bold">Yrke:</span>
+                                                    <span className="font-medium">
+                                                        {node.occupations.join(', ')}
+                                                    </span>
+                                                </div>
+                                            )}
                                         </div>
-                                        {/* Yrke/titel */}
-                                        {node.title && (
-                                            <div className="flex flex-col mt-1">
-                                                <span className="opacity-70 flex items-center gap-1 font-semibold text-xs uppercase tracking-wide">Yrke</span>
-                                                <span className="font-medium truncate text-sm">{node.title}</span>
-                                            </div>
-                                        )}
                                     </>
                                 )}
                             </div>
@@ -1321,6 +1424,154 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
 
           <div className="py-1">
             <TreeMenuItem icon={Trash2} label="Radera person" onClick={() => { setTreeContextMenu(null); handleDelete(treeContextMenu.person); }} color="text-red-400" />
+          </div>
+        </div>
+      )}
+
+      {/* Context Menu för Hjärta (Relationstyp) */}
+      {heartContextMenu && (
+        <div 
+          className="fixed z-[6000] bg-slate-800 border border-slate-600 rounded-lg shadow-2xl w-56 py-1 overflow-hidden animate-in fade-in zoom-in-95 duration-100 ring-1 ring-black/50"
+          style={{ left: heartContextMenu.x, top: heartContextMenu.y }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="px-3 py-2 border-b border-slate-700 bg-slate-800/50">
+            <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-0.5">Relationstyp</div>
+            <div className="text-xs text-slate-400">Ändra relationstyp</div>
+          </div>
+          
+          <div className="py-1">
+            {['Gift', 'Sambo', 'Förlovad', 'Skild', 'Okänd'].map((type) => (
+              <TreeMenuItem 
+                key={type}
+                icon={type === 'Skild' ? HeartCrack : type === 'Sambo' ? HeartHandshake : type === 'Okänd' ? HelpCircle : Heart}
+                label={type}
+                onClick={() => {
+                  const { person1Id, person2Id } = heartContextMenu;
+                  
+                  // Hitta båda personerna
+                  const person1 = allPeople.find(p => p.id === person1Id);
+                  const person2 = allPeople.find(p => p.id === person2Id);
+                  
+                  if (person1 && person2) {
+                    // Uppdatera person1's partner-typ
+                    const updatedPerson1 = JSON.parse(JSON.stringify(person1));
+                    if (!updatedPerson1.relations) updatedPerson1.relations = {};
+                    if (!updatedPerson1.relations.partners) updatedPerson1.relations.partners = [];
+                    
+                    const partner1Index = updatedPerson1.relations.partners.findIndex(p => 
+                      (typeof p === 'object' ? p.id : p) === person2Id
+                    );
+                    
+                    // Hantera Skilsmässa-händelser
+                    let events1 = [...(updatedPerson1.events || [])];
+                    const prevType1 = partner1Index >= 0 && typeof updatedPerson1.relations.partners[partner1Index] === 'object' 
+                      ? updatedPerson1.relations.partners[partner1Index].type 
+                      : 'Gift';
+                    
+                    if (type === 'Skild' && prevType1 !== 'Skild') {
+                      // Skapa skilsmässa-händelse om den inte redan finns
+                      const alreadyExists = events1.some(ev => ev.type === 'Skilsmässa' && ev.partnerId === person2Id);
+                      if (!alreadyExists) {
+                        events1.push({
+                          id: `evt_${Date.now()}`,
+                          type: 'Skilsmässa',
+                          date: '',
+                          place: '',
+                          partnerId: person2Id,
+                          sources: [],
+                          images: 0,
+                          notes: ''
+                        });
+                      }
+                    } else if (prevType1 === 'Skild' && type !== 'Skild') {
+                      // Ta bort skilsmässa-händelse
+                      events1 = events1.filter(ev => !(ev.type === 'Skilsmässa' && ev.partnerId === person2Id));
+                    }
+                    updatedPerson1.events = events1;
+                    
+                    if (partner1Index >= 0) {
+                      updatedPerson1.relations.partners[partner1Index] = {
+                        ...(typeof updatedPerson1.relations.partners[partner1Index] === 'object' ? updatedPerson1.relations.partners[partner1Index] : { id: person2Id }),
+                        id: person2Id,
+                        name: `${person2.firstName} ${person2.lastName}`,
+                        type: type
+                      };
+                    } else {
+                      updatedPerson1.relations.partners.push({
+                        id: person2Id,
+                        name: `${person2.firstName} ${person2.lastName}`,
+                        type: type
+                      });
+                    }
+                    
+                    // Uppdatera person2's partner-typ
+                    const updatedPerson2 = JSON.parse(JSON.stringify(person2));
+                    if (!updatedPerson2.relations) updatedPerson2.relations = {};
+                    if (!updatedPerson2.relations.partners) updatedPerson2.relations.partners = [];
+                    
+                    const partner2Index = updatedPerson2.relations.partners.findIndex(p => 
+                      (typeof p === 'object' ? p.id : p) === person1Id
+                    );
+                    
+                    // Hantera Skilsmässa-händelser
+                    let events2 = [...(updatedPerson2.events || [])];
+                    const prevType2 = partner2Index >= 0 && typeof updatedPerson2.relations.partners[partner2Index] === 'object' 
+                      ? updatedPerson2.relations.partners[partner2Index].type 
+                      : 'Gift';
+                    
+                    if (type === 'Skild' && prevType2 !== 'Skild') {
+                      // Skapa skilsmässa-händelse om den inte redan finns
+                      const alreadyExists = events2.some(ev => ev.type === 'Skilsmässa' && ev.partnerId === person1Id);
+                      if (!alreadyExists) {
+                        events2.push({
+                          id: `evt_${Date.now() + 1}`,
+                          type: 'Skilsmässa',
+                          date: '',
+                          place: '',
+                          partnerId: person1Id,
+                          sources: [],
+                          images: 0,
+                          notes: ''
+                        });
+                      }
+                    } else if (prevType2 === 'Skild' && type !== 'Skild') {
+                      // Ta bort skilsmässa-händelse
+                      events2 = events2.filter(ev => !(ev.type === 'Skilsmässa' && ev.partnerId === person1Id));
+                    }
+                    updatedPerson2.events = events2;
+                    
+                    if (partner2Index >= 0) {
+                      updatedPerson2.relations.partners[partner2Index] = {
+                        ...(typeof updatedPerson2.relations.partners[partner2Index] === 'object' ? updatedPerson2.relations.partners[partner2Index] : { id: person1Id }),
+                        id: person1Id,
+                        name: `${person1.firstName} ${person1.lastName}`,
+                        type: type
+                      };
+                    } else {
+                      updatedPerson2.relations.partners.push({
+                        id: person1Id,
+                        name: `${person1.firstName} ${person1.lastName}`,
+                        type: type
+                      });
+                    }
+                    
+                    // Uppdatera båda personerna i dbData
+                    app.setDbData(prev => {
+                      const updatedPeople = prev.people.map(p => {
+                        if (p.id === person1Id) return updatedPerson1;
+                        if (p.id === person2Id) return updatedPerson2;
+                        return p;
+                      });
+                      return { ...prev, people: updatedPeople };
+                    });
+                  }
+                  
+                  setHeartContextMenu(null);
+                }}
+                color={heartContextMenu.currentType === type ? "text-blue-400" : "text-slate-300"}
+              />
+            ))}
           </div>
         </div>
       )}

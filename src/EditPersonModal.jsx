@@ -687,6 +687,42 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
     return base;
   });
   
+  // Uppdatera personRaw när initialPerson ändras
+  const prevPersonIdRef = useRef(personRaw.id);
+  useEffect(() => {
+    if (initialPerson && initialPerson.id !== prevPersonIdRef.current) {
+      prevPersonIdRef.current = initialPerson.id;
+      
+      // Säkerställ att events är en array
+      const events = Array.isArray(initialPerson.events) ? initialPerson.events : [];
+      
+      // Säkerställ att research är ett objekt med tasks, notes, questions
+      const research = (initialPerson.research && typeof initialPerson.research === 'object' && !Array.isArray(initialPerson.research))
+        ? {
+            tasks: Array.isArray(initialPerson.research.tasks) ? initialPerson.research.tasks : [],
+            notes: typeof initialPerson.research.notes === 'string' ? initialPerson.research.notes : '',
+            questions: Array.isArray(initialPerson.research.questions) ? initialPerson.research.questions : []
+          }
+        : {
+            tasks: [],
+            notes: '',
+            questions: []
+          };
+      
+      // Skapa en djup kopia av initialPerson med säkrade värden
+      const updatedPerson = JSON.parse(JSON.stringify({
+        ...initialPerson,
+        events,
+        research,
+        media: Array.isArray(initialPerson.media) ? initialPerson.media : [],
+        tags: Array.isArray(initialPerson.tags) ? initialPerson.tags : [],
+        relations: initialPerson.relations || { parents: [], partners: [], children: [] }
+      }));
+      
+      setPersonRaw(updatedPerson);
+    }
+  }, [initialPerson?.id]); // Bara när ID ändras, inte när objektet muteras
+  
   // Wrapper för setPersonRaw som automatiskt anropar onChange för auto-save
   // Detta säkerställer att ALLA ändringar sparas automatiskt i realtid
   const onChangeTimeoutRef = useRef(null);
@@ -1541,29 +1577,68 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                       <button onClick={() => openRelationModal('parents')} className="text-blue-600 hover:text-blue-800 text-xs flex items-center gap-1"><Plus size={12}/> Lägg till</button>
                    </div>
                    {person.relations?.parents?.length > 0 ? (
-                     person.relations.parents.map((p, idx) => (
-                       <div key={p.id || idx} className="flex items-center justify-between bg-slate-700 p-2 rounded mb-2 border border-slate-600">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-slate-600 flex items-center justify-center text-slate-400"><User size={16}/></div>
-                            <span className="text-slate-200 font-medium">{p.name}</span>
-                            <select
-                              value={p.type || RELATION_TYPES.parent[0]}
-                              onChange={e => {
-                                const newType = e.target.value;
-                                setPerson(prev => {
-                                  const rels = { ...prev.relations };
-                                  rels.parents = rels.parents.map((rel, i) => i === idx ? { ...rel, type: newType } : rel);
-                                  return { ...prev, relations: rels };
-                                });
-                              }}
-                              className="bg-slate-900 border border-slate-600 text-xs rounded px-2 py-1 text-slate-200 ml-2"
-                            >
-                              {RELATION_TYPES.parent.map(r => <option key={r} value={r}>{r}</option>)}
-                            </select>
-                          </div>
-                          <button onClick={() => removeRelation('parents', p.id)} className="text-red-600 hover:text-red-800 text-xs ml-2"><Trash2 size={14}/></button>
-                       </div>
-                     ))
+                     person.relations.parents.map((p, idx) => {
+                       // Hämta parent ID (kan vara sträng eller objekt med id)
+                       const parentId = typeof p === 'string' ? p : (p?.id || p);
+                       // Hitta den faktiska personen från allPeople
+                       const parentPerson = allPeople.find(pp => pp.id === parentId);
+                       // Använd personens namn om den finns, annars använd p.name eller ID
+                       const parentName = parentPerson 
+                         ? `${parentPerson.firstName || ''} ${parentPerson.lastName || ''}`.trim() 
+                         : (typeof p === 'object' && p.name ? p.name : parentId || 'Okänd');
+                       // Hämta relationstyp (kan finnas i p.type)
+                       const relationType = (typeof p === 'object' && p.type) ? p.type : RELATION_TYPES.parent[0];
+                       // Hämta profilbild om den finns
+                       const profileImage = parentPerson?.media && parentPerson.media.length > 0 ? parentPerson.media[0].url : null;
+                       
+                       return (
+                         <div key={parentId || idx} className="flex items-center justify-between bg-slate-700 p-2 rounded mb-2 border border-slate-600">
+                            <div className="flex items-center gap-3 flex-1">
+                              {/* Rund thumbnail */}
+                              <div className="w-8 h-8 rounded-full bg-slate-600 flex-shrink-0 overflow-hidden border-2 border-slate-500">
+                                {profileImage ? (
+                                  <MediaImage url={profileImage} alt={parentName} className="w-full h-full object-cover" />
+                                ) : (
+                                  <User size={16} className="w-full h-full p-1.5 text-slate-400" />
+                                )}
+                              </div>
+                              <span 
+                                className="text-slate-200 font-medium cursor-pointer hover:text-blue-400"
+                                onClick={() => parentPerson && onOpenEditModal && onOpenEditModal(parentId)}
+                              >
+                                {parentName}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <select
+                                value={relationType}
+                                onChange={e => {
+                                  const newType = e.target.value;
+                                  setPerson(prev => {
+                                    const rels = { ...prev.relations };
+                                    rels.parents = rels.parents.map((rel, i) => {
+                                      if (i === idx) {
+                                        // Om rel är en sträng, konvertera till objekt
+                                        if (typeof rel === 'string') {
+                                          return { id: rel, name: parentName, type: newType };
+                                        }
+                                        // Annars uppdatera typen
+                                        return { ...rel, type: newType };
+                                      }
+                                      return rel;
+                                    });
+                                    return { ...prev, relations: rels };
+                                  });
+                                }}
+                                className="bg-slate-900 border border-slate-600 text-xs rounded px-2 py-1 text-slate-200"
+                              >
+                                {RELATION_TYPES.parent.map(r => <option key={r} value={r}>{r}</option>)}
+                              </select>
+                              <button onClick={() => removeRelation('parents', parentId)} className="text-red-600 hover:text-red-800 text-xs"><Trash2 size={14}/></button>
+                            </div>
+                         </div>
+                       );
+                     })
                    ) : (
                      <p className="text-xs text-slate-400">Ingen förälder tillagd</p>
                    )}
@@ -1578,9 +1653,11 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                    {person.relations?.partners?.length > 0 ? (
                      person.relations.partners.map((p, idx) => (
                        <div key={p.id || idx} className="flex items-center justify-between bg-slate-700 p-2 rounded mb-2 border border-slate-600">
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-3 flex-1">
                             <div className="w-8 h-8 rounded-full bg-slate-600 flex items-center justify-center text-slate-400"><User size={16}/></div>
                             <span className="text-slate-200 font-medium">{p.name}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
                             <select
                               value={p.type || RELATION_TYPES.partner[0]}
                               onChange={e => {
@@ -1615,12 +1692,12 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                   return { ...prev, relations: rels, events };
                                 });
                               }}
-                              className="bg-slate-900 border border-slate-600 text-xs rounded px-2 py-1 text-slate-200 ml-2"
+                              className="bg-slate-900 border border-slate-600 text-xs rounded px-2 py-1 text-slate-200"
                             >
                               {RELATION_TYPES.partner.map(r => <option key={r} value={r}>{r}</option>)}
                             </select>
+                            <button onClick={() => removeRelation('partners', p.id)} className="text-red-600 hover:text-red-800 text-xs"><Trash2 size={14}/></button>
                           </div>
-                          <button onClick={() => removeRelation('partners', p.id)} className="text-red-600 hover:text-red-800 text-xs ml-2"><Trash2 size={14}/></button>
                        </div>
                      ))
                    ) : (
@@ -1635,29 +1712,68 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                       <button onClick={() => openRelationModal('children')} className="text-blue-600 hover:text-blue-800 text-xs flex items-center gap-1"><Plus size={12}/> Lägg till</button>
                    </div>
                    {person.relations?.children?.length > 0 ? (
-                     person.relations.children.map((c, idx) => (
-                       <div key={c.id || idx} className="flex items-center justify-between bg-slate-900 p-2 rounded mb-2 border border-slate-700">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-slate-400"><User size={16}/></div>
-                            <span className="text-slate-200 font-medium">{c.name}</span>
-                            <select
-                              value={c.type || RELATION_TYPES.child[0]}
-                              onChange={e => {
-                                const newType = e.target.value;
-                                setPerson(prev => {
-                                  const rels = { ...prev.relations };
-                                  rels.children = rels.children.map((rel, i) => i === idx ? { ...rel, type: newType } : rel);
-                                  return { ...prev, relations: rels };
-                                });
-                              }}
-                              className="bg-slate-900 border border-slate-600 text-xs rounded px-2 py-1 text-slate-200 ml-2"
-                            >
-                              {RELATION_TYPES.child.map(r => <option key={r} value={r}>{r}</option>)}
-                            </select>
-                          </div>
-                          <button onClick={() => removeRelation('children', c.id)} className="text-red-600 hover:text-red-800 text-xs ml-2"><Trash2 size={14}/></button>
-                       </div>
-                     ))
+                     person.relations.children.map((c, idx) => {
+                       // Hämta child ID (kan vara sträng eller objekt med id)
+                       const childId = typeof c === 'string' ? c : (c?.id || c);
+                       // Hitta den faktiska personen från allPeople
+                       const childPerson = allPeople.find(pp => pp.id === childId);
+                       // Använd personens namn om den finns, annars använd c.name eller ID
+                       const childName = childPerson 
+                         ? `${childPerson.firstName || ''} ${childPerson.lastName || ''}`.trim() 
+                         : (typeof c === 'object' && c.name ? c.name : childId || 'Okänd');
+                       // Hämta relationstyp (kan finnas i c.type)
+                       const relationType = (typeof c === 'object' && c.type) ? c.type : RELATION_TYPES.child[0];
+                       // Hämta profilbild om den finns
+                       const profileImage = childPerson?.media && childPerson.media.length > 0 ? childPerson.media[0].url : null;
+                       
+                       return (
+                         <div key={childId || idx} className="flex items-center justify-between bg-slate-900 p-2 rounded mb-2 border border-slate-700">
+                            <div className="flex items-center gap-3 flex-1">
+                              {/* Rund thumbnail */}
+                              <div className="w-8 h-8 rounded-full bg-slate-700 flex-shrink-0 overflow-hidden border-2 border-slate-500">
+                                {profileImage ? (
+                                  <MediaImage url={profileImage} alt={childName} className="w-full h-full object-cover" />
+                                ) : (
+                                  <User size={16} className="w-full h-full p-1.5 text-slate-400" />
+                                )}
+                              </div>
+                              <span 
+                                className="text-slate-200 font-medium cursor-pointer hover:text-blue-400"
+                                onClick={() => childPerson && onOpenEditModal && onOpenEditModal(childId)}
+                              >
+                                {childName}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <select
+                                value={relationType}
+                                onChange={e => {
+                                  const newType = e.target.value;
+                                  setPerson(prev => {
+                                    const rels = { ...prev.relations };
+                                    rels.children = rels.children.map((rel, i) => {
+                                      if (i === idx) {
+                                        // Om rel är en sträng, konvertera till objekt
+                                        if (typeof rel === 'string') {
+                                          return { id: rel, name: childName, type: newType };
+                                        }
+                                        // Annars uppdatera typen
+                                        return { ...rel, type: newType };
+                                      }
+                                      return rel;
+                                    });
+                                    return { ...prev, relations: rels };
+                                  });
+                                }}
+                                className="bg-slate-900 border border-slate-600 text-xs rounded px-2 py-1 text-slate-200"
+                              >
+                                {RELATION_TYPES.child.map(r => <option key={r} value={r}>{r}</option>)}
+                              </select>
+                              <button onClick={() => removeRelation('children', childId)} className="text-red-600 hover:text-red-800 text-xs"><Trash2 size={14}/></button>
+                            </div>
+                         </div>
+                       );
+                     })
                    ) : (
                      <p className="text-xs text-slate-400">Inget barn tillagd</p>
                    )}

@@ -815,6 +815,23 @@ export default function useAppContext() {
         const personToDelete = (dbData && dbData.people ? dbData.people : []).find(p => p.id === personIdToDelete);
         if (!personToDelete) return;
         const originalDbData = dbData;
+        
+        // Spara partner-relationer från alla personer INNAN vi raderar personen
+        // Detta säkerställer att partner-relationer bevaras även om ett barn raderas
+        const partnerRelationsToPreserve = new Map();
+        (dbData.people || []).forEach(p => {
+            if (p.id !== personIdToDelete && p.relations?.partners) {
+                const partners = (p.relations.partners || []).map(partner => {
+                    const partnerId = typeof partner === 'object' ? partner.id : partner;
+                    return { id: partnerId, name: typeof partner === 'object' ? partner.name : '', type: typeof partner === 'object' ? partner.type : 'Okänd' };
+                }).filter(partner => partner.id !== personIdToDelete); // Ta bort den raderade personen från partners
+                
+                if (partners.length > 0) {
+                    partnerRelationsToPreserve.set(p.id, partners);
+                }
+            }
+        });
+        
         // Remove person and archive any relation objects that reference them
         const remainingPeople = (dbData && dbData.people ? dbData.people : []).filter(p => p.id !== personIdToDelete);
         const newRelations = (dbData.relations || []).map(r => {
@@ -824,7 +841,40 @@ export default function useAppContext() {
             return r;
         });
         // Reconcile relations into people so relations fields stay consistent
-        const reconciledPeople = reconcileRelationsToPeople(newRelations, remainingPeople || []);
+        let reconciledPeople = reconcileRelationsToPeople(newRelations, remainingPeople || []);
+        
+        // Återställ partner-relationer som bevarats (så att de inte försvinner när ett barn raderas)
+        reconciledPeople = reconciledPeople.map(p => {
+            const preservedPartners = partnerRelationsToPreserve.get(p.id);
+            if (preservedPartners && preservedPartners.length > 0) {
+                // Behåll befintliga partners som inte är i preservedPartners, och lägg till preservedPartners
+                const existingPartners = (p.relations?.partners || []).map(partner => {
+                    const partnerId = typeof partner === 'object' ? partner.id : partner;
+                    return { id: partnerId, name: typeof partner === 'object' ? partner.name : '', type: typeof partner === 'object' ? partner.type : 'Okänd' };
+                });
+                
+                // Kombinera befintliga och bevarade partners, ta bort duplicater
+                const allPartners = [...existingPartners, ...preservedPartners];
+                const uniquePartners = [];
+                const seenIds = new Set();
+                allPartners.forEach(partner => {
+                    if (!seenIds.has(partner.id)) {
+                        seenIds.add(partner.id);
+                        uniquePartners.push(partner);
+                    }
+                });
+                
+                return {
+                    ...p,
+                    relations: {
+                        ...p.relations,
+                        partners: uniquePartners
+                    }
+                };
+            }
+            return p;
+        });
+        
         setDbData({ ...dbData, people: reconciledPeople, relations: newRelations });
         setIsDirty(true);
         showUndoToast(`Personen '${personToDelete.firstName} ${personToDelete.lastName}' har raderats.`, () => setDbData(originalDbData));
