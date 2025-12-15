@@ -1386,7 +1386,7 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
               <div className="text-xs text-slate-400 font-bold">Översikt</div>
             </div>
             <div className="relative w-full h-40 bg-slate-900 rounded border border-slate-700 overflow-hidden">
-              {/* Miniaturvy av trädet */}
+              {/* Miniaturvy av trädet + klick för att panorera */}
               {(() => {
                 const nodeXs = nodes.map(n => n.x || 0);
                 const nodeYs = nodes.map(n => n.y || 0);
@@ -1401,11 +1401,45 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
                 const padding = Math.max(width, height) * 0.15;
                 const viewBox = `${minX - padding} ${minY - padding} ${width + padding * 2} ${height + padding * 2}`;
 
+                // Drag-pan i minikartan
+                const miniDragging = useRef(false);
+                const handleMiniPan = (e) => {
+                  e.stopPropagation();
+                  const svg = e.currentTarget;
+                  const rect = svg.getBoundingClientRect();
+                  const sx = (e.clientX - rect.left) / rect.width;
+                  const sy = (e.clientY - rect.top) / rect.height;
+                  const worldX = (minX - padding) + sx * (width + padding * 2);
+                  const worldY = (minY - padding) + sy * (height + padding * 2);
+                  if (!containerRef.current) return;
+                  const cRect = containerRef.current.getBoundingClientRect();
+                  setTransform(prev => ({
+                    ...prev,
+                    x: cRect.width / 2 - worldX * prev.scale,
+                    y: cRect.height / 2 - worldY * prev.scale
+                  }));
+                };
+                const handleMiniDown = (e) => {
+                  miniDragging.current = true;
+                  handleMiniPan(e);
+                };
+                const handleMiniMove = (e) => {
+                  if (!miniDragging.current) return;
+                  handleMiniPan(e);
+                };
+                const handleMiniUp = () => {
+                  miniDragging.current = false;
+                };
+
                 return (
                   <svg
                     viewBox={viewBox}
                     className="w-full h-full"
                     preserveAspectRatio="xMidYMid meet"
+                    onMouseDown={handleMiniDown}
+                    onMouseMove={handleMiniMove}
+                    onMouseUp={handleMiniUp}
+                    onMouseLeave={handleMiniUp}
                   >
                     {/* Miniatur-linjer */}
                     {edges.slice(0, 200).map((edge, i) => {
