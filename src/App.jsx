@@ -207,9 +207,11 @@ function App() {
   const [isEditModalCollapsed, setIsEditModalCollapsed] = useState(() => {
     try {
       const saved = localStorage.getItem('editPersonModalCollapsed');
-      return saved === 'true';
+      if (saved === 'true') return true;
+      if (saved === 'false') return false;
+      return true; // Default: kollapsad
     } catch (e) {
-      return false; // Default: expanderad
+      return true; // Default: kollapsad
     }
   });
   
@@ -222,6 +224,27 @@ function App() {
       console.error('Kunde inte spara collapse-inställning:', e);
     }
   };
+
+  // Startläge: kollapsad i trädvyn
+  useEffect(() => {
+    setIsEditModalCollapsed(true);
+    try {
+      localStorage.setItem('editPersonModalCollapsed', 'true');
+    } catch (e) {
+      // ignore
+    }
+  }, []);
+
+  // När vi går in i trädvyn: öppna editpanelen (dockad) direkt på fokusperson
+  useEffect(() => {
+    if (activeTab !== 'familyTree') return;
+    if (editingPerson) return;
+    const defaultId = familyTreeFocusPersonId || (dbData?.people?.[0]?.id);
+    if (!defaultId) return;
+    setIsEditModalCollapsed(true);
+    try { localStorage.setItem('editPersonModalCollapsed', 'true'); } catch (e) {}
+    handleOpenEditModal(defaultId);
+  }, [activeTab, editingPerson, familyTreeFocusPersonId, dbData?.people, handleOpenEditModal]);
   
   // OBS: Vi expanderar INTE automatiskt - låt användaren välja själv
   // Om användaren vill expandera kan de klicka på hamburger-ikonen
