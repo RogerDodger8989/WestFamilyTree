@@ -3,7 +3,7 @@ import {
   Edit2, User, Heart, Network, HeartCrack, PlusCircle, Trash2, Users, 
   Copy, Plus, Minus, Home, Search, ArrowLeft, ArrowRight, AlertTriangle, 
   List, X, MapPin, Star, Baby, UserPlus, GitFork, Bookmark, Maximize2, Minimize2, Settings,
-  Link as LinkIcon, Layers, HeartHandshake, HelpCircle, ChevronRight, ChevronLeft
+  Link as LinkIcon, Layers, HeartHandshake, HelpCircle
 } from 'lucide-react';
 import WindowFrame from './WindowFrame.jsx';
 import Button from './Button.jsx';
@@ -487,9 +487,6 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
     // State för antal generationer att visa
     const [generations, setGenerations] = useState(3); // Standard 3, max 10
     const [compactView, setCompactView] = useState(false); // Kompakt vy (mindre kort)
-    const [searchHistory, setSearchHistory] = useState([]); // Sökhistorik
-    const [showSearchHistory, setShowSearchHistory] = useState(false); // Visa sökhistorik
-    const [showMinimap, setShowMinimap] = useState(true); // Visa/dölj minikarta
 
     // Bygg relationships för 3 generationer upp/ner
     // Rekursiv funktion för att hitta förfäder (uppåt)
@@ -732,7 +729,7 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
             }
         });
         grandchildren = [...new Set(grandchildren)];
-
+        
         // Alla ättlingar (rekursivt)
         const allDescendants = getDescendants(focusPersonId, 0, generationsDown);
         
@@ -1082,16 +1079,16 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
                 if (idx < (data.relationships.partners || []).length - 1) {
                     cursorY = previousConnectionY + CARD_HEIGHT * 3; // Tredubbla avståndet
                 } else {
-                cursorY += 50;
+                    cursorY += 50;
                 }
             } else {
                 // Om inga barn: öka avståndet mellan partners till det dubbla
                 if (idx < (data.relationships.partners || []).length - 1) {
                     cursorY = previousConnectionY + CARD_HEIGHT * 3; // Tredubbla avståndet
                     previousConnectionY = cursorY - 70;
-            } else {
-                cursorY += CARD_HEIGHT + 60;
-                previousConnectionY = cursorY - 70;
+                } else {
+                    cursorY += CARD_HEIGHT + 60;
+                    previousConnectionY = cursorY - 70;
                 }
             }
         });
@@ -1118,19 +1115,6 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
     };
 
   const { nodes, edges } = calculateLayout();
-  
-  // Animerad övergång när huvudperson ändras
-  const [isTransitioning, setIsTransitioning] = useState(false);
-  const prevFocusPersonId = useRef(focusPersonId);
-  
-  useEffect(() => {
-    if (prevFocusPersonId.current !== focusPersonId) {
-      setIsTransitioning(true);
-      const timer = setTimeout(() => setIsTransitioning(false), 500);
-      prevFocusPersonId.current = focusPersonId;
-      return () => clearTimeout(timer);
-    }
-  }, [focusPersonId]);
 
   // Mouse handlers
   const handleWheel = (e) => {
@@ -1226,96 +1210,19 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
               <div className="flex items-center bg-slate-800 border border-slate-600 rounded shadow px-3 py-2 w-64 focus-within:ring-2 focus-within:ring-blue-500 transition-all">
                   <Search size={16} className="text-slate-400 mr-2" />
                   <input 
-                    type="text" 
-                    placeholder="Snabb sök..." 
+                    type="text" placeholder="Snabb sök..." 
                     className="bg-transparent border-none outline-none text-slate-200 text-sm w-full placeholder-slate-500"
-                    onFocus={() => setShowSearchHistory(true)}
-                    onBlur={() => setTimeout(() => setShowSearchHistory(false), 200)}
                     onChange={(e) => {
                          const q = e.target.value.toLowerCase();
                          setSearchResults(q.length > 1 ? displayPeople.filter(p => (p.firstName+' '+p.lastName).toLowerCase().includes(q)) : []);
-                         if (q.length > 0) {
-                             setShowSearchHistory(false);
-                         } else {
-                             setShowSearchHistory(true);
-                         }
-                    }}
-                    onKeyDown={(e) => {
-                        if (e.key === 'Enter' && e.target.value.trim()) {
-                            const query = e.target.value.trim();
-                            // Lägg till i sökhistorik om den inte redan finns
-                            setSearchHistory(prev => {
-                                const filtered = prev.filter(h => h !== query);
-                                return [query, ...filtered].slice(0, 10); // Max 10 sökningar
-                            });
-                            // Sök efter person
-                            const found = displayPeople.find(p => 
-                                (p.firstName+' '+p.lastName).toLowerCase().includes(query.toLowerCase())
-                            );
-                            if (found && onSetFocus) {
-                                navigateToPerson(found.id);
-                                e.target.value = '';
-                                setSearchResults([]);
-                                setShowSearchHistory(false);
-                            }
-                        }
                     }}
                   />
               </div>
-              {/* Sökhistorik dropdown */}
-              {showSearchHistory && searchResults.length === 0 && searchHistory.length > 0 && (
-                  <div className="absolute top-full left-0 mt-1 w-full bg-slate-800 border border-slate-600 rounded shadow-xl z-50 max-h-60 overflow-y-auto">
-                      <div className="px-3 py-2 text-xs text-slate-500 border-b border-slate-700">Tidigare sökningar</div>
-                      {searchHistory.map((query, idx) => (
-                          <div 
-                              key={idx} 
-                              className="px-3 py-2 hover:bg-slate-700 cursor-pointer text-slate-200 text-sm flex items-center justify-between group" 
-                              onClick={() => {
-                                  const found = displayPeople.find(p => 
-                                      (p.firstName+' '+p.lastName).toLowerCase().includes(query.toLowerCase())
-                                  );
-                                  if (found && onSetFocus) {
-                                      navigateToPerson(found.id);
-                                      setShowSearchHistory(false);
-                                  }
-                              }}
-                          >
-                              <span className="flex items-center gap-2">
-                                  <Search size={12} className="text-slate-500" />
-                                  {query}
-                              </span>
-                              <button
-                                  onClick={(e) => {
-                                      e.stopPropagation();
-                                      setSearchHistory(prev => prev.filter((_, i) => i !== idx));
-                                  }}
-                                  className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 transition-opacity"
-                              >
-                                  <X size={14} />
-                              </button>
-                          </div>
-                      ))}
-                  </div>
-              )}
               {/* Resultat dropdown */}
               {searchResults.length > 0 && (
                   <div className="absolute top-full left-0 mt-1 w-full bg-slate-800 border border-slate-600 rounded shadow-xl z-50">
                       {searchResults.map(p => (
-                          <div 
-                              key={p.id} 
-                              className="px-3 py-2 hover:bg-slate-700 cursor-pointer text-slate-200 text-sm" 
-                              onClick={() => { 
-                                  navigateToPerson(p.id); 
-                                  setSearchResults([]); 
-                                  setShowSearchHistory(false);
-                                  // Lägg till i sökhistorik
-                                  const query = `${p.firstName} ${p.lastName}`.trim();
-                                  setSearchHistory(prev => {
-                                      const filtered = prev.filter(h => h !== query);
-                                      return [query, ...filtered].slice(0, 10);
-                                  });
-                              }}
-                          >
+                          <div key={p.id} className="px-3 py-2 hover:bg-slate-700 cursor-pointer text-slate-200 text-sm" onClick={() => { navigateToPerson(p.id); setSearchResults([]); }}>
                               {p.firstName} {p.lastName}
                           </div>
                       ))}
@@ -1358,155 +1265,6 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
               </button>
           </div>
       </div>
-
-      {/* --- MINIKARTA --- */}
-      {nodes.length > 0 && (
-        <div className="fixed bottom-16 right-4 z-[70]">
-          {/* Toggle-knapp, alltid på samma ställe (nere till höger) */}
-          <button
-            onClick={() => setShowMinimap(!showMinimap)}
-            className="absolute bottom-2 right-2 z-[80] bg-slate-800/95 border border-slate-600 rounded-lg shadow-xl p-2 hover:bg-slate-700 transition-colors"
-            title={showMinimap ? 'Fäll in översikt' : 'Fäll ut översikt'}
-          >
-            {showMinimap ? (
-              <ChevronRight size={18} className="text-slate-300 rotate-180" />
-            ) : (
-              <ChevronRight size={18} className="text-slate-300" />
-            )}
-          </button>
-
-          {/* Panel för kartan */}
-          <div
-            className={`relative bg-slate-800/95 border border-slate-600 rounded-lg shadow-xl p-3 w-72 transition-all duration-300 ease-in-out ${
-              showMinimap ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-16 pointer-events-none'
-            }`}
-            style={{ paddingBottom: '3rem' }} /* lämna plats för knappen */
-          >
-            <div className="flex items-center gap-2 mb-2">
-              <div className="text-xs text-slate-400 font-bold">Översikt</div>
-            </div>
-            <div className="relative w-full h-40 bg-slate-900 rounded border border-slate-700 overflow-hidden">
-              {/* Miniaturvy av trädet + klick för att panorera */}
-              {(() => {
-                const nodeXs = nodes.map(n => n.x || 0);
-                const nodeYs = nodes.map(n => n.y || 0);
-                const minX = Math.min(...nodeXs);
-                const maxX = Math.max(...nodeXs);
-                const minY = Math.min(...nodeYs);
-                const maxY = Math.max(...nodeYs);
-                const widthRaw = Math.max(maxX - minX, 1);
-                const heightRaw = Math.max(maxY - minY, 1);
-                const width = Math.max(widthRaw, 800);
-                const height = Math.max(heightRaw, 800);
-                const padding = Math.max(width, height) * 0.15;
-                const viewBox = `${minX - padding} ${minY - padding} ${width + padding * 2} ${height + padding * 2}`;
-
-                // Drag-pan i minikartan
-                const miniDragging = useRef(false);
-                const handleMiniPan = (e) => {
-                  e.stopPropagation();
-                  const svg = e.currentTarget;
-                  const rect = svg.getBoundingClientRect();
-                  const sx = (e.clientX - rect.left) / rect.width;
-                  const sy = (e.clientY - rect.top) / rect.height;
-                  const worldX = (minX - padding) + sx * (width + padding * 2);
-                  const worldY = (minY - padding) + sy * (height + padding * 2);
-                  if (!containerRef.current) return;
-                  const cRect = containerRef.current.getBoundingClientRect();
-                  setTransform(prev => ({
-                    ...prev,
-                    x: cRect.width / 2 - worldX * prev.scale,
-                    y: cRect.height / 2 - worldY * prev.scale
-                  }));
-                };
-                const handleMiniDown = (e) => {
-                  miniDragging.current = true;
-                  handleMiniPan(e);
-                };
-                const handleMiniMove = (e) => {
-                  if (!miniDragging.current) return;
-                  handleMiniPan(e);
-                };
-                const handleMiniUp = () => {
-                  miniDragging.current = false;
-                };
-
-                return (
-                  <svg
-                    viewBox={viewBox}
-                    className="w-full h-full"
-                    preserveAspectRatio="xMidYMid meet"
-                    onMouseDown={handleMiniDown}
-                    onMouseMove={handleMiniMove}
-                    onMouseUp={handleMiniUp}
-                    onMouseLeave={handleMiniUp}
-                  >
-                    {/* Miniatur-linjer */}
-                    {edges.slice(0, 200).map((edge, i) => {
-                      const strokeW = Math.min(Math.max(Math.max(width, height) / 1200, 0.5), 2);
-                      return (
-                        <line
-                          key={i}
-                          x1={edge.from.x}
-                          y1={edge.from.y}
-                          x2={edge.to.x}
-                          y2={edge.to.y}
-                          stroke="#475569"
-                          strokeWidth={strokeW}
-                          opacity={0.3}
-                        />
-                      );
-                    })}
-                    {/* Miniatur-noder */}
-                    {nodes.map((node, i) => {
-                      const isFocus = node.id === focusPersonId;
-                      const radius = Math.min(Math.max(Math.max(width, height) / 200, 2), 8);
-                      return (
-                        <circle
-                          key={i}
-                          cx={node.x || 0}
-                          cy={node.y || 0}
-                          r={isFocus ? radius * 2 : radius}
-                          fill={isFocus ? '#3b82f6' : '#64748b'}
-                          stroke={isFocus ? '#60a5fa' : '#475569'}
-                          strokeWidth={isFocus ? radius * 0.4 : radius * 0.25}
-                          className="cursor-pointer"
-                          onClick={() => node.id && onSetFocus && onSetFocus(node.id)}
-                        />
-                      );
-                    })}
-                    {/* Viewport-indikator */}
-                    {containerRef.current && (() => {
-                      const rect = containerRef.current.getBoundingClientRect();
-                      const viewportWidth = rect.width / transform.scale;
-                      const viewportHeight = rect.height / transform.scale;
-                      const viewportX = (transform.x - rect.width / 2) / transform.scale;
-                      const viewportY = (transform.y - rect.height / 2) / transform.scale;
-                      const strokeW = Math.min(Math.max(Math.max(width, height) / 900, 0.5), 2.5);
-                      return (
-                        <rect
-                          x={viewportX}
-                          y={viewportY}
-                          width={viewportWidth}
-                          height={viewportHeight}
-                          fill="none"
-                          stroke="#3b82f6"
-                          strokeWidth={strokeW}
-                          strokeDasharray="4,4"
-                          opacity={0.6}
-                        />
-                      );
-                    })()}
-                  </svg>
-                );
-              })()}
-            </div>
-            <div className="mt-2 text-xs text-slate-500">
-              Zoom: {(transform.scale * 100).toFixed(0)}%
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* --- TOPPEN HÖGER: VERKTYG & NY AVANCERAD SÖK KNAPP --- */}
       <div className="absolute top-4 right-4 z-50 flex items-start gap-3">
@@ -1622,8 +1380,8 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
                                         >
                                             <Heart size={20} className="text-slate-400 absolute" />
                                             <HelpCircle size={12} className="text-slate-500 absolute -top-1 -right-1 bg-slate-800 rounded-full" />
-                                </div>
-                            </foreignObject>
+                                        </div>
+                                    </foreignObject>
                                 );
                             } else {
                                 // Gift eller married (default)
@@ -1736,7 +1494,7 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
                                             {node.deathDate && (
                                                 <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
                                                     <div className="absolute top-0 left-0 bg-black" style={{ transform: 'rotate(-45deg)', transformOrigin: 'top left', width: '141%', height: '4px', top: '-2px', left: '-2px' }}></div>
-                                </div>
+                                                </div>
                                             )}
                                         </>
                                     ) : (
@@ -1752,7 +1510,7 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
                                             {node.deathDate && (
                                                 <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
                                                     <div className="absolute top-0 left-0 bg-black" style={{ transform: 'rotate(-45deg)', transformOrigin: 'top left', width: '141%', height: '4px', top: '-2px', left: '-2px' }}></div>
-                            </div>
+                                                </div>
                                             )}
                                         </>
                                     )}
@@ -1782,24 +1540,24 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
                                     <>
                                         {/* Födelse och död i samma höjd som profilbilden */}
                                         <div className="flex flex-col gap-1">
-                                {node.birthDate && (
+                                            {node.birthDate && (
                                                 <div className="flex items-center gap-1.5 text-sm">
                                                     <span className="text-slate-600 font-bold">*</span>
                                                     <span className="font-medium">
                                                         {node.birthDate}
                                                         {node.birthPlace && `, ${node.birthPlace}`}
                                                     </span>
-                                    </div>
-                                )}
-                                {node.deathDate && (
+                                                </div>
+                                            )}
+                                            {node.deathDate && (
                                                 <div className="flex items-center gap-1.5 text-sm">
                                                     <span className="text-slate-600 font-bold">+</span>
                                                     <span className="font-medium">
                                                         {node.deathDate}
                                                         {node.deathPlace && `, ${node.deathPlace}`}
                                                     </span>
-                                    </div>
-                                )}
+                                                </div>
+                                            )}
                                             {/* Yrken under dödsdatumet */}
                                             {node.occupations && node.occupations.length > 0 && (
                                                 <div className="flex items-center gap-1.5 text-sm mt-0.5">
@@ -1807,7 +1565,7 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
                                                     <span className="font-medium">
                                                         {node.occupations.join(', ')}
                                                     </span>
-                            </div>
+                                                </div>
                                             )}
                                         </div>
                                     </>
@@ -1881,7 +1639,7 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
           <div className="px-3 py-2 border-b border-slate-700 bg-slate-800/50">
             <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-0.5">Relationstyp</div>
             <div className="text-xs text-slate-400">Ändra relationstyp</div>
-    </div>
+          </div>
           
           <div className="py-1">
             {['Gift', 'Sambo', 'Förlovad', 'Skild', 'Okänd'].map((type) => (

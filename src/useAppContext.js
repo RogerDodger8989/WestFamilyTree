@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { createNewDatabase, openFile, saveFile, saveFileAs, openDatabaseDialog, getLastOpenedFile } from './database.js';
+import { createNewDatabase, openFile, saveFile, saveFileAs, openDatabaseDialog, getLastOpenedFile, saveAuditLog, loadAuditLog, saveMergesLog, loadMergesLog, getLogFileSize } from './database.js';
 import { parseSourceString, generateImagePath, buildSourceString } from './parsing.js';
 import { simulateMerge } from './mergeUtils.js';
 import { remapAndDedupeRelations, transferEventsAndLinks } from './mergeHelpers.js';
@@ -660,6 +660,19 @@ export default function useAppContext() {
                         });
                         const success = await saveFile(fileHandle, dataToSave);
                         if (success) {
+                            // Spara också audit och merges till separata filer
+                            const audit = currentDbData.meta?.audit || [];
+                            const merges = currentDbData.meta?.merges || [];
+                            if (audit.length > 0) {
+                                saveAuditLog(fileHandle, audit).catch(err => {
+                                    console.error('[auto-save] Kunde inte spara audit till fil:', err);
+                                });
+                            }
+                            if (merges.length > 0) {
+                                saveMergesLog(fileHandle, merges).catch(err => {
+                                    console.error('[auto-save] Kunde inte spara merges till fil:', err);
+                                });
+                            }
                             setIsDirty(false);
                             console.log('[auto-save] Sparat automatiskt!');
                         }
@@ -1339,7 +1352,25 @@ export default function useAppContext() {
                     details: details || null,
                     sourceIds: Array.isArray(sourceIds) ? sourceIds.slice() : []
                 };
-                setDbData(prev => ({ ...prev, meta: { ...(prev.meta || {}), audit: [...(prev.meta?.audit || []), entry] } }));
+                setDbData(prev => {
+                    const currentAudit = prev.meta?.audit || [];
+                    const newAudit = [...currentAudit, entry];
+                    // Begränsa audit-arrayen till max 10000 poster (ta bort äldsta först)
+                    const MAX_AUDIT_ENTRIES = 10000;
+                    const trimmedAudit = newAudit.length > MAX_AUDIT_ENTRIES 
+                        ? newAudit.slice(-MAX_AUDIT_ENTRIES) 
+                        : newAudit;
+                    
+                    // Spara till separat fil asynkront (inte blockera UI)
+                    if (fileHandle?.path || fileHandle) {
+                        const dbPath = fileHandle?.path || fileHandle;
+                        saveAuditLog(dbPath, trimmedAudit).catch(err => {
+                            console.error('[recordAudit] Kunde inte spara audit till fil:', err);
+                        });
+                    }
+                    
+                    return { ...prev, meta: { ...(prev.meta || {}), audit: trimmedAudit } };
+                });
                     // also persist audit array to localStorage as a backup so history survives an app quit without saving
                     try {
                         const current = dbData?.meta?.audit || [];
@@ -1738,7 +1769,25 @@ export default function useAppContext() {
             createdBy: createdBy || 'system',
             createdAt: new Date().toISOString()
         };
-        setDbData(prev => ({ ...prev, meta: { ...(prev.meta || {}), merges: [...(prev.meta?.merges || []), mergeRecord] } }));
+        setDbData(prev => {
+            const currentMerges = prev.meta?.merges || [];
+            const newMerges = [...currentMerges, mergeRecord];
+            // Begränsa merges-arrayen till max 1000 poster (ta bort äldsta först)
+            const MAX_MERGE_ENTRIES = 1000;
+            const trimmedMerges = newMerges.length > MAX_MERGE_ENTRIES 
+                ? newMerges.slice(-MAX_MERGE_ENTRIES) 
+                : newMerges;
+            
+            // Spara till separat fil asynkront (inte blockera UI)
+            if (fileHandle?.path || fileHandle) {
+                const dbPath = fileHandle?.path || fileHandle;
+                saveMergesLog(dbPath, trimmedMerges).catch(err => {
+                    console.error('[recordMerge] Kunde inte spara merges till fil:', err);
+                });
+            }
+            
+            return { ...prev, meta: { ...(prev.meta || {}), merges: trimmedMerges } };
+        });
         setIsDirty(true);
         showStatus('Merge registrerad.');
         return mergeRecord.id;
@@ -1968,6 +2017,51 @@ export default function useAppContext() {
         });
     };
 
+    // Funktion för att rensa gamla audit-poster (behåll bara de senaste N)
+    const cleanupAuditLog = (keepLast = 1000) => {
+        setDbData(prev => {
+            const currentAudit = prev.meta?.audit || [];
+            if (currentAudit.length <= keepLast) {
+                return prev; // Inget att rensa
+            }
+            const trimmedAudit = currentAudit.slice(-keepLast);
+            const removedCount = currentAudit.length - trimmedAudit.length;
+            showStatus(`Rensade ${removedCount} gamla audit-poster. Behöll ${trimmedAudit.length} senaste.`, 'success');
+            return { ...prev, meta: { ...(prev.meta || {}), audit: trimmedAudit } };
+        });
+        setIsDirty(true);
+    };
+
+    // Funktion för att rensa gamla merge-poster (behåll bara de senaste N)
+    const cleanupMergeLog = (keepLast = 500) => {
+        setDbData(prev => {
+            const currentMerges = prev.meta?.merges || [];
+            if (currentMerges.length <= keepLast) {
+                return prev; // Inget att rensa
+            }
+            const trimmedMerges = currentMerges.slice(-keepLast);
+            const removedCount = currentMerges.length - trimmedMerges.length;
+            showStatus(`Rensade ${removedCount} gamla merge-poster. Behöll ${trimmedMerges.length} senaste.`, 'success');
+            return { ...prev, meta: { ...(prev.meta || {}), merges: trimmedMerges } };
+        });
+        setIsDirty(true);
+    };
+
+    // Funktion för att få storlek på meta-data (ungefärlig)
+    const getMetaSize = () => {
+        if (!dbData?.meta) return { size: 0, auditCount: 0, mergesCount: 0, sizeMB: '0.00' };
+        const metaStr = JSON.stringify(dbData.meta);
+        const sizeInBytes = new Blob([metaStr]).size;
+        const auditCount = Array.isArray(dbData.meta.audit) ? dbData.meta.audit.length : 0;
+        const mergesCount = Array.isArray(dbData.meta.merges) ? dbData.meta.merges.length : 0;
+        return {
+            size: sizeInBytes,
+            sizeMB: (sizeInBytes / (1024 * 1024)).toFixed(2),
+            auditCount,
+            mergesCount
+        };
+    };
+
     return {
         dbData, setDbData, fileHandle, isDirty, setIsDirty, newFirstName, setNewFirstName, newLastName, setNewLastName,
         showSettings, setShowSettings, editingPerson, activeTab, focusPair, bookmarks,
@@ -1999,6 +2093,9 @@ export default function useAppContext() {
         showStatus,
         recordAudit,
         setAuditBackupDir,
+        cleanupAuditLog,
+        cleanupMergeLog,
+        getMetaSize,
         // bulk warnings modal state & controls
         bulkWarningsModal, openBulkWarningsModal, closeBulkWarningsModal,
         // expose undo toast helper so UI can show an inline Ångra action

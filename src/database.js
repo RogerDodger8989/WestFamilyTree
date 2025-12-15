@@ -39,6 +39,52 @@ export async function openFile(filePath) {
     }
 }
 
+// Funktioner för att hantera audit och merges i separata filer
+export async function saveAuditLog(dbPath, auditArray) {
+    if (window.electronAPI && typeof window.electronAPI.saveAuditLog === 'function') {
+        return await window.electronAPI.saveAuditLog(dbPath, auditArray);
+    } else {
+        console.warn('saveAuditLog inte tillgänglig i denna miljö');
+        return { error: 'Not available' };
+    }
+}
+
+export async function loadAuditLog(dbPath) {
+    if (window.electronAPI && typeof window.electronAPI.loadAuditLog === 'function') {
+        return await window.electronAPI.loadAuditLog(dbPath);
+    } else {
+        console.warn('loadAuditLog inte tillgänglig i denna miljö');
+        return { error: 'Not available', audit: [] };
+    }
+}
+
+export async function saveMergesLog(dbPath, mergesArray) {
+    if (window.electronAPI && typeof window.electronAPI.saveMergesLog === 'function') {
+        return await window.electronAPI.saveMergesLog(dbPath, mergesArray);
+    } else {
+        console.warn('saveMergesLog inte tillgänglig i denna miljö');
+        return { error: 'Not available' };
+    }
+}
+
+export async function loadMergesLog(dbPath) {
+    if (window.electronAPI && typeof window.electronAPI.loadMergesLog === 'function') {
+        return await window.electronAPI.loadMergesLog(dbPath);
+    } else {
+        console.warn('loadMergesLog inte tillgänglig i denna miljö');
+        return { error: 'Not available', merges: [] };
+    }
+}
+
+export async function getLogFileSize(dbPath, logType) {
+    if (window.electronAPI && typeof window.electronAPI.getLogFileSize === 'function') {
+        return await window.electronAPI.getLogFileSize(dbPath, logType);
+    } else {
+        console.warn('getLogFileSize inte tillgänglig i denna miljö');
+        return { error: 'Not available' };
+    }
+}
+
 export async function saveFile(fileHandle, data) {
     if (window.electronAPI && typeof window.electronAPI.saveDatabase === 'function') {
         // DEBUG: Logga vad som skickas till Electron

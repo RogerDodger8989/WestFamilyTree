@@ -24,7 +24,9 @@ import { MediaManager } from './MediaManager.jsx';
 import WindowFrame from './WindowFrame.jsx';
 import LinkPersonModal from './LinkPersonModal.jsx';
 import OAIArchiveHarvesterModal from './OAIArchiveHarvesterModal.jsx';
-import Button from './Button.jsx';
+import AuditMergesSettingsModal from './AuditMergesSettingsModal.jsx';
+import SettingsModal from './SettingsModal.jsx';
+import Button from './Button.jsx'; 
 import MediaImage from './components/MediaImage.jsx';
 import { User } from 'lucide-react'; 
 
@@ -158,6 +160,7 @@ function App() {
   const {
     dbData, setDbData, fileHandle, isDirty, setIsDirty, newFirstName, setNewFirstName, newLastName, setNewLastName,
     showSettings, setShowSettings, editingPerson, activeTab, focusPair, bookmarks,
+    cleanupAuditLog, cleanupMergeLog, getMetaSize,
     sourceCatalogState, setSourceCatalogState, placeCatalogState, setPlaceCatalogState,
     familyTreeFocusPersonId, setFamilyTreeFocusPersonId, sourcingEventInfo,
     isSourceDrawerOpen, isPlaceDrawerOpen, isCreatingSource, sourceState, undoState, statusToast,
@@ -193,6 +196,7 @@ function App() {
   const [showDuplicateMerge, setShowDuplicateMerge] = useState(false);
   const [mergeInitialPair, setMergeInitialPair] = useState(null);
   const [showRelationSettings, setShowRelationSettings] = useState(false);
+  const [showAuditMergesSettings, setShowAuditMergesSettings] = useState(false);
   const [personDrawerLocked, setPersonDrawerLocked] = useState(true);
   const [sourceDrawerLocked, setSourceDrawerLocked] = useState(false);
   const [placeDrawerLocked, setPlaceDrawerLocked] = useState(false);
@@ -207,11 +211,9 @@ function App() {
   const [isEditModalCollapsed, setIsEditModalCollapsed] = useState(() => {
     try {
       const saved = localStorage.getItem('editPersonModalCollapsed');
-      if (saved === 'true') return true;
-      if (saved === 'false') return false;
-      return true; // Default: kollapsad
+      return saved === 'true';
     } catch (e) {
-      return true; // Default: kollapsad
+      return false; // Default: expanderad
     }
   });
   
@@ -224,27 +226,6 @@ function App() {
       console.error('Kunde inte spara collapse-inställning:', e);
     }
   };
-
-  // Startläge: kollapsad i trädvyn
-  useEffect(() => {
-    setIsEditModalCollapsed(true);
-    try {
-      localStorage.setItem('editPersonModalCollapsed', 'true');
-    } catch (e) {
-      // ignore
-    }
-  }, []);
-
-  // När vi går in i trädvyn: öppna editpanelen (dockad) direkt på fokusperson
-  useEffect(() => {
-    if (activeTab !== 'familyTree') return;
-    if (editingPerson) return;
-    const defaultId = familyTreeFocusPersonId || (dbData?.people?.[0]?.id);
-    if (!defaultId) return;
-    setIsEditModalCollapsed(true);
-    try { localStorage.setItem('editPersonModalCollapsed', 'true'); } catch (e) {}
-    handleOpenEditModal(defaultId);
-  }, [activeTab, editingPerson, familyTreeFocusPersonId, dbData?.people, handleOpenEditModal]);
   
   // OBS: Vi expanderar INTE automatiskt - låt användaren välja själv
   // Om användaren vill expandera kan de klicka på hamburger-ikonen
@@ -268,6 +249,10 @@ function App() {
           handleSaveFile();
         } else if (action === 'save-as-database') {
           handleSaveFileAs('menu');
+        } else if (action === 'settings') {
+          setShowSettings(true);
+        } else if (action === 'audit-merges-settings') {
+          setShowAuditMergesSettings(true);
         }
       };
       window.electronAPI.on('menu-action', handler);
@@ -288,6 +273,10 @@ function App() {
           handleSaveFile();
         } else if (e.detail === 'save-as-database') {
           handleSaveFileAs('menu');
+        } else if (e.detail === 'settings') {
+          setShowSettings(true);
+        } else if (e.detail === 'audit-merges-settings') {
+          setShowAuditMergesSettings(true);
         }
       };
       window.addEventListener('menu-action', handler);
@@ -921,7 +910,7 @@ function App() {
   const addParentToChildAndSetPartners = (childId, parentId, otherParentId) => {
     if (!childId || !parentId || !otherParentId) return;
     
-    setDbData(prev => {
+      setDbData(prev => {
       let updatedPeople = prev.people.map(p => ({ ...p, relations: { ...p.relations } }));
       
       // Hitta barnet, fadern och modern
@@ -1031,12 +1020,36 @@ function App() {
       </div>
       
       {/* SETTINGS MODAL */}
-      {showSettings && (<div className="modal" style={{display: 'block'}}><div className="modal-content card bg-slate-800 border border-slate-700 p-8 max-w-2xl"><div className="flex justify-between items-center mb-6"><h2 className="text-xl font-bold text-slate-200">Inställningar</h2><button onClick={() => setShowSettings(false)} className="text-slate-400 hover:text-slate-300 text-2xl">&times;</button></div><div><div className="text-slate-400 mb-4"><div className="mb-2">Audit-backup-mapp (valfritt):</div><div className="flex items-center gap-2"><input type="text" value={auditBackupDir} onChange={(e) => setAuditBackupDirState(e.target.value)} placeholder="Sökväg till mapp eller lämna tomt för standard" className="flex-1 border rounded px-2 py-1" /><Button onClick={chooseAuditBackupDir} variant="secondary" size="sm">Välj...</Button><Button onClick={() => setAuditBackupDirState('')} variant="danger" size="sm">Rensa</Button></div></div><div className="flex flex-col gap-2 mt-8"><div className="flex gap-2 justify-end"><Button onClick={handleExportZip} variant="primary" size="sm">Exportera allt som zip</Button><Button onClick={handleImportZip} variant="secondary" size="sm">Importera zip-backup</Button><Button onClick={() => setShowRelationSettings(true)} variant="secondary" size="sm">Relationsinställningar</Button><Button onClick={() => { setAuditBackupDir(auditBackupDir); setShowSettings(false); showStatus('Inställningar sparade.'); }} variant="success" size="sm">Stäng</Button></div>{showRelationSettings && (<div className="mt-4 p-4 border border-slate-700 rounded bg-slate-900"><RelationSettings inline={true} onClose={() => setShowRelationSettings(false)} /></div>)}{ ((personDrawer && personDrawer._isPlaceholder) || (personDrawerEditContext && personDrawer && personDrawerEditContext.id === personDrawer.id)) && (<div className="p-3 border-t border-slate-700 bg-slate-800 flex justify-end gap-2"><Button onClick={() => cancelPersonCreation(personDrawer.id)} variant="danger" size="sm">Avbryt</Button><Button onClick={handlePersonDrawerSave} variant="success" size="sm">Stäng ändringar</Button></div>)}</div></div></div></div>)}
+      {/* Settings Modal */}
+      <SettingsModal
+        isOpen={showSettings}
+        onClose={() => {
+          setShowSettings(false);
+        }}
+        auditBackupDir={auditBackupDir}
+        setAuditBackupDirState={setAuditBackupDirState}
+        setAuditBackupDir={setAuditBackupDir}
+        chooseAuditBackupDir={chooseAuditBackupDir}
+        handleExportZip={handleExportZip}
+        handleImportZip={handleImportZip}
+        showStatus={showStatus}
+        setShowAuditMergesSettings={setShowAuditMergesSettings}
+      />
       
       {/* OTHER MODALS */}
       {isMergeModalOpen && <MergeModal isOpen={isMergeModalOpen} onClose={(mergeId) => { setIsMergeModalOpen(false); if (mergeId) showStatus(`Merge klart (${mergeId})`); }} />}
       {isMergesPanelOpen && <MergesPanel isOpen={isMergesPanelOpen} onClose={() => setIsMergesPanelOpen(false)} />}
       {showDuplicateMerge && <DuplicateMergePanel allPeople={dbData.people || []} initialPair={mergeInitialPair} onClose={() => { setShowDuplicateMerge(false); setMergeInitialPair(null); }} />}
+      
+      {/* Audit & Merges Settings Modal */}
+      <AuditMergesSettingsModal 
+        isOpen={showAuditMergesSettings} 
+        onClose={() => setShowAuditMergesSettings(false)}
+        onBack={() => {
+          setShowAuditMergesSettings(false);
+          setShowSettings(true);
+        }}
+      />
       
       {/* NY MODAL: Koppla Person */}
       <LinkPersonModal isOpen={linkPersonModal.isOpen} onClose={() => setLinkPersonModal({ isOpen: false, preSelectedPersonId: null })} people={visiblePeople} onLink={handleLinkSourceToPerson} initialPersonId={linkPersonModal.preSelectedPersonId} zIndex={isSourceDrawerOpen ? 10100 : 5100} />
@@ -1153,7 +1166,7 @@ function App() {
           {activeTab === 'audit' && ( <AuditPanel /> )}
           {activeTab === 'media' && ( 
             <MediaManager 
-              allPeople={visiblePeople}
+              allPeople={visiblePeople} 
               allSources={dbData.sources || []}
               onOpenEditModal={handleOpenEditModal}
               onNavigateToSource={handleOpenSourceInModal}
@@ -1423,29 +1436,29 @@ function App() {
               </div>
             ) : (
               // NORMAL MODE: WindowFrame modal (för andra tabs)
-              <WindowFrame
-                title={`Redigera ${editingPerson.firstName || ''} ${editingPerson.lastName || ''}`}
+            <WindowFrame
+              title={`Redigera ${editingPerson.firstName || ''} ${editingPerson.lastName || ''}`}
+              onClose={handleCloseEditModalSafe}
+              initialWidth={1200}
+              initialHeight={800}
+            >
+              <EditPersonModal
+                person={editingPerson}
                 onClose={handleCloseEditModalSafe}
-                initialWidth={1200}
-                initialHeight={800}
-              >
-                <EditPersonModal
-                  person={editingPerson}
-                  onClose={handleCloseEditModalSafe}
-                  onSave={patchedHandleSavePersonDetails}
-                  onChange={handleEditFormChange}
-                  allSources={dbData.sources}
-                  allPlaces={dbData.places || []}
-                  allPeople={visiblePeople}
-                  onDeleteEvent={handleDeleteEvent}
-                  onOpenSourceDrawer={handleToggleSourceDrawer}
-                  onNavigateToSource={handleNavigateToSource}
-                  onNavigateToPlace={handleNavigateToPlace}
-                  onTogglePlaceDrawer={handleTogglePlaceDrawer}
-                  onViewInFamilyTree={handleViewInFamilyTree}
-                  focusPair={focusPair}
-                  onSetFocusPair={handleSetFocusPair}
-                  activeSourcingEventId={sourcingEventInfo?.eventId}
+                onSave={patchedHandleSavePersonDetails}
+                onChange={handleEditFormChange}
+                allSources={dbData.sources}
+                allPlaces={dbData.places || []}
+                allPeople={visiblePeople}
+                onDeleteEvent={handleDeleteEvent}
+                onOpenSourceDrawer={handleToggleSourceDrawer}
+                onNavigateToSource={handleNavigateToSource}
+                onNavigateToPlace={handleNavigateToPlace}
+                onTogglePlaceDrawer={handleTogglePlaceDrawer}
+                onViewInFamilyTree={handleViewInFamilyTree}
+                focusPair={focusPair}
+                onSetFocusPair={handleSetFocusPair}
+                activeSourcingEventId={sourcingEventInfo?.eventId}
                   allMediaItems={dbData.media || []}
                   onUpdateAllMedia={(updatedMedia) => {
                     setDbData(prev => ({ ...prev, media: updatedMedia }));
@@ -1454,8 +1467,8 @@ function App() {
                   setIsSourceDrawerOpen={openSourceDrawerForSelection}
                   setIsPlaceDrawerOpen={openPlaceDrawerForSelection}
                   isDocked={false}
-                />
-              </WindowFrame>
+              />
+            </WindowFrame>
             )
           )}
         </div>

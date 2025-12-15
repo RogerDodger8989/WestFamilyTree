@@ -20,6 +20,119 @@ ipcMain.handle('set-last-opened-file', async (event, filePath) => {
   saveSettings(settings);
   return true;
 });
+// IPC handler för att spara audit-loggar till separat fil
+ipcMain.handle('save-audit-log', async (event, dbPath, auditArray) => {
+  const fs = require('fs').promises;
+  const path = require('path');
+  try {
+    if (!dbPath) return { error: 'Ingen databas-sökväg angiven' };
+    const auditFilePath = dbPath.replace(/\.db$/, '_audit.json');
+    const MAX_AUDIT_ENTRIES = 10000;
+    const trimmedAudit = auditArray.length > MAX_AUDIT_ENTRIES 
+      ? auditArray.slice(-MAX_AUDIT_ENTRIES) 
+      : auditArray;
+    await fs.writeFile(auditFilePath, JSON.stringify(trimmedAudit, null, 2), 'utf8');
+    return { success: true, count: trimmedAudit.length, removed: auditArray.length - trimmedAudit.length };
+  } catch (err) {
+    console.error('[save-audit-log] Fel:', err);
+    return { error: err.message };
+  }
+});
+
+// IPC handler för att läsa audit-loggar från separat fil
+ipcMain.handle('load-audit-log', async (event, dbPath) => {
+  const fs = require('fs').promises;
+  const path = require('path');
+  try {
+    if (!dbPath) return { error: 'Ingen databas-sökväg angiven' };
+    const auditFilePath = dbPath.replace(/\.db$/, '_audit.json');
+    try {
+      const data = await fs.readFile(auditFilePath, 'utf8');
+      const auditArray = JSON.parse(data);
+      return { success: true, audit: Array.isArray(auditArray) ? auditArray : [] };
+    } catch (readErr) {
+      if (readErr.code === 'ENOENT') {
+        // Filen finns inte än - returnera tom array
+        return { success: true, audit: [] };
+      }
+      throw readErr;
+    }
+  } catch (err) {
+    console.error('[load-audit-log] Fel:', err);
+    return { error: err.message, audit: [] };
+  }
+});
+
+// IPC handler för att spara merges till separat fil
+ipcMain.handle('save-merges-log', async (event, dbPath, mergesArray) => {
+  const fs = require('fs').promises;
+  const path = require('path');
+  try {
+    if (!dbPath) return { error: 'Ingen databas-sökväg angiven' };
+    const mergesFilePath = dbPath.replace(/\.db$/, '_merges.json');
+    const MAX_MERGE_ENTRIES = 1000;
+    const trimmedMerges = mergesArray.length > MAX_MERGE_ENTRIES 
+      ? mergesArray.slice(-MAX_MERGE_ENTRIES) 
+      : mergesArray;
+    await fs.writeFile(mergesFilePath, JSON.stringify(trimmedMerges, null, 2), 'utf8');
+    return { success: true, count: trimmedMerges.length, removed: mergesArray.length - trimmedMerges.length };
+  } catch (err) {
+    console.error('[save-merges-log] Fel:', err);
+    return { error: err.message };
+  }
+});
+
+// IPC handler för att läsa merges från separat fil
+ipcMain.handle('load-merges-log', async (event, dbPath) => {
+  const fs = require('fs').promises;
+  const path = require('path');
+  try {
+    if (!dbPath) return { error: 'Ingen databas-sökväg angiven' };
+    const mergesFilePath = dbPath.replace(/\.db$/, '_merges.json');
+    try {
+      const data = await fs.readFile(mergesFilePath, 'utf8');
+      const mergesArray = JSON.parse(data);
+      return { success: true, merges: Array.isArray(mergesArray) ? mergesArray : [] };
+    } catch (readErr) {
+      if (readErr.code === 'ENOENT') {
+        // Filen finns inte än - returnera tom array
+        return { success: true, merges: [] };
+      }
+      throw readErr;
+    }
+  } catch (err) {
+    console.error('[load-merges-log] Fel:', err);
+    return { error: err.message, merges: [] };
+  }
+});
+
+// IPC handler för att få filstorlek
+ipcMain.handle('get-log-file-size', async (event, dbPath, logType) => {
+  const fs = require('fs').promises;
+  const path = require('path');
+  try {
+    if (!dbPath) return { error: 'Ingen databas-sökväg angiven' };
+    const filePath = dbPath.replace(/\.db$/, `_${logType}.json`);
+    try {
+      const stats = await fs.stat(filePath);
+      return { 
+        success: true, 
+        size: stats.size, 
+        sizeMB: (stats.size / (1024 * 1024)).toFixed(2),
+        exists: true
+      };
+    } catch (readErr) {
+      if (readErr.code === 'ENOENT') {
+        return { success: true, size: 0, sizeMB: '0.00', exists: false };
+      }
+      throw readErr;
+    }
+  } catch (err) {
+    console.error('[get-log-file-size] Fel:', err);
+    return { error: err.message };
+  }
+});
+
 // IPC handler for saving the entire database (people, sources, places, meta)
 ipcMain.handle('save-database', async (event, fileHandle, data) => {
   // DEBUG: Logga vad som sparas (allra först)
@@ -339,13 +452,52 @@ ipcMain.handle('save-database', async (event, fileHandle, data) => {
       });
     }
     // Insert or replace meta (för att undvika UNIQUE constraint errors)
-    for (const [key, value] of Object.entries(data.meta || {})) {
+    // EXKLUDERA audit och merges från meta-tabellen - de sparas i separata filer
+    const metaToSave = { ...(data.meta || {}) };
+    const auditArray = metaToSave.audit;
+    const mergesArray = metaToSave.merges;
+    delete metaToSave.audit; // Ta bort audit från meta
+    delete metaToSave.merges; // Ta bort merges från meta
+    
+    for (const [key, value] of Object.entries(metaToSave)) {
       await new Promise((resolve, reject) => {
         db.run(`INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)`,
           [key, typeof value === 'object' ? JSON.stringify(value) : String(value)],
           err => err ? reject(err) : resolve()
         );
       });
+    }
+    
+    // Spara audit och merges till separata filer
+    if (auditArray && Array.isArray(auditArray)) {
+      try {
+        const auditResult = await ipcMain.emit('save-audit-log', dbPath, auditArray);
+        // Använd invoke istället - vi är redan i main process, anropa direkt
+        const fs = require('fs').promises;
+        const auditFilePath = dbPath.replace(/\.db$/, '_audit.json');
+        const MAX_AUDIT_ENTRIES = 10000;
+        const trimmedAudit = auditArray.length > MAX_AUDIT_ENTRIES 
+          ? auditArray.slice(-MAX_AUDIT_ENTRIES) 
+          : auditArray;
+        await fs.writeFile(auditFilePath, JSON.stringify(trimmedAudit, null, 2), 'utf8');
+        console.log('[save-database] ✅ Audit sparad till separat fil:', trimmedAudit.length, 'poster');
+      } catch (err) {
+        console.error('[save-database] ❌ Kunde inte spara audit till fil:', err);
+      }
+    }
+    if (mergesArray && Array.isArray(mergesArray)) {
+      try {
+        const fs = require('fs').promises;
+        const mergesFilePath = dbPath.replace(/\.db$/, '_merges.json');
+        const MAX_MERGE_ENTRIES = 1000;
+        const trimmedMerges = mergesArray.length > MAX_MERGE_ENTRIES 
+          ? mergesArray.slice(-MAX_MERGE_ENTRIES) 
+          : mergesArray;
+        await fs.writeFile(mergesFilePath, JSON.stringify(trimmedMerges, null, 2), 'utf8');
+        console.log('[save-database] ✅ Merges sparad till separat fil:', trimmedMerges.length, 'poster');
+      } catch (err) {
+        console.error('[save-database] ❌ Kunde inte spara merges till fil:', err);
+      }
     }
     // Insert media
     for (const m of data.media || []) {
@@ -633,12 +785,89 @@ ipcMain.handle('open-database', async (event, filePath) => {
         if ('key' in metaRows[0] && 'value' in metaRows[0]) {
           meta = {};
           for (const row of metaRows) {
-            meta[row.key] = row.value;
+            // Parsa JSON-värden
+            try {
+              meta[row.key] = JSON.parse(row.value);
+            } catch {
+              meta[row.key] = row.value;
+            }
           }
         } else {
           meta = metaRows[0];
         }
       }
+      
+      // Ladda audit och merges från separata filer
+      const fs = require('fs').promises;
+      const auditFilePath = filePath.replace(/\.db$/, '_audit.json');
+      const mergesFilePath = filePath.replace(/\.db$/, '_merges.json');
+      
+      let audit = [];
+      let merges = [];
+      let auditFileExists = false;
+      let mergesFileExists = false;
+      
+      try {
+        const auditData = await fs.readFile(auditFilePath, 'utf8');
+        audit = JSON.parse(auditData);
+        if (!Array.isArray(audit)) audit = [];
+        auditFileExists = true;
+        console.log('[open-database] ✅ Laddade audit från separat fil:', audit.length, 'poster');
+      } catch (err) {
+        if (err.code !== 'ENOENT') {
+          console.error('[open-database] Kunde inte läsa audit-fil:', err);
+        }
+      }
+      
+      try {
+        const mergesData = await fs.readFile(mergesFilePath, 'utf8');
+        merges = JSON.parse(mergesData);
+        if (!Array.isArray(merges)) merges = [];
+        mergesFileExists = true;
+        console.log('[open-database] ✅ Laddade merges från separat fil:', merges.length, 'poster');
+      } catch (err) {
+        if (err.code !== 'ENOENT') {
+          console.error('[open-database] Kunde inte läsa merges-fil:', err);
+        }
+      }
+      
+      // Migration: Om audit/merges finns i meta men inte i filer, migrera dem
+      const metaAudit = meta.audit || [];
+      const metaMerges = meta.merges || [];
+      
+      if (!auditFileExists && metaAudit.length > 0) {
+        // Migrera audit från meta till fil
+        console.log('[open-database] 🔄 Migrerar audit från meta-tabellen till separat fil:', metaAudit.length, 'poster');
+        audit = metaAudit;
+        try {
+          await fs.writeFile(auditFilePath, JSON.stringify(audit, null, 2), 'utf8');
+          console.log('[open-database] ✅ Migrerade audit till separat fil');
+        } catch (err) {
+          console.error('[open-database] Kunde inte migrera audit till fil:', err);
+        }
+      } else if (auditFileExists && metaAudit.length > 0) {
+        // Om både fil och meta finns, använd filen (den är nyare) men logga varning
+        console.log('[open-database] ⚠️ Audit finns både i fil och meta-tabellen. Använder filen.');
+      }
+      
+      if (!mergesFileExists && metaMerges.length > 0) {
+        // Migrera merges från meta till fil
+        console.log('[open-database] 🔄 Migrerar merges från meta-tabellen till separat fil:', metaMerges.length, 'poster');
+        merges = metaMerges;
+        try {
+          await fs.writeFile(mergesFilePath, JSON.stringify(merges, null, 2), 'utf8');
+          console.log('[open-database] ✅ Migrerade merges till separat fil');
+        } catch (err) {
+          console.error('[open-database] Kunde inte migrera merges till fil:', err);
+        }
+      } else if (mergesFileExists && metaMerges.length > 0) {
+        // Om både fil och meta finns, använd filen (den är nyare) men logga varning
+        console.log('[open-database] ⚠️ Merges finns både i fil och meta-tabellen. Använder filen.');
+      }
+      
+      // Lägg till audit och merges i meta-objektet (för kompatibilitet)
+      meta.audit = audit;
+      meta.merges = merges;
       
       // Läs media från databasen
       const mediaRows = await readTable('media', ['tags', 'connections', 'faces']);

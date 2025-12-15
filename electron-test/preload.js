@@ -27,6 +27,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     saveAuditBackup: (fileName, data, dir) => ipcRenderer.invoke('save-audit-backup', fileName, data, dir),
     // Open the audit backup folder (or provided folder)
     openAuditBackupFolder: (dir) => ipcRenderer.invoke('open-audit-backup-folder', dir),
+    // Audit och merges log-filer (separata från meta-tabellen)
+    saveAuditLog: (dbPath, auditArray) => ipcRenderer.invoke('save-audit-log', dbPath, auditArray),
+    loadAuditLog: (dbPath) => ipcRenderer.invoke('load-audit-log', dbPath),
+    saveMergesLog: (dbPath, mergesArray) => ipcRenderer.invoke('save-merges-log', dbPath, mergesArray),
+    loadMergesLog: (dbPath) => ipcRenderer.invoke('load-merges-log', dbPath),
+    getLogFileSize: (dbPath, logType) => ipcRenderer.invoke('get-log-file-size', dbPath, logType),
     // JSON audit-debug borttagen
     readLatestAuditDebug: () => ipcRenderer.invoke('read-latest-audit-debug'),
 

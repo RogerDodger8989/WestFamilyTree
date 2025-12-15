@@ -51,3 +51,25 @@
 
 /* Slight shadow to match edit modal separation; support left or right drawers */
 .drawer-inner { box-shadow: 6px 0 18px rgba(15,23,42,0.06), -6px 0 18px rgba(15,23,42,0.04); }
+
+/* Modal overlay styling */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.modal-content {
+  position: relative;
+  max-height: 90vh;
+  overflow-y: auto;
+  margin: auto;
+}
