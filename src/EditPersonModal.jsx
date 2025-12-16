@@ -14,6 +14,7 @@ import MediaSelector from './MediaSelector.jsx';
 import ImageEditorModal from './ImageEditorModal.jsx';
 import MediaImage from './components/MediaImage.jsx';
 import { useApp } from './AppContext';
+import { ensureParentsArePartners } from './App.jsx';
 
 // --- KONSTANTER ---
 
@@ -492,6 +493,15 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
             syncSingleParentChildRelation(currentPersonId, personId);
           }, 0);
         }
+      } else if (relationTypeToAdd === 'parents') {
+        // När man lägger till en förälder: säkerställ att alla föräldrar till detta barn är partners
+        const currentPersonId = person.id; // Detta är barnet
+        setTimeout(() => {
+          if (dbData && dbData.people) {
+            const updatedPeople = ensureParentsArePartners(dbData.people, currentPersonId);
+            setDbData({ ...dbData, people: updatedPeople });
+          }
+        }, 0);
       }
       
       setRelationModalOpen(false);
@@ -578,7 +588,10 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
         }
       }
       
-      // 4. Uppdatera dbData med alla ändringar
+      // 4. Säkerställ att föräldrarna är partners (om de inte redan är det)
+      updatedPeople = ensureParentsArePartners(updatedPeople, childId);
+      
+      // 5. Uppdatera dbData med alla ändringar
       console.log(`[syncChildRelations] Uppdaterar dbData med ${updatedPeople.length} personer`);
       setDbData({ ...dbData, people: updatedPeople });
       console.log(`[syncChildRelations] Klar!`);
@@ -629,7 +642,10 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
         }
       }
       
-      // 3. Uppdatera dbData med alla ändringar
+      // 3. Säkerställ att föräldrarna är partners om barnet har fler än en förälder
+      updatedPeople = ensureParentsArePartners(updatedPeople, childId);
+      
+      // 4. Uppdatera dbData med alla ändringar
       setDbData({ ...dbData, people: updatedPeople });
     };
 

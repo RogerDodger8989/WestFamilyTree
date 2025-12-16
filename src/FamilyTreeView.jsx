@@ -1141,16 +1141,16 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
       );
       
       if (arePartners && parent1 && parent2) {
-        // Placera föräldrar horisontellt på samma Y-nivå
+        // Placera föräldrar horisontellt på samma Y-nivå (samma som i calculateLayout)
         const partnerGap = 500;
-        const parent1X = generationX;
-        const parent2X = generationX;
+        const parent1X = generationX - (partnerGap/2) - (CARD_WIDTH/2);
+        const parent2X = generationX + (partnerGap/2) + (CARD_WIDTH/2);
         const parentY = currentY;
         
         nodes.push({ ...parent1, x: parent1X, y: parentY });
         nodes.push({ ...parent2, x: parent2X, y: parentY });
         
-        // Horisontell partner-linje
+        // Horisontell partner-linje med hjärta
         const partner1 = (parent1.relations?.partners || []).find(p => {
           const partnerId = typeof p === 'object' ? p.id : p;
           return partnerId === parentIds[1];
@@ -1158,8 +1158,8 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
         const partnerType = (typeof partner1 === 'object' && partner1.type) ? partner1.type : 'Gift';
         
         edges.push({
-          from: { x: parent1X - (CARD_WIDTH/2) + 10, y: parentY },
-          to: { x: parent2X + (CARD_WIDTH/2) - 10, y: parentY },
+          from: { x: parent1X + (CARD_WIDTH/2) - 10, y: parentY },
+          to: { x: parent2X - (CARD_WIDTH/2) + 10, y: parentY },
           type: 'partner-horizontal',
           midPoint: { x: generationX, y: parentY },
           styleType: partnerType,
@@ -1167,16 +1167,11 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
           person2Id: parentIds[1]
         });
         
-        // Ortogonal linje från mitten av partner-linjen till person
+        // Vertikal linje från mitten av partner-linjen (hjärtat) ner till person
         edges.push({
-          from: { x: generationX, y: parentY + (CARD_HEIGHT/2) },
-          to: { x: generationX - (CARD_WIDTH + 100), y: parentY + (CARD_HEIGHT/2) },
-          type: 'orthogonal-horizontal-first'
-        });
-        edges.push({
-          from: { x: generationX - (CARD_WIDTH + 100), y: parentY + (CARD_HEIGHT/2) },
-          to: { x: generationX - (CARD_WIDTH + 100), y: currentY + (CARD_HEIGHT/2) },
-          type: 'orthogonal-vertical-first'
+          from: { x: generationX, y: parentY + (CARD_HEIGHT/2) - 20 },
+          to: { x: generationX, y: currentY + (CARD_HEIGHT/2) + 20 },
+          type: 'parent'
         });
         
         return { nodes, edges, height: CARD_HEIGHT };
@@ -1330,20 +1325,28 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
         const parentY = -(CARD_HEIGHT + 100);
         
         if (pIds.length === 2) {
+          // Använd allPeople för att få uppdaterad data med partners-relationer
+          const parent1FromAll = allPeople.find(p => p.id === pIds[0]);
+          const parent2FromAll = allPeople.find(p => p.id === pIds[1]);
           const parent1 = data.people[pIds[0]];
           const parent2 = data.people[pIds[1]];
           
-          // Kolla om de är partners
-          const arePartners = parent1 && parent2 && (
-            (parent1.relations?.partners || []).some(p => {
-              const partnerId = typeof p === 'object' ? p.id : p;
-              return partnerId === pIds[1];
-            }) ||
-            (parent2.relations?.partners || []).some(p => {
-              const partnerId = typeof p === 'object' ? p.id : p;
-              return partnerId === pIds[0];
-            })
+          // Kolla om de är partners (använd allPeople för uppdaterad data)
+          const parent1Partners = (parent1FromAll?.relations?.partners || []).map(p => typeof p === 'object' ? p.id : p);
+          const parent2Partners = (parent2FromAll?.relations?.partners || []).map(p => typeof p === 'object' ? p.id : p);
+          const arePartners = parent1FromAll && parent2FromAll && (
+            parent1Partners.includes(pIds[1]) || parent2Partners.includes(pIds[0])
           );
+          
+          console.log('[calculateLayout] Föräldrar:', {
+            parent1Id: pIds[0],
+            parent1Name: parent1FromAll?.firstName + ' ' + parent1FromAll?.lastName,
+            parent1Partners: parent1Partners,
+            parent2Id: pIds[1],
+            parent2Name: parent2FromAll?.firstName + ' ' + parent2FromAll?.lastName,
+            parent2Partners: parent2Partners,
+            arePartners: arePartners
+          });
           
           if (arePartners && parent1 && parent2) {
             // Placera föräldrar horisontellt bredvid varandra
@@ -1354,12 +1357,12 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
             nodes.push({ ...parent1, x: parent1X, y: parentY });
             nodes.push({ ...parent2, x: parent2X, y: parentY });
             
-            // Horisontell partner-linje
-            const partner1 = (parent1.relations?.partners || []).find(p => {
+            // Horisontell partner-linje (använd allPeople för att få partner-typ)
+            const partner1 = (parent1FromAll.relations?.partners || []).find(p => {
               const partnerId = typeof p === 'object' ? p.id : p;
               return partnerId === pIds[1];
             });
-            const partnerType = (typeof partner1 === 'object' && partner1.type) ? partner1.type : 'Gift';
+            const partnerType = (typeof partner1 === 'object' && partner1.type) ? partner1.type : 'Okänd';
             
             edges.push({
               from: { x: parent1X + (CARD_WIDTH/2) - 10, y: parentY },
@@ -1802,7 +1805,7 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
             <svg style={{ position: 'absolute', top: -50000, left: -50000, width: 100000, height: 100000, pointerEvents: 'none', zIndex: 0 }} viewBox="-50000 -50000 100000 100000">
                 {edges.map((edge, i) => (
                     <g key={i}>
-                        <path d={getPath(edge.from, edge.to, edge.type)} stroke="#475569" strokeWidth={3} fill="none" strokeLinecap="round" strokeLinejoin="round" strokeDasharray={(edge.styleType === 'divorced' || edge.styleType === 'Skild') ? '6,6' : '0'} />
+                        <path d={getPath(edge.from, edge.to, edge.type)} stroke="#475569" strokeWidth={3} fill="none" strokeLinecap="round" strokeLinejoin="round" strokeDasharray={(edge.type === 'partner-horizontal' || edge.type === 'partner-vertical' || edge.styleType === 'divorced' || edge.styleType === 'Skild') ? '6,6' : '0'} />
                         {edge.midPoint && (edge.type === 'straight-down' || edge.type === 'partner-horizontal' || edge.type === 'partner-vertical') && (() => {
                             // Bestäm ikon och färg baserat på partner-typ
                             let IconComponent;
