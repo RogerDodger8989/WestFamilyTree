@@ -25,10 +25,9 @@ import WindowFrame from './WindowFrame.jsx';
 import LinkPersonModal from './LinkPersonModal.jsx';
 import OAIArchiveHarvesterModal from './OAIArchiveHarvesterModal.jsx';
 import AuditMergesSettingsModal from './AuditMergesSettingsModal.jsx';
-import SettingsModal from './SettingsModal.jsx';
 import Button from './Button.jsx'; 
 import MediaImage from './components/MediaImage.jsx';
-import { User } from 'lucide-react'; 
+import { User, Settings } from 'lucide-react'; 
 
 // Helper: Build relations array from people array to keep dbData.relations in sync
 export function buildRelationsFromPeople(people = []) {
@@ -106,6 +105,107 @@ export function buildRelationsFromPeople(people = []) {
   
   return relations;
 }
+
+// Generell funktion: Säkerställ att alla föräldrar till samma barn är partners
+// Denna funktion uppdaterar ALLA berörda personer, inte bara den som sparas
+export const ensureParentsArePartners = (allPeople, personId) => {
+  let updatedPeople = allPeople.map(p => ({ ...p, relations: { ...p.relations } }));
+  
+  // Hitta alla barn som är relaterade till denna person
+  // 1. Barn som personen har i sin children-lista
+  const person = updatedPeople.find(p => p.id === personId);
+  if (!person || !person.relations) return updatedPeople;
+  
+  const childrenFromChildren = (person.relations.children || []).map(c => typeof c === 'object' ? c.id : c);
+  
+  // 2. Barn som har personen i sin parents-lista
+  const childrenFromParents = updatedPeople
+    .filter(p => {
+      const parents = (p.relations?.parents || []).map(par => typeof par === 'object' ? par.id : par);
+      return parents.includes(personId);
+    })
+    .map(p => p.id);
+  
+  const allChildren = [...new Set([...childrenFromChildren, ...childrenFromParents])];
+  
+  // För varje barn, hitta alla dess föräldrar och säkerställ att de är partners
+  allChildren.forEach(childId => {
+    const child = updatedPeople.find(p => p.id === childId);
+    if (!child) return;
+    
+    // Hämta alla föräldrar till barnet
+    const childParentsFromChild = (child.relations?.parents || [])
+      .map(p => typeof p === 'object' ? p.id : p)
+      .filter(Boolean);
+    
+    // Hitta andra personer som har detta barn i sin children-lista
+    const childParentsFromOthers = updatedPeople
+      .filter(p => p.relations?.children)
+      .filter(p => {
+        const pChildren = (p.relations.children || []).map(c => typeof c === 'object' ? c.id : c);
+        return pChildren.includes(childId);
+      })
+      .map(p => p.id);
+    
+    // Kombinera alla föräldrar
+    const allParents = [...new Set([...childParentsFromChild, ...childParentsFromOthers])]
+      .filter(Boolean);
+    
+    // Om barnet har fler än en förälder, säkerställ att alla är partners med varandra
+    if (allParents.length > 1) {
+      console.log(`[ensureParentsArePartners] Person ${person.firstName} ${person.lastName} har barn ${childId} med ${allParents.length} föräldrar:`, allParents);
+      // Uppdatera VARJE förälder så att de har de andra som partners
+      allParents.forEach(parentId => {
+        const parentIndex = updatedPeople.findIndex(p => p.id === parentId);
+        if (parentIndex === -1) return;
+        
+        const parent = updatedPeople[parentIndex];
+        if (!parent.relations) parent.relations = {};
+        if (!parent.relations.partners) parent.relations.partners = [];
+        
+        // Lägg till alla andra föräldrar som partners
+        allParents.forEach(otherParentId => {
+          if (otherParentId === parentId) return; // Skippa sig själv
+          
+          const otherParent = updatedPeople.find(p => p.id === otherParentId);
+          if (!otherParent) return;
+          
+          // Kolla om de redan är partners
+          const alreadyPartners = parent.relations.partners.some(p => 
+            (typeof p === 'object' ? p.id : p) === otherParentId
+          );
+          
+          if (!alreadyPartners) {
+            console.log(`[ensureParentsArePartners] Lägger till ${otherParent.firstName} ${otherParent.lastName} som partner till ${parent.firstName} ${parent.lastName}`);
+            parent.relations.partners.push({ 
+              id: otherParentId, 
+              name: `${otherParent.firstName || ''} ${otherParent.lastName || ''}`.trim(),
+              type: 'Okänd'
+            });
+          }
+        });
+        
+        updatedPeople[parentIndex] = parent;
+      });
+    }
+  });
+  
+  return updatedPeople;
+};
+
+// Kör ensureParentsArePartners för ALLA personer för att säkerställa att alla relationer är korrekta
+export const ensureAllRelations = (allPeople) => {
+  let updatedPeople = allPeople.map(p => ({ ...p, relations: { ...p.relations } }));
+  
+  // Kör ensureParentsArePartners för varje person
+  updatedPeople.forEach(person => {
+    if (person && person.id) {
+      updatedPeople = ensureParentsArePartners(updatedPeople, person.id);
+    }
+  });
+  
+  return updatedPeople;
+};
 
 function App() {
     // Reset all UI state after new database
@@ -205,6 +305,7 @@ function App() {
   const [showArchived, setShowArchived] = useState(false);
   const [auditBackupDir, setAuditBackupDirState] = useState((dbData?.meta && dbData.meta.auditBackupDir) || '');
   const [newPersonToEditId, setNewPersonToEditId] = useState(null);
+  const [personToCenter, setPersonToCenter] = useState(null);
   const [isOAIHarvesterOpen, setIsOAIHarvesterOpen] = useState(false);
   
   // Collapse/Expand för EditPersonModal (alltid synlig i familyTree-vyn)
@@ -295,11 +396,18 @@ function App() {
     if (newPersonToEditId && dbData?.people) {
       const newPerson = dbData.people.find(p => p.id === newPersonToEditId);
       if (newPerson) {
-        handleOpenEditModal(newPerson);
+        // Säkerställ att vi är i familyTree-vyn
+        if (activeTab !== 'familyTree') {
+          handleTabChange('familyTree');
+        }
+        // Expandera modalen alltid när en ny person skapas
+        setIsEditModalCollapsed(false);
+        // Öppna modalen för den nya personen
+        handleOpenEditModal(newPerson.id);
         setNewPersonToEditId(null);
       }
     }
-  }, [newPersonToEditId, dbData?.people, handleOpenEditModal]);
+  }, [newPersonToEditId, dbData?.people, handleOpenEditModal, activeTab, handleTabChange]);
 
   // Ytterligare hooks som måste vara före conditional return
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, targetPersonId: null });
@@ -639,92 +747,6 @@ function App() {
     showStatus('Person sparad.');
   };
 
-
-  // Generell funktion: Säkerställ att alla föräldrar till samma barn är partners
-  // Denna funktion uppdaterar ALLA berörda personer, inte bara den som sparas
-  const ensureParentsArePartners = (allPeople, personId) => {
-    let updatedPeople = allPeople.map(p => ({ ...p, relations: { ...p.relations } }));
-    
-    // Hitta alla barn som är relaterade till denna person
-    // 1. Barn som personen har i sin children-lista
-    const person = updatedPeople.find(p => p.id === personId);
-    if (!person || !person.relations) return updatedPeople;
-    
-    const childrenFromChildren = (person.relations.children || []).map(c => typeof c === 'object' ? c.id : c);
-    
-    // 2. Barn som har personen i sin parents-lista
-    const childrenFromParents = updatedPeople
-      .filter(p => {
-        const parents = (p.relations?.parents || []).map(par => typeof par === 'object' ? par.id : par);
-        return parents.includes(personId);
-      })
-      .map(p => p.id);
-    
-    const allChildren = [...new Set([...childrenFromChildren, ...childrenFromParents])];
-    
-    // För varje barn, hitta alla dess föräldrar och säkerställ att de är partners
-    allChildren.forEach(childId => {
-      const child = updatedPeople.find(p => p.id === childId);
-      if (!child) return;
-      
-      // Hämta alla föräldrar till barnet
-      const childParentsFromChild = (child.relations?.parents || [])
-        .map(p => typeof p === 'object' ? p.id : p)
-        .filter(Boolean);
-      
-      // Hitta andra personer som har detta barn i sin children-lista
-      const childParentsFromOthers = updatedPeople
-        .filter(p => p.relations?.children)
-        .filter(p => {
-          const pChildren = (p.relations.children || []).map(c => typeof c === 'object' ? c.id : c);
-          return pChildren.includes(childId);
-        })
-        .map(p => p.id);
-      
-      // Kombinera alla föräldrar
-      const allParents = [...new Set([...childParentsFromChild, ...childParentsFromOthers])]
-        .filter(Boolean);
-      
-      // Om barnet har fler än en förälder, säkerställ att alla är partners med varandra
-      if (allParents.length > 1) {
-        // Uppdatera VARJE förälder så att de har de andra som partners
-        allParents.forEach(parentId => {
-          const parentIndex = updatedPeople.findIndex(p => p.id === parentId);
-          if (parentIndex === -1) return;
-          
-          const parent = updatedPeople[parentIndex];
-          if (!parent.relations) parent.relations = {};
-          if (!parent.relations.partners) parent.relations.partners = [];
-          
-          // Lägg till alla andra föräldrar som partners
-          allParents.forEach(otherParentId => {
-            if (otherParentId === parentId) return; // Skippa sig själv
-            
-            const otherParent = updatedPeople.find(p => p.id === otherParentId);
-            if (!otherParent) return;
-            
-            // Kolla om de redan är partners
-            const alreadyPartners = parent.relations.partners.some(p => 
-              (typeof p === 'object' ? p.id : p) === otherParentId
-            );
-            
-            if (!alreadyPartners) {
-              parent.relations.partners.push({ 
-                id: otherParentId, 
-                name: `${otherParent.firstName || ''} ${otherParent.lastName || ''}`.trim(),
-                type: 'Okänd'
-              });
-            }
-          });
-          
-          updatedPeople[parentIndex] = parent;
-        });
-      }
-    });
-    
-    return updatedPeople;
-  };
-
   const patchedHandleSavePersonDetails = (person) => {
     console.log('[App.jsx] patchedHandleSavePersonDetails anropad, person.media:', person.media);
     
@@ -901,7 +923,14 @@ function App() {
       return { ...prev, people: unique };
     });
     setIsDirty(true); hideContextMenu();
+    
+    // Byt till familyTree-vyn om vi inte redan är där
+    if (activeTab !== 'familyTree') {
+      handleTabChange('familyTree');
+    }
+    
     setNewPersonToEditId(newPerson.id); // <-- Trigga useEffect för att öppna modal
+    setPersonToCenter(newPerson.id); // Centrera den nya personen i trädvyn
     setFamilyTreeFocusPersonId(targetId); // Behåll fokus på den URSPRUNGLIGA personen
     return newPerson.id; // Returnera ID för det nya barnet
   };
@@ -1020,21 +1049,51 @@ function App() {
       </div>
       
       {/* SETTINGS MODAL */}
-      {/* Settings Modal */}
-      <SettingsModal
-        isOpen={showSettings}
-        onClose={() => {
-          setShowSettings(false);
-        }}
-        auditBackupDir={auditBackupDir}
-        setAuditBackupDirState={setAuditBackupDirState}
-        setAuditBackupDir={setAuditBackupDir}
-        chooseAuditBackupDir={chooseAuditBackupDir}
-        handleExportZip={handleExportZip}
-        handleImportZip={handleImportZip}
-        showStatus={showStatus}
-        setShowAuditMergesSettings={setShowAuditMergesSettings}
-      />
+      {showSettings && (
+        <WindowFrame
+          windowId="settings"
+          title="Inställningar"
+          icon={Settings}
+          initialWidth={800}
+          initialHeight={600}
+          onClose={() => {
+            setAuditBackupDir(auditBackupDir);
+            setShowSettings(false);
+            showStatus('Inställningar sparade.');
+          }}
+          zIndex={10000}
+        >
+          <div className="p-6 overflow-y-auto custom-scrollbar h-full">
+            <div className="text-slate-400 mb-4">
+              <div className="mb-2">Audit-backup-mapp (valfritt):</div>
+              <div className="flex items-center gap-2">
+                <input 
+                  type="text" 
+                  value={auditBackupDir} 
+                  onChange={(e) => setAuditBackupDirState(e.target.value)} 
+                  placeholder="Sökväg till mapp eller lämna tomt för standard" 
+                  className="flex-1 border rounded px-2 py-1 bg-slate-800 text-slate-200" 
+                />
+                <Button onClick={chooseAuditBackupDir} variant="secondary" size="sm">Välj...</Button>
+                <Button onClick={() => setAuditBackupDirState('')} variant="danger" size="sm">Rensa</Button>
+              </div>
+            </div>
+            <div className="flex flex-col gap-2 mt-8">
+              <div className="flex gap-2 justify-end">
+                <Button onClick={handleExportZip} variant="primary" size="sm">Exportera allt som zip</Button>
+                <Button onClick={handleImportZip} variant="secondary" size="sm">Importera zip-backup</Button>
+                <Button onClick={() => setShowRelationSettings(true)} variant="secondary" size="sm">Relationsinställningar</Button>
+                <Button onClick={() => { setShowSettings(false); setShowAuditMergesSettings(true); }} variant="secondary" size="sm">Audit & Merges</Button>
+              </div>
+              {showRelationSettings && (
+                <div className="mt-4 p-4 border border-slate-700 rounded bg-slate-900">
+                  <RelationSettings inline={true} onClose={() => setShowRelationSettings(false)} />
+                </div>
+              )}
+            </div>
+          </div>
+        </WindowFrame>
+      )}
       
       {/* OTHER MODALS */}
       {isMergeModalOpen && <MergeModal isOpen={isMergeModalOpen} onClose={(mergeId) => { setIsMergeModalOpen(false); if (mergeId) showStatus(`Merge klart (${mergeId})`); }} />}
@@ -1276,7 +1335,9 @@ function App() {
               onCreatePersonAndLink={createPersonAndLink} 
               onAddParentToChildAndSetPartners={addParentToChildAndSetPartners}
               onOpenContextMenu={showContextMenu} 
-              onDeletePerson={handleDeletePerson} 
+              onDeletePerson={handleDeletePerson}
+              personToCenter={personToCenter}
+              onPersonCentered={() => setPersonToCenter(null)} 
               highlightPlaceholderId={personDrawerEditContext?.id || (personDrawer && personDrawer._isPlaceholder ? personDrawer.id : null)} 
               onRequestOpenDuplicateMerge={() => setShowDuplicateMerge(true)}
               getPersonRelations={getPersonRelations}
@@ -1427,6 +1488,8 @@ function App() {
                       onAddParentToChildAndSetPartners={addParentToChildAndSetPartners}
                       onOpenContextMenu={showContextMenu}
                       onDeletePerson={handleDeletePerson}
+                      personToCenter={personToCenter}
+                      onPersonCentered={() => setPersonToCenter(null)}
                       highlightPlaceholderId={personDrawerEditContext?.id || (personDrawer && personDrawer._isPlaceholder ? personDrawer.id : null)}
                       onRequestOpenDuplicateMerge={() => setShowDuplicateMerge(true)}
                       getPersonRelations={getPersonRelations}

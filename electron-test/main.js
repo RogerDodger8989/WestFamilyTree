@@ -471,9 +471,12 @@ ipcMain.handle('save-database', async (event, fileHandle, data) => {
     // Spara audit och merges till separata filer
     if (auditArray && Array.isArray(auditArray)) {
       try {
-        const auditResult = await ipcMain.emit('save-audit-log', dbPath, auditArray);
-        // Använd invoke istället - vi är redan i main process, anropa direkt
+        // Vi är redan i main process, anropa direkt
         const fs = require('fs').promises;
+        if (!dbPath || typeof dbPath !== 'string') {
+          console.error('[save-database] ❌ dbPath är inte en giltig sträng:', dbPath);
+          throw new Error('dbPath måste vara en sträng');
+        }
         const auditFilePath = dbPath.replace(/\.db$/, '_audit.json');
         const MAX_AUDIT_ENTRIES = 10000;
         const trimmedAudit = auditArray.length > MAX_AUDIT_ENTRIES 
@@ -488,6 +491,10 @@ ipcMain.handle('save-database', async (event, fileHandle, data) => {
     if (mergesArray && Array.isArray(mergesArray)) {
       try {
         const fs = require('fs').promises;
+        if (!dbPath || typeof dbPath !== 'string') {
+          console.error('[save-database] ❌ dbPath är inte en giltig sträng för merges:', dbPath);
+          throw new Error('dbPath måste vara en sträng');
+        }
         const mergesFilePath = dbPath.replace(/\.db$/, '_merges.json');
         const MAX_MERGE_ENTRIES = 1000;
         const trimmedMerges = mergesArray.length > MAX_MERGE_ENTRIES 

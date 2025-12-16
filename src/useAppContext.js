@@ -3,7 +3,7 @@ import { createNewDatabase, openFile, saveFile, saveFileAs, openDatabaseDialog, 
 import { parseSourceString, generateImagePath, buildSourceString } from './parsing.js';
 import { simulateMerge } from './mergeUtils.js';
 import { remapAndDedupeRelations, transferEventsAndLinks } from './mergeHelpers.js';
-import { buildRelationsFromPeople } from './App.jsx';
+import { buildRelationsFromPeople, ensureAllRelations } from './App.jsx';
 
 export default function useAppContext() {
     // ...state hooks och refs deklareras här...
@@ -123,13 +123,68 @@ export default function useAppContext() {
                             } : null
                         });
                         
+                        // Säkerställ att alla personer har en partners-array i relations
+                        let processedPeople = (result.people || []).map(person => {
+                            if (!person.relations) {
+                                person.relations = {};
+                            }
+                            if (!person.relations.partners) {
+                                person.relations.partners = [];
+                            }
+                            // Om spouseId finns men inte i partners-arrayen, lägg till den
+                            if (person.relations.spouseId && !person.relations.partners.some(p => {
+                                const partnerId = typeof p === 'object' ? p.id : p;
+                                return partnerId === person.relations.spouseId;
+                            })) {
+                                // Hitta partnern för att få namn
+                                const spouse = (result.people || []).find(p => p.id === person.relations.spouseId);
+                                if (spouse) {
+                                    person.relations.partners.push({
+                                        id: person.relations.spouseId,
+                                        name: `${spouse.firstName || ''} ${spouse.lastName || ''}`.trim(),
+                                        type: 'Gift' // Standardtyp
+                                    });
+                                }
+                            }
+                            return person;
+                        });
+                        
+                        // Kör ensureAllRelations för att säkerställa att alla relationer (inklusive partners) är korrekta
+                        console.log('[useAppContext] Kör ensureAllRelations, antal personer:', processedPeople.length);
+                        const beforeRelations = JSON.stringify(processedPeople.map(p => ({ id: p.id, partners: p.relations?.partners || [] })));
+                        processedPeople = ensureAllRelations(processedPeople);
+                        const afterRelations = JSON.stringify(processedPeople.map(p => ({ id: p.id, partners: p.relations?.partners || [] })));
+                        console.log('[useAppContext] Efter ensureAllRelations, kontrollerar partners...');
+                        processedPeople.forEach(p => {
+                            if (p.relations?.partners && p.relations.partners.length > 0) {
+                                console.log(`[useAppContext] Person ${p.firstName} ${p.lastName} har ${p.relations.partners.length} partners:`, p.relations.partners);
+                            }
+                        });
+                        
                         // Vid första laddningen, använd setDbDataRaw direkt för att undvika att trigga isDirty
                         setDbDataRaw({ 
                             ...result, 
+                            people: processedPeople,
                             meta: result.meta || {},
                             media: parsedMedia // Använd parsade media med korrekt connections-format
                         });
                         isInitialLoadRef.current = true; // Markera som initial load
+                        
+                        // Om ensureAllRelations gjorde ändringar, sätt isDirty så att de sparas
+                        const hasChanges = beforeRelations !== afterRelations;
+                        console.log('[useAppContext] Jämför relations före/efter:', {
+                            beforeLength: beforeRelations.length,
+                            afterLength: afterRelations.length,
+                            hasChanges,
+                            beforeSample: beforeRelations.substring(0, 200),
+                            afterSample: afterRelations.substring(0, 200)
+                        });
+                        if (hasChanges) {
+                            console.log('[useAppContext] ensureAllRelations gjorde ändringar, sätter isDirty=true för att spara');
+                            setIsDirty(true);
+                        } else {
+                            console.log('[useAppContext] ensureAllRelations gjorde INGA ändringar (partners finns redan i databasen)');
+                        }
                         setFileHandle({ name: lastFile.split(/[\\/]/).pop(), path: lastFile });
                         return;
                     }
@@ -530,12 +585,58 @@ export default function useAppContext() {
         if (!filePath) return;
         const result = await openFile(filePath);
         if (result) {
+            // Säkerställ att alla personer har en partners-array i relations
+            let processedPeople = (result.people || []).map(person => {
+                if (!person.relations) {
+                    person.relations = {};
+                }
+                if (!person.relations.partners) {
+                    person.relations.partners = [];
+                }
+                // Om spouseId finns men inte i partners-arrayen, lägg till den
+                if (person.relations.spouseId && !person.relations.partners.some(p => {
+                    const partnerId = typeof p === 'object' ? p.id : p;
+                    return partnerId === person.relations.spouseId;
+                })) {
+                    // Hitta partnern för att få namn
+                    const spouse = (result.people || []).find(p => p.id === person.relations.spouseId);
+                    if (spouse) {
+                        person.relations.partners.push({
+                            id: person.relations.spouseId,
+                            name: `${spouse.firstName || ''} ${spouse.lastName || ''}`.trim(),
+                            type: 'Gift' // Standardtyp
+                        });
+                    }
+                }
+                return person;
+            });
+            
+            // Kör ensureAllRelations för att säkerställa att alla relationer (inklusive partners) är korrekta
+            console.log('[useAppContext] handleOpenFile: Kör ensureAllRelations, antal personer:', processedPeople.length);
+            const beforeRelations = JSON.stringify(processedPeople.map(p => ({ id: p.id, partners: p.relations?.partners || [] })));
+            processedPeople = ensureAllRelations(processedPeople);
+            const afterRelations = JSON.stringify(processedPeople.map(p => ({ id: p.id, partners: p.relations?.partners || [] })));
+            console.log('[useAppContext] handleOpenFile: Efter ensureAllRelations, kontrollerar partners...');
+            processedPeople.forEach(p => {
+                if (p.relations?.partners && p.relations.partners.length > 0) {
+                    console.log(`[useAppContext] handleOpenFile: Person ${p.firstName} ${p.lastName} har ${p.relations.partners.length} partners:`, p.relations.partners);
+                }
+            });
+            
             setDbDataRaw(result.people ? { 
                 ...result, 
+                people: processedPeople,
                 meta: result.meta || {},
                 media: result.media || [] // Lägg till media från filsystemet
             } : result.data);
             isInitialLoadRef.current = true; // Markera som initial load
+            
+            // Om ensureAllRelations gjorde ändringar, sätt isDirty så att de sparas
+            if (beforeRelations !== afterRelations) {
+                console.log('[useAppContext] handleOpenFile: ensureAllRelations gjorde ändringar, sätter isDirty=true för att spara');
+                setIsDirty(true);
+            }
+            
             setBookmarksRaw(result.meta?.bookmarks || []);
             setFocusPairRaw(result.meta?.focusPair || { primary: null, secondary: null });
             setFamilyTreeFocusPersonIdRaw(result.meta?.familyTreeFocusPersonId || null);

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Trash2, Download, AlertTriangle, Settings } from 'lucide-react';
+import { X, Trash2, Download, AlertTriangle, ArrowLeft, Settings } from 'lucide-react';
 import Button from './Button.jsx';
-import WindowFrame from './WindowFrame.jsx';
 import { useApp } from './AppContext';
 import { getLogFileSize, saveAuditLog, saveMergesLog, loadAuditLog, loadMergesLog } from './database.js';
+import WindowFrame from './WindowFrame.jsx';
 
 export default function AuditMergesSettingsModal({ isOpen, onClose, onBack }) {
     const { dbData, fileHandle, cleanupAuditLog, cleanupMergeLog, showStatus } = useApp();
@@ -12,28 +12,8 @@ export default function AuditMergesSettingsModal({ isOpen, onClose, onBack }) {
     const [auditCount, setAuditCount] = useState(0);
     const [mergesCount, setMergesCount] = useState(0);
     const [loading, setLoading] = useState(false);
-    
-    // Ladda sparade värden från localStorage
-    const getInitialKeepAuditLast = () => {
-        try {
-            const saved = localStorage.getItem('auditKeepLast');
-            return saved ? parseInt(saved) : 1000;
-        } catch {
-            return 1000;
-        }
-    };
-    
-    const getInitialKeepMergesLast = () => {
-        try {
-            const saved = localStorage.getItem('mergesKeepLast');
-            return saved ? parseInt(saved) : 500;
-        } catch {
-            return 500;
-        }
-    };
-    
-    const [keepAuditLast, setKeepAuditLast] = useState(getInitialKeepAuditLast);
-    const [keepMergesLast, setKeepMergesLast] = useState(getInitialKeepMergesLast);
+    const [keepAuditLast, setKeepAuditLast] = useState(1000);
+    const [keepMergesLast, setKeepMergesLast] = useState(500);
 
     useEffect(() => {
         if (isOpen && fileHandle?.path) {
@@ -148,23 +128,24 @@ export default function AuditMergesSettingsModal({ isOpen, onClose, onBack }) {
         }
     };
 
-    if (!isOpen) return null;
-
     const handleBack = () => {
-        // Spara ändringar när man går tillbaka
-        try {
-            localStorage.setItem('auditKeepLast', keepAuditLast.toString());
-            localStorage.setItem('mergesKeepLast', keepMergesLast.toString());
-        } catch (err) {
-            console.error('Kunde inte spara inställningar:', err);
+        // Spara inställningarna (keepAuditLast, keepMergesLast) till localStorage
+        if (fileHandle?.path) {
+            const settingsKey = `auditMergesSettings_${fileHandle.path}`;
+            localStorage.setItem(settingsKey, JSON.stringify({
+                keepAuditLast,
+                keepMergesLast
+            }));
         }
-        
+        showStatus('Inställningar sparade.');
         if (onBack) {
             onBack();
-        } else if (onClose) {
+        } else {
             onClose();
         }
     };
+
+    if (!isOpen) return null;
 
     return (
         <WindowFrame
@@ -176,10 +157,7 @@ export default function AuditMergesSettingsModal({ isOpen, onClose, onBack }) {
             onClose={handleBack}
             zIndex={10001}
         >
-            <div className="p-6 h-full overflow-y-auto custom-scrollbar bg-slate-900">
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-xl font-bold text-slate-200">Audit & Merges Inställningar</h2>
-                </div>
+            <div className="p-6 overflow-y-auto custom-scrollbar h-full">
 
                 <div className="space-y-6">
                     {/* Audit Log */}

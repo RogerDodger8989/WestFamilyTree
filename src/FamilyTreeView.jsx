@@ -48,14 +48,44 @@ const getLifeSpan = (p) => {
     return `(${b}-${d})`;
 };
 
+// Ortogonala linjer (90-graders svängar) för horisontell layout
 const getPath = (source, target, type) => {
   const { x: sx, y: sy } = source;
   const { x: tx, y: ty } = target;
-  if (type === 'child-fork') {
-    const radius = 25;
-    return `M ${sx} ${sy} L ${sx} ${ty - radius} Q ${sx} ${ty} ${sx + radius} ${ty} L ${tx} ${ty}`;
+  
+  // Ortogonal linje: horisontell först, sedan vertikal (eller tvärtom)
+  if (type === 'orthogonal-horizontal-first') {
+    // Gå horisontellt först, sedan vertikalt
+    const midX = (sx + tx) / 2;
+    return `M ${sx} ${sy} L ${midX} ${sy} L ${midX} ${ty} L ${tx} ${ty}`;
   }
-  if (type === 'parent') return `M ${sx} ${sy} C ${sx} ${sy - 80}, ${tx} ${ty + 80}, ${tx} ${ty}`;
+  
+  if (type === 'orthogonal-vertical-first') {
+    // Gå vertikalt först, sedan horisontellt
+    const midY = (sy + ty) / 2;
+    return `M ${sx} ${sy} L ${sx} ${midY} L ${tx} ${midY} L ${tx} ${ty}`;
+  }
+  
+  // Gaffel-struktur: från barn, horisontellt ut, sedan vertikalt upp till föräldrar
+  if (type === 'child-fork') {
+    // Barnet är på (sx, sy), föräldrarna är på (tx, ty)
+    // Gå horisontellt ut från barnet, sedan vertikalt upp till föräldrarnas nivå, sedan horisontellt till föräldrarna
+    const horizontalOffset = 50; // Avstånd horisontellt från barnet
+    const parentY = ty; // Föräldrarnas Y-position
+    return `M ${sx} ${sy} L ${sx + horizontalOffset} ${sy} L ${sx + horizontalOffset} ${parentY} L ${tx} ${parentY}`;
+  }
+  
+  // Partner-linje (horisontell)
+  if (type === 'partner-horizontal') {
+    return `M ${sx} ${sy} L ${tx} ${ty}`;
+  }
+  
+  // Partner-linje (vertikal)
+  if (type === 'partner-vertical') {
+    return `M ${sx} ${sy} L ${tx} ${ty}`;
+  }
+  
+  // Fallback: rak linje
   return `M ${sx} ${sy} L ${tx} ${ty}`;
 };
 
@@ -474,7 +504,7 @@ const PartnerSelectModal = ({ partners, onSelect, onClose, people }) => {
 
 
 // --- MAIN APP ---
-export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFocus, onOpenEditModal, onCreatePersonAndLink, onAddParentToChildAndSetPartners, onDeletePerson, getPersonRelations }) {
+export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFocus, onOpenEditModal, onCreatePersonAndLink, onAddParentToChildAndSetPartners, onDeletePerson, getPersonRelations, personToCenter, onPersonCentered }) {
     const app = useApp();
     // Konvertera data till visningsformat
     const displayPeople = allPeople.map(convertPersonForDisplay).filter(Boolean);
@@ -589,8 +619,11 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
         // Partners (ingifta)
         const partners = [];
         
+        console.log('[buildRelationships] Focus person:', focusPersonId, 'dbPerson.relations:', dbPerson.relations);
+        
         // Kolla först efter partners-arrayen (från EditPersonModal)
         if (dbPerson.relations?.partners && Array.isArray(dbPerson.relations.partners)) {
+            console.log('[buildRelationships] Found partners array:', dbPerson.relations.partners.length, dbPerson.relations.partners);
             dbPerson.relations.partners.forEach(partnerRef => {
                 const partnerId = typeof partnerRef === 'object' ? partnerRef.id : partnerRef;
                 if (!partnerId) return;
@@ -623,6 +656,7 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
         }
         
         // Fallback: kolla även efter spouseId (för bakåtkompatibilitet)
+        console.log('[buildRelationships] Checking spouseId:', dbPerson.relations?.spouseId, 'current partners:', partners.length);
         if (dbPerson.relations?.spouseId && !partners.some(p => p.id === dbPerson.relations.spouseId)) {
             const spouse = allPeople.find(p => p.id === dbPerson.relations.spouseId);
             if (spouse) {
@@ -714,10 +748,54 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
         });
 
         // Barn
-        const children = allPeople.filter(child => {
+        // DEBUG: Kolla alla personer i allPeople för att se om någon har Jimmy som förälder
+        console.log('[buildRelationships] DEBUG: All people count:', allPeople.length);
+        console.log('[buildRelationships] DEBUG: Focus person ID:', focusPersonId);
+        console.log('[buildRelationships] DEBUG: Checking all people for children...');
+        console.log('[buildRelationships] DEBUG: All people and their relations:');
+        allPeople.forEach(person => {
+            const personParents = (person.relations?.parents || []).map(p => typeof p === 'object' ? p.id : p);
+            const personChildren = (person.relations?.children || []).map(c => typeof c === 'object' ? c.id : c);
+            console.log(`[buildRelationships] DEBUG: Person ${person.id} (${person.firstName} ${person.lastName}): parents=`, personParents, 'children=', personChildren);
+            if (personParents.includes(focusPersonId)) {
+                console.log(`[buildRelationships] DEBUG: ✅ Found child: ${person.id} (${person.firstName} ${person.lastName}) with parents:`, personParents);
+            }
+        });
+        
+        // Metod 1: Kolla om barnet har fokus-personen i sin parents-lista
+        const childrenFromParents = allPeople.filter(child => {
             const childParents = (child.relations?.parents || []).map(p => typeof p === 'object' ? p.id : p);
             return childParents.includes(focusPersonId);
         }).map(c => c.id);
+        
+        // Metod 2 (fallback): Kolla om fokus-personen har barnet i sin children-lista
+        const focusPersonChildren = (dbPerson.relations?.children || []).map(c => typeof c === 'object' ? c.id : c);
+        
+        // Metod 3: Kolla om partnern har barnet i sin children-lista (som fallback)
+        const childrenFromPartners = [];
+        if (dbPerson.relations?.partners && Array.isArray(dbPerson.relations.partners)) {
+            dbPerson.relations.partners.forEach(partnerRef => {
+                const partnerId = typeof partnerRef === 'object' ? partnerRef.id : partnerRef;
+                if (!partnerId) return;
+                const partner = allPeople.find(p => p.id === partnerId);
+                if (partner && partner.relations?.children) {
+                    const partnerChildren = (partner.relations.children || []).map(c => typeof c === 'object' ? c.id : c);
+                    partnerChildren.forEach(childId => {
+                        if (!childrenFromPartners.includes(childId)) {
+                            childrenFromPartners.push(childId);
+                        }
+                    });
+                }
+            });
+        }
+        
+        // Kombinera alla metoder (ta bort dubbletter)
+        const children = [...new Set([...childrenFromParents, ...focusPersonChildren, ...childrenFromPartners])];
+        
+        console.log('[buildRelationships] Focus person children from parents array:', childrenFromParents);
+        console.log('[buildRelationships] Focus person children from children array:', focusPersonChildren);
+        console.log('[buildRelationships] Focus person children from partners children array:', childrenFromPartners);
+        console.log('[buildRelationships] Combined children:', children);
 
         // Barnbarn
         let grandchildren = [];
@@ -729,14 +807,14 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
             }
         });
         grandchildren = [...new Set(grandchildren)];
-        
+
         // Alla ättlingar (rekursivt)
         const allDescendants = getDescendants(focusPersonId, 0, generationsDown);
         
         // Ytterligare generationer nedåt (om generations > 2)
         const additionalDescendants = allDescendants.filter(did => !children.includes(did) && !grandchildren.includes(did));
 
-        return { 
+        const result = { 
             focusPerson: focusPersonId, 
             parents, 
             grandparents, 
@@ -747,6 +825,9 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
             ancestors: additionalAncestors || [],
             descendants: additionalDescendants || []
         };
+        
+        console.log('[buildRelationships] Final partners count:', result.partners.length, result.partners);
+        return result;
     };
 
     const relationships = buildRelationships();
@@ -975,34 +1056,329 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
   };
 
   // --- LAYOUT & RENDER LOGIK ---
+  // Hjälpfunktion: Beräkna höjden på ett sub-träd rekursivt
+  const calculateSubtreeHeight = (personId, direction, maxDepth, currentDepth = 0, visited = new Set()) => {
+    if (currentDepth >= maxDepth || visited.has(personId)) return CARD_HEIGHT;
+    visited.add(personId);
+    
+    const person = data.people[personId];
+    if (!person) return CARD_HEIGHT;
+    
+    let maxChildHeight = 0;
+    
+    if (direction === 'ancestors') {
+      // Förfäder: kolla föräldrar
+      const parents = (person.relations?.parents || []).map(p => typeof p === 'object' ? p.id : p).filter(Boolean);
+      if (parents.length > 0) {
+        parents.forEach(pid => {
+          const height = calculateSubtreeHeight(pid, direction, maxDepth, currentDepth + 1, new Set(visited));
+          maxChildHeight = Math.max(maxChildHeight, height);
+        });
+      }
+    } else if (direction === 'descendants') {
+      // Ättlingar: kolla barn
+      const children = (person.relations?.children || []).map(c => typeof c === 'object' ? c.id : c).filter(Boolean);
+      if (children.length > 0) {
+        children.forEach(cid => {
+          const height = calculateSubtreeHeight(cid, direction, maxDepth, currentDepth + 1, new Set(visited));
+          maxChildHeight = Math.max(maxChildHeight, height);
+        });
+      }
+    }
+    
+    return CARD_HEIGHT + maxChildHeight + (maxChildHeight > 0 ? GAP_Y : 0);
+  };
+
+  // Hjälpfunktion: Placera en person och dess förfäder rekursivt
+  const placeAncestors = (personId, generationX, startY, maxDepth, currentDepth = 0, visited = new Set()) => {
+    if (currentDepth >= maxDepth || visited.has(personId)) return { nodes: [], edges: [], height: CARD_HEIGHT };
+    visited.add(personId);
+    
+    const person = data.people[personId];
+    if (!person) return { nodes: [], edges: [], height: CARD_HEIGHT };
+    
+        const nodes = [];
+        const edges = [];
+    let currentY = startY;
+    
+    // Hämta föräldrar
+    const parentIds = (person.relations?.parents || []).map(p => typeof p === 'object' ? p.id : p).filter(Boolean);
+    
+    if (parentIds.length === 0 && currentDepth < maxDepth) {
+      // Ghost node för saknad förälder
+      const ghostId = `ghost_${personId}_parent`;
+      nodes.push({
+        id: ghostId,
+        firstName: 'Lägg till förälder',
+        lastName: '',
+        isGhostParent: true,
+        x: generationX,
+        y: currentY
+      });
+      // Linje från ghost node till person
+      edges.push({
+        from: { x: generationX, y: currentY + (CARD_HEIGHT/2) },
+        to: { x: generationX - (CARD_WIDTH + 100), y: currentY + (CARD_HEIGHT/2) },
+        type: 'orthogonal-horizontal-first'
+      });
+      return { nodes, edges, height: CARD_HEIGHT };
+    }
+    
+    // Om det finns exakt 2 föräldrar som är partners, placera dem horisontellt
+    if (parentIds.length === 2) {
+      const parent1 = data.people[parentIds[0]];
+      const parent2 = data.people[parentIds[1]];
+      
+      const arePartners = parent1 && parent2 && (
+        (parent1.relations?.partners || []).some(p => {
+          const partnerId = typeof p === 'object' ? p.id : p;
+          return partnerId === parentIds[1];
+        }) ||
+        (parent2.relations?.partners || []).some(p => {
+          const partnerId = typeof p === 'object' ? p.id : p;
+          return partnerId === parentIds[0];
+        })
+      );
+      
+      if (arePartners && parent1 && parent2) {
+        // Placera föräldrar horisontellt på samma Y-nivå
+        const partnerGap = 500;
+        const parent1X = generationX;
+        const parent2X = generationX;
+        const parentY = currentY;
+        
+        nodes.push({ ...parent1, x: parent1X, y: parentY });
+        nodes.push({ ...parent2, x: parent2X, y: parentY });
+        
+        // Horisontell partner-linje
+        const partner1 = (parent1.relations?.partners || []).find(p => {
+          const partnerId = typeof p === 'object' ? p.id : p;
+          return partnerId === parentIds[1];
+        });
+        const partnerType = (typeof partner1 === 'object' && partner1.type) ? partner1.type : 'Gift';
+        
+        edges.push({
+          from: { x: parent1X - (CARD_WIDTH/2) + 10, y: parentY },
+          to: { x: parent2X + (CARD_WIDTH/2) - 10, y: parentY },
+          type: 'partner-horizontal',
+          midPoint: { x: generationX, y: parentY },
+          styleType: partnerType,
+          person1Id: parentIds[0],
+          person2Id: parentIds[1]
+        });
+        
+        // Ortogonal linje från mitten av partner-linjen till person
+        edges.push({
+          from: { x: generationX, y: parentY + (CARD_HEIGHT/2) },
+          to: { x: generationX - (CARD_WIDTH + 100), y: parentY + (CARD_HEIGHT/2) },
+          type: 'orthogonal-horizontal-first'
+        });
+        edges.push({
+          from: { x: generationX - (CARD_WIDTH + 100), y: parentY + (CARD_HEIGHT/2) },
+          to: { x: generationX - (CARD_WIDTH + 100), y: currentY + (CARD_HEIGHT/2) },
+          type: 'orthogonal-vertical-first'
+        });
+        
+        return { nodes, edges, height: CARD_HEIGHT };
+      }
+    }
+    
+    // Om de inte är partners eller det är fler än 2, placera dem vertikalt
+    parentIds.forEach((pid, index) => {
+                const parent = data.people[pid];
+      if (!parent) return;
+      
+      const parentY = currentY + (index * (CARD_HEIGHT + GAP_Y));
+      nodes.push({ ...parent, x: generationX, y: parentY });
+      
+      // Ortogonal linje från förälder till person
+      edges.push({
+        from: { x: generationX, y: parentY + (CARD_HEIGHT/2) },
+        to: { x: generationX - (CARD_WIDTH + 100), y: parentY + (CARD_HEIGHT/2) },
+        type: 'orthogonal-horizontal-first'
+      });
+      edges.push({
+        from: { x: generationX - (CARD_WIDTH + 100), y: parentY + (CARD_HEIGHT/2) },
+        to: { x: generationX - (CARD_WIDTH + 100), y: currentY + (CARD_HEIGHT/2) },
+        type: 'orthogonal-vertical-first'
+      });
+    });
+    
+    return { nodes, edges, height: parentIds.length * (CARD_HEIGHT + GAP_Y) };
+  };
+
+  // Hjälpfunktion: Placera en person och dess ättlingar rekursivt
+  const placeDescendants = (personId, generationX, startY, maxDepth, currentDepth = 0, visited = new Set()) => {
+    if (currentDepth >= maxDepth || visited.has(personId)) return { nodes: [], edges: [], height: CARD_HEIGHT };
+    visited.add(personId);
+    
+    const person = data.people[personId];
+    if (!person) return { nodes: [], edges: [], height: CARD_HEIGHT };
+    
+    const nodes = [];
+    const edges = [];
+    let currentY = startY;
+    
+    // Hämta barn
+    const childIds = (person.relations?.children || []).map(c => typeof c === 'object' ? c.id : c).filter(Boolean);
+    
+    if (childIds.length === 0) {
+      return { nodes, edges, height: CARD_HEIGHT };
+    }
+    
+    // Placera barn vertikalt
+    childIds.forEach((cid, index) => {
+      const child = data.people[cid];
+      if (!child) return;
+      
+      const childY = currentY + (index * (CARD_HEIGHT + GAP_Y));
+      nodes.push({ ...child, x: generationX, y: childY });
+      
+      // Ortogonal linje från person till barn (gaffel-struktur)
+      edges.push({
+        from: { x: generationX + (CARD_WIDTH + 100), y: currentY + (CARD_HEIGHT/2) },
+        to: { x: generationX + (CARD_WIDTH + 100), y: childY + (CARD_HEIGHT/2) },
+        type: 'orthogonal-vertical-first'
+      });
+      edges.push({
+        from: { x: generationX + (CARD_WIDTH + 100), y: childY + (CARD_HEIGHT/2) },
+        to: { x: generationX, y: childY + (CARD_HEIGHT/2) },
+        type: 'orthogonal-horizontal-first'
+      });
+      
+      currentY += CARD_HEIGHT + GAP_Y;
+    });
+    
+    return { nodes, edges, height: childIds.length * (CARD_HEIGHT + GAP_Y) };
+  };
+
   const calculateLayout = () => {
         const nodes = [];
         const edges = [];
         const focusPerson = data.people[data.focusId];
-        if (focusPerson) nodes.push({ ...focusPerson, x: 0, y: 0, isFocus: true });
+        if (!focusPerson) return { nodes, edges };
+        
+        // Hjälpfunktion: Beräkna bredden på ett sub-träd (rekursivt)
+        const calculateSubtreeWidth = (childIds, depth = 0, maxDepth = 3) => {
+          if (depth >= maxDepth || childIds.length === 0) {
+            return CARD_WIDTH;
+          }
+          
+          let maxWidth = CARD_WIDTH;
+          childIds.forEach(childId => {
+            const child = allPeople.find(p => p.id === childId);
+            if (!child) return;
+            
+            // Hitta denna barns barn (rekursivt)
+            const childChildren = (child.relations?.children || []).map(c => typeof c === 'object' ? c.id : c);
+            const childWidth = calculateSubtreeWidth(childChildren, depth + 1, maxDepth);
+            maxWidth = Math.max(maxWidth, childWidth);
+          });
+          
+          // Om det finns flera barn, lägg till avstånd mellan dem
+          if (childIds.length > 1) {
+            maxWidth = Math.max(maxWidth, childIds.length * (CARD_WIDTH + 100));
+          }
+          
+          return maxWidth;
+        };
 
-        // Far-/morföräldrar
-        const gpIds = data.relationships.grandparents || [];
-        const grandparentY = -520;
-        const gpGap = 260;
-        const gpStartX = -((gpIds.length - 1) * gpGap) / 2;
-        gpIds.forEach((gid, index) => {
-            const gp = data.people[gid];
-            if (!gp) return;
-            const x = gpStartX + (index * gpGap);
-            nodes.push({ ...gp, x, y: grandparentY });
-            // Koppla till respektive barn (förälder)
-            (data.relationships.parents || []).forEach(pid => {
-                const parent = data.people[pid];
-                if (parent) {
-                    edges.push({ from: { x, y: grandparentY + (CARD_HEIGHT/2) - 20 }, to: { x: parent.x || 0, y: -260 + (CARD_HEIGHT/2) - 20 }, type: 'grandparent' });
-                }
+        // Hjälpfunktion: Placera barn rekursivt under en Union Node
+        const placeChildrenUnderUnionNode = (unionX, unionY, childIds, depth = 0, maxDepth = 3) => {
+          if (depth >= maxDepth || childIds.length === 0) {
+            return { height: 0, width: CARD_WIDTH };
+          }
+          
+          let totalHeight = 0;
+          let maxChildWidth = CARD_WIDTH;
+          const childY = unionY + CARD_HEIGHT + 100;
+          
+          childIds.forEach((childId, index) => {
+            const child = allPeople.find(p => p.id === childId);
+            if (!child) return;
+            
+            // Placera barnet
+            const childX = unionX; // Centrera under Union Node för nu
+            const childPlaceY = childY + (index * (CARD_HEIGHT + 100));
+            nodes.push({ ...child, x: childX, y: childPlaceY });
+            
+            // Linje från Union Node till barnet
+            edges.push({
+              from: { x: unionX, y: unionY },
+              to: { x: childX, y: childPlaceY - (CARD_HEIGHT/2) + 20 },
+              type: 'parent'
             });
-        });
+            
+            // Rekursivt placera barnbarn
+            const childChildren = (child.relations?.children || []).map(c => typeof c === 'object' ? c.id : c);
+            const { height: childSubtreeHeight, width: childSubtreeWidth } = placeChildrenUnderUnionNode(
+              childX, childPlaceY + (CARD_HEIGHT/2), childChildren, depth + 1, maxDepth
+            );
+            
+            totalHeight += CARD_HEIGHT + 100 + childSubtreeHeight;
+            maxChildWidth = Math.max(maxChildWidth, childSubtreeWidth);
+          });
+          
+          return { height: totalHeight, width: maxChildWidth };
+        };
+        
+        // Fokus-person centrerad på X=0, Y=0
+        nodes.push({ ...focusPerson, x: 0, y: 0, isFocus: true });
 
-        // Föräldrar
+        // Föräldrar - placera OVANFÖR fokus-personen (negativ Y)
         const pIds = data.relationships.parents || [];
-        const parentY = -260;
+        const parentY = -(CARD_HEIGHT + 100);
+        
+        if (pIds.length === 2) {
+          const parent1 = data.people[pIds[0]];
+          const parent2 = data.people[pIds[1]];
+          
+          // Kolla om de är partners
+          const arePartners = parent1 && parent2 && (
+            (parent1.relations?.partners || []).some(p => {
+              const partnerId = typeof p === 'object' ? p.id : p;
+              return partnerId === pIds[1];
+            }) ||
+            (parent2.relations?.partners || []).some(p => {
+              const partnerId = typeof p === 'object' ? p.id : p;
+              return partnerId === pIds[0];
+            })
+          );
+          
+          if (arePartners && parent1 && parent2) {
+            // Placera föräldrar horisontellt bredvid varandra
+            const partnerGap = 500;
+            const parent1X = -(partnerGap/2) - (CARD_WIDTH/2);
+            const parent2X = (partnerGap/2) + (CARD_WIDTH/2);
+            
+            nodes.push({ ...parent1, x: parent1X, y: parentY });
+            nodes.push({ ...parent2, x: parent2X, y: parentY });
+            
+            // Horisontell partner-linje
+            const partner1 = (parent1.relations?.partners || []).find(p => {
+              const partnerId = typeof p === 'object' ? p.id : p;
+              return partnerId === pIds[1];
+            });
+            const partnerType = (typeof partner1 === 'object' && partner1.type) ? partner1.type : 'Gift';
+            
+            edges.push({
+              from: { x: parent1X + (CARD_WIDTH/2) - 10, y: parentY },
+              to: { x: parent2X - (CARD_WIDTH/2) + 10, y: parentY },
+              type: 'partner-horizontal',
+              midPoint: { x: 0, y: parentY },
+              styleType: partnerType,
+              person1Id: pIds[0],
+              person2Id: pIds[1]
+            });
+            
+            // Vertikal linje från mitten av partner-linjen NER till fokus-personen
+            edges.push({
+              from: { x: 0, y: parentY + (CARD_HEIGHT/2) - 20 },
+              to: { x: 0, y: -(FOCUS_HEIGHT/2) + 20 },
+              type: 'parent'
+            });
+          } else {
+            // Om de inte är partners, placera dem vertikalt
         const pGap = 340;
         const pStartX = -((pIds.length - 1) * pGap) / 2;
         pIds.forEach((pid, index) => {
@@ -1010,107 +1386,165 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
             if (!p) return;
             const x = pStartX + (index * pGap);
             nodes.push({ ...p, x, y: parentY });
-            edges.push({ from: { x: 0, y: - (FOCUS_HEIGHT/2) + 20 }, to: { x, y: parentY + (CARD_HEIGHT/2) - 20 }, type: 'parent' });
-            // Spara x för koppling från far-/morföräldrar
-            p.x = x;
-        });
-
-        // Syskon
-        const sIds = data.relationships.siblings || [];
-        sIds.forEach((sid, i) => {
-            const sib = data.people[sid];
-            if (!sib) return;
-            const x = -(FOCUS_WIDTH/2) - 100 - (CARD_WIDTH/2) - (i * SIBLING_GAP);
-            nodes.push({ ...sib, x: x, y: 0 });
-            edges.push({ from: { x: -(FOCUS_WIDTH/2) + 10, y: 0 }, to: { x: x + (CARD_WIDTH/2) - 10, y: 0 }, type: 'sibling' });
-        });
-
-        // Partners (ingifta)
-        let cursorY = (FOCUS_HEIGHT/2) + 60;
-        let previousConnectionY = (FOCUS_HEIGHT/2) - 10;
-        (data.relationships.partners || []).forEach((rel, idx) => {
-            const partner = data.people[rel.id];
-            // Ghost-parent om saknad partner men ensamstående barn finns
-            const isGhost = !partner && rel.id === null;
-            
-            // Öka avståndet mellan partners till det dubbla (förutom första partnern)
-            if (idx > 0) {
-                cursorY = previousConnectionY + CARD_HEIGHT * 3; // Tredubbla avståndet för att göra linjerna längre
-            }
-            
-            const nodeY = cursorY + (CARD_HEIGHT/2);
-
-            if (partner || isGhost) {
-                const baseNode = partner || { id: `ghost_parent_${idx}`, firstName: 'Lägg till förälder', lastName: '', isGhostParent: true };
-                nodes.push({ ...baseNode, x: 0, y: nodeY, isPartner: !isGhost, isGhostParent: isGhost });
-                edges.push({
-                    from: { x: 0, y: previousConnectionY },
-                    to: { x: 0, y: nodeY - (CARD_HEIGHT/2) + 10 },
-                    type: 'straight-down',
-                    midPoint: { x: 0, y: (previousConnectionY + nodeY - (CARD_HEIGHT/2)) / 2 },
-                    styleType: rel.type,
-                    person1Id: focusPersonId, // Huvudpersonen
-                    person2Id: rel.id // Partnern
-                });
-                previousConnectionY = nodeY + (CARD_HEIGHT/2) - 10;
-            } else {
-                // Ingen partner att visa och ingen ghost: hoppa över
-                return;
-            }
-            // Barn till partner
-            const children = rel.children || [];
-            if (children.length > 0) {
-                const stemX = 0;
-                const stemStartY = previousConnectionY;
-                cursorY = previousConnectionY + 70;
-                children.forEach((cid) => {
-                    const child = data.people[cid];
-                    if (!child) return;
-                    const childX = INDENT_X + (CARD_WIDTH/2);
-                    const childY = cursorY + (CARD_HEIGHT/2);
-                    nodes.push({ ...child, x: childX, y: childY });
-                    edges.push({ from: { x: stemX, y: stemStartY }, to: { x: childX - (CARD_WIDTH/2) + 10, y: childY }, type: 'child-fork' });
-                    cursorY += GAP_Y;
-                });
-                const nextPartnerConnectionY = cursorY - GAP_Y + (CARD_HEIGHT/2) + 50;
-                edges.push({ from: { x: 0, y: previousConnectionY }, to: { x: 0, y: nextPartnerConnectionY }, type: 'straight-down' });
-                previousConnectionY = nextPartnerConnectionY;
-                // Öka avståndet mellan partners till det dubbla (lägg till CARD_HEIGHT * 3 extra)
-                if (idx < (data.relationships.partners || []).length - 1) {
-                    cursorY = previousConnectionY + CARD_HEIGHT * 3; // Tredubbla avståndet
-                } else {
-                    cursorY += 50;
-                }
-            } else {
-                // Om inga barn: öka avståndet mellan partners till det dubbla
-                if (idx < (data.relationships.partners || []).length - 1) {
-                    cursorY = previousConnectionY + CARD_HEIGHT * 3; // Tredubbla avståndet
-                    previousConnectionY = cursorY - 70;
-                } else {
-                    cursorY += CARD_HEIGHT + 60;
-                    previousConnectionY = cursorY - 70;
-                }
-            }
-        });
-
-        // Barnbarn
-        const gcIds = data.relationships.grandchildren || [];
-        const grandchildY = cursorY + 180;
-        const gcGap = 220;
-        const gcStartX = -((gcIds.length - 1) * gcGap) / 2;
-        gcIds.forEach((gid, index) => {
-            const gc = data.people[gid];
-            if (!gc) return;
-            const x = gcStartX + (index * gcGap);
-            nodes.push({ ...gc, x, y: grandchildY });
-            // Koppla till respektive förälder (barn)
-            (data.relationships.children || []).forEach(cid => {
-                const child = data.people[cid];
-                if (child) {
-                    edges.push({ from: { x, y: grandchildY - (CARD_HEIGHT/2) + 20 }, to: { x: child.x || 0, y: (child.y || 0) + (CARD_HEIGHT/2) - 20 }, type: 'grandchild' });
-                }
+              edges.push({
+                from: { x: 0, y: -(FOCUS_HEIGHT/2) + 20 },
+                to: { x, y: parentY + (CARD_HEIGHT/2) - 20 },
+                type: 'parent'
+              });
             });
+          }
+        } else if (pIds.length > 0) {
+          // Om det inte är exakt 2 föräldrar
+          const pGap = 340;
+          const pStartX = -((pIds.length - 1) * pGap) / 2;
+          pIds.forEach((pid, index) => {
+            const p = data.people[pid];
+            if (!p) return;
+            const x = pStartX + (index * pGap);
+            nodes.push({ ...p, x, y: parentY });
+            edges.push({
+              from: { x: 0, y: -(FOCUS_HEIGHT/2) + 20 },
+              to: { x, y: parentY + (CARD_HEIGHT/2) - 20 },
+              type: 'parent'
+            });
+          });
+        }
+
+        // Partners och barn med Union Nodes
+        const partners = data.relationships.partners || [];
+        const allChildren = data.relationships.children || [];
+        const focusPersonId = data.focusId;
+        
+        // För att undvika att visa samma barn under flera partners
+        const alreadyShownChildren = new Set();
+        
+        console.log(`[calculateLayout] Focus person ID: ${focusPersonId}, allChildren:`, allChildren);
+        
+        // Beräkna bredden på varje partners barn-subträd
+        const partnerData = partners
+          .filter(partnerRef => partnerRef.id) // Hoppa över ghost partners
+          .map(partnerRef => {
+            const partnerId = partnerRef.id;
+            const partner = data.people[partnerId];
+            if (!partner) return null;
+            
+            // Hitta partnern i allPeople för att få uppdaterad data
+            const partnerInAllPeople = allPeople.find(p => p.id === partnerId);
+            const partnerChildrenList = (partnerInAllPeople?.relations?.children || []).map(c => typeof c === 'object' ? c.id : c);
+            
+            // Hitta alla barn som har både fokus och denna partner som föräldrar
+            const partnerChildren = allChildren.filter(childId => {
+              if (alreadyShownChildren.has(childId)) return false;
+              
+              const child = allPeople.find(p => p.id === childId);
+              if (!child) return false;
+              
+              const childParents = (child.relations?.parents || []).map(p => typeof p === 'object' ? p.id : p);
+              const hasBothParents = childParents.includes(focusPersonId) && childParents.includes(partnerId);
+              
+              const partnerHasChild = partnerChildrenList.includes(childId);
+              const focusHasChild = allChildren.includes(childId);
+              const bothHaveChild = focusHasChild && partnerHasChild;
+              
+              const shouldShow = hasBothParents || bothHaveChild;
+              
+              if (shouldShow) {
+                alreadyShownChildren.add(childId);
+              }
+              
+              return shouldShow;
+            });
+            
+            // Beräkna bredden på denna partners barn-subträd
+            const subtreeWidth = calculateSubtreeWidth(partnerChildren);
+            
+            return {
+              partnerRef,
+              partnerId,
+              partner,
+              partnerChildren,
+              subtreeWidth
+            };
+          })
+          .filter(Boolean);
+        
+        // Placera partners horisontellt med Union Nodes
+        // Layout: [Partner 1] — (Union A) — [Fokusperson] — (Union B) — [Partner 2]
+        const partnerGap = 200; // Minsta avstånd mellan partners
+        const leftPartners = [];
+        const rightPartners = [];
+        
+        // Dela upp partners i vänster och höger (första till vänster, resten till höger)
+        partnerData.forEach((partnerInfo, index) => {
+          if (index === 0) {
+            leftPartners.push(partnerInfo);
+          } else {
+            rightPartners.push(partnerInfo);
+          }
         });
+        
+        // Placera partners till vänster
+        let leftOffset = 0;
+        leftPartners.forEach((partnerInfo) => {
+          const { partnerRef, partnerId, partner, partnerChildren, subtreeWidth } = partnerInfo;
+          
+          const neededSpace = Math.max(subtreeWidth, CARD_WIDTH) + partnerGap;
+          const partnerX = -leftOffset - neededSpace - (CARD_WIDTH / 2);
+          const unionX = (partnerX + 0) / 2; // Mittpunkt mellan partner och fokus
+          
+          leftOffset += neededSpace;
+          
+          // Placera partnern på samma Y-nivå som fokus (Y=0)
+          nodes.push({ ...partner, x: partnerX, y: 0 });
+          
+          // Horisontell linje mellan fokus och partner med hjärta
+          edges.push({
+            from: { x: partnerX + (CARD_WIDTH/2) - 10, y: 0 },
+            to: { x: 0 - (FOCUS_WIDTH/2) + 10, y: 0 },
+            type: 'partner-horizontal',
+            midPoint: { x: unionX, y: 0 },
+            styleType: partnerRef.type || 'Gift',
+            person1Id: partnerId,
+            person2Id: focusPersonId
+          });
+          
+          // Placera barnen under Union Node
+          if (partnerChildren.length > 0) {
+            placeChildrenUnderUnionNode(unionX, 0, partnerChildren);
+          }
+        });
+        
+        // Placera partners till höger
+        let rightOffset = 0;
+        rightPartners.forEach((partnerInfo) => {
+          const { partnerRef, partnerId, partner, partnerChildren, subtreeWidth } = partnerInfo;
+          
+          const neededSpace = Math.max(subtreeWidth, CARD_WIDTH) + partnerGap;
+          const partnerX = rightOffset + neededSpace + (CARD_WIDTH / 2);
+          const unionX = (0 + partnerX) / 2; // Mittpunkt mellan fokus och partner
+          
+          rightOffset += neededSpace;
+          
+          // Placera partnern på samma Y-nivå som fokus (Y=0)
+          nodes.push({ ...partner, x: partnerX, y: 0 });
+          
+          // Horisontell linje mellan fokus och partner med hjärta
+          edges.push({
+            from: { x: 0 + (FOCUS_WIDTH/2) - 10, y: 0 },
+            to: { x: partnerX - (CARD_WIDTH/2) + 10, y: 0 },
+            type: 'partner-horizontal',
+            midPoint: { x: unionX, y: 0 },
+            styleType: partnerRef.type || 'Gift',
+            person1Id: focusPersonId,
+            person2Id: partnerId
+          });
+          
+          // Placera barnen under Union Node
+          if (partnerChildren.length > 0) {
+            placeChildrenUnderUnionNode(unionX, 0, partnerChildren);
+          }
+        });
+
         return { nodes, edges };
     };
 
@@ -1136,6 +1570,27 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
       setTransform(prev => ({ ...prev, x: width / 2, y: height / 2 - 100 }));
     }
   }, []);
+
+  // Centrera en specifik person (men gör den inte till fokus)
+  useEffect(() => {
+    if (personToCenter && nodes.length > 0 && containerRef.current) {
+      const personNode = nodes.find(n => n.id === personToCenter);
+      if (personNode) {
+        const { width, height } = containerRef.current.getBoundingClientRect();
+        // Centrera på personens koordinater
+        const centerX = width / 2 - (personNode.x * transform.scale);
+        const centerY = height / 2 - (personNode.y * transform.scale);
+        setTransform(prev => ({ ...prev, x: centerX, y: centerY }));
+        
+        // Anropa callback när centrering är klar
+        if (onPersonCentered) {
+          setTimeout(() => {
+            onPersonCentered();
+          }, 100);
+        }
+      }
+    }
+  }, [personToCenter, nodes, transform.scale, onPersonCentered]);
 
   // Om ingen fokusperson, visa meddelande
   if (!focusPerson) {
@@ -1348,7 +1803,7 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
                 {edges.map((edge, i) => (
                     <g key={i}>
                         <path d={getPath(edge.from, edge.to, edge.type)} stroke="#475569" strokeWidth={3} fill="none" strokeLinecap="round" strokeLinejoin="round" strokeDasharray={(edge.styleType === 'divorced' || edge.styleType === 'Skild') ? '6,6' : '0'} />
-                        {edge.midPoint && edge.type === 'straight-down' && (() => {
+                        {edge.midPoint && (edge.type === 'straight-down' || edge.type === 'partner-horizontal' || edge.type === 'partner-vertical') && (() => {
                             // Bestäm ikon och färg baserat på partner-typ
                             let IconComponent;
                             let iconColor;
@@ -1380,8 +1835,8 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
                                         >
                                             <Heart size={20} className="text-slate-400 absolute" />
                                             <HelpCircle size={12} className="text-slate-500 absolute -top-1 -right-1 bg-slate-800 rounded-full" />
-                                        </div>
-                                    </foreignObject>
+                                </div>
+                            </foreignObject>
                                 );
                             } else {
                                 // Gift eller married (default)
@@ -1494,7 +1949,7 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
                                             {node.deathDate && (
                                                 <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
                                                     <div className="absolute top-0 left-0 bg-black" style={{ transform: 'rotate(-45deg)', transformOrigin: 'top left', width: '141%', height: '4px', top: '-2px', left: '-2px' }}></div>
-                                                </div>
+                                </div>
                                             )}
                                         </>
                                     ) : (
@@ -1510,7 +1965,7 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
                                             {node.deathDate && (
                                                 <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
                                                     <div className="absolute top-0 left-0 bg-black" style={{ transform: 'rotate(-45deg)', transformOrigin: 'top left', width: '141%', height: '4px', top: '-2px', left: '-2px' }}></div>
-                                                </div>
+                            </div>
                                             )}
                                         </>
                                     )}
@@ -1540,24 +1995,24 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
                                     <>
                                         {/* Födelse och död i samma höjd som profilbilden */}
                                         <div className="flex flex-col gap-1">
-                                            {node.birthDate && (
+                                {node.birthDate && (
                                                 <div className="flex items-center gap-1.5 text-sm">
                                                     <span className="text-slate-600 font-bold">*</span>
                                                     <span className="font-medium">
                                                         {node.birthDate}
                                                         {node.birthPlace && `, ${node.birthPlace}`}
                                                     </span>
-                                                </div>
-                                            )}
-                                            {node.deathDate && (
+                                    </div>
+                                )}
+                                {node.deathDate && (
                                                 <div className="flex items-center gap-1.5 text-sm">
                                                     <span className="text-slate-600 font-bold">+</span>
                                                     <span className="font-medium">
                                                         {node.deathDate}
                                                         {node.deathPlace && `, ${node.deathPlace}`}
                                                     </span>
-                                                </div>
-                                            )}
+                                    </div>
+                                )}
                                             {/* Yrken under dödsdatumet */}
                                             {node.occupations && node.occupations.length > 0 && (
                                                 <div className="flex items-center gap-1.5 text-sm mt-0.5">
@@ -1565,7 +2020,7 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
                                                     <span className="font-medium">
                                                         {node.occupations.join(', ')}
                                                     </span>
-                                                </div>
+                            </div>
                                             )}
                                         </div>
                                     </>
@@ -1639,7 +2094,7 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
           <div className="px-3 py-2 border-b border-slate-700 bg-slate-800/50">
             <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-0.5">Relationstyp</div>
             <div className="text-xs text-slate-400">Ändra relationstyp</div>
-          </div>
+    </div>
           
           <div className="py-1">
             {['Gift', 'Sambo', 'Förlovad', 'Skild', 'Okänd'].map((type) => (

@@ -72,11 +72,10 @@ WestFamilyTree är ett släktforskningsverktyg byggt med:
 - **Debug logging**: Använd `console.log('[ComponentName] ...')` med komponentnamn i prefix
 
 ### 8. Design System
-- **Färger**: Se `DESIGN_SYSTEM.md`, design-tokens.css, Button.jsx 
-- **Tailwind CSS**: Använd Tailwind-klasser, undvik inline styles, design-tokens.css, Button.jsx 
+- **Färger**: Se `DESIGN_SYSTEM.md`
+- **Tailwind CSS**: Använd Tailwind-klasser, undvik inline styles
 - **Dark theme**: Slate-900/800/700 för bakgrunder, Slate-200/300 för text
-- **Accent**: Blue-500/600 för primära knappar, Red-500 för destruktiva åtgärder, Button.jsx 
-- **Modal**: Använder sig av WindowFrame.jsx 
+- **Accent**: Blue-500/600 för primära knappar, Red-500 för destruktiva åtgärder
 
 ### 9. Relations-hantering
 - **Struktur**: `person.relations = { parents: [], children: [], spouseId: null, partners: [], siblings: [] }`
