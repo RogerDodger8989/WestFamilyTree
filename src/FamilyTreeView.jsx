@@ -814,6 +814,22 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
         // Ytterligare generationer nedåt (om generations > 2)
         const additionalDescendants = allDescendants.filter(did => !children.includes(did) && !grandchildren.includes(did));
 
+        // Föräldrar till partners (svärföräldrar) - EFTER att partners-arrayen är skapad
+        const partnersParents = [];
+        partners.forEach(partnerRef => {
+            const partnerId = partnerRef.id;
+            if (!partnerId) return;
+            const partner = allPeople.find(p => p.id === partnerId);
+            if (partner && partner.relations?.parents) {
+                const partnerParents = (partner.relations.parents || []).map(p => typeof p === 'object' ? p.id : p).filter(Boolean);
+                partnerParents.forEach(ppId => {
+                    if (!partnersParents.includes(ppId) && !parents.includes(ppId) && !grandparents.includes(ppId) && !additionalAncestors.includes(ppId)) {
+                        partnersParents.push(ppId);
+                    }
+                });
+            }
+        });
+
         const result = { 
             focusPerson: focusPersonId, 
             parents, 
@@ -823,7 +839,8 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
             children, 
             grandchildren,
             ancestors: additionalAncestors || [],
-            descendants: additionalDescendants || []
+            descendants: additionalDescendants || [],
+            partnersParents: partnersParents || []
         };
         
         console.log('[buildRelationships] Final partners count:', result.partners.length, result.partners);
@@ -847,6 +864,7 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
         (relationships.children || []).forEach(id => peopleSet.add(id));
         (relationships.grandchildren || []).forEach(id => peopleSet.add(id));
         (relationships.descendants || []).forEach(id => peopleSet.add(id));
+        (relationships.partnersParents || []).forEach(id => peopleSet.add(id));
         return peopleSet.size;
     };
     
@@ -1515,6 +1533,90 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
           if (partnerChildren.length > 0) {
             placeChildrenUnderUnionNode(unionX, 0, partnerChildren);
           }
+          
+          // Placera partnerns föräldrar ovanför partnern
+          const partnerInAllPeople = allPeople.find(p => p.id === partnerId);
+          if (partnerInAllPeople && partnerInAllPeople.relations?.parents) {
+            const partnerParentIds = (partnerInAllPeople.relations.parents || []).map(p => typeof p === 'object' ? p.id : p).filter(Boolean);
+            const partnerParentsY = -(CARD_HEIGHT + 100);
+            
+            if (partnerParentIds.length === 2) {
+              const partnerParent1FromAll = allPeople.find(p => p.id === partnerParentIds[0]);
+              const partnerParent2FromAll = allPeople.find(p => p.id === partnerParentIds[1]);
+              const partnerParent1 = data.people[partnerParentIds[0]];
+              const partnerParent2 = data.people[partnerParentIds[1]];
+              
+              // Kolla om de är partners
+              const partnerParent1Partners = (partnerParent1FromAll?.relations?.partners || []).map(p => typeof p === 'object' ? p.id : p);
+              const partnerParent2Partners = (partnerParent2FromAll?.relations?.partners || []).map(p => typeof p === 'object' ? p.id : p);
+              const partnerParentsArePartners = partnerParent1FromAll && partnerParent2FromAll && (
+                partnerParent1Partners.includes(partnerParentIds[1]) || partnerParent2Partners.includes(partnerParentIds[0])
+              );
+              
+              if (partnerParentsArePartners && partnerParent1 && partnerParent2) {
+                const partnerParentGap = 500;
+                const partnerParent1X = partnerX - (partnerParentGap/2) - (CARD_WIDTH/2);
+                const partnerParent2X = partnerX + (partnerParentGap/2) + (CARD_WIDTH/2);
+                
+                nodes.push({ ...partnerParent1, x: partnerParent1X, y: partnerParentsY });
+                nodes.push({ ...partnerParent2, x: partnerParent2X, y: partnerParentsY });
+                
+                // Horisontell partner-linje
+                const partnerParent1Rel = (partnerParent1FromAll.relations?.partners || []).find(p => {
+                  const pId = typeof p === 'object' ? p.id : p;
+                  return pId === partnerParentIds[1];
+                });
+                const partnerParentType = (typeof partnerParent1Rel === 'object' && partnerParent1Rel.type) ? partnerParent1Rel.type : 'Okänd';
+                
+                edges.push({
+                  from: { x: partnerParent1X + (CARD_WIDTH/2) - 10, y: partnerParentsY },
+                  to: { x: partnerParent2X - (CARD_WIDTH/2) + 10, y: partnerParentsY },
+                  type: 'partner-horizontal',
+                  midPoint: { x: partnerX, y: partnerParentsY },
+                  styleType: partnerParentType,
+                  person1Id: partnerParentIds[0],
+                  person2Id: partnerParentIds[1]
+                });
+                
+                // Vertikal linje från partnerns föräldrar ner till partnern
+                edges.push({
+                  from: { x: partnerX, y: partnerParentsY + (CARD_HEIGHT/2) - 20 },
+                  to: { x: partnerX, y: 0 - (CARD_HEIGHT/2) + 20 },
+                  type: 'parent'
+                });
+              } else if (partnerParent1 && partnerParent2) {
+                // Om de inte är partners, placera dem vertikalt
+                const partnerPGap = 340;
+                const partnerPStartX = partnerX - ((partnerParentIds.length - 1) * partnerPGap) / 2;
+                partnerParentIds.forEach((ppid, pidx) => {
+                  const pp = data.people[ppid];
+                  if (!pp) return;
+                  const ppx = partnerPStartX + (pidx * partnerPGap);
+                  nodes.push({ ...pp, x: ppx, y: partnerParentsY });
+                  edges.push({
+                    from: { x: partnerX, y: 0 - (CARD_HEIGHT/2) + 20 },
+                    to: { x: ppx, y: partnerParentsY + (CARD_HEIGHT/2) - 20 },
+                    type: 'parent'
+                  });
+                });
+              }
+            } else if (partnerParentIds.length > 0) {
+              // Om det inte är exakt 2 föräldrar
+              const partnerPGap = 340;
+              const partnerPStartX = partnerX - ((partnerParentIds.length - 1) * partnerPGap) / 2;
+              partnerParentIds.forEach((ppid, pidx) => {
+                const pp = data.people[ppid];
+                if (!pp) return;
+                const ppx = partnerPStartX + (pidx * partnerPGap);
+                nodes.push({ ...pp, x: ppx, y: partnerParentsY });
+                edges.push({
+                  from: { x: partnerX, y: 0 - (CARD_HEIGHT/2) + 20 },
+                  to: { x: ppx, y: partnerParentsY + (CARD_HEIGHT/2) - 20 },
+                  type: 'parent'
+                });
+              });
+            }
+          }
         });
         
         // Placera partners till höger
@@ -1545,6 +1647,90 @@ export default function FamilyTreeView({ allPeople = [], focusPersonId, onSetFoc
           // Placera barnen under Union Node
           if (partnerChildren.length > 0) {
             placeChildrenUnderUnionNode(unionX, 0, partnerChildren);
+          }
+          
+          // Placera partnerns föräldrar ovanför partnern
+          const partnerInAllPeople = allPeople.find(p => p.id === partnerId);
+          if (partnerInAllPeople && partnerInAllPeople.relations?.parents) {
+            const partnerParentIds = (partnerInAllPeople.relations.parents || []).map(p => typeof p === 'object' ? p.id : p).filter(Boolean);
+            const partnerParentsY = -(CARD_HEIGHT + 100);
+            
+            if (partnerParentIds.length === 2) {
+              const partnerParent1FromAll = allPeople.find(p => p.id === partnerParentIds[0]);
+              const partnerParent2FromAll = allPeople.find(p => p.id === partnerParentIds[1]);
+              const partnerParent1 = data.people[partnerParentIds[0]];
+              const partnerParent2 = data.people[partnerParentIds[1]];
+              
+              // Kolla om de är partners
+              const partnerParent1Partners = (partnerParent1FromAll?.relations?.partners || []).map(p => typeof p === 'object' ? p.id : p);
+              const partnerParent2Partners = (partnerParent2FromAll?.relations?.partners || []).map(p => typeof p === 'object' ? p.id : p);
+              const partnerParentsArePartners = partnerParent1FromAll && partnerParent2FromAll && (
+                partnerParent1Partners.includes(partnerParentIds[1]) || partnerParent2Partners.includes(partnerParentIds[0])
+              );
+              
+              if (partnerParentsArePartners && partnerParent1 && partnerParent2) {
+                const partnerParentGap = 500;
+                const partnerParent1X = partnerX - (partnerParentGap/2) - (CARD_WIDTH/2);
+                const partnerParent2X = partnerX + (partnerParentGap/2) + (CARD_WIDTH/2);
+                
+                nodes.push({ ...partnerParent1, x: partnerParent1X, y: partnerParentsY });
+                nodes.push({ ...partnerParent2, x: partnerParent2X, y: partnerParentsY });
+                
+                // Horisontell partner-linje
+                const partnerParent1Rel = (partnerParent1FromAll.relations?.partners || []).find(p => {
+                  const pId = typeof p === 'object' ? p.id : p;
+                  return pId === partnerParentIds[1];
+                });
+                const partnerParentType = (typeof partnerParent1Rel === 'object' && partnerParent1Rel.type) ? partnerParent1Rel.type : 'Okänd';
+                
+                edges.push({
+                  from: { x: partnerParent1X + (CARD_WIDTH/2) - 10, y: partnerParentsY },
+                  to: { x: partnerParent2X - (CARD_WIDTH/2) + 10, y: partnerParentsY },
+                  type: 'partner-horizontal',
+                  midPoint: { x: partnerX, y: partnerParentsY },
+                  styleType: partnerParentType,
+                  person1Id: partnerParentIds[0],
+                  person2Id: partnerParentIds[1]
+                });
+                
+                // Vertikal linje från partnerns föräldrar ner till partnern
+                edges.push({
+                  from: { x: partnerX, y: partnerParentsY + (CARD_HEIGHT/2) - 20 },
+                  to: { x: partnerX, y: 0 - (CARD_HEIGHT/2) + 20 },
+                  type: 'parent'
+                });
+              } else if (partnerParent1 && partnerParent2) {
+                // Om de inte är partners, placera dem vertikalt
+                const partnerPGap = 340;
+                const partnerPStartX = partnerX - ((partnerParentIds.length - 1) * partnerPGap) / 2;
+                partnerParentIds.forEach((ppid, pidx) => {
+                  const pp = data.people[ppid];
+                  if (!pp) return;
+                  const ppx = partnerPStartX + (pidx * partnerPGap);
+                  nodes.push({ ...pp, x: ppx, y: partnerParentsY });
+                  edges.push({
+                    from: { x: partnerX, y: 0 - (CARD_HEIGHT/2) + 20 },
+                    to: { x: ppx, y: partnerParentsY + (CARD_HEIGHT/2) - 20 },
+                    type: 'parent'
+                  });
+                });
+              }
+            } else if (partnerParentIds.length > 0) {
+              // Om det inte är exakt 2 föräldrar
+              const partnerPGap = 340;
+              const partnerPStartX = partnerX - ((partnerParentIds.length - 1) * partnerPGap) / 2;
+              partnerParentIds.forEach((ppid, pidx) => {
+                const pp = data.people[ppid];
+                if (!pp) return;
+                const ppx = partnerPStartX + (pidx * partnerPGap);
+                nodes.push({ ...pp, x: ppx, y: partnerParentsY });
+                edges.push({
+                  from: { x: partnerX, y: 0 - (CARD_HEIGHT/2) + 20 },
+                  to: { x: ppx, y: partnerParentsY + (CARD_HEIGHT/2) - 20 },
+                  type: 'parent'
+                });
+              });
+            }
           }
         });
 
