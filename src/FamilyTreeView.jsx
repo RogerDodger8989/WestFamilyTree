@@ -71,7 +71,7 @@ const convertPersonForDisplay = (person) => {
         deathPlace: deathEvent?.place || '',
     age: age,
     status: status,
-    img: person.media?.length > 0 ? person.media[0].path : null,
+    img: person.media?.find(m => m.isProfilePicture)?.url || person.media?.[0]?.url || null,
     occupations: occupations,
     childrenCount: childrenCount,
     relations: person.relations || {},
@@ -84,12 +84,12 @@ const convertPersonForDisplay = (person) => {
 // KONFIGURATION & STYLING
 // ============================================================================
 const CONFIG = {
-  CARD_WIDTH: 180,
-  CARD_HEIGHT: 60,
+  CARD_WIDTH: 150,
+  CARD_HEIGHT: 160,
   GAP_X: 40,         // Mellanrum sidled (syskon)
-  GAP_Y: 70,         // Mellanrum höjdled
+  GAP_Y: 180,        // Mellanrum höjdled
   INDENT_X: 60,      // Hur långt till höger barnen hamnar under partnern
-  STEP_Y: 80,        // Höjd per "rad" i partner-listan
+  STEP_Y: 180,       // Höjd per "rad" i partner-listan
 };
 
 const STYLES = `
@@ -97,14 +97,14 @@ const STYLES = `
     display: flex;
     flex-direction: column;
     height: 100vh;
-    background-color: #f8fafc;
+    background-color: #0f172a;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     overflow: hidden;
   }
   .vt-header {
-    background: white;
+    background: #1e293b;
     padding: 1rem 2rem;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid #334155;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -116,6 +116,7 @@ const STYLES = `
     position: relative;
     padding: 4rem;
     cursor: grab;
+    background-color: #0f172a;
   }
   .vt-canvas.dragging { cursor: grabbing; }
 
@@ -123,13 +124,14 @@ const STYLES = `
   .vt-card {
     position: absolute;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    padding: 0.5rem;
-    gap: 0.75rem;
-    background: white;
-    border: 1px solid #cbd5e1;
+    padding: 0.75rem 0.5rem;
+    gap: 0.5rem;
+    background: #1e293b;
+    border: 1px solid #334155;
     border-radius: 6px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     width: ${CONFIG.CARD_WIDTH}px;
     height: ${CONFIG.CARD_HEIGHT}px;
     cursor: pointer;
@@ -137,37 +139,101 @@ const STYLES = `
     z-index: 10;
   }
   .vt-card:hover {
-    border-color: #94a3b8;
-    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    border-color: #475569;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
     transform: translateY(-2px);
     z-index: 50;
   }
   
-  .vt-card.male { border-left: 4px solid #60a5fa; }
-  .vt-card.female { border-left: 4px solid #f472b6; }
-  
-  .vt-card.focus { 
-    border: 2px solid #2563eb; 
-    background-color: #eff6ff;
+  /* Könsfärger */
+  .vt-card.male { 
+    background: #1e3a5f;
+    border-left: 4px solid #3b82f6; 
   }
+  .vt-card.male:hover {
+    background: #1e40af;
+  }
+  
+  .vt-card.female { 
+    background: #4a1942;
+    border-left: 4px solid #ec4899; 
+  }
+  .vt-card.female:hover {
+    background: #831843;
+  }
+  
+  /* Fokusperson - mörkare för att sticka ut */
+  .vt-card.focus { 
+    border: 2px solid #fbbf24;
+    box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.3);
+  }
+  .vt-card.focus.male {
+    background: #1e40af;
+  }
+  .vt-card.focus.female {
+    background: #831843;
+  }
+  .vt-card.focus:not(.male):not(.female) {
+    background: #334155;
+  }
+  
   .vt-card.partner, .vt-card.stepparent {
     border-style: dashed;
-    background-color: #fefce8; 
   }
 
+  .vt-deceased-marker {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    font-size: 18px;
+    color: #e2e8f0;
+    opacity: 0.9;
+    z-index: 1;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+  }
+  
   .vt-avatar {
-    width: 32px;
-    height: 32px;
+    width: 64px;
+    height: 64px;
     border-radius: 50%;
-    background: #f1f5f9;
+    background: #334155;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #64748b;
+    color: #94a3b8;
+    flex-shrink: 0;
+    border: 2px solid #475569;
   }
-  .vt-info { display: flex; flex-direction: column; overflow: hidden; }
-  .vt-name { font-weight: 600; font-size: 13px; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .vt-detail { font-size: 11px; color: #64748b; }
+  .vt-info { 
+    display: flex; 
+    flex-direction: column; 
+    overflow: hidden; 
+    gap: 1px;
+    flex: 1;
+    width: 100%;
+    text-align: center;
+    align-items: center;
+  }
+  .vt-name { 
+    font-weight: 600; 
+    font-size: 12px; 
+    color: #e2e8f0; 
+    white-space: nowrap; 
+    overflow: hidden; 
+    text-overflow: ellipsis; 
+    width: 100%;
+  }
+  .vt-detail { 
+    font-size: 9px; 
+    color: #e2e8f0; 
+    line-height: 1.4;
+    white-space: nowrap; 
+    overflow: hidden; 
+    text-overflow: ellipsis;
+    width: 100%;
+    text-align: left;
+    padding-left: 0.25rem;
+  }
 `;
 
 // ============================================================================
@@ -680,6 +746,9 @@ export default function FamilyTreeView({
                   className={`vt-card ${displayPerson.gender} ${node.type}`}
                   style={{ left: node.x, top: node.y }}
                 >
+                  {displayPerson.deathDate && (
+                    <span className="vt-deceased-marker">✝</span>
+                  )}
                   <div className="vt-avatar">
                     {node.img ? (
                       <MediaImage 
@@ -688,15 +757,27 @@ export default function FamilyTreeView({
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <User size={18} />
+                      <User size={32} />
                             )}
                         </div>
                   <div className="vt-info">
-                    <span className="vt-name">{node.name}</span>
-                    <span className="vt-detail">f. {node.birthYear !== 9999 ? node.birthYear : '?'}</span>
-                    {node.type === 'partner' && <span className="vt-detail" style={{color:'#d97706'}}>Partner</span>}
-                    {node.type === 'stepparent' && <span className="vt-detail" style={{color:'#7c3aed'}}>Styvförälder</span>}
-                        </div>
+                    <span className="vt-name">{displayPerson.firstName} {displayPerson.lastName}</span>
+                    {displayPerson.birthDate && (
+                      <span className="vt-detail">
+                        * {displayPerson.birthDate}{displayPerson.birthPlace ? `, ${displayPerson.birthPlace}` : ''}
+                      </span>
+                    )}
+                    {displayPerson.deathDate && (
+                      <span className="vt-detail">
+                        + {displayPerson.deathDate}{displayPerson.deathPlace ? `, ${displayPerson.deathPlace}` : ''}
+                      </span>
+                    )}
+                    {displayPerson.occupations && displayPerson.occupations.length > 0 && (
+                      <span className="vt-detail" style={{fontStyle:'italic'}}>
+                        {displayPerson.occupations[0]}
+                      </span>
+                    )}
+                  </div>
                     </div>
                 );
             })}
