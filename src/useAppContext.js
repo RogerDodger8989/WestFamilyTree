@@ -217,6 +217,7 @@ export default function useAppContext() {
     // State för redigerings-modalen
     const [editingPerson, setEditingPerson] = useState(null); // Håller personen som redigeras
     const [editingPersonOriginal, setEditingPersonOriginal] = useState(null); // Snapshot före redigering
+    const [isEditModalCollapsed, setIsEditModalCollapsed] = useState(true); // Kollapsad eller expanderad
 
     // State för flikar
     const [activeTab, setActiveTab] = useState('people'); // 'people', 'sources', 'places', 'familyTree'
@@ -995,7 +996,7 @@ export default function useAppContext() {
         try { recordAudit({ type: 'archive', entityType: 'person', entityId: personToDelete.id, details: { name: `${personToDelete.firstName} ${personToDelete.lastName}` } }); } catch (e) {}
     };
 
-    const handleOpenEditModal = useCallback((personId) => {
+    const handleOpenEditModal = useCallback((personId, openAsCollapsed = false) => {
         if (!personId) {
             setEditingPerson(null);
             setEditingPersonOriginal(null);
@@ -1008,6 +1009,8 @@ export default function useAppContext() {
             setEditingPersonOriginal(null);
             return;
         }
+        // Sätt collapsed state baserat på parameter (default: expanderad)
+        setIsEditModalCollapsed(openAsCollapsed);
         // push history before opening
         try { pushHistory({ tab: activeTab, editingPersonId: personId }); } catch (e) {}
         // Alltid skapa en djup kopia för att undvika reaktivitetsproblem
@@ -2166,6 +2169,7 @@ export default function useAppContext() {
     return {
         dbData, setDbData, fileHandle, isDirty, setIsDirty, newFirstName, setNewFirstName, newLastName, setNewLastName,
         showSettings, setShowSettings, editingPerson, activeTab, focusPair, bookmarks,
+        isEditModalCollapsed, setIsEditModalCollapsed,
         sourceCatalogState, setSourceCatalogState, placeCatalogState, setPlaceCatalogState,
         familyTreeFocusPersonId, setFamilyTreeFocusPersonId,
         editingRelationsForPerson, setEditingRelationsForPerson, sourcingEventInfo, linkingMediaInfo, isAttachingSource,

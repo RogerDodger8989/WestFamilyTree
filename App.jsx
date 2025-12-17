@@ -49,6 +49,7 @@ function App() {
   const {
     dbData, setDbData, fileHandle, isDirty, setIsDirty, newFirstName, setNewFirstName, newLastName, setNewLastName,
     showSettings, setShowSettings, editingPerson, activeTab, focusPair, bookmarks,
+    isEditModalCollapsed, setIsEditModalCollapsed,
     sourceCatalogState, setSourceCatalogState, placeCatalogState, setPlaceCatalogState,
     familyTreeFocusPersonId, setFamilyTreeFocusPersonId, sourcingEventInfo,
     isSourceDrawerOpen, isPlaceDrawerOpen, isCreatingSource, sourceState, undoState, statusToast,
@@ -109,6 +110,25 @@ function App() {
       window.removeEventListener('toggleEditModalDock', handleToggleDock);
     };
   }, [isEditModalDocked]);
+
+  // När man går till familyTree tab ELLER när dbData laddas, öppna EditPersonModal som collapsed
+  useEffect(() => {
+    // Endast kör om vi är i familyTree tab och har personer
+    if (activeTab !== 'familyTree' || !dbData?.people?.length) return;
+    
+    // Om editingPerson redan är satt, gör ingenting (de har redan öppnat någon person)
+    if (editingPerson) return;
+    
+    // Öppna första/fokus-personen som collapsed
+    const personToEdit = familyTreeFocusPersonId 
+      ? dbData.people.find(p => p.id === familyTreeFocusPersonId)
+      : dbData.people[0];
+    
+    if (personToEdit) {
+      // Öppna modalen som COLLAPSED (andra parametern = true)
+      handleOpenEditModal(personToEdit.id, true);
+    }
+  }, [activeTab, dbData?.people, familyTreeFocusPersonId, editingPerson, handleOpenEditModal]);
   
   const [personDrawerLocked, setPersonDrawerLocked] = useState(true);
   const [sourceDrawerLocked, setSourceDrawerLocked] = useState(false);
@@ -701,6 +721,8 @@ function App() {
                         onNavigateToSource={handleNavigateToSource}
                         onNavigateToPlace={handleNavigateToPlace}
                         onTogglePlaceDrawer={handleTogglePlaceDrawer}
+                        isCollapsed={isEditModalCollapsed}
+                        onToggleCollapse={() => setIsEditModalCollapsed(!isEditModalCollapsed)}
                         onViewInFamilyTree={handleViewInFamilyTree}
                         focusPair={focusPair}
                         onSetFocusPair={handleSetFocusPair}
@@ -801,6 +823,8 @@ function App() {
                       focusPair={focusPair}
                       onSetFocusPair={handleSetFocusPair}
                       activeSourcingEventId={sourcingEventInfo?.eventId}
+                      isCollapsed={isEditModalCollapsed}
+                      onToggleCollapse={() => setIsEditModalCollapsed(!isEditModalCollapsed)}
                     />
                   </div>
                   {isPlaceDrawerOpen && (

@@ -3,7 +3,7 @@ import {
   X, User, Users, Image as ImageIcon, FileText, 
   Activity, Tag, Plus, Trash2, Calendar, MapPin, 
   Link as LinkIcon, Camera, Edit3, AlertCircle, Check, 
-  ChevronDown, MoreHorizontal, Search, Globe, HelpCircle,
+  ChevronDown, ChevronUp, MoreHorizontal, Search, Globe, HelpCircle,
   ClipboardList, BookOpen, Clock
 } from 'lucide-react';
 import WindowFrame from './WindowFrame.jsx';
@@ -373,7 +373,7 @@ const SourceModal = ({ isOpen, onClose, onAdd, eventType }) => {
 
 // --- HUVUDKOMPONENT ---
 
-export default function EditPersonModal({ person: initialPerson, allPlaces, onSave, onClose, onChange, onOpenSourceDrawer, allSources, allPeople, onOpenEditModal, allMediaItems = [], onUpdateAllMedia = () => {}, isDocked = false, onNavigateToPlace }) {
+export default function EditPersonModal({ person: initialPerson, allPlaces, onSave, onClose, onChange, onOpenSourceDrawer, allSources, allPeople, onOpenEditModal, allMediaItems = [], onUpdateAllMedia = () => {}, isDocked = false, onNavigateToPlace, isCollapsed = false, onToggleCollapse }) {
     // Relation linking modal state
     const [relationModalOpen, setRelationModalOpen] = useState(false);
     const [relationTypeToAdd, setRelationTypeToAdd] = useState(null);
@@ -1351,6 +1351,20 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
             </div>
           </div>
           <div className="flex items-center gap-2">
+             {/* Collapse/Expand button */}
+             {onToggleCollapse && (
+               <button
+                 onClick={onToggleCollapse}
+                 className="p-2 hover:bg-slate-600 rounded text-slate-300 hover:text-slate-100 transition-colors"
+                 title={isCollapsed ? "Expandera" : "Fäll in"}
+               >
+                 {isCollapsed ? (
+                   <ChevronDown className="w-5 h-5" />
+                 ) : (
+                   <ChevronUp className="w-5 h-5" />
+                 )}
+               </button>
+             )}
              <nav className="flex gap-1">
                 {[
                   { id: 'info', icon: User, label: 'Info' },
@@ -1403,7 +1417,8 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
           </div>
         )}
 
-        {/* CONTENT AREA */}
+        {/* CONTENT AREA - Dölj om collapsed */}
+        {!isCollapsed && (
         <div className="flex-1 overflow-hidden flex bg-slate-900 relative min-h-0">
           <div className="flex-1 overflow-y-auto p-6 custom-scrollbar min-h-0">
             
@@ -1664,16 +1679,16 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                     const textContent = evt.notes.replace(/<[^>]*>/g, '').trim();
                                     const displayText = textContent.length > 15 ? `${textContent.substring(0, 15)}...` : textContent;
                                     return (
-                                      <span 
+                                  <span 
                                         className="truncate block max-w-[80px] cursor-pointer hover:text-blue-400 hover:underline" 
                                         title={textContent.length > 15 ? textContent : ''}
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           handleEditEvent(evt.id);
                                         }}
-                                      >
+                                  >
                                         {displayText}
-                                      </span>
+                                  </span>
                                     );
                                   })() : (
                                     '-'
@@ -1783,12 +1798,12 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                               </span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <select
+                            <select
                                 value={relationType}
-                                onChange={e => {
-                                  const newType = e.target.value;
-                                  setPerson(prev => {
-                                    const rels = { ...prev.relations };
+                              onChange={e => {
+                                const newType = e.target.value;
+                                setPerson(prev => {
+                                  const rels = { ...prev.relations };
                                     rels.parents = rels.parents.map((rel, i) => {
                                       if (i === idx) {
                                         // Om rel är en sträng, konvertera till objekt
@@ -1800,16 +1815,16 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                       }
                                       return rel;
                                     });
-                                    return { ...prev, relations: rels };
-                                  });
-                                }}
+                                  return { ...prev, relations: rels };
+                                });
+                              }}
                                 className="bg-slate-900 border border-slate-600 text-xs rounded px-2 py-1 text-slate-200"
-                              >
-                                {RELATION_TYPES.parent.map(r => <option key={r} value={r}>{r}</option>)}
-                              </select>
+                            >
+                              {RELATION_TYPES.parent.map(r => <option key={r} value={r}>{r}</option>)}
+                            </select>
                               <button onClick={() => removeRelation('parents', parentId)} className="text-red-600 hover:text-red-800 text-xs"><Trash2 size={14}/></button>
-                            </div>
-                         </div>
+                          </div>
+                       </div>
                        );
                      })
                    ) : (
@@ -1864,47 +1879,47 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                 </div>
                               </div>
                               <div className="flex items-center gap-2">
-                                <select
-                                  value={p.type || RELATION_TYPES.partner[0]}
-                                  onChange={e => {
-                                    const newType = e.target.value;
-                                    setPerson(prev => {
-                                      const rels = { ...prev.relations };
-                                      // Spara nya relationstypen
+                            <select
+                              value={p.type || RELATION_TYPES.partner[0]}
+                              onChange={e => {
+                                const newType = e.target.value;
+                                setPerson(prev => {
+                                  const rels = { ...prev.relations };
+                                  // Spara nya relationstypen
                                       rels.partners = rels.partners.map((rel, i) => i === partnerIdx ? { ...rel, type: newType } : rel);
-                                      let events = [...prev.events];
-                                      // Hämta tidigare typ (innan ändring)
+                                  let events = [...prev.events];
+                                  // Hämta tidigare typ (innan ändring)
                                       const prevType = prev.relations.partners[partnerIdx]?.type;
-                                      // Skapa skilsmässa-händelse om man väljer Skild
-                                      if (newType === 'Skild') {
+                                  // Skapa skilsmässa-händelse om man väljer Skild
+                                  if (newType === 'Skild') {
                                         const alreadyExists = events.some(ev => ev.type === 'Skilsmässa' && ev.partnerId === partnerId);
-                                        if (!alreadyExists) {
-                                          events.push({
-                                            id: `evt_${Date.now()}`,
-                                            type: 'Skilsmässa',
-                                            date: '',
-                                            place: '',
+                                    if (!alreadyExists) {
+                                      events.push({
+                                        id: `evt_${Date.now()}`,
+                                        type: 'Skilsmässa',
+                                        date: '',
+                                        place: '',
                                             partnerId: partnerId,
-                                            sources: [],
-                                            images: 0,
-                                            notes: ''
-                                          });
-                                        }
-                                      }
-                                      // Ta bort skilsmässa-händelse om man ändrar från Skild till något annat
-                                      if (prevType === 'Skild' && newType !== 'Skild') {
+                                        sources: [],
+                                        images: 0,
+                                        notes: ''
+                                      });
+                                    }
+                                  }
+                                  // Ta bort skilsmässa-händelse om man ändrar från Skild till något annat
+                                  if (prevType === 'Skild' && newType !== 'Skild') {
                                         events = events.filter(ev => !(ev.type === 'Skilsmässa' && ev.partnerId === partnerId));
-                                      }
-                                      return { ...prev, relations: rels, events };
-                                    });
-                                  }}
+                                  }
+                                  return { ...prev, relations: rels, events };
+                                });
+                              }}
                                   className="bg-slate-900 border border-slate-600 text-xs rounded px-2 py-1 text-slate-200"
-                                >
-                                  {RELATION_TYPES.partner.map(r => <option key={r} value={r}>{r}</option>)}
-                                </select>
+                            >
+                              {RELATION_TYPES.partner.map(r => <option key={r} value={r}>{r}</option>)}
+                            </select>
                                 <button onClick={() => removeRelation('partners', partnerId)} className="text-red-600 hover:text-red-800 text-xs"><Trash2 size={14}/></button>
-                              </div>
-                           </div>
+                          </div>
+                       </div>
                            
                            {/* Barn under denna partner */}
                            <div className="ml-4 border-l-2 border-slate-600 pl-3">
@@ -1935,22 +1950,22 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                              <MediaImage url={profileImage} alt={childName} className="w-full h-full object-cover" />
                                            ) : (
                                              <User size={16} className="w-full h-full p-1.5 text-slate-400" />
-                                           )}
-                                         </div>
+                   )}
+                </div>
                                          <span 
                                            className="text-slate-200 font-medium cursor-pointer hover:text-blue-400"
                                            onClick={() => childPerson && onOpenEditModal && onOpenEditModal(childId)}
                                          >
                                            {childName}
                                          </span>
-                                       </div>
+                   </div>
                                        <div className="flex items-center gap-2">
-                                         <select
+                            <select
                                            value={relationType}
-                                           onChange={e => {
-                                             const newType = e.target.value;
-                                             setPerson(prev => {
-                                               const rels = { ...prev.relations };
+                              onChange={e => {
+                                const newType = e.target.value;
+                                setPerson(prev => {
+                                  const rels = { ...prev.relations };
                                                rels.children = rels.children.map((rel, i) => {
                                                  const relId = typeof rel === 'string' ? rel : (rel?.id || rel);
                                                  if (relId === childId) {
@@ -1961,22 +1976,22 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                                  }
                                                  return rel;
                                                });
-                                               return { ...prev, relations: rels };
-                                             });
-                                           }}
+                                  return { ...prev, relations: rels };
+                                });
+                              }}
                                            className="bg-slate-900 border border-slate-600 text-xs rounded px-2 py-1 text-slate-200"
-                                         >
-                                           {RELATION_TYPES.child.map(r => <option key={r} value={r}>{r}</option>)}
-                                         </select>
+                            >
+                              {RELATION_TYPES.child.map(r => <option key={r} value={r}>{r}</option>)}
+                            </select>
                                          <button onClick={() => removeRelation('children', childId)} className="text-red-600 hover:text-red-800 text-xs"><Trash2 size={14}/></button>
-                                       </div>
-                                    </div>
+                          </div>
+                       </div>
                                   );
                                 })
-                              ) : (
+                   ) : (
                                 <p className="text-xs text-slate-500 italic">Inga barn tillagda</p>
-                              )}
-                           </div>
+                   )}
+                </div>
                          </div>
                        );
                      })
@@ -2002,7 +2017,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                            <div className="flex justify-between mb-3">
                               <h5 className="text-xs font-semibold text-slate-300 uppercase">Barn (ej kopplade till partner)</h5>
                               <button onClick={() => openRelationModal('children')} className="text-blue-600 hover:text-blue-800 text-xs flex items-center gap-1"><Plus size={10}/> Lägg till</button>
-                           </div>
+                      </div>
                            {unlinkedChildren.map((c, idx) => {
                              const childId = typeof c === 'string' ? c : (c?.id || c);
                              const childPerson = allPeople.find(pp => pp.id === childId);
@@ -2856,9 +2871,10 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
 
           </div>
         </div>
+        )}
 
         {/* DETAIL BLOCK - visa källa-info för vald händelse */}
-        {selectedEventIndex !== null && editingEventIndex === null && person.events?.[selectedEventIndex] && (
+        {!isCollapsed && selectedEventIndex !== null && editingEventIndex === null && person.events?.[selectedEventIndex] && (
           <div className="bg-slate-800 border-t border-slate-700 p-4 max-h-40 overflow-y-auto">
             <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-700">
               <h4 className="text-sm font-bold text-slate-200">
