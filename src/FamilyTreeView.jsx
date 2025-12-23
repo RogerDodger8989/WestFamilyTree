@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { 
-  Edit2, User, Heart, Network, HeartCrack, PlusCircle, Trash2, Users, 
-  Copy, Plus, Minus, Home, Search, ArrowLeft, ArrowRight, AlertTriangle, 
+import {
+  Edit2, User, Heart, Network, HeartCrack, PlusCircle, Trash2, Users,
+  Copy, Plus, Minus, Home, Search, ArrowLeft, ArrowRight, AlertTriangle,
   List, X, MapPin, Star, Baby, UserPlus, GitFork, Bookmark, Maximize2, Minimize2, Settings,
   Link as LinkIcon, Layers, HeartHandshake, HelpCircle, ArrowUpCircle, RefreshCcw
 } from 'lucide-react';
@@ -27,28 +27,28 @@ const calculateStatus = (person, birthDate, deathDate) => {
 };
 
 const getLifeSpan = (p) => {
-    const getYear = (type) => {
-        const evt = p.events?.find(e => e.type === type || e.type === (type === 'BIRT' ? 'Födelse' : 'Död'));
-        return evt?.date ? evt.date.substring(0, 4) : '';
-    };
-    const b = getYear('BIRT');
-    const d = getYear('DEAT');
-    if (!b && !d) return '';
-    return `(${b}-${d})`;
+  const getYear = (type) => {
+    const evt = p.events?.find(e => e.type === type || e.type === (type === 'BIRT' ? 'Födelse' : 'Död'));
+    return evt?.date ? evt.date.substring(0, 4) : '';
+  };
+  const b = getYear('BIRT');
+  const d = getYear('DEAT');
+  if (!b && !d) return '';
+  return `(${b}-${d})`;
 };
 
 const convertPersonForDisplay = (person) => {
-    if (!person) return null;
-    
-    const birthEvent = person.events?.find(e => e.type === 'BIRT' || e.type === 'Födelse');
-    const deathEvent = person.events?.find(e => e.type === 'DEAT' || e.type === 'Död');
-    
+  if (!person) return null;
+
+  const birthEvent = person.events?.find(e => e.type === 'BIRT' || e.type === 'Födelse');
+  const deathEvent = person.events?.find(e => e.type === 'DEAT' || e.type === 'Död');
+
   const birthDate = birthEvent?.date || '';
   const deathDate = deathEvent?.date || '';
   const age = calculateAge(birthDate, deathDate);
   const status = calculateStatus(person, birthDate, deathDate);
   const childrenCount = (person.relations?.children || []).length;
-  
+
   const occupationEvents = (person.events || []).filter(e => e.type === 'Yrke' || e.type === 'OCCU');
   const occupations = occupationEvents
     .map(e => {
@@ -56,19 +56,19 @@ const convertPersonForDisplay = (person) => {
       return notes;
     })
     .filter(occ => occ && occ.length > 0);
-  
-    return {
-        id: person.id,
+
+  return {
+    id: person.id,
     name: `${person.firstName || 'Okänd'} ${person.lastName || ''}`.trim(),
-        firstName: person.firstName || 'Okänd',
-        lastName: person.lastName || '',
+    firstName: person.firstName || 'Okänd',
+    lastName: person.lastName || '',
     gender: person.sex === 'M' ? 'male' : person.sex === 'K' ? 'female' : 'unknown',
     sex: person.sex,
     birthDate: birthDate,
-        birthPlace: birthEvent?.place || '',
+    birthPlace: birthEvent?.place || '',
     birthYear: birthDate ? parseInt(birthDate.substring(0, 4)) || 9999 : 9999,
     deathDate: deathDate,
-        deathPlace: deathEvent?.place || '',
+    deathPlace: deathEvent?.place || '',
     age: age,
     status: status,
     img: person.media?.find(m => m.isProfilePicture)?.url || person.media?.[0]?.url || null,
@@ -243,14 +243,14 @@ const STYLES = `
 function calculateVerticalLayout(db, focusId) {
   const nodes = [];
   const edges = [];
-  
+
   const focusPerson = db.persons.find(p => p.id === focusId);
   if (!focusPerson) return { nodes: [], edges: [], width: 0, height: 0 };
 
   // --------------------------------------------------------------------------
   // 1. DATAINSAMLING GEN 1 (Föräldrar + Styvföräldrar)
   // --------------------------------------------------------------------------
-  
+
   const parentRels = db.parent_child.filter(pc => pc.child_id === focusId);
   const parents = parentRels.map(rel => db.persons.find(p => p.id === rel.parent_id)).filter(Boolean);
   parents.sort((a, b) => (a.gender === 'male' ? -1 : 1));
@@ -258,15 +258,15 @@ function calculateVerticalLayout(db, focusId) {
   // --------------------------------------------------------------------------
   // 2. DATAINSAMLING GEN 2 (Syskon & Halvsyskon)
   // --------------------------------------------------------------------------
-  
+
   const siblingIds = new Set();
   parents.forEach(parent => {
-      const children = db.parent_child.filter(pc => pc.parent_id === parent.id).map(pc => pc.child_id);
-      children.forEach(id => {
-          if (id !== focusId) siblingIds.add(id);
-      });
+    const children = db.parent_child.filter(pc => pc.parent_id === parent.id).map(pc => pc.child_id);
+    children.forEach(id => {
+      if (id !== focusId) siblingIds.add(id);
+    });
   });
-  
+
   const siblings = Array.from(siblingIds).map(id => db.persons.find(p => p.id === id));
   siblings.sort((a, b) => a.birthYear - b.birthYear);
 
@@ -276,240 +276,301 @@ function calculateVerticalLayout(db, focusId) {
   // --------------------------------------------------------------------------
   // 3. PLACERING (X/Y)
   // --------------------------------------------------------------------------
-  
-  const startX = 600; 
-  const startY = 300; // Flyttade ner lite för att ge plats åt linjer
-  
+
+  const startX = 600;
+  const startY = 300;
+
   // --- A. PLACERA JIMMY (FOKUS) ---
   nodes.push({ ...focusPerson, x: startX, y: startY, type: 'focus' });
 
   // --- B. PLACERA SYSKON (SIDLED) ---
-  let leftCursor = startX - (CONFIG.CARD_WIDTH + CONFIG.GAP_X);
-  olderSiblings.reverse().forEach(sib => { 
-      nodes.push({ ...sib, x: leftCursor, y: startY, type: 'sibling' });
-      leftCursor -= (CONFIG.CARD_WIDTH + CONFIG.GAP_X);
+  // Gruppera syskon baserat på föräldrar för att placera dem på "rätt" sida
+  // Vänster = Pappas barn (som inte är mammas)
+  // Höger = Mammas barn (som inte är pappas)
+  // Mitten = Gemensamma barn (Fullsyskon)
+
+  const dad = parents.find(p => p.gender === 'male') || parents[0];
+  const mom = parents.find(p => p.gender === 'female') || parents[1];
+
+  const leftSiblings = [];
+  const rightSiblings = [];
+  const fullSiblings = [];
+
+  siblings.forEach(sib => {
+    const sibParents = db.parent_child.filter(pc => pc.child_id === sib.id).map(pc => pc.parent_id);
+    const hasDad = dad && sibParents.includes(dad.id);
+    const hasMom = mom && sibParents.includes(mom.id);
+
+    if (hasDad && !hasMom) {
+      leftSiblings.push(sib);
+    } else if (hasMom && !hasDad) {
+      rightSiblings.push(sib);
+    } else {
+      fullSiblings.push(sib);
+    }
   });
 
+  // Sortera varje grupp efter ålder
+  leftSiblings.sort((a, b) => a.birthYear - b.birthYear);
+  rightSiblings.sort((a, b) => a.birthYear - b.birthYear);
+  fullSiblings.sort((a, b) => a.birthYear - b.birthYear);
+
+  // Dela upp fullsyskon i äldre/yngre än fokus
+  const olderFullSibs = fullSiblings.filter(s => s.birthYear < focusPerson.birthYear);
+  const youngerFullSibs = fullSiblings.filter(s => s.birthYear > focusPerson.birthYear);
+
+  // Placera VÄNSTER-sidan: Först Halvsyskon (äldst längst ut?), sen Äldre Fullsyskon
+  // Vi vill ha: [Dad's Only] ... [Older Full] ... [FOCUS] ... [Younger Full] ... [Mom's Only]
+
+  let leftCursor = startX - (CONFIG.CARD_WIDTH + CONFIG.GAP_X);
+
+  // 1. Äldre Fullsyskon (närmast fokus på vänster sida)
+  olderFullSibs.reverse().forEach(sib => {
+    nodes.push({ ...sib, x: leftCursor, y: startY, type: 'sibling' });
+    leftCursor -= (CONFIG.CARD_WIDTH + CONFIG.GAP_X);
+  });
+
+  // 2. Halvsyskon på pappas sida (längre åt vänster)
+  leftSiblings.reverse().forEach(sib => {
+    nodes.push({ ...sib, x: leftCursor, y: startY, type: 'sibling-left' });
+    leftCursor -= (CONFIG.CARD_WIDTH + CONFIG.GAP_X);
+  });
+
+  // Placera HÖGER-sidan
   let rightCursor = startX + (CONFIG.CARD_WIDTH + CONFIG.GAP_X);
-  youngerSiblings.forEach(sib => {
-      nodes.push({ ...sib, x: rightCursor, y: startY, type: 'sibling' });
-      rightCursor += (CONFIG.CARD_WIDTH + CONFIG.GAP_X);
+
+  // 1. Yngre Fullsyskon (närmast fokus på höger sida)
+  youngerFullSibs.forEach(sib => {
+    nodes.push({ ...sib, x: rightCursor, y: startY, type: 'sibling' });
+    rightCursor += (CONFIG.CARD_WIDTH + CONFIG.GAP_X);
+  });
+
+  // 2. Halvsyskon på mammas sida (längre åt höger)
+  rightSiblings.forEach(sib => {
+    nodes.push({ ...sib, x: rightCursor, y: startY, type: 'sibling-right' });
+    rightCursor += (CONFIG.CARD_WIDTH + CONFIG.GAP_X);
   });
 
   // --- C. PLACERA GEN 1 (FÖRÄLDRAR & STYVFÖRÄLDRAR) ---
-  
+
   const parentsY = startY - CONFIG.GAP_Y - CONFIG.CARD_HEIGHT;
-  const parentsCenterX = startX + CONFIG.CARD_WIDTH/2;
-  
-  const dadX = parentsCenterX - CONFIG.CARD_WIDTH - 20; 
+  const parentsCenterX = startX + CONFIG.CARD_WIDTH / 2;
+
+  const dadX = parentsCenterX - CONFIG.CARD_WIDTH - 20;
   const momX = parentsCenterX + 20;
 
   // Hjälpfunktion för att placera styvföräldrar
   const placeStepParents = (bioParent, bioParentX, side) => {
-      if (!bioParent) return;
-      nodes.push({ ...bioParent, x: bioParentX, y: parentsY, type: 'parent' });
+    if (!bioParent) return;
+    nodes.push({ ...bioParent, x: bioParentX, y: parentsY, type: 'parent' });
 
-      const otherBio = parents.find(p => p.id !== bioParent.id);
-      const pRels = db.relationships.filter(r => r.person1_id === bioParent.id || r.person2_id === bioParent.id);
-      const stepParents = pRels.map(r => {
-          const pid = r.person1_id === bioParent.id ? r.person2_id : r.person1_id;
-          return db.persons.find(p => p.id === pid);
-      }).filter(p => p && (!otherBio || p.id !== otherBio.id));
+    const otherBio = parents.find(p => p.id !== bioParent.id);
+    const pRels = db.relationships.filter(r => r.person1_id === bioParent.id || r.person2_id === bioParent.id);
+    const stepParents = pRels.map(r => {
+      const pid = r.person1_id === bioParent.id ? r.person2_id : r.person1_id;
+      return db.persons.find(p => p.id === pid);
+    }).filter(p => p && (!otherBio || p.id !== otherBio.id));
 
-      let spCursor = bioParentX;
-      stepParents.forEach(sp => {
-          if (side === 'left') spCursor -= (CONFIG.CARD_WIDTH + CONFIG.GAP_X);
-          else spCursor += (CONFIG.CARD_WIDTH + CONFIG.GAP_X);
-          
-          nodes.push({ ...sp, x: spCursor, y: parentsY, type: 'stepparent' });
-          edges.push({
-              id: `stepparent-${sp.id}-${bioParent.id}`,
-              x1: side === 'left' ? spCursor + CONFIG.CARD_WIDTH : spCursor,
-              y1: parentsY + CONFIG.CARD_HEIGHT/2,
-              x2: side === 'left' ? bioParentX : bioParentX + CONFIG.CARD_WIDTH,
-              y2: parentsY + CONFIG.CARD_HEIGHT/2,
-              type: 'step-link'
-          });
+    let spCursor = bioParentX;
+    stepParents.forEach(sp => {
+      if (side === 'left') spCursor -= (CONFIG.CARD_WIDTH + CONFIG.GAP_X);
+      else spCursor += (CONFIG.CARD_WIDTH + CONFIG.GAP_X);
+
+      nodes.push({ ...sp, x: spCursor, y: parentsY, type: 'stepparent' });
+      edges.push({
+        id: `stepparent-${sp.id}-${bioParent.id}`,
+        x1: side === 'left' ? spCursor + CONFIG.CARD_WIDTH : spCursor,
+        y1: parentsY + CONFIG.CARD_HEIGHT / 2,
+        x2: side === 'left' ? bioParentX : bioParentX + CONFIG.CARD_WIDTH,
+        y2: parentsY + CONFIG.CARD_HEIGHT / 2,
+        type: 'step-link'
       });
+    });
   };
 
-  // Placera ALLA föräldrar, oavsett kön (försök sortera man till vänster)
+  // Placera ALLA föräldrar, oavsett kön
   if (parents.length >= 2) {
-      const dad = parents.find(p => p.gender === 'male');
-      const mom = parents.find(p => p.gender === 'female');
-      
-      const leftParent = dad || parents[0];
-      const rightParent = (dad && mom) ? mom : (dad ? parents.find(p => p.id !== dad.id) : parents[1]);
-      
-      if (leftParent) placeStepParents(leftParent, dadX, 'left');
-      if (rightParent) placeStepParents(rightParent, momX, 'right');
+    const dad = parents.find(p => p.gender === 'male');
+    const mom = parents.find(p => p.gender === 'female');
+
+    const leftParent = dad || parents[0];
+    const rightParent = (dad && mom) ? mom : (dad ? parents.find(p => p.id !== dad.id) : parents[1]);
+
+    if (leftParent) placeStepParents(leftParent, dadX, 'left');
+    if (rightParent) placeStepParents(rightParent, momX, 'right');
   } else if (parents.length === 1) {
-      placeStepParents(parents[0], startX, 'left');
+    placeStepParents(parents[0], startX, 'left');
   }
 
   // Koppla fokusperson till föräldrar (Linje uppåt)
   if (parents.length > 0) {
-      edges.push({
-          id: 'focus-parents',
-          x1: parentsCenterX, y1: parentsY + CONFIG.CARD_HEIGHT,
-          x2: parentsCenterX, y2: startY,
-          type: 'straight'
-      });
+    edges.push({
+      id: 'focus-parents',
+      x1: parentsCenterX, y1: parentsY + CONFIG.CARD_HEIGHT,
+      x2: parentsCenterX, y2: startY,
+      type: 'straight'
+    });
   }
 
-  // --- NY LOGIK: Koppla Syskon till RÄTT Föräldrapar (Elbow) ---
-  [...olderSiblings, ...youngerSiblings].forEach(sib => {
-      const sibNode = nodes.find(n => n.id === sib.id);
-      if (!sibNode) return;
-
-      // Hitta syskonets föräldrar i DB
-      const pIds = db.parent_child.filter(pc => pc.child_id === sib.id).map(pc => pc.parent_id);
-      const pNodes = pIds.map(pid => nodes.find(n => n.id === pid)).filter(Boolean);
-
-      let targetX = parentsCenterX; // Default till mitten (om något är oklart)
-      
-      if (pNodes.length === 2) {
-          // Vi har hittat 2 föräldrar i grafen (t.ex. Far & Styvmor)
-          const p1 = pNodes[0];
-          const p2 = pNodes[1];
-          // Räkna ut mitten mellan just dessa två
-          targetX = ((p1.x + CONFIG.CARD_WIDTH/2) + (p2.x + CONFIG.CARD_WIDTH/2)) / 2;
-      } else if (pNodes.length === 1) {
-          // Bara en förälder hittad (okänd partner?), dra till den
-          targetX = pNodes[0].x + CONFIG.CARD_WIDTH/2;
-      }
-
-      edges.push({
-          id: `sib-${sib.id}`,
-          x1: sibNode.x + CONFIG.CARD_WIDTH/2, y1: sibNode.y,
-          x2: targetX, y2: parentsY + CONFIG.CARD_HEIGHT,
-          type: 'elbow-up'
-      });
-  });
-
-  // --------------------------------------------------------------------------
-  // 3.5. SYSKONS PARTNERS & BARN (NEDÅT) - PRECIS SOM FÖR FOKUSPERSON
-  // --------------------------------------------------------------------------
-  
+  // Koppla Syskon till RÄTT Föräldrapar (Elbow)
   [...olderSiblings, ...youngerSiblings].forEach(sib => {
     const sibNode = nodes.find(n => n.id === sib.id);
     if (!sibNode) return;
 
-    // Hitta syskonets partners
-    const sibPartnerRels = db.relationships.filter(r => r.person1_id === sib.id || r.person2_id === sib.id);
-    const sibPartners = sibPartnerRels.map(r => {
-      const pid = r.person1_id === sib.id ? r.person2_id : r.person1_id;
-      return db.persons.find(p => p.id === pid);
-    });
+    const pIds = db.parent_child.filter(pc => pc.child_id === sib.id).map(pc => pc.parent_id);
+    const pNodes = pIds.map(pid => nodes.find(n => n.id === pid)).filter(Boolean);
 
-    // Om syskonet har barn men ingen partner, lägg till null
-    if (sibPartners.length === 0) {
-      const kids = db.parent_child.filter(pc => pc.parent_id === sib.id).map(pc => pc.child_id);
-      if (kids.length > 0) sibPartners.push(null);
+    let targetX = parentsCenterX;
+
+    if (pNodes.length === 2) {
+      const p1 = pNodes[0];
+      const p2 = pNodes[1];
+      targetX = ((p1.x + CONFIG.CARD_WIDTH / 2) + (p2.x + CONFIG.CARD_WIDTH / 2)) / 2;
+    } else if (pNodes.length === 1) {
+      targetX = pNodes[0].x + CONFIG.CARD_WIDTH / 2;
     }
 
-    let sibCurrentY = sibNode.y + CONFIG.CARD_HEIGHT + 40;
-
-    sibPartners.forEach(partner => {
-      let childrenIds = [];
-      if (partner) {
-        childrenIds = db.persons.filter(p => {
-          const rels = db.parent_child.filter(pc => pc.child_id === p.id);
-          const hasSib = rels.some(r => r.parent_id === sib.id);
-          const hasPartner = rels.some(r => r.parent_id === partner.id);
-          return hasSib && hasPartner;
-        }).map(p => p.id);
-      } else {
-        childrenIds = db.parent_child.filter(pc => pc.parent_id === sib.id).map(pc => pc.child_id);
-      }
-      const children = childrenIds.map(id => db.persons.find(p => p.id === id)).filter(Boolean).sort((a,b) => a.birthYear - b.birthYear);
-
-      const partnerX = sibNode.x;
-      if (partner) {
-        nodes.push({ ...partner, x: partnerX, y: sibCurrentY, type: 'partner' });
-        edges.push({
-          id: `sib-partner-${sib.id}-${partner.id}`,
-          x1: sibNode.x + 20, y1: sibNode.y + CONFIG.CARD_HEIGHT,
-          x2: partnerX, y2: sibCurrentY + CONFIG.CARD_HEIGHT/2,
-          type: 'step-left'
-        });
-      }
-
-      let childY = sibCurrentY + CONFIG.CARD_HEIGHT + 20;
-      const childX = partnerX + CONFIG.INDENT_X;
-
-      children.forEach(child => {
-        nodes.push({ ...child, x: childX, y: childY, type: 'child' });
-        const sourceY = partner ? sibCurrentY + CONFIG.CARD_HEIGHT : sibNode.y + CONFIG.CARD_HEIGHT;
-        edges.push({
-          id: `sib-child-${sib.id}-${child.id}`,
-          x1: partnerX + 20, y1: sourceY,
-          x2: childX, y2: childY + CONFIG.CARD_HEIGHT/2,
-          type: 'step-indent'
-        });
-        childY += CONFIG.CARD_HEIGHT + 10;
-      });
-      sibCurrentY = childY + 20;
+    edges.push({
+      id: `sib-${sib.id}`,
+      x1: sibNode.x + CONFIG.CARD_WIDTH / 2, y1: sibNode.y,
+      x2: targetX, y2: parentsY + CONFIG.CARD_HEIGHT,
+      type: 'elbow-up'
     });
   });
 
-  // --------------------------------------------------------------------------
-  // 4. JIMMYS PARTNERS & BARN (NEDÅT)
-  // --------------------------------------------------------------------------
-  
-  const myPartnerRels = db.relationships.filter(r => r.person1_id === focusId || r.person2_id === focusId);
-  const myPartners = myPartnerRels.map(r => {
-      const pid = r.person1_id === focusId ? r.person2_id : r.person1_id;
+  // ==========================================================================
+  // 4. REKURSIV BRANCH-LAYOUT (Partners & Ättlingar)
+  // ==========================================================================
+
+  /**
+   * Rekursiv funktion för att rita ut partners och barn (och deras barn...)
+   * @param {string} personId - ID på personen vars träd vi ritar
+   * @param {number} startX - X-position för denna gren (personens X)
+   * @param {number} startY - Y-position där förgreningslinjen börjar (under personen)
+   * @param {boolean} isRoot - Om detta är första nivån (fokus/syskon) eller längre ner
+   */
+  const layoutBranch = (personId, rootX, rootY) => {
+    let currentY = rootY;
+
+    // 1. Hitta partners
+    const partnerRels = db.relationships.filter(r => r.person1_id === personId || r.person2_id === personId);
+    const partners = partnerRels.map(r => {
+      const pid = r.person1_id === personId ? r.person2_id : r.person1_id;
       return db.persons.find(p => p.id === pid);
-  });
+    });
 
-  if (myPartners.length === 0) {
-      const kids = db.parent_child.filter(pc => pc.parent_id === focusId).map(pc => pc.child_id);
-      if (kids.length > 0) myPartners.push(null); 
-  }
+    // Om personen har barn men ingen partner registrerad, hantera som "null-partner"
+    if (partners.length === 0) {
+      const kids = db.parent_child.filter(pc => pc.parent_id === personId).map(pc => pc.child_id);
+      if (kids.length > 0) partners.push(null);
+    }
 
-  let currentY = startY + CONFIG.CARD_HEIGHT + 40; 
-  
-  myPartners.forEach(partner => {
+    let maxBranchY = currentY; // Track the maximum Y reached by any partner branch
+
+    partners.forEach((partner, index) => {
       let childrenIds = [];
       if (partner) {
-           childrenIds = db.persons.filter(p => {
-              const rels = db.parent_child.filter(pc => pc.child_id === p.id);
-              const hasMe = rels.some(r => r.parent_id === focusId);
-              const hasPartner = rels.some(r => r.parent_id === partner.id);
-              return hasMe && hasPartner;
-          }).map(p => p.id);
+        // Hitta gemensamma barn
+        childrenIds = db.persons.filter(p => {
+          const rels = db.parent_child.filter(pc => pc.child_id === p.id);
+          const hasMe = rels.some(r => r.parent_id === personId);
+          const hasPartner = rels.some(r => r.parent_id === partner.id);
+          return hasMe && hasPartner;
+        }).map(p => p.id);
       } else {
-          childrenIds = db.parent_child.filter(pc => pc.parent_id === focusId).map(pc => pc.child_id);
+        // Hitta barn till bara mig (om ingen partner finns)
+        childrenIds = db.parent_child.filter(pc => pc.parent_id === personId).map(pc => pc.child_id);
       }
-      const children = childrenIds.map(id => db.persons.find(p => p.id === id)).sort((a,b) => a.birthYear - b.birthYear);
+      const children = childrenIds.map(id => db.persons.find(p => p.id === id)).filter(Boolean).sort((a, b) => a.birthYear - b.birthYear);
 
-      const partnerX = startX; 
+      // Placera partner (PARALLELLT)
+      // Använd samma Y för alla partners (rootY)
+      // X-positionering: Långt vänster för udda, långt höger för jämna
+      const isRight = index % 2 !== 0;
+      const offset = 350;
+      const partnerX = isRight ? rootX + offset : rootX - offset;
+      const partnerY = rootY;
+
+      // Om partner finns, rita ut den
       if (partner) {
-          nodes.push({ ...partner, x: partnerX, y: currentY, type: 'partner' });
-          edges.push({
-              id: `partner-${partner.id}`,
-              x1: startX + 20, y1: startY + CONFIG.CARD_HEIGHT, 
-              x2: partnerX, y2: currentY + CONFIG.CARD_HEIGHT/2, 
-              type: 'step-left' 
-          });
-      }
+        nodes.push({ ...partner, x: partnerX, y: partnerY, type: 'partner' });
 
-      let childY = currentY + CONFIG.CARD_HEIGHT + 20;
-      const childX = partnerX + CONFIG.INDENT_X;
+        // Linje från roten (personens nod) till partnern
+        // OBS: Om vi är djupt nere i rekursionen måste vi veta "varifrån" vi kom.
+        // I denna layout ritar vi alltid partnern rakt under föregående nivå om det är fokus, men indenterat om det är barn.
+        // Vänta, logiken i gamla koden var:
+        // Focus -> Partner (Step-Left)
+        // Child -> Partner (Step-Left)
+
+        // Vi måste veta var "parent node" ligger för att dra linjen.
+        // Men layoutBranch anropas med rootX/rootY som är positionen DÄR partnern ska hamna ungefär.
+        const parentNode = nodes.find(n => n.id === personId);
+        if (parentNode) {
+          edges.push({
+            id: `partner-${personId}-${partner.id}`,
+            x1: parentNode.x + (CONFIG.CARD_WIDTH / 2), y1: parentNode.y + CONFIG.CARD_HEIGHT,
+            x2: partnerX + (CONFIG.CARD_WIDTH / 2), y2: partnerY,
+            type: 'elbow-down' // Byt till elbow-down för snyggare koppling
+          });
+        }
+      }
+      const branchStartY = partnerY + CONFIG.CARD_HEIGHT;
+      let childBaseY = branchStartY + 20;
+
+      // Barnen hamnar under partnern. Om ingen partner (singel), hamnar de under offset ändå för snyggare träd? 
+      // Nej, om ingen partner, childX = rootX.
+      const childX = partner ? partnerX + CONFIG.INDENT_X : rootX;
 
       children.forEach(child => {
-          nodes.push({ ...child, x: childX, y: childY, type: 'child' });
-          const sourceY = partner ? currentY + CONFIG.CARD_HEIGHT : startY + CONFIG.CARD_HEIGHT;
-          edges.push({
-              id: `child-${child.id}`,
-              x1: partnerX + 20, y1: sourceY, 
-              x2: childX, y2: childY + CONFIG.CARD_HEIGHT/2, 
-              type: 'step-indent'
-          });
-          childY += CONFIG.CARD_HEIGHT + 10; 
+        nodes.push({ ...child, x: childX, y: childBaseY, type: 'child' });
+
+        // Linje från partner (eller föräldern om ingen partner) till barnet
+        edges.push({
+          id: `child-${personId}-${child.id}`,
+          x1: partner ? partnerX + (CONFIG.CARD_WIDTH / 2) : rootX + (CONFIG.CARD_WIDTH / 2),
+          y1: branchStartY,
+          x2: childX + (CONFIG.CARD_WIDTH / 2),
+          y2: childBaseY,
+          type: 'straight'
+        });
+
+        // REKURSION! Rita ut detta barns gren (barnbarn osv)
+        // Nästa nivå startar under detta barn
+        const nestedHeight = layoutBranch(child.id, childX, childBaseY + CONFIG.CARD_HEIGHT + 20);
+
+        // Uppdatera childBaseY så nästa syskon hamnar under hela det nyss utritade trädet
+        // layoutBranch returnerar den totala Y-höjden som användes.
+        // Om layoutBranch inte la till något (inga barnbarn), öka bara med standardhöjd.
+
+        if (nestedHeight > childBaseY) {
+          childBaseY = nestedHeight;
+        } else {
+          childBaseY += CONFIG.CARD_HEIGHT + 10;
+        }
       });
-      currentY = childY + 20;
+
+      // Uppdatera maxhöjden för hela denna sektion
+      if (childBaseY > maxBranchY) {
+        maxBranchY = childBaseY;
+      }
+    });
+
+    return maxBranchY > currentY ? maxBranchY : currentY + CONFIG.CARD_HEIGHT;
+  };
+
+  // --------------------------------------------------------------------------
+  // 5. KÖR REKURSIONEN FÖR ALLA PÅ GEN 0 (Fokus + Syskon)
+  // --------------------------------------------------------------------------
+
+  // Fokuspersonens gren
+  layoutBranch(focusId, startX, startY + CONFIG.CARD_HEIGHT + 40);
+
+  // Syskonens grenar
+  [...olderSiblings, ...youngerSiblings].forEach(sib => {
+    const sibNode = nodes.find(n => n.id === sib.id);
+    if (sibNode) {
+      layoutBranch(sib.id, sibNode.x, sibNode.y + CONFIG.CARD_HEIGHT + 40);
+    }
   });
 
   const maxX = Math.max(...nodes.map(n => n.x + CONFIG.CARD_WIDTH));
@@ -565,20 +626,20 @@ const buildMockDB = (allPeople) => {
 // KOMPONENT
 // ============================================================================
 
-export default function FamilyTreeView({ 
-  allPeople = [], 
-  focusPersonId, 
-  onSetFocus, 
-  onOpenEditModal, 
-  onCreatePersonAndLink, 
-  onAddParentToChildAndSetPartners, 
-  onDeletePerson, 
-  getPersonRelations, 
-  personToCenter, 
-  onPersonCentered 
+export default function FamilyTreeView({
+  allPeople = [],
+  focusPersonId,
+  onSetFocus,
+  onOpenEditModal,
+  onCreatePersonAndLink,
+  onAddParentToChildAndSetPartners,
+  onDeletePerson,
+  getPersonRelations,
+  personToCenter,
+  onPersonCentered
 }) {
   const app = useApp();
-  
+
   // State
   const [focusId, setFocusId] = useState(focusPersonId || (allPeople[0]?.id) || 1);
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
@@ -610,7 +671,7 @@ export default function FamilyTreeView({
     // Kör bara om vi inte redan har öppnat modal, har personer, och ingen är redan vald
     if (!hasOpenedModal.current && allPeople.length > 0 && !app.editingPerson && onOpenEditModal) {
       hasOpenedModal.current = true; // Sätt flagga så vi inte gör detta igen
-      
+
       // Öppna första personen som collapsed
       const personToEdit = focusPersonId || allPeople[0]?.id;
       if (personToEdit) {
@@ -696,80 +757,84 @@ export default function FamilyTreeView({
     }
   }, [contextMenu]);
 
-    return (
+  return (
     <>
       <style>{STYLES}</style>
       <div className="vt-container">
-        
+
         <div className="vt-header">
           <div>
             <h2 style={{ margin: 0, color: '#0f172a' }}>Släktträd</h2>
             <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
               {nodes.length} personer visas
             </p>
-      </div>
+          </div>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button 
+            <button
               onClick={handleZoomIn}
-              className="vt-card" 
+              className="vt-card"
               style={{ position: 'static', height: '36px', width: '36px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             >
               <Plus size={16} />
-              </button>
-              <button 
+            </button>
+            <button
               onClick={handleZoomOut}
-              className="vt-card" 
+              className="vt-card"
               style={{ position: 'static', height: '36px', width: '36px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             >
               <Minus size={16} />
-              </button>
-            <button 
+            </button>
+            <button
               onClick={handleResetView}
-              className="vt-card" 
+              className="vt-card"
               style={{ position: 'static', height: '36px', width: 'auto', padding: '0 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
             >
               <RefreshCcw size={16} /> Återställ vy
             </button>
-         </div>
-      </div>
+          </div>
+        </div>
 
-        <div 
+        <div
           ref={canvasRef}
           className={`vt-canvas ${isDragging ? 'dragging' : ''}`}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
           onWheel={handleWheel}
         >
-          <div 
-            style={{ 
-              width: Math.max(width, 800), 
+          <div
+            style={{
+              width: Math.max(width, 800),
               height: Math.max(height, 800),
               transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
               transformOrigin: '0 0',
               transition: isDragging ? 'none' : 'transform 0.1s ease-out'
             }}
           >
-            
+
             <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 0 }}>
               {edges.map(edge => {
                 let d = '';
                 if (edge.type === 'straight') {
-                    d = `M ${edge.x1} ${edge.y1} L ${edge.x2} ${edge.y2}`;
+                  d = `M ${edge.x1} ${edge.y1} L ${edge.x2} ${edge.y2}`;
                 } else if (edge.type === 'elbow-up') {
-                    const midY = edge.y1 - 30;
-                    d = `M ${edge.x1} ${edge.y1} V ${midY} H ${edge.x2} V ${edge.y2}`;
+                  const midY = edge.y1 - 30;
+                  d = `M ${edge.x1} ${edge.y1} V ${midY} H ${edge.x2} V ${edge.y2}`;
+                } else if (edge.type === 'elbow-down') {
+                  // Linje neråt: Ner -> Horisontellt till partner -> Ner
+                  const midY = edge.y1 + 40;
+                  d = `M ${edge.x1} ${edge.y1} V ${midY} H ${edge.x2} V ${edge.y2}`;
                 } else if (edge.type === 'step-left') {
-                    d = `M ${edge.x1} ${edge.y1} V ${edge.y2} H ${edge.x2}`; 
+                  d = `M ${edge.x1} ${edge.y1} V ${edge.y2} H ${edge.x2}`;
                 } else if (edge.type === 'step-indent') {
-                    d = `M ${edge.x1} ${edge.y1} V ${edge.y2} H ${edge.x2}`;
+                  d = `M ${edge.x1} ${edge.y1} V ${edge.y2} H ${edge.x2}`;
                 } else if (edge.type === 'step-link') {
-                     d = `M ${edge.x1} ${edge.y1} L ${edge.x2} ${edge.y2}`;
+                  d = `M ${edge.x1} ${edge.y1} L ${edge.x2} ${edge.y2}`;
                 }
 
                 return (
-                  <path 
+                  <path
                     key={edge.id}
                     d={d}
                     fill="none"
@@ -784,12 +849,12 @@ export default function FamilyTreeView({
             {nodes.map(node => {
               const person = allPeople.find(p => p.id === node.id);
               if (!person) return null;
-              
+
               const displayPerson = convertPersonForDisplay(person);
-                
-                return (
-                    <div 
-                        key={node.id}
+
+              return (
+                <div
+                  key={node.id}
                   onClick={(e) => {
                     e.stopPropagation();
                     // Använd timer för att skilja single från double click
@@ -817,15 +882,15 @@ export default function FamilyTreeView({
                   )}
                   <div className="vt-avatar">
                     {node.img ? (
-                      <MediaImage 
-                        src={node.img} 
+                      <MediaImage
+                        src={node.img}
                         alt={node.name}
                         className="w-full h-full object-cover"
                       />
                     ) : (
                       <User size={32} />
-                            )}
-                        </div>
+                    )}
+                  </div>
                   <div className="vt-info">
                     <span className="vt-name">{displayPerson.firstName} {displayPerson.lastName}</span>
                     {displayPerson.birthDate && (
@@ -839,17 +904,17 @@ export default function FamilyTreeView({
                       </span>
                     )}
                     {displayPerson.occupations && displayPerson.occupations.length > 0 && (
-                      <span className="vt-detail" style={{fontStyle:'italic'}}>
+                      <span className="vt-detail" style={{ fontStyle: 'italic' }}>
                         {displayPerson.occupations[0]}
                       </span>
                     )}
                   </div>
-                    </div>
-                );
+                </div>
+              );
             })}
 
+          </div>
         </div>
-      </div>
 
         {/* Context Menu */}
         {contextMenu && (
@@ -860,8 +925,8 @@ export default function FamilyTreeView({
               top: contextMenu.y,
               minWidth: '200px'
             }}
-          onClick={(e) => e.stopPropagation()}
-        >
+            onClick={(e) => e.stopPropagation()}
+          >
             <button
               onClick={() => {
                 if (onOpenEditModal) onOpenEditModal(contextMenu.person.id);
@@ -895,7 +960,7 @@ export default function FamilyTreeView({
               <Baby size={16} />
               Lägg till barn
             </button>
-  <button 
+            <button
               onClick={() => {
                 if (onCreatePersonAndLink) {
                   onCreatePersonAndLink('partner', contextMenu.person.id);
@@ -906,7 +971,7 @@ export default function FamilyTreeView({
             >
               <Heart size={16} />
               Lägg till partner
-  </button>
+            </button>
             <button
               onClick={() => {
                 if (onCreatePersonAndLink) {

@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { 
-  X, User, Users, Image as ImageIcon, FileText, 
-  Activity, Tag, Plus, Trash2, Calendar, MapPin, 
-  Link as LinkIcon, Camera, Edit3, AlertCircle, Check, 
+import {
+  X, User, Users, Image as ImageIcon, FileText,
+  Activity, Tag, Plus, Trash2, Calendar, MapPin,
+  Link as LinkIcon, Camera, Edit3, AlertCircle, Check,
   ChevronDown, ChevronUp, MoreHorizontal, Search, Globe, HelpCircle,
   ClipboardList, BookOpen, Clock
 } from 'lucide-react';
@@ -14,7 +14,8 @@ import MediaSelector from './MediaSelector.jsx';
 import ImageEditorModal from './ImageEditorModal.jsx';
 import MediaImage from './components/MediaImage.jsx';
 import { useApp } from './AppContext';
-import { ensureParentsArePartners } from './App.jsx';
+import { calculateRelationship, getAncestryPath } from './relationshipUtils';
+import { ensureParentsArePartners } from './App';
 
 // --- KONSTANTER ---
 
@@ -93,11 +94,11 @@ const EVENT_TYPES = [
 // Smart datumformatterare med stöd för olika format och prefix
 const parseAndFormatDate = (input) => {
   if (!input || !input.trim()) return '';
-  
+
   const original = input.trim();
   let prefix = '';
   let dateStr = original;
-  
+
   // Hantera prefix (från, omkring, till, mellan)
   const prefixMatch = original.match(/^(från|omkring|ca|c|till|före|efter|mellan)\s+/i);
   if (prefixMatch) {
@@ -109,7 +110,7 @@ const parseAndFormatDate = (input) => {
     else if (p === 'mellan') prefix = 'mellan ';
     dateStr = original.substring(prefixMatch[0].length);
   }
-  
+
   // Hantera "från-till" intervall
   if (dateStr.includes('-') && !dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
     const parts = dateStr.split('-').map(s => s.trim());
@@ -117,18 +118,18 @@ const parseAndFormatDate = (input) => {
       return `${parseDate(parts[0])} - ${parseDate(parts[1])}`;
     }
   }
-  
+
   return prefix + parseDate(dateStr);
 };
 
 const parseDate = (input) => {
   if (!input) return '';
-  
+
   const cleaned = input.trim();
-  
+
   // Redan i rätt format (ÅÅÅÅ-MM-DD)
   if (/^\d{4}-\d{2}-\d{2}$/.test(cleaned)) return cleaned;
-  
+
   // Format: ÅÅÅÅMMDD (8 siffror utan separator) - t.ex. 20090401
   if (/^\d{8}$/.test(cleaned)) {
     const year = cleaned.substring(0, 4);
@@ -136,7 +137,7 @@ const parseDate = (input) => {
     const day = cleaned.substring(6, 8);
     return `${year}-${month}-${day}`;
   }
-  
+
   // Månadsmappning
   const months = {
     'jan': '01', 'januari': '01',
@@ -152,7 +153,7 @@ const parseDate = (input) => {
     'nov': '11', 'november': '11',
     'dec': '12', 'december': '12'
   };
-  
+
   // Format: 21 nov 1980, 21 november 1980
   const monthNameMatch = cleaned.match(/(\d{1,2})\s+([a-zå-ö]+)\s+(\d{4})/i);
   if (monthNameMatch) {
@@ -162,7 +163,7 @@ const parseDate = (input) => {
     const month = months[monthName];
     if (month) return `${year}-${month}-${day}`;
   }
-  
+
   // Format: 21/11/1980, 21.11.1980, 21-11-1980
   const numericMatch = cleaned.match(/(\d{1,2})[\/\.\-\s](\d{1,2})[\/\.\-\s](\d{4})/);
   if (numericMatch) {
@@ -171,7 +172,7 @@ const parseDate = (input) => {
     const year = numericMatch[3];
     return `${year}-${month}-${day}`;
   }
-  
+
   // Format: 1980-11-21 (redan ok)
   const isoMatch = cleaned.match(/(\d{4})[\/\.\-](\d{1,2})[\/\.\-](\d{1,2})/);
   if (isoMatch) {
@@ -180,10 +181,10 @@ const parseDate = (input) => {
     const day = isoMatch[3].padStart(2, '0');
     return `${year}-${month}-${day}`;
   }
-  
+
   // Bara årtal
   if (/^\d{4}$/.test(cleaned)) return cleaned;
-  
+
   // Kunde inte tolka - returnera original
   return input;
 };
@@ -275,7 +276,7 @@ const SourceModal = ({ isOpen, onClose, onAdd, eventType }) => {
 
   return (
     <div className="fixed inset-0 z-[4100] flex items-center justify-center bg-black/30">
-      <div 
+      <div
         ref={modalRef}
         className="bg-slate-800 border border-slate-700 rounded-lg shadow-2xl w-full max-w-md p-0 overflow-hidden"
         style={{
@@ -288,14 +289,14 @@ const SourceModal = ({ isOpen, onClose, onAdd, eventType }) => {
       >
         <div className="modal-header bg-slate-900 p-4 border-b border-slate-700 flex justify-between items-center cursor-move">
           <h3 className="font-bold text-white">Lägg till källa</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-white"><X size={20}/></button>
+          <button onClick={onClose} className="text-slate-400 hover:text-white"><X size={20} /></button>
         </div>
         <div className="p-6 space-y-4">
           <div>
             <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Källtyp</label>
-            <select 
-              value={source.type} 
-              onChange={e => setSource({...source, type: e.target.value})}
+            <select
+              value={source.type}
+              onChange={e => setSource({ ...source, type: e.target.value })}
               className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:border-blue-500 focus:outline-none"
             >
               <option>Arkiv</option>
@@ -308,30 +309,30 @@ const SourceModal = ({ isOpen, onClose, onAdd, eventType }) => {
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Titel</label>
-            <input 
+            <input
               type="text"
               value={source.title}
-              onChange={e => setSource({...source, title: e.target.value})}
+              onChange={e => setSource({ ...source, title: e.target.value })}
               className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:border-blue-500 focus:outline-none"
               placeholder="Källans titel"
             />
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Författare</label>
-            <input 
+            <input
               type="text"
               value={source.author}
-              onChange={e => setSource({...source, author: e.target.value})}
+              onChange={e => setSource({ ...source, author: e.target.value })}
               className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:border-blue-500 focus:outline-none"
               placeholder="Namn"
             />
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-300 uppercase mb-1">År</label>
-            <input 
+            <input
               type="text"
               value={source.year}
-              onChange={e => setSource({...source, year: e.target.value})}
+              onChange={e => setSource({ ...source, year: e.target.value })}
               className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-slate-200 focus:border-blue-500 focus:outline-none"
               placeholder="ÅÅÅÅ"
             />
@@ -340,7 +341,7 @@ const SourceModal = ({ isOpen, onClose, onAdd, eventType }) => {
             <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Citat/Referens</label>
             <textarea
               value={source.citation}
-              onChange={e => setSource({...source, citation: e.target.value})}
+              onChange={e => setSource({ ...source, citation: e.target.value })}
               className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-slate-200 focus:border-blue-500 focus:outline-none resize-none"
               rows="3"
               placeholder="Relevanta citat eller sidnummer"
@@ -348,10 +349,10 @@ const SourceModal = ({ isOpen, onClose, onAdd, eventType }) => {
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-300 uppercase mb-1">URL (valfritt)</label>
-            <input 
+            <input
               type="url"
               value={source.url}
-              onChange={e => setSource({...source, url: e.target.value})}
+              onChange={e => setSource({ ...source, url: e.target.value })}
               className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-slate-200 focus:border-blue-500 focus:outline-none"
               placeholder="https://..."
             />
@@ -359,7 +360,7 @@ const SourceModal = ({ isOpen, onClose, onAdd, eventType }) => {
         </div>
         <div className="bg-slate-900 p-4 border-t border-slate-700 flex justify-end gap-3">
           <button onClick={onClose} className="px-4 py-2 text-sm text-slate-400 hover:text-white">Avbryt</button>
-          <button 
+          <button
             onClick={handleAdd}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded text-sm font-medium transition-colors"
           >
@@ -373,290 +374,294 @@ const SourceModal = ({ isOpen, onClose, onAdd, eventType }) => {
 
 // --- HUVUDKOMPONENT ---
 
-export default function EditPersonModal({ person: initialPerson, allPlaces, onSave, onClose, onChange, onOpenSourceDrawer, allSources, allPeople, onOpenEditModal, allMediaItems = [], onUpdateAllMedia = () => {}, isDocked = false, onNavigateToPlace, isCollapsed = false, onToggleCollapse }) {
-    // Relation linking modal state
-    const [relationModalOpen, setRelationModalOpen] = useState(false);
-    const [relationTypeToAdd, setRelationTypeToAdd] = useState(null);
-    const [relationSearch, setRelationSearch] = useState('');
-    const [relationSearchIndex, setRelationSearchIndex] = useState(0);
-    const [relationSortBy, setRelationSortBy] = useState('name'); // 'name', 'recent', 'related'
-    const [selectedPartnerId, setSelectedPartnerId] = useState(null); // För att veta vilken partner man lägger till barn under
+export default function EditPersonModal({ person: initialPerson, allPlaces, onSave, onClose, onChange, onOpenSourceDrawer, allSources, allPeople, onOpenEditModal, allMediaItems = [], onUpdateAllMedia = () => { }, isDocked = false, onNavigateToPlace, isCollapsed = false, onToggleCollapse }) {
+  // Relation linking modal state
+  const [relationModalOpen, setRelationModalOpen] = useState(false);
+  const [relationTypeToAdd, setRelationTypeToAdd] = useState(null);
+  const [relationSearch, setRelationSearch] = useState('');
+  const [relationSearchIndex, setRelationSearchIndex] = useState(0);
+  const [relationSortBy, setRelationSortBy] = useState('name'); // 'name', 'recent', 'related'
+  const [selectedPartnerId, setSelectedPartnerId] = useState(null); // För att veta vilken partner man lägger till barn under
 
-    // Open relation picker modal
-    const openRelationModal = (type, partnerId = null) => {
-      setRelationTypeToAdd(type);
-      setSelectedPartnerId(partnerId); // Spara partnerId om man lägger till barn under en partner
-      setRelationModalOpen(true);
-      setRelationSearch('');
-      setRelationSearchIndex(0);
-      setRelationSortBy('name');
-    };
+  // Open relation picker modal
+  const openRelationModal = (type, partnerId = null) => {
+    setRelationTypeToAdd(type);
+    setSelectedPartnerId(partnerId); // Spara partnerId om man lägger till barn under en partner
+    setRelationModalOpen(true);
+    setRelationSearch('');
+    setRelationSearchIndex(0);
+    setRelationSortBy('name');
+  };
 
-    // Generell funktion: Säkerställ att alla föräldrar till samma barn är partners
-    const ensureParentsArePartners = (childId, currentPersonId, currentPersonRelations) => {
-      if (!childId || !currentPersonId) return currentPersonRelations;
-      
-      const child = allPeople.find(p => p.id === childId);
-      if (!child) return currentPersonRelations;
-      
-      // Hämta alla föräldrar till barnet
-      const childParentsFromChild = (child.relations?.parents || [])
-        .map(p => typeof p === 'object' ? p.id : p)
-        .filter(Boolean);
-      
-      // Hitta andra personer som har detta barn i sin children-lista
-      const childParentsFromOthers = allPeople
-        .filter(p => p.id !== currentPersonId && p.relations?.children)
-        .filter(p => {
-          const children = (p.relations.children || []).map(c => typeof c === 'object' ? c.id : c);
-          return children.includes(childId);
-        })
-        .map(p => p.id);
-      
-      // Kombinera alla föräldrar (inklusive den nuvarande personen om de lägger till sig själv som förälder)
-      const allParents = [...new Set([...childParentsFromChild, ...childParentsFromOthers, currentPersonId])]
-        .filter(Boolean);
-      
-      // Om barnet har fler än en förälder, säkerställ att alla är partners med varandra
-      if (allParents.length > 1) {
-        const rels = { ...currentPersonRelations };
-        if (!rels.partners) rels.partners = [];
-        
-        allParents.forEach(parentId => {
-          if (parentId === currentPersonId) return; // Skippa sig själv
-          
-          const otherParent = allPeople.find(p => p.id === parentId);
-          if (!otherParent) return;
-          
-          // Kolla om de redan är partners
-          const alreadyPartners = rels.partners.some(p => 
-            (typeof p === 'object' ? p.id : p) === parentId
-          );
-          
-          if (!alreadyPartners) {
-            rels.partners.push({ 
-              id: parentId, 
-              name: `${otherParent.firstName} ${otherParent.lastName}`,
-              type: 'Okänd' // Sätt som "Okänd" som standard
-            });
-          }
-        });
-        
-        return rels;
-      }
-      
-      return currentPersonRelations;
-    };
+  // Generell funktion: Säkerställ att alla föräldrar till samma barn är partners
+  const ensureParentsArePartnersLocal = (childId, currentPersonId, currentPersonRelations) => {
+    if (!childId || !currentPersonId) return currentPersonRelations;
 
-    // Add selected person as relation
-    const addRelation = (personId) => {
-      const selected = allPeople.find(p => p.id === personId);
-      if (!selected) return;
-      
-      // Spara partnerId innan vi rensar state
-      const partnerIdToSync = selectedPartnerId;
-      
-      setPerson(prev => {
-        const rels = { ...prev.relations };
-        if (!rels[relationTypeToAdd]) rels[relationTypeToAdd] = [];
-        // Prevent duplicates
-        if (!rels[relationTypeToAdd].some(r => r.id === selected.id)) {
-          rels[relationTypeToAdd].push({ id: selected.id, name: `${selected.firstName} ${selected.lastName}` });
+    const child = allPeople.find(p => p.id === childId);
+    if (!child) return currentPersonRelations;
+
+    // Hämta alla föräldrar till barnet
+    const childParentsFromChild = (child.relations?.parents || [])
+      .map(p => typeof p === 'object' ? p.id : p)
+      .filter(Boolean);
+
+    // Hitta andra personer som har detta barn i sin children-lista
+    const childParentsFromOthers = allPeople
+      .filter(p => p.id !== currentPersonId && p.relations?.children)
+      .filter(p => {
+        const children = (p.relations.children || []).map(c => typeof c === 'object' ? c.id : c);
+        return children.includes(childId);
+      })
+      .map(p => p.id);
+
+    // Kombinera alla föräldrar (inklusive den nuvarande personen om de lägger till sig själv som förälder)
+    const allParents = [...new Set([...childParentsFromChild, ...childParentsFromOthers, currentPersonId])]
+      .filter(Boolean);
+
+    // Om barnet har fler än en förälder, säkerställ att alla är partners med varandra
+    if (allParents.length > 1) {
+      const rels = { ...currentPersonRelations };
+      if (!rels.partners) rels.partners = [];
+
+      allParents.forEach(parentId => {
+        if (parentId === currentPersonId) return; // Skippa sig själv
+
+        const otherParent = allPeople.find(p => p.id === parentId);
+        if (!otherParent) return;
+
+        // Kolla om de redan är partners
+        const alreadyPartners = rels.partners.some(p =>
+          (typeof p === 'object' ? p.id : p) === parentId
+        );
+
+        if (!alreadyPartners) {
+          rels.partners.push({
+            id: parentId,
+            name: `${otherParent.firstName} ${otherParent.lastName}`,
+            type: 'Okänd' // Sätt som "Okänd" som standard
+          });
         }
-        
-        // Automatisk partner-relation: Säkerställ att alla föräldrar till samma barn är partners
-        if (relationTypeToAdd === 'children') {
-          // När man lägger till ett barn: säkerställ att alla föräldrar till detta barn är partners
-          const updatedRels = ensureParentsArePartners(personId, prev.id, rels);
-          return { ...prev, relations: updatedRels };
-        } else if (relationTypeToAdd === 'parents') {
-          // När man lägger till en förälder på ett barn, lägg bara till föräldern
-          // Partner-relationer mellan föräldrarna skapas automatiskt när man sparar (i App.jsx)
-          // Här ska vi bara lägga till föräldern, inget mer
-        }
-        
-        return { ...prev, relations: rels };
       });
-      
-      // Synka relationer när man lägger till ett barn
+
+      return rels;
+    }
+
+    return currentPersonRelations;
+  };
+
+  // Add selected person as relation
+  const addRelation = (personId) => {
+    const selected = allPeople.find(p => p.id === personId);
+    if (!selected) return;
+
+    // Spara partnerId innan vi rensar state
+    const partnerIdToSync = selectedPartnerId;
+
+    setPerson(prev => {
+      const rels = { ...prev.relations };
+      if (!rels[relationTypeToAdd]) rels[relationTypeToAdd] = [];
+      // Prevent duplicates
+      if (!rels[relationTypeToAdd].some(r => r.id === selected.id)) {
+        rels[relationTypeToAdd].push({ id: selected.id, name: `${selected.firstName} ${selected.lastName}` });
+      }
+
+      // Automatisk partner-relation: Säkerställ att alla föräldrar till samma barn är partners
       if (relationTypeToAdd === 'children') {
-        const currentPersonId = person.id;
-        
-        if (partnerIdToSync) {
-          // Om man lägger till ett barn under en specifik partner, synka mellan alla tre
-          setTimeout(() => {
-            syncChildRelations(currentPersonId, partnerIdToSync, personId);
-          }, 0);
-        } else {
-          // Om man lägger till ett barn utan partner, synka bara mellan fokus-personen och barnet
-          setTimeout(() => {
-            syncSingleParentChildRelation(currentPersonId, personId);
-          }, 0);
-        }
+        // När man lägger till ett barn: säkerställ att alla föräldrar till detta barn är partners
+        const updatedRels = ensureParentsArePartnersLocal(personId, prev.id, rels);
+        return { ...prev, relations: updatedRels };
       } else if (relationTypeToAdd === 'parents') {
-        // När man lägger till en förälder: säkerställ att alla föräldrar till detta barn är partners
-        const currentPersonId = person.id; // Detta är barnet
+        // När man lägger till en förälder på ett barn, lägg bara till föräldern
+        // Partner-relationer mellan föräldrarna skapas automatiskt när man sparar (i App.jsx)
+        // Här ska vi bara lägga till föräldern, inget mer
+      }
+
+      return { ...prev, relations: rels };
+    });
+
+    // Synka relationer när man lägger till ett barn
+    if (relationTypeToAdd === 'children') {
+      const currentPersonId = person.id;
+
+      if (partnerIdToSync) {
+        // Om man lägger till ett barn under en specifik partner, synka mellan alla tre
         setTimeout(() => {
-          if (dbData && dbData.people) {
-            const updatedPeople = ensureParentsArePartners(dbData.people, currentPersonId);
-            setDbData({ ...dbData, people: updatedPeople });
-          }
+          syncChildRelations(currentPersonId, partnerIdToSync, personId);
+        }, 0);
+      } else {
+        // Om man lägger till ett barn utan partner, synka bara mellan fokus-personen och barnet
+        setTimeout(() => {
+          syncSingleParentChildRelation(currentPersonId, personId);
         }, 0);
       }
-      
-      setRelationModalOpen(false);
-      setRelationTypeToAdd(null);
-      setSelectedPartnerId(null);
-      setRelationSearch('');
-      setRelationSearchIndex(0);
-    };
-    
-    // Synka relationer när man lägger till ett barn under en partner
-    const syncChildRelations = (parent1Id, parent2Id, childId) => {
-      console.log(`[syncChildRelations] Synkar relationer: parent1=${parent1Id}, parent2=${parent2Id}, child=${childId}`);
-      if (!dbData || !dbData.people) {
-        console.log(`[syncChildRelations] dbData eller dbData.people saknas`);
-        return;
-      }
-      
-      const childPerson = allPeople.find(p => p.id === childId);
-      if (!childPerson) {
-        console.log(`[syncChildRelations] Barn ${childId} hittades inte i allPeople`);
-        return;
-      }
-      
-      const childName = `${childPerson.firstName || ''} ${childPerson.lastName || ''}`.trim();
-      
-      const updatedPeople = JSON.parse(JSON.stringify(dbData.people)); // Deep copy
-      
-      // 1. Lägg till barnet i parent1's children-lista
-      const parent1 = updatedPeople.find(p => p.id === parent1Id);
-      if (parent1) {
-        if (!parent1.relations) parent1.relations = {};
-        if (!parent1.relations.children) parent1.relations.children = [];
-        if (!parent1.relations.children.some(c => {
-          const cId = typeof c === 'object' ? c.id : c;
-          return cId === childId;
-        })) {
-          parent1.relations.children.push({ id: childId, name: childName });
-        }
-      }
-      
-      // 2. Lägg till barnet i parent2's children-lista
-      const parent2 = updatedPeople.find(p => p.id === parent2Id);
-      if (parent2) {
-        if (!parent2.relations) parent2.relations = {};
-        if (!parent2.relations.children) parent2.relations.children = [];
-        if (!parent2.relations.children.some(c => {
-          const cId = typeof c === 'object' ? c.id : c;
-          return cId === childId;
-        })) {
-          parent2.relations.children.push({ id: childId, name: childName });
-        }
-      }
-      
-      // 3. Lägg till båda föräldrarna i barnets parents-lista
-      const child = updatedPeople.find(p => p.id === childId);
-      if (child) {
-        if (!child.relations) child.relations = {};
-        if (!child.relations.parents) child.relations.parents = [];
-        
-        // Lägg till parent1
-        if (!child.relations.parents.some(p => {
-          const pId = typeof p === 'object' ? p.id : p;
-          return pId === parent1Id;
-        })) {
-          const parent1Person = updatedPeople.find(p => p.id === parent1Id);
-          child.relations.parents.push({ 
-            id: parent1Id, 
-            name: parent1Person ? `${parent1Person.firstName || ''} ${parent1Person.lastName || ''}`.trim() : '',
-            type: 'Biologisk' 
+    } else if (relationTypeToAdd === 'parents') {
+      // När man lägger till en förälder: säkerställ att alla föräldrar till detta barn är partners
+      const currentPersonId = person.id; // Detta är barnet
+      setTimeout(() => {
+        if (dbData && dbData.people) {
+          setDbData(prevData => {
+            const updatedPeople = ensureParentsArePartners(prevData.people, currentPersonId);
+            return { ...prevData, people: updatedPeople };
           });
         }
-        
-        // Lägg till parent2
-        if (!child.relations.parents.some(p => {
-          const pId = typeof p === 'object' ? p.id : p;
-          return pId === parent2Id;
-        })) {
-          const parent2Person = updatedPeople.find(p => p.id === parent2Id);
-          child.relations.parents.push({ 
-            id: parent2Id, 
-            name: parent2Person ? `${parent2Person.firstName || ''} ${parent2Person.lastName || ''}`.trim() : '',
-            type: 'Biologisk' 
-          });
-        }
-      }
-      
-      // 4. Säkerställ att föräldrarna är partners (om de inte redan är det)
-      updatedPeople = ensureParentsArePartners(updatedPeople, childId);
-      
-      // 5. Uppdatera dbData med alla ändringar
-      console.log(`[syncChildRelations] Uppdaterar dbData med ${updatedPeople.length} personer`);
-      setDbData({ ...dbData, people: updatedPeople });
-      console.log(`[syncChildRelations] Klar!`);
-    };
-    
-    // Synka relationer när man lägger till ett barn utan partner (bara en förälder)
-    const syncSingleParentChildRelation = (parentId, childId) => {
-      if (!dbData || !dbData.people) return;
-      
-      const childPerson = allPeople.find(p => p.id === childId);
-      if (!childPerson) return;
-      
-      const childName = `${childPerson.firstName || ''} ${childPerson.lastName || ''}`.trim();
-      const parentPerson = allPeople.find(p => p.id === parentId);
-      if (!parentPerson) return;
-      
-      const parentName = `${parentPerson.firstName || ''} ${parentPerson.lastName || ''}`.trim();
-      
-      const updatedPeople = JSON.parse(JSON.stringify(dbData.people)); // Deep copy
-      
-      // 1. Lägg till barnet i parent's children-lista
-      const parent = updatedPeople.find(p => p.id === parentId);
-      if (parent) {
-        if (!parent.relations) parent.relations = {};
-        if (!parent.relations.children) parent.relations.children = [];
-        if (!parent.relations.children.some(c => {
-          const cId = typeof c === 'object' ? c.id : c;
-          return cId === childId;
-        })) {
-          parent.relations.children.push({ id: childId, name: childName });
-        }
-      }
-      
-      // 2. Lägg till föräldern i barnets parents-lista
-      const child = updatedPeople.find(p => p.id === childId);
-      if (child) {
-        if (!child.relations) child.relations = {};
-        if (!child.relations.parents) child.relations.parents = [];
-        if (!child.relations.parents.some(p => {
-          const pId = typeof p === 'object' ? p.id : p;
-          return pId === parentId;
-        })) {
-          child.relations.parents.push({ 
-            id: parentId, 
-            name: parentName,
-            type: 'Biologisk' 
-          });
-        }
-      }
-      
-      // 3. Säkerställ att föräldrarna är partners om barnet har fler än en förälder
-      updatedPeople = ensureParentsArePartners(updatedPeople, childId);
-      
-      // 4. Uppdatera dbData med alla ändringar
-      setDbData({ ...dbData, people: updatedPeople });
-    };
+      }, 0);
+    }
 
-    // Remove relation
-    const removeRelation = (type, id) => {
-      setPerson(prev => {
-        const rels = { ...prev.relations };
-        rels[type] = rels[type].filter(r => r.id !== id);
-        return { ...prev, relations: rels };
-      });
-    };
+    setRelationModalOpen(false);
+    setRelationTypeToAdd(null);
+    setSelectedPartnerId(null);
+    setRelationSearch('');
+    setRelationSearchIndex(0);
+  };
+
+  // Synka relationer när man lägger till ett barn under en partner
+  const syncChildRelations = (parent1Id, parent2Id, childId) => {
+    console.log(`[syncChildRelations] Synkar relationer: parent1=${parent1Id}, parent2=${parent2Id}, child=${childId}`);
+    if (!dbData || !dbData.people) {
+      console.log(`[syncChildRelations] dbData eller dbData.people saknas`);
+      return;
+    }
+
+    const childPerson = allPeople.find(p => p.id === childId);
+    if (!childPerson) {
+      console.log(`[syncChildRelations] Barn ${childId} hittades inte i allPeople`);
+      return;
+    }
+
+    const childName = `${childPerson.firstName || ''} ${childPerson.lastName || ''}`.trim();
+
+    let updatedPeople = JSON.parse(JSON.stringify(dbData.people)); // Deep copy
+
+    // 1. Lägg till barnet i parent1's children-lista
+    const parent1 = updatedPeople.find(p => p.id === parent1Id);
+    if (parent1) {
+      if (!parent1.relations) parent1.relations = {};
+      if (!parent1.relations.children) parent1.relations.children = [];
+      if (!parent1.relations.children.some(c => {
+        const cId = typeof c === 'object' ? c.id : c;
+        return cId === childId;
+      })) {
+        parent1.relations.children.push({ id: childId, name: childName });
+      }
+    }
+
+    // 2. Lägg till barnet i parent2's children-lista
+    const parent2 = updatedPeople.find(p => p.id === parent2Id);
+    if (parent2) {
+      if (!parent2.relations) parent2.relations = {};
+      if (!parent2.relations.children) parent2.relations.children = [];
+      if (!parent2.relations.children.some(c => {
+        const cId = typeof c === 'object' ? c.id : c;
+        return cId === childId;
+      })) {
+        parent2.relations.children.push({ id: childId, name: childName });
+      }
+    }
+
+    // 3. Lägg till båda föräldrarna i barnets parents-lista
+    const child = updatedPeople.find(p => p.id === childId);
+    if (child) {
+      if (!child.relations) child.relations = {};
+      if (!child.relations.parents) child.relations.parents = [];
+
+      // Lägg till parent1
+      if (!child.relations.parents.some(p => {
+        const pId = typeof p === 'object' ? p.id : p;
+        return pId === parent1Id;
+      })) {
+        const parent1Person = updatedPeople.find(p => p.id === parent1Id);
+        child.relations.parents.push({
+          id: parent1Id,
+          name: parent1Person ? `${parent1Person.firstName || ''} ${parent1Person.lastName || ''}`.trim() : '',
+          type: 'Biologisk'
+        });
+      }
+
+      // Lägg till parent2
+      if (!child.relations.parents.some(p => {
+        const pId = typeof p === 'object' ? p.id : p;
+        return pId === parent2Id;
+      })) {
+        const parent2Person = updatedPeople.find(p => p.id === parent2Id);
+        child.relations.parents.push({
+          id: parent2Id,
+          name: parent2Person ? `${parent2Person.firstName || ''} ${parent2Person.lastName || ''}`.trim() : '',
+          type: 'Biologisk'
+        });
+      }
+    }
+
+    // 4. Säkerställ att föräldrarna är partners (om de inte redan är det)
+    // Använd global funktion importerad från App.jsx
+    updatedPeople = ensureParentsArePartners(updatedPeople, childId);
+
+    // 5. Uppdatera dbData med alla ändringar
+    console.log(`[syncChildRelations] Uppdaterar dbData med ${updatedPeople.length} personer`);
+    setDbData(prev => ({ ...prev, people: updatedPeople }));
+    console.log(`[syncChildRelations] Klar!`);
+  };
+
+  // Synka relationer när man lägger till ett barn utan partner (bara en förälder)
+  const syncSingleParentChildRelation = (parentId, childId) => {
+    if (!dbData || !dbData.people) return;
+
+    const childPerson = allPeople.find(p => p.id === childId);
+    if (!childPerson) return;
+
+    const childName = `${childPerson.firstName || ''} ${childPerson.lastName || ''}`.trim();
+    const parentPerson = allPeople.find(p => p.id === parentId);
+    if (!parentPerson) return;
+
+    const parentName = `${parentPerson.firstName || ''} ${parentPerson.lastName || ''}`.trim();
+
+    let updatedPeople = JSON.parse(JSON.stringify(dbData.people)); // Deep copy
+
+    // 1. Lägg till barnet i parent's children-lista
+    const parent = updatedPeople.find(p => p.id === parentId);
+    if (parent) {
+      if (!parent.relations) parent.relations = {};
+      if (!parent.relations.children) parent.relations.children = [];
+      if (!parent.relations.children.some(c => {
+        const cId = typeof c === 'object' ? c.id : c;
+        return cId === childId;
+      })) {
+        parent.relations.children.push({ id: childId, name: childName });
+      }
+    }
+
+    // 2. Lägg till föräldern i barnets parents-lista
+    const child = updatedPeople.find(p => p.id === childId);
+    if (child) {
+      if (!child.relations) child.relations = {};
+      if (!child.relations.parents) child.relations.parents = [];
+      if (!child.relations.parents.some(p => {
+        const pId = typeof p === 'object' ? p.id : p;
+        return pId === parentId;
+      })) {
+        child.relations.parents.push({
+          id: parentId,
+          name: parentName,
+          type: 'Biologisk'
+        });
+      }
+    }
+
+    // 3. Säkerställ att föräldrarna är partners om barnet har fler än en förälder
+    // Använd global funktion importerad från App.jsx
+    updatedPeople = ensureParentsArePartners(updatedPeople, childId);
+
+    // 4. Uppdatera dbData med alla ändringar
+    setDbData(prev => ({ ...prev, people: updatedPeople }));
+  };
+
+  // Remove relation
+  const removeRelation = (type, id) => {
+    setPerson(prev => {
+      const rels = { ...prev.relations };
+      rels[type] = rels[type].filter(r => r.id !== id);
+      return { ...prev, relations: rels };
+    });
+  };
   const [activeTab, setActiveTab] = useState('info');
   const [selectedMediaIndex, setSelectedMediaIndex] = useState(null);
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
@@ -705,7 +710,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
   // Helper: Beräkna relationstyp mellan två personer (enkel version)
   const getRelationshipType = (personAId, personBId) => {
     if (personAId === personBId) return null;
-    
+
     const personA = allPeople.find(p => p.id === personAId);
     const personB = allPeople.find(p => p.id === personBId);
     if (!personA || !personB) return null;
@@ -717,7 +722,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
     // Kolla om de är föräldrar/barn
     const aParents = (personA.relations?.parents || []).map(p => typeof p === 'object' ? p.id : p);
     if (aParents.includes(personBId)) return 'parent';
-    
+
     const aChildren = (personA.relations?.children || []).map(c => typeof c === 'object' ? c.id : c);
     if (aChildren.includes(personBId)) return 'child';
 
@@ -732,12 +737,12 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
   // Helper: Beräkna ålder vid ett visst datum
   const calculateAgeAtEvent = (birthDate, eventDate) => {
     if (!birthDate || !eventDate) return null;
-    
+
     const birthYear = parseInt(birthDate.substring(0, 4));
     const eventYear = parseInt(eventDate.substring(0, 4));
-    
+
     if (isNaN(birthYear) || isNaN(eventYear)) return null;
-    
+
     return eventYear - birthYear;
   };
 
@@ -755,14 +760,14 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
   const getPlaceHierarchy = (evt) => {
     // Försök först använda placeData om den finns (nyare events)
     let place = evt?.placeData;
-    
+
     // Annars försök hitta i allPlaces
     if (!place && evt?.placeId && allPlaces) {
       place = allPlaces.find(p => p.id === evt.placeId);
     }
-    
+
     if (!place) return evt?.place || '';
-    
+
     // Bygg hierarki från minst till störst
     const parts = [
       place.gard,
@@ -779,7 +784,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
       place.land,
       place.country
     ].filter(Boolean);
-    
+
     return parts.length > 0 ? parts.join(', ') : place.name || place.ortnamn || '';
   };
 
@@ -839,12 +844,12 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
       media: [],
       notes: []
     };
-    
+
     // Säkerställ att events är en array
     if (!Array.isArray(base.events)) {
       base.events = [];
     }
-    
+
     // Säkerställ att research är ett objekt med tasks, notes, questions
     if (!base.research || typeof base.research !== 'object' || Array.isArray(base.research)) {
       base.research = {
@@ -856,32 +861,32 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
     if (!Array.isArray(base.research.tasks)) base.research.tasks = [];
     if (!Array.isArray(base.research.questions)) base.research.questions = [];
     if (typeof base.research.notes !== 'string') base.research.notes = '';
-    
+
     return base;
   });
-  
+
   // Uppdatera personRaw när initialPerson ändras
   const prevPersonIdRef = useRef(personRaw.id);
   useEffect(() => {
     if (initialPerson && initialPerson.id !== prevPersonIdRef.current) {
       prevPersonIdRef.current = initialPerson.id;
-      
+
       // Säkerställ att events är en array
       const events = Array.isArray(initialPerson.events) ? initialPerson.events : [];
-      
+
       // Säkerställ att research är ett objekt med tasks, notes, questions
       const research = (initialPerson.research && typeof initialPerson.research === 'object' && !Array.isArray(initialPerson.research))
         ? {
-            tasks: Array.isArray(initialPerson.research.tasks) ? initialPerson.research.tasks : [],
-            notes: typeof initialPerson.research.notes === 'string' ? initialPerson.research.notes : '',
-            questions: Array.isArray(initialPerson.research.questions) ? initialPerson.research.questions : []
-          }
+          tasks: Array.isArray(initialPerson.research.tasks) ? initialPerson.research.tasks : [],
+          notes: typeof initialPerson.research.notes === 'string' ? initialPerson.research.notes : '',
+          questions: Array.isArray(initialPerson.research.questions) ? initialPerson.research.questions : []
+        }
         : {
-            tasks: [],
-            notes: '',
-            questions: []
-          };
-      
+          tasks: [],
+          notes: '',
+          questions: []
+        };
+
       // Skapa en djup kopia av initialPerson med säkrade värden
       const updatedPerson = JSON.parse(JSON.stringify({
         ...initialPerson,
@@ -891,11 +896,11 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
         tags: Array.isArray(initialPerson.tags) ? initialPerson.tags : [],
         relations: initialPerson.relations || { parents: [], partners: [], children: [] }
       }));
-      
+
       setPersonRaw(updatedPerson);
     }
   }, [initialPerson?.id]); // Bara när ID ändras, inte när objektet muteras
-  
+
   // Wrapper för setPersonRaw som automatiskt anropar onChange för auto-save
   // Detta säkerställer att ALLA ändringar sparas automatiskt i realtid
   const onChangeTimeoutRef = useRef(null);
@@ -905,7 +910,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
       return newPerson;
     });
   }, [onChange]);
-  
+
   // Exponera personRaw som person för kompatibilitet
   const person = personRaw;
 
@@ -923,8 +928,8 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
           const fullName = `${p.firstName || ''} ${p.lastName || ''}`.toLowerCase();
           const ref = (p.refNumber || p.refId || '').toString().toLowerCase();
           return fullName.includes(searchLower) || ref.includes(searchLower) ||
-                 (p.firstName || '').toLowerCase().includes(searchLower) ||
-                 (p.lastName || '').toLowerCase().includes(searchLower);
+            (p.firstName || '').toLowerCase().includes(searchLower) ||
+            (p.lastName || '').toLowerCase().includes(searchLower);
         })
         .map(p => {
           const relationship = getRelationshipType(person.id, p.id);
@@ -977,10 +982,10 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
   const [eventTypeSearchText, setEventTypeSearchText] = useState('');
   const [eventTypeSearchIndex, setEventTypeSearchIndex] = useState(0);
   const eventTypeSearchRef = useRef(null);
-  const [newEvent, setNewEvent] = useState({ 
+  const [newEvent, setNewEvent] = useState({
     id: `evt_${Date.now()}`,
-    type: 'Födelse', 
-    date: '', 
+    type: 'Födelse',
+    date: '',
     place: '',
     placeId: '',
     sources: [],
@@ -997,7 +1002,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
   const [sourceRefreshKey, setSourceRefreshKey] = useState(0);
   const [isImageEditorOpen, setIsImageEditorOpen] = useState(false);
   const [editingImageIndex, setEditingImageIndex] = useState(null);
-  
+
   // State för noteringar-fliken
   const [noteSearch, setNoteSearch] = useState('');
   const [draggedNoteIndex, setDraggedNoteIndex] = useState(null);
@@ -1018,7 +1023,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
   const onChangeTimeoutRef2 = useRef(null);
   const isInitialMount = useRef(true);
   const lastSavedPersonRef = useRef(null);
-  
+
   useEffect(() => {
     // Ignorera första mount (när person initialiseras)
     if (isInitialMount.current) {
@@ -1027,10 +1032,10 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
       lastSavedPersonRef.current = person ? JSON.stringify(person) : null;
       return;
     }
-    
+
     // Om person är null eller undefined, hoppa över
     if (!person) return;
-    
+
     // Jämför med senaste sparade versionen för att undvika onödiga sparningar
     const currentPersonString = JSON.stringify(person);
     if (currentPersonString === lastSavedPersonRef.current) {
@@ -1038,12 +1043,12 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
       personRef.current = person;
       return;
     }
-    
+
     // Rensa tidigare timeout
     if (onChangeTimeoutRef2.current) {
       clearTimeout(onChangeTimeoutRef2.current);
     }
-    
+
     // Debounce onChange-anropet för att undvika för många uppdateringar
     onChangeTimeoutRef2.current = setTimeout(() => {
       const prevPerson = personRef.current;
@@ -1067,7 +1072,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
       }
       personRef.current = person;
     }, 300); // 300ms debounce för att samla flera ändringar
-    
+
     return () => {
       if (onChangeTimeoutRef2.current) {
         clearTimeout(onChangeTimeoutRef2.current);
@@ -1089,8 +1094,8 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
     const allTags = getAllTags ? getAllTags() : [];
     const lowerInput = input.toLowerCase();
     const currentTags = Array.isArray(person?.tags) ? person.tags : [];
-    return allTags.filter(tag => 
-      tag.toLowerCase().includes(lowerInput) && 
+    return allTags.filter(tag =>
+      tag.toLowerCase().includes(lowerInput) &&
       !currentTags.includes(tag)
     ).slice(0, 5);
   };
@@ -1098,22 +1103,22 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
   // Lägg till tagg
   const handleAddTag = (tagText) => {
     if (!tagText || tagText.trim().length === 0) return;
-    
+
     const tag = tagText.trim();
     const currentTags = Array.isArray(person.tags) ? person.tags : [];
-    
+
     // Kontrollera om taggen redan finns
     if (currentTags.includes(tag)) {
       setTagInput('');
       setTagSuggestions([]);
       return;
     }
-    
+
     // Lägg till taggen
     setPerson({ ...person, tags: [...currentTags, tag] });
-      setTagInput('');
+    setTagInput('');
     setTagSuggestions([]);
-    
+
     // Fokusera tagg-input igen efter att taggen lagts till
     setTimeout(() => {
       if (tagInputRef.current) {
@@ -1129,10 +1134,10 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
   // Event handling
   const handleAddEvent = () => {
     setEditingEventIndex(null);
-    setNewEvent({ 
+    setNewEvent({
       id: `evt_${Date.now()}`,
-      type: 'Födelse', 
-      date: '', 
+      type: 'Födelse',
+      date: '',
       place: '',
       placeId: '',
       placeData: null,
@@ -1164,7 +1169,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
         return;
       }
     }
-    
+
     if (editingEventIndex !== null) {
       const updated = person.events.map((e, i) => i === editingEventIndex ? newEvent : e);
       setPerson({ ...person, events: updated });
@@ -1173,10 +1178,10 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
     }
     setEventModalOpen(false);
     setEditingEventIndex(null);
-    setNewEvent({ 
+    setNewEvent({
       id: `evt_${Date.now()}`,
-      type: 'Födelse', 
-      date: '', 
+      type: 'Födelse',
+      date: '',
       place: '',
       placeId: '',
       placeData: null,
@@ -1191,10 +1196,10 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
     // Reset modal state if open
     setEventModalOpen(false);
     setEditingEventIndex(null);
-    setNewEvent({ 
+    setNewEvent({
       id: `evt_${Date.now()}`,
-      type: 'Födelse', 
-      date: '', 
+      type: 'Födelse',
+      date: '',
       place: '',
       placeId: '',
       placeData: null,
@@ -1256,7 +1261,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
 
   const handleEventTypeSearchKeyDown = (e) => {
     const filteredTypes = getFilteredEventTypes();
-    
+
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       setEventTypeSearchIndex(prev => Math.min(prev + 1, filteredTypes.length - 1));
@@ -1268,7 +1273,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
       if (filteredTypes[eventTypeSearchIndex]) {
         const selectedType = filteredTypes[eventTypeSearchIndex];
         if (editingEventIndex !== null || canAddEventType(selectedType.value)) {
-          setNewEvent({...newEvent, type: selectedType.value});
+          setNewEvent({ ...newEvent, type: selectedType.value });
           setEventTypeSearchOpen(false);
           setEventTypeSearchText('');
           setEventTypeSearchIndex(0);
@@ -1283,7 +1288,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
 
   const handleEventTypeSelect = (eventType) => {
     if (editingEventIndex !== null || canAddEventType(eventType)) {
-      setNewEvent({...newEvent, type: eventType});
+      setNewEvent({ ...newEvent, type: eventType });
       setEventTypeSearchOpen(false);
       setEventTypeSearchText('');
       setEventTypeSearchIndex(0);
@@ -1304,7 +1309,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
         setEventTypeSearchIndex(0);
       }
     };
-    
+
     if (eventTypeSearchOpen) {
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -1321,51 +1326,51 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
       <div className="w-full h-full bg-slate-800 flex flex-col overflow-hidden">
         {/* HEADER - Döljs när isDocked är true, MEN flikarna behålls */}
         {!isDocked ? (
-        <div className="modal-header h-16 bg-slate-700 border-b border-slate-600 flex items-center justify-between px-6 shrink-0">
-          <div className="flex items-center gap-4 select-none">
-            <div className="w-10 h-10 rounded-full bg-slate-600 overflow-hidden border-2 border-slate-500 pointer-events-none">
-              {person.media?.length > 0 ? (
+          <div className="modal-header h-16 bg-slate-700 border-b border-slate-600 flex items-center justify-between px-6 shrink-0">
+            <div className="flex items-center gap-4 select-none">
+              <div className="w-10 h-10 rounded-full bg-slate-600 overflow-hidden border-2 border-slate-500 pointer-events-none">
+                {person.media?.length > 0 ? (
                   <MediaImage url={person.media[0].url} alt="Profil" className="w-full h-full object-cover" />
-              ) : (
-                <User className="w-full h-full p-1 text-slate-400" />
+                ) : (
+                  <User className="w-full h-full p-1 text-slate-400" />
+                )}
+              </div>
+              <div>
+                <h1 className="text-lg font-bold text-slate-200 leading-tight">
+                  {person.firstName} {person.lastName}
+                </h1>
+                <p className="text-xs text-slate-400">
+                  {(() => {
+                    const { birthYear, deathYear, lifeSpan } = getLifeInfo(person);
+                    if (birthYear && deathYear && lifeSpan !== null) {
+                      return `${birthYear} — ${deathYear} (ca. ${lifeSpan} år)`;
+                    } else if (birthYear && deathYear) {
+                      return `${birthYear} — ${deathYear}`;
+                    } else if (birthYear) {
+                      return `${birthYear} — Levande`;
+                    } else {
+                      return '? — ?';
+                    }
+                  })()}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {/* Collapse/Expand button */}
+              {onToggleCollapse && (
+                <button
+                  onClick={onToggleCollapse}
+                  className="p-2 hover:bg-slate-600 rounded text-slate-300 hover:text-slate-100 transition-colors"
+                  title={isCollapsed ? "Expandera" : "Fäll in"}
+                >
+                  {isCollapsed ? (
+                    <ChevronDown className="w-5 h-5" />
+                  ) : (
+                    <ChevronUp className="w-5 h-5" />
+                  )}
+                </button>
               )}
-            </div>
-            <div>
-              <h1 className="text-lg font-bold text-slate-200 leading-tight">
-                {person.firstName} {person.lastName}
-              </h1>
-              <p className="text-xs text-slate-400">
-                {(() => {
-                  const { birthYear, deathYear, lifeSpan } = getLifeInfo(person);
-                  if (birthYear && deathYear && lifeSpan !== null) {
-                    return `${birthYear} — ${deathYear} (ca. ${lifeSpan} år)`;
-                  } else if (birthYear && deathYear) {
-                    return `${birthYear} — ${deathYear}`;
-                  } else if (birthYear) {
-                    return `${birthYear} — Levande`;
-                  } else {
-                    return '? — ?';
-                  }
-                })()}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-             {/* Collapse/Expand button */}
-             {onToggleCollapse && (
-               <button
-                 onClick={onToggleCollapse}
-                 className="p-2 hover:bg-slate-600 rounded text-slate-300 hover:text-slate-100 transition-colors"
-                 title={isCollapsed ? "Expandera" : "Fäll in"}
-               >
-                 {isCollapsed ? (
-                   <ChevronDown className="w-5 h-5" />
-                 ) : (
-                   <ChevronUp className="w-5 h-5" />
-                 )}
-               </button>
-             )}
-             <nav className="flex gap-1">
+              <nav className="flex gap-1">
                 {[
                   { id: 'info', icon: User, label: 'Info' },
                   { id: 'relations', icon: Users, label: 'Relationer' },
@@ -1376,19 +1381,18 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all relative ${
-                      activeTab === tab.id 
-                      ? 'bg-slate-900 text-blue-400 border-b-2 border-blue-500' 
+                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all relative ${activeTab === tab.id
+                      ? 'bg-slate-900 text-blue-400 border-b-2 border-blue-500'
                       : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 border-b-2 border-transparent'
-                    }`}
+                      }`}
                   >
                     <tab.icon size={16} />
                     <span>{tab.label}</span>
                   </button>
                 ))}
-             </nav>
+              </nav>
+            </div>
           </div>
-        </div>
         ) : (
           // När dockad: Visa bara flikarna (utan header med profilbild/namn)
           <div className="border-b border-slate-600 bg-slate-700 px-4 py-2 shrink-0">
@@ -1403,11 +1407,10 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all relative ${
-                    activeTab === tab.id 
-                    ? 'bg-slate-900 text-blue-400 border-b-2 border-blue-500' 
+                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all relative ${activeTab === tab.id
+                    ? 'bg-slate-900 text-blue-400 border-b-2 border-blue-500'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 border-b-2 border-transparent'
-                  }`}
+                    }`}
                 >
                   <tab.icon size={16} />
                   <span>{tab.label}</span>
@@ -1419,368 +1422,367 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
 
         {/* CONTENT AREA - Dölj om collapsed */}
         {!isCollapsed && (
-        <div className="flex-1 overflow-hidden flex bg-slate-900 relative min-h-0">
-          <div className="flex-1 overflow-y-auto p-6 custom-scrollbar min-h-0">
-            
-            {/* FLIK: INFO */}
-            {activeTab === 'info' && (
-              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                
-                {/* Grunddata */}
-                <div className="grid grid-cols-12 gap-6">
-                  <div className="col-span-2">
-                    <div className="aspect-[3/4] bg-slate-700 rounded-lg border border-slate-600 flex items-center justify-center relative overflow-hidden">
-                       {person.media?.length > 0 ? (
-                         <MediaImage url={person.media[0].url} alt="Profil" className="w-full h-full object-cover" />
-                       ) : (
-                         <User size={40} className="text-slate-400" />
-                       )}
-                    </div>
-                  </div>
-                  <div className="col-span-10 grid grid-cols-2 gap-4 content-start">
-                    <div>
-                      <label className="text-xs uppercase font-bold text-slate-300">Förnamn</label>
-                      <input type="text" value={person.firstName} onChange={e => {
-                        const updated = {...person, firstName: e.target.value};
-                        setPerson(updated);
-                        if (onChange) onChange(updated);
-                      }} className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-slate-200 focus:border-blue-500 focus:outline-none" />
-                    </div>
-                    <div>
-                      <label className="text-xs uppercase font-bold text-slate-300">Efternamn</label>
-                      <input type="text" value={person.lastName} onChange={e => {
-                        const updated = {...person, lastName: e.target.value};
-                        setPerson(updated);
-                        if (onChange) onChange(updated);
-                      }} className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-slate-200 focus:border-blue-500 focus:outline-none" />
-                    </div>
-                    <div>
-                      <label className="text-xs uppercase font-bold text-slate-300">Kön</label>
-                      <select value={person.sex} onChange={e => {
-                        const updated = {...person, sex: e.target.value};
-                        setPerson(updated);
-                        if (onChange) onChange(updated);
-                      }} className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-slate-200 focus:border-blue-500 focus:outline-none">
-                        <option value="M">Man</option>
-                        <option value="K">Kvinna</option>
-                        <option value="U">Okänd</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="text-xs uppercase font-bold text-slate-300">Ref Nr</label>
-                      <input
-                        type="text"
-                        value={person.refNumber || ''}
-                        onBlur={e => {
-                          const val = e.target.value.trim();
-                          if (!val) {
-                            // Tilldela automatiskt nästa lediga nummer
-                            const maxRef = allPeople?.reduce((max, p) => {
-                              const num = parseInt(p.refNumber, 10);
-                              return (!isNaN(num) && num > max) ? num : max;
-                            }, 0) || 0;
-                            const updated = {...person, refNumber: String(maxRef + 1)};
-                            setPerson(updated);
-                            if (onChange) onChange(updated);
-                          }
-                        }}
-                        onChange={e => {
-                          const val = e.target.value;
-                          // Tillåt endast siffror
-                          if (val === '' || /^\d+$/.test(val)) {
-                            const updated = {...person, refNumber: val};
-                            setPerson(updated);
-                            if (onChange) onChange(updated);
-                          }
-                        }}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') {
-                            e.target.blur();
-                            const val = e.target.value.trim();
-                            if (val) {
-                          const isDuplicate = allPeople?.some(p => p.id !== person.id && String(p.refNumber) === String(val));
-                          if (isDuplicate) {
-                            alert('Ref Nr används redan av en annan person! Välj ett unikt nummer.');
-                            setPerson({...person, refNumber: ''});
-                          } else {
-                            setPerson({...person, refNumber: val});
-                              }
-                            }
-                          }
-                        }}
-                        className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-slate-200 focus:border-blue-500 focus:outline-none"
-                      />
-                    </div>
+          <div className="flex-1 overflow-hidden flex bg-slate-900 relative min-h-0">
+            <div className="flex-1 overflow-y-auto p-6 custom-scrollbar min-h-0">
+
+              {/* FLIK: INFO */}
+              {activeTab === 'info' && (
+                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+
+                  {/* Grunddata */}
+                  <div className="grid grid-cols-12 gap-6">
                     <div className="col-span-2">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase mb-2 block">Taggar</label>
-                      
-                      {/* Visade taggar */}
-                      {Array.isArray(person?.tags) && person.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mb-2">
-                          {person.tags.map((tag, idx) => (
-                            <span 
-                              key={idx} 
-                              className="bg-green-600/20 border border-green-500/50 text-green-300 text-xs px-2 py-1 rounded-full flex items-center gap-1.5 group hover:bg-green-600/30 transition-colors"
-                            >
-                              <span>{tag}</span>
-                              <button 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  removeTag(tag);
-                                }}
-                                className="text-green-400 hover:text-red-400 transition-colors ml-0.5"
-                                title="Ta bort tagg"
-                              >
-                                <X size={12}/>
-                              </button>
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                      
-                      {/* Input för nya taggar */}
-                      <div className="relative">
+                      <div className="aspect-[3/4] bg-slate-700 rounded-lg border border-slate-600 flex items-center justify-center relative overflow-hidden">
+                        {person.media?.length > 0 ? (
+                          <MediaImage url={person.media[0].url} alt="Profil" className="w-full h-full object-cover" />
+                        ) : (
+                          <User size={40} className="text-slate-400" />
+                        )}
+                      </div>
+                    </div>
+                    <div className="col-span-10 grid grid-cols-2 gap-4 content-start">
+                      <div>
+                        <label className="text-xs uppercase font-bold text-slate-300">Förnamn</label>
+                        <input type="text" value={person.firstName} onChange={e => {
+                          const updated = { ...person, firstName: e.target.value };
+                          setPerson(updated);
+                          if (onChange) onChange(updated);
+                        }} className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-slate-200 focus:border-blue-500 focus:outline-none" />
+                      </div>
+                      <div>
+                        <label className="text-xs uppercase font-bold text-slate-300">Efternamn</label>
+                        <input type="text" value={person.lastName} onChange={e => {
+                          const updated = { ...person, lastName: e.target.value };
+                          setPerson(updated);
+                          if (onChange) onChange(updated);
+                        }} className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-slate-200 focus:border-blue-500 focus:outline-none" />
+                      </div>
+                      <div>
+                        <label className="text-xs uppercase font-bold text-slate-300">Kön</label>
+                        <select value={person.sex} onChange={e => {
+                          const updated = { ...person, sex: e.target.value };
+                          setPerson(updated);
+                          if (onChange) onChange(updated);
+                        }} className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-slate-200 focus:border-blue-500 focus:outline-none">
+                          <option value="M">Man</option>
+                          <option value="K">Kvinna</option>
+                          <option value="U">Okänd</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-xs uppercase font-bold text-slate-300">Ref Nr</label>
                         <input
-                          ref={tagInputRef}
                           type="text"
-                          placeholder="Skriv eller välj tagg..."
-                          className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500"
-                          value={tagInput}
-                          onChange={(e) => {
-                            setTagInput(e.target.value);
-                            setTagSuggestions(getTagSuggestions(e.target.value));
+                          value={person.refNumber || ''}
+                          onBlur={e => {
+                            const val = e.target.value.trim();
+                            if (!val) {
+                              // Tilldela automatiskt nästa lediga nummer
+                              const maxRef = allPeople?.reduce((max, p) => {
+                                const num = parseInt(p.refNumber, 10);
+                                return (!isNaN(num) && num > max) ? num : max;
+                              }, 0) || 0;
+                              const updated = { ...person, refNumber: String(maxRef + 1) };
+                              setPerson(updated);
+                              if (onChange) onChange(updated);
+                            }
                           }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ',') {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              const trimmed = tagInput.trim();
-                              if (trimmed) {
-                                handleAddTag(trimmed);
+                          onChange={e => {
+                            const val = e.target.value;
+                            // Tillåt endast siffror
+                            if (val === '' || /^\d+$/.test(val)) {
+                              const updated = { ...person, refNumber: val };
+                              setPerson(updated);
+                              if (onChange) onChange(updated);
+                            }
+                          }}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                              e.target.blur();
+                              const val = e.target.value.trim();
+                              if (val) {
+                                const isDuplicate = allPeople?.some(p => p.id !== person.id && String(p.refNumber) === String(val));
+                                if (isDuplicate) {
+                                  alert('Ref Nr används redan av en annan person! Välj ett unikt nummer.');
+                                  setPerson({ ...person, refNumber: '' });
+                                } else {
+                                  setPerson({ ...person, refNumber: val });
+                                }
                               }
                             }
                           }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                          }}
-                          onFocus={(e) => {
-                            e.stopPropagation();
-                            e.target.select();
-                            if (tagInput) {
-                              setTagSuggestions(getTagSuggestions(tagInput));
-                            }
-                          }}
-                          onBlur={() => {
-                            setTimeout(() => setTagSuggestions([]), 200);
-                          }}
-                          autoComplete="off"
+                          className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-slate-200 focus:border-blue-500 focus:outline-none"
                         />
-                        
-                        {/* Autocomplete dropdown */}
-                        {tagSuggestions.length > 0 && tagInput && (
-                          <div className="absolute z-50 w-full mt-1 bg-slate-800 border border-slate-600 rounded shadow-lg max-h-40 overflow-y-auto">
-                            {tagSuggestions.map((suggestion, idx) => (
-                              <button
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase mb-2 block">Taggar</label>
+
+                        {/* Visade taggar */}
+                        {Array.isArray(person?.tags) && person.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mb-2">
+                            {person.tags.map((tag, idx) => (
+                              <span
                                 key={idx}
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  handleAddTag(suggestion);
-                                  setTagInput('');
-                                  setTagSuggestions([]);
-                                }}
-                                className="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 transition-colors flex items-center gap-2"
+                                className="bg-green-600/20 border border-green-500/50 text-green-300 text-xs px-2 py-1 rounded-full flex items-center gap-1.5 group hover:bg-green-600/30 transition-colors"
                               >
-                                <Tag size={12} className="text-slate-500" />
-                                <span>{suggestion}</span>
-                              </button>
+                                <span>{tag}</span>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    removeTag(tag);
+                                  }}
+                                  className="text-green-400 hover:text-red-400 transition-colors ml-0.5"
+                                  title="Ta bort tagg"
+                                >
+                                  <X size={12} />
+                                </button>
+                              </span>
                             ))}
                           </div>
                         )}
+
+                        {/* Input för nya taggar */}
+                        <div className="relative">
+                          <input
+                            ref={tagInputRef}
+                            type="text"
+                            placeholder="Skriv eller välj tagg..."
+                            className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500"
+                            value={tagInput}
+                            onChange={(e) => {
+                              setTagInput(e.target.value);
+                              setTagSuggestions(getTagSuggestions(e.target.value));
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ',') {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                const trimmed = tagInput.trim();
+                                if (trimmed) {
+                                  handleAddTag(trimmed);
+                                }
+                              }
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                            }}
+                            onFocus={(e) => {
+                              e.stopPropagation();
+                              e.target.select();
+                              if (tagInput) {
+                                setTagSuggestions(getTagSuggestions(tagInput));
+                              }
+                            }}
+                            onBlur={() => {
+                              setTimeout(() => setTagSuggestions([]), 200);
+                            }}
+                            autoComplete="off"
+                          />
+
+                          {/* Autocomplete dropdown */}
+                          {tagSuggestions.length > 0 && tagInput && (
+                            <div className="absolute z-50 w-full mt-1 bg-slate-800 border border-slate-600 rounded shadow-lg max-h-40 overflow-y-auto">
+                              {tagSuggestions.map((suggestion, idx) => (
+                                <button
+                                  key={idx}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    handleAddTag(suggestion);
+                                    setTagInput('');
+                                    setTagSuggestions([]);
+                                  }}
+                                  className="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 transition-colors flex items-center gap-2"
+                                >
+                                  <Tag size={12} className="text-slate-500" />
+                                  <span>{suggestion}</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        <p className="text-[10px] text-slate-500 mt-1">Tryck Enter eller "," för att lägga till tagg</p>
                       </div>
-                      
-                      <p className="text-[10px] text-slate-500 mt-1">Tryck Enter eller "," för att lägga till tagg</p>
+                    </div>
+                  </div>
+
+                  {/* Livshändelser */}
+                  <div>
+                    <div className="flex justify-between items-center mb-3">
+                      <h3 className="text-md font-bold text-slate-200 uppercase tracking-wide flex items-center gap-2">
+                        <Activity size={16} className="text-blue-600" /> Livshändelser
+                      </h3>
+                      <button
+                        onClick={handleAddEvent}
+                        className="flex items-center gap-1 text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded transition-colors"
+                      >
+                        <Plus size={14} /> Lägg till händelse
+                      </button>
+                    </div>
+
+                    <div className="bg-slate-900 rounded-lg border border-slate-700 overflow-hidden">
+                      <table className="w-full text-sm text-left">
+                        <thead className="bg-slate-800 text-slate-300 text-xs uppercase">
+                          <tr>
+                            <th className="p-2 w-16">Ålder</th>
+                            <th className="p-2 w-24">Typ</th>
+                            <th className="p-2 w-28">Datum</th>
+                            <th className="p-2 w-32">Plats</th>
+                            <th className="p-2 w-24">Info</th>
+                            <th className="p-2 text-center w-32">Info</th>
+                            <th className="p-2 text-right w-20"></th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {sortedEvents().map((evt, idx) => {
+                            const age = calculateAgeAtEvent(person.events?.find(e => e.type === 'Födelse')?.date, evt.date);
+                            let partnerName = '';
+                            // Hitta partner-namn för vigsel, lysning, samlevnad, skilsmässa, förlovning
+                            if (['Vigsel', 'Lysning', 'Samlevnad', 'Skilsmässa', 'Förlovning'].includes(evt.type) && evt.partnerId && person.relations?.partners?.length > 0) {
+                              const partner = person.relations.partners.find(p => p.id === evt.partnerId);
+                              partnerName = partner ? partner.name : '';
+                            }
+                            return (
+                              <tr
+                                key={evt.id || idx}
+                                onClick={() => {
+                                  if (editingEventIndex === null) {
+                                    setSelectedEventIndex(selectedEventIndex === idx ? null : idx);
+                                  }
+                                }}
+                                className={`hover:bg-slate-800 transition-colors group cursor-pointer ${selectedEventIndex === idx && editingEventIndex === null ? 'bg-blue-900/30 border-l-4 border-blue-500' : ''
+                                  }`}
+                              >
+                                <td className="p-2 text-slate-300 text-xs whitespace-nowrap">{age !== null ? `${age} år` : '-'}</td>
+                                <td className="p-2 font-medium text-slate-200 text-xs">{evt.type}</td>
+                                <td className="p-2 font-mono text-slate-300 text-xs whitespace-nowrap">{evt.date || '-'}</td>
+                                <td
+                                  className="p-2 text-slate-200 hover:text-blue-400 hover:underline cursor-pointer flex items-center gap-1 text-xs"
+                                  title={getPlaceHierarchy(evt)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (evt.placeId && onNavigateToPlace) {
+                                      onNavigateToPlace(evt.placeId);
+                                    }
+                                  }}
+                                >
+                                  <MapPin size={10} /> <span className="truncate max-w-[100px]">{evt.place || '-'}</span>
+                                </td>
+                                <td className="p-2 text-slate-200 text-xs">
+                                  {/* För vigsel, lysning, samlevnad, skilsmässa, förlovning: visa partner-namn */}
+                                  {['Vigsel', 'Lysning', 'Samlevnad', 'Skilsmässa', 'Förlovning'].includes(evt.type) ? (
+                                    <span className="truncate block max-w-[80px]" title={partnerName || ''}>
+                                      {partnerName || '-'}
+                                    </span>
+                                  ) : (
+                                    /* För andra händelser: visa noteringar (trunkerat till 15 tecken, strip HTML, klickbar) */
+                                    evt.notes ? (() => {
+                                      // Ta bort HTML-taggar för att visa ren text
+                                      const textContent = evt.notes.replace(/<[^>]*>/g, '').trim();
+                                      const displayText = textContent.length > 15 ? `${textContent.substring(0, 15)}...` : textContent;
+                                      return (
+                                        <span
+                                          className="truncate block max-w-[80px] cursor-pointer hover:text-blue-400 hover:underline"
+                                          title={textContent.length > 15 ? textContent : ''}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleEditEvent(evt.id);
+                                          }}
+                                        >
+                                          {displayText}
+                                        </span>
+                                      );
+                                    })() : (
+                                      '-'
+                                    )
+                                  )}
+                                </td>
+                                <td className="p-2">
+                                  <div className="flex justify-center gap-2 text-xs text-slate-400">
+                                    <span
+                                      className={`flex items-center gap-0.5 cursor-pointer hover:text-blue-600 ${evt.sources?.length > 0 ? 'text-slate-200' : ''}`}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedEventIndex(idx);
+                                        setEventDetailView('sources');
+                                      }}
+                                      title="Källor"
+                                    >
+                                      <LinkIcon size={10} /> {evt.sources?.length || 0}
+                                    </span>
+                                    <span
+                                      className={`flex items-center gap-0.5 cursor-pointer hover:text-blue-600 ${evt.notes ? 'text-slate-200' : ''}`}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedEventIndex(idx);
+                                        setEventDetailView('notes');
+                                      }}
+                                      title={evt.notes || 'Noteringar'}
+                                    >
+                                      <FileText size={10} /> {evt.notes ? 1 : 0}
+                                    </span>
+                                    <span
+                                      className={`flex items-center gap-0.5 cursor-pointer hover:text-blue-600 ${(Array.isArray(evt.images) ? evt.images.length : (evt.images || 0)) > 0 ? 'text-slate-200' : ''}`}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedEventIndex(idx);
+                                        setEventDetailView('images');
+                                      }}
+                                      title="Bilder"
+                                    >
+                                      <ImageIcon size={10} /> {Array.isArray(evt.images) ? evt.images.length : (evt.images || 0)}
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="p-2 text-right flex gap-1 justify-end">
+                                  <button onClick={(e) => { e.stopPropagation(); handleEditEvent(evt.id); }} className="text-slate-400 hover:text-slate-300 p-1 opacity-0 group-hover:opacity-100 transition-opacity" title="Redigera">
+                                    <Edit3 size={12} />
+                                  </button>
+                                  <button onClick={(e) => { e.stopPropagation(); handleDeleteEvent(idx); }} className="text-slate-400 hover:text-red-600 p-1 opacity-0 group-hover:opacity-100 transition-opacity" title="Ta bort">
+                                    <Trash2 size={12} />
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                          {(!person.events || person.events.length === 0) && (
+                            <tr>
+                              <td colSpan="7" className="p-4 text-center text-slate-400 text-sm">Inga händelser tillagda än</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 </div>
+              )}
 
-                {/* Livshändelser */}
-                <div>
-                  <div className="flex justify-between items-center mb-3">
-                    <h3 className="text-md font-bold text-slate-200 uppercase tracking-wide flex items-center gap-2">
-                      <Activity size={16} className="text-blue-600"/> Livshändelser
-                    </h3>
-                    <button 
-                      onClick={handleAddEvent}
-                      className="flex items-center gap-1 text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded transition-colors"
-                    >
-                      <Plus size={14}/> Lägg till händelse
-                    </button>
-                  </div>
-                  
-                  <div className="bg-slate-900 rounded-lg border border-slate-700 overflow-hidden">
-                    <table className="w-full text-sm text-left">
-                      <thead className="bg-slate-800 text-slate-300 text-xs uppercase">
-                        <tr>
-                          <th className="p-2 w-16">Ålder</th>
-                          <th className="p-2 w-24">Typ</th>
-                          <th className="p-2 w-28">Datum</th>
-                          <th className="p-2 w-32">Plats</th>
-                          <th className="p-2 w-24">Info</th>
-                          <th className="p-2 text-center w-32">Info</th>
-                          <th className="p-2 text-right w-20"></th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200">
-                        {sortedEvents().map((evt, idx) => {
-                          const age = calculateAgeAtEvent(person.events?.find(e => e.type === 'Födelse')?.date, evt.date);
-                          let partnerName = '';
-                          // Hitta partner-namn för vigsel, lysning, samlevnad, skilsmässa, förlovning
-                          if (['Vigsel', 'Lysning', 'Samlevnad', 'Skilsmässa', 'Förlovning'].includes(evt.type) && evt.partnerId && person.relations?.partners?.length > 0) {
-                            const partner = person.relations.partners.find(p => p.id === evt.partnerId);
-                            partnerName = partner ? partner.name : '';
-                          }
-                          return (
-                            <tr 
-                              key={evt.id || idx} 
-                              onClick={() => {
-                                if (editingEventIndex === null) {
-                                  setSelectedEventIndex(selectedEventIndex === idx ? null : idx);
-                                }
-                              }}
-                              className={`hover:bg-slate-800 transition-colors group cursor-pointer ${
-                                selectedEventIndex === idx && editingEventIndex === null ? 'bg-blue-900/30 border-l-4 border-blue-500' : ''
-                              }`}
-                            >
-                              <td className="p-2 text-slate-300 text-xs whitespace-nowrap">{age !== null ? `${age} år` : '-'}</td>
-                              <td className="p-2 font-medium text-slate-200 text-xs">{evt.type}</td>
-                              <td className="p-2 font-mono text-slate-300 text-xs whitespace-nowrap">{evt.date || '-'}</td>
-                              <td 
-                                className="p-2 text-slate-200 hover:text-blue-400 hover:underline cursor-pointer flex items-center gap-1 text-xs"
-                                title={getPlaceHierarchy(evt)}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (evt.placeId && onNavigateToPlace) {
-                                    onNavigateToPlace(evt.placeId);
-                                  }
-                                }}
-                              >
-                                 <MapPin size={10} /> <span className="truncate max-w-[100px]">{evt.place || '-'}</span>
-                              </td>
-                              <td className="p-2 text-slate-200 text-xs">
-                                {/* För vigsel, lysning, samlevnad, skilsmässa, förlovning: visa partner-namn */}
-                                {['Vigsel', 'Lysning', 'Samlevnad', 'Skilsmässa', 'Förlovning'].includes(evt.type) ? (
-                                  <span className="truncate block max-w-[80px]" title={partnerName || ''}>
-                                    {partnerName || '-'}
-                                  </span>
-                                ) : (
-                                  /* För andra händelser: visa noteringar (trunkerat till 15 tecken, strip HTML, klickbar) */
-                                  evt.notes ? (() => {
-                                    // Ta bort HTML-taggar för att visa ren text
-                                    const textContent = evt.notes.replace(/<[^>]*>/g, '').trim();
-                                    const displayText = textContent.length > 15 ? `${textContent.substring(0, 15)}...` : textContent;
-                                    return (
-                                  <span 
-                                        className="truncate block max-w-[80px] cursor-pointer hover:text-blue-400 hover:underline" 
-                                        title={textContent.length > 15 ? textContent : ''}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleEditEvent(evt.id);
-                                        }}
-                                  >
-                                        {displayText}
-                                  </span>
-                                    );
-                                  })() : (
-                                    '-'
-                                  )
-                                )}
-                              </td>
-                              <td className="p-2">
-                                <div className="flex justify-center gap-2 text-xs text-slate-400">
-                                  <span 
-                                    className={`flex items-center gap-0.5 cursor-pointer hover:text-blue-600 ${evt.sources?.length > 0 ? 'text-slate-200' : ''}`}
-                                    onClick={(e) => { 
-                                      e.stopPropagation(); 
-                                      setSelectedEventIndex(idx); 
-                                      setEventDetailView('sources');
-                                    }}
-                                    title="Källor"
-                                  >
-                                    <LinkIcon size={10}/> {evt.sources?.length || 0}
-                                  </span>
-                                  <span 
-                                    className={`flex items-center gap-0.5 cursor-pointer hover:text-blue-600 ${evt.notes ? 'text-slate-200' : ''}`}
-                                    onClick={(e) => { 
-                                      e.stopPropagation(); 
-                                      setSelectedEventIndex(idx); 
-                                      setEventDetailView('notes');
-                                    }}
-                                    title={evt.notes || 'Noteringar'}
-                                  >
-                                    <FileText size={10}/> {evt.notes ? 1 : 0}
-                                  </span>
-                                  <span 
-                                    className={`flex items-center gap-0.5 cursor-pointer hover:text-blue-600 ${(Array.isArray(evt.images) ? evt.images.length : (evt.images || 0)) > 0 ? 'text-slate-200' : ''}`}
-                                    onClick={(e) => { 
-                                      e.stopPropagation(); 
-                                      setSelectedEventIndex(idx); 
-                                      setEventDetailView('images');
-                                    }}
-                                    title="Bilder"
-                                  >
-                                    <ImageIcon size={10}/> {Array.isArray(evt.images) ? evt.images.length : (evt.images || 0)}
-                                  </span>
-                                </div>
-                              </td>
-                              <td className="p-2 text-right flex gap-1 justify-end">
-                                <button onClick={(e) => { e.stopPropagation(); handleEditEvent(evt.id); }} className="text-slate-400 hover:text-slate-300 p-1 opacity-0 group-hover:opacity-100 transition-opacity" title="Redigera">
-                                  <Edit3 size={12} />
-                                </button>
-                                <button onClick={(e) => { e.stopPropagation(); handleDeleteEvent(idx); }} className="text-slate-400 hover:text-red-600 p-1 opacity-0 group-hover:opacity-100 transition-opacity" title="Ta bort">
-                                  <Trash2 size={12} />
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                        {(!person.events || person.events.length === 0) && (
-                          <tr>
-                            <td colSpan="7" className="p-4 text-center text-slate-400 text-sm">Inga händelser tillagda än</td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* FLIK: RELATIONER */}
-            {activeTab === 'relations' && (
-              <div className="space-y-8 animate-in fade-in duration-300">
-                {/* Föräldrar */}
-                <div className="bg-slate-800 p-4 rounded-lg border border-slate-700">
-                   <div className="flex justify-between mb-2">
+              {/* FLIK: RELATIONER */}
+              {activeTab === 'relations' && (
+                <div className="space-y-8 animate-in fade-in duration-300">
+                  {/* Föräldrar */}
+                  <div className="bg-slate-800 p-4 rounded-lg border border-slate-700">
+                    <div className="flex justify-between mb-2">
                       <h4 className="text-sm font-bold text-slate-200 uppercase">Föräldrar</h4>
-                      <button onClick={() => openRelationModal('parents')} className="text-blue-600 hover:text-blue-800 text-xs flex items-center gap-1"><Plus size={12}/> Lägg till</button>
-                   </div>
-                   {person.relations?.parents?.length > 0 ? (
-                     person.relations.parents.map((p, idx) => {
-                       // Hämta parent ID (kan vara sträng eller objekt med id)
-                       const parentId = typeof p === 'string' ? p : (p?.id || p);
-                       // Hitta den faktiska personen från allPeople
-                       const parentPerson = allPeople.find(pp => pp.id === parentId);
-                       // Använd personens namn om den finns, annars använd p.name eller ID
-                       const parentName = parentPerson 
-                         ? `${parentPerson.firstName || ''} ${parentPerson.lastName || ''}`.trim() 
-                         : (typeof p === 'object' && p.name ? p.name : parentId || 'Okänd');
-                       // Hämta relationstyp (kan finnas i p.type)
-                       const relationType = (typeof p === 'object' && p.type) ? p.type : RELATION_TYPES.parent[0];
-                       // Hämta profilbild om den finns
-                       const profileImage = parentPerson?.media && parentPerson.media.length > 0 ? parentPerson.media[0].url : null;
-                       
-                       return (
-                         <div key={parentId || idx} className="flex items-center justify-between bg-slate-700 p-2 rounded mb-2 border border-slate-600">
+                      <button onClick={() => openRelationModal('parents')} className="text-blue-600 hover:text-blue-800 text-xs flex items-center gap-1"><Plus size={12} /> Lägg till</button>
+                    </div>
+                    {person.relations?.parents?.length > 0 ? (
+                      person.relations.parents.map((p, idx) => {
+                        // Hämta parent ID (kan vara sträng eller objekt med id)
+                        const parentId = typeof p === 'string' ? p : (p?.id || p);
+                        // Hitta den faktiska personen från allPeople
+                        const parentPerson = allPeople.find(pp => pp.id === parentId);
+                        // Använd personens namn om den finns, annars använd p.name eller ID
+                        const parentName = parentPerson
+                          ? `${parentPerson.firstName || ''} ${parentPerson.lastName || ''}`.trim()
+                          : (typeof p === 'object' && p.name ? p.name : parentId || 'Okänd');
+                        // Hämta relationstyp (kan finnas i p.type)
+                        const relationType = (typeof p === 'object' && p.type) ? p.type : RELATION_TYPES.parent[0];
+                        // Hämta profilbild om den finns
+                        const profileImage = parentPerson?.media && parentPerson.media.length > 0 ? parentPerson.media[0].url : null;
+
+                        return (
+                          <div key={parentId || idx} className="flex items-center justify-between bg-slate-700 p-2 rounded mb-2 border border-slate-600">
                             <div className="flex items-center gap-3 flex-1">
                               {/* Rund thumbnail */}
                               <div className="w-8 h-8 rounded-full bg-slate-600 flex-shrink-0 overflow-hidden border-2 border-slate-500">
@@ -1790,7 +1792,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                   <User size={16} className="w-full h-full p-1.5 text-slate-400" />
                                 )}
                               </div>
-                              <span 
+                              <span
                                 className="text-slate-200 font-medium cursor-pointer hover:text-blue-400"
                                 onClick={() => parentPerson && onOpenEditModal && onOpenEditModal(parentId)}
                               >
@@ -1798,12 +1800,12 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                               </span>
                             </div>
                             <div className="flex items-center gap-2">
-                            <select
+                              <select
                                 value={relationType}
-                              onChange={e => {
-                                const newType = e.target.value;
-                                setPerson(prev => {
-                                  const rels = { ...prev.relations };
+                                onChange={e => {
+                                  const newType = e.target.value;
+                                  setPerson(prev => {
+                                    const rels = { ...prev.relations };
                                     rels.parents = rels.parents.map((rel, i) => {
                                       if (i === idx) {
                                         // Om rel är en sträng, konvertera till objekt
@@ -1815,51 +1817,51 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                       }
                                       return rel;
                                     });
-                                  return { ...prev, relations: rels };
-                                });
-                              }}
+                                    return { ...prev, relations: rels };
+                                  });
+                                }}
                                 className="bg-slate-900 border border-slate-600 text-xs rounded px-2 py-1 text-slate-200"
-                            >
-                              {RELATION_TYPES.parent.map(r => <option key={r} value={r}>{r}</option>)}
-                            </select>
-                              <button onClick={() => removeRelation('parents', parentId)} className="text-red-600 hover:text-red-800 text-xs"><Trash2 size={14}/></button>
+                              >
+                                {RELATION_TYPES.parent.map(r => <option key={r} value={r}>{r}</option>)}
+                              </select>
+                              <button onClick={() => removeRelation('parents', parentId)} className="text-red-600 hover:text-red-800 text-xs"><Trash2 size={14} /></button>
+                            </div>
                           </div>
-                       </div>
-                       );
-                     })
-                   ) : (
-                     <p className="text-xs text-slate-400">Ingen förälder tillagd</p>
-                   )}
-                </div>
+                        );
+                      })
+                    ) : (
+                      <p className="text-xs text-slate-400">Ingen förälder tillagd</p>
+                    )}
+                  </div>
 
-                {/* Partners med barn under varje partner */}
-                <div className="bg-slate-800 p-4 rounded-lg border border-slate-700">
-                   <div className="flex justify-between mb-4">
+                  {/* Partners med barn under varje partner */}
+                  <div className="bg-slate-800 p-4 rounded-lg border border-slate-700">
+                    <div className="flex justify-between mb-4">
                       <h4 className="text-sm font-bold text-slate-200 uppercase">Familjer</h4>
-                      <button onClick={() => openRelationModal('partners')} className="text-blue-600 hover:text-blue-800 text-xs flex items-center gap-1"><Plus size={12}/> Lägg till partner</button>
-                   </div>
-                   {person.relations?.partners?.length > 0 ? (
-                     person.relations.partners.map((p, partnerIdx) => {
-                       const partnerId = p.id || p;
-                       const partnerPerson = allPeople.find(pp => pp.id === partnerId);
-                       const partnerName = partnerPerson 
-                         ? `${partnerPerson.firstName || ''} ${partnerPerson.lastName || ''}`.trim() 
-                         : (typeof p === 'object' && p.name ? p.name : partnerId || 'Okänd');
-                       const partnerImage = partnerPerson?.media && partnerPerson.media.length > 0 ? partnerPerson.media[0].url : null;
-                       
-                       // Hitta alla barn som har både fokus-personen OCH denna partner som föräldrar
-                       const partnerChildren = (person.relations?.children || []).filter(c => {
-                         const childId = typeof c === 'string' ? c : (c?.id || c);
-                         const childPerson = allPeople.find(pp => pp.id === childId);
-                         if (!childPerson) return false;
-                         const childParents = (childPerson.relations?.parents || []).map(par => typeof par === 'object' ? par.id : par);
-                         return childParents.includes(person.id) && childParents.includes(partnerId);
-                       });
-                       
-                       return (
-                         <div key={partnerId || partnerIdx} className="bg-slate-700 rounded-lg border border-slate-600 mb-4 p-3">
-                           {/* Partner header */}
-                           <div className="flex items-center justify-between mb-3">
+                      <button onClick={() => openRelationModal('partners')} className="text-blue-600 hover:text-blue-800 text-xs flex items-center gap-1"><Plus size={12} /> Lägg till partner</button>
+                    </div>
+                    {person.relations?.partners?.length > 0 ? (
+                      person.relations.partners.map((p, partnerIdx) => {
+                        const partnerId = p.id || p;
+                        const partnerPerson = allPeople.find(pp => pp.id === partnerId);
+                        const partnerName = partnerPerson
+                          ? `${partnerPerson.firstName || ''} ${partnerPerson.lastName || ''}`.trim()
+                          : (typeof p === 'object' && p.name ? p.name : partnerId || 'Okänd');
+                        const partnerImage = partnerPerson?.media && partnerPerson.media.length > 0 ? partnerPerson.media[0].url : null;
+
+                        // Hitta alla barn som har både fokus-personen OCH denna partner som föräldrar
+                        const partnerChildren = (person.relations?.children || []).filter(c => {
+                          const childId = typeof c === 'string' ? c : (c?.id || c);
+                          const childPerson = allPeople.find(pp => pp.id === childId);
+                          if (!childPerson) return false;
+                          const childParents = (childPerson.relations?.parents || []).map(par => typeof par === 'object' ? par.id : par);
+                          return childParents.includes(person.id) && childParents.includes(partnerId);
+                        });
+
+                        return (
+                          <div key={partnerId || partnerIdx} className="bg-slate-700 rounded-lg border border-slate-600 mb-4 p-3">
+                            {/* Partner header */}
+                            <div className="flex items-center justify-between mb-3">
                               <div className="flex items-center gap-3 flex-1">
                                 <div className="w-10 h-10 rounded-full bg-slate-600 flex-shrink-0 overflow-hidden border-2 border-slate-500">
                                   {partnerImage ? (
@@ -1869,7 +1871,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                   )}
                                 </div>
                                 <div>
-                                  <span 
+                                  <span
                                     className="text-slate-200 font-medium cursor-pointer hover:text-blue-400 block"
                                     onClick={() => partnerPerson && onOpenEditModal && onOpenEditModal(partnerId)}
                                   >
@@ -1879,156 +1881,156 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                 </div>
                               </div>
                               <div className="flex items-center gap-2">
-                            <select
-                              value={p.type || RELATION_TYPES.partner[0]}
-                              onChange={e => {
-                                const newType = e.target.value;
-                                setPerson(prev => {
-                                  const rels = { ...prev.relations };
-                                  // Spara nya relationstypen
+                                <select
+                                  value={p.type || RELATION_TYPES.partner[0]}
+                                  onChange={e => {
+                                    const newType = e.target.value;
+                                    setPerson(prev => {
+                                      const rels = { ...prev.relations };
+                                      // Spara nya relationstypen
                                       rels.partners = rels.partners.map((rel, i) => i === partnerIdx ? { ...rel, type: newType } : rel);
-                                  let events = [...prev.events];
-                                  // Hämta tidigare typ (innan ändring)
+                                      let events = [...prev.events];
+                                      // Hämta tidigare typ (innan ändring)
                                       const prevType = prev.relations.partners[partnerIdx]?.type;
-                                  // Skapa skilsmässa-händelse om man väljer Skild
-                                  if (newType === 'Skild') {
+                                      // Skapa skilsmässa-händelse om man väljer Skild
+                                      if (newType === 'Skild') {
                                         const alreadyExists = events.some(ev => ev.type === 'Skilsmässa' && ev.partnerId === partnerId);
-                                    if (!alreadyExists) {
-                                      events.push({
-                                        id: `evt_${Date.now()}`,
-                                        type: 'Skilsmässa',
-                                        date: '',
-                                        place: '',
+                                        if (!alreadyExists) {
+                                          events.push({
+                                            id: `evt_${Date.now()}`,
+                                            type: 'Skilsmässa',
+                                            date: '',
+                                            place: '',
                                             partnerId: partnerId,
-                                        sources: [],
-                                        images: 0,
-                                        notes: ''
-                                      });
-                                    }
-                                  }
-                                  // Ta bort skilsmässa-händelse om man ändrar från Skild till något annat
-                                  if (prevType === 'Skild' && newType !== 'Skild') {
+                                            sources: [],
+                                            images: 0,
+                                            notes: ''
+                                          });
+                                        }
+                                      }
+                                      // Ta bort skilsmässa-händelse om man ändrar från Skild till något annat
+                                      if (prevType === 'Skild' && newType !== 'Skild') {
                                         events = events.filter(ev => !(ev.type === 'Skilsmässa' && ev.partnerId === partnerId));
-                                  }
-                                  return { ...prev, relations: rels, events };
-                                });
-                              }}
+                                      }
+                                      return { ...prev, relations: rels, events };
+                                    });
+                                  }}
                                   className="bg-slate-900 border border-slate-600 text-xs rounded px-2 py-1 text-slate-200"
-                            >
-                              {RELATION_TYPES.partner.map(r => <option key={r} value={r}>{r}</option>)}
-                            </select>
-                                <button onClick={() => removeRelation('partners', partnerId)} className="text-red-600 hover:text-red-800 text-xs"><Trash2 size={14}/></button>
-                          </div>
-                       </div>
-                           
-                           {/* Barn under denna partner */}
-                           <div className="ml-4 border-l-2 border-slate-600 pl-3">
+                                >
+                                  {RELATION_TYPES.partner.map(r => <option key={r} value={r}>{r}</option>)}
+                                </select>
+                                <button onClick={() => removeRelation('partners', partnerId)} className="text-red-600 hover:text-red-800 text-xs"><Trash2 size={14} /></button>
+                              </div>
+                            </div>
+
+                            {/* Barn under denna partner */}
+                            <div className="ml-4 border-l-2 border-slate-600 pl-3">
                               <div className="flex justify-between mb-2">
-                                 <h5 className="text-xs font-semibold text-slate-300 uppercase">Barn</h5>
-                                 <button 
-                                   onClick={() => openRelationModal('children', partnerId)} 
-                                   className="text-blue-600 hover:text-blue-800 text-xs flex items-center gap-1"
-                                 >
-                                   <Plus size={10}/> Lägg till
-                                 </button>
+                                <h5 className="text-xs font-semibold text-slate-300 uppercase">Barn</h5>
+                                <button
+                                  onClick={() => openRelationModal('children', partnerId)}
+                                  className="text-blue-600 hover:text-blue-800 text-xs flex items-center gap-1"
+                                >
+                                  <Plus size={10} /> Lägg till
+                                </button>
                               </div>
                               {partnerChildren.length > 0 ? (
                                 partnerChildren.map((c, childIdx) => {
                                   const childId = typeof c === 'string' ? c : (c?.id || c);
                                   const childPerson = allPeople.find(pp => pp.id === childId);
-                                  const childName = childPerson 
-                                    ? `${childPerson.firstName || ''} ${childPerson.lastName || ''}`.trim() 
+                                  const childName = childPerson
+                                    ? `${childPerson.firstName || ''} ${childPerson.lastName || ''}`.trim()
                                     : (typeof c === 'object' && c.name ? c.name : childId || 'Okänd');
                                   const relationType = (typeof c === 'object' && c.type) ? c.type : RELATION_TYPES.child[0];
                                   const profileImage = childPerson?.media && childPerson.media.length > 0 ? childPerson.media[0].url : null;
-                                  
+
                                   return (
                                     <div key={childId || childIdx} className="flex items-center justify-between bg-slate-800 p-2 rounded mb-2 border border-slate-600">
-                                       <div className="flex items-center gap-3 flex-1">
-                                         <div className="w-8 h-8 rounded-full bg-slate-700 flex-shrink-0 overflow-hidden border-2 border-slate-500">
-                                           {profileImage ? (
-                                             <MediaImage url={profileImage} alt={childName} className="w-full h-full object-cover" />
-                                           ) : (
-                                             <User size={16} className="w-full h-full p-1.5 text-slate-400" />
-                   )}
-                </div>
-                                         <span 
-                                           className="text-slate-200 font-medium cursor-pointer hover:text-blue-400"
-                                           onClick={() => childPerson && onOpenEditModal && onOpenEditModal(childId)}
-                                         >
-                                           {childName}
-                                         </span>
-                   </div>
-                                       <div className="flex items-center gap-2">
-                            <select
-                                           value={relationType}
-                              onChange={e => {
-                                const newType = e.target.value;
-                                setPerson(prev => {
-                                  const rels = { ...prev.relations };
-                                               rels.children = rels.children.map((rel, i) => {
-                                                 const relId = typeof rel === 'string' ? rel : (rel?.id || rel);
-                                                 if (relId === childId) {
-                                                   if (typeof rel === 'string') {
-                                                     return { id: rel, name: childName, type: newType };
-                                                   }
-                                                   return { ...rel, type: newType };
-                                                 }
-                                                 return rel;
-                                               });
-                                  return { ...prev, relations: rels };
-                                });
-                              }}
-                                           className="bg-slate-900 border border-slate-600 text-xs rounded px-2 py-1 text-slate-200"
-                            >
-                              {RELATION_TYPES.child.map(r => <option key={r} value={r}>{r}</option>)}
-                            </select>
-                                         <button onClick={() => removeRelation('children', childId)} className="text-red-600 hover:text-red-800 text-xs"><Trash2 size={14}/></button>
-                          </div>
-                       </div>
+                                      <div className="flex items-center gap-3 flex-1">
+                                        <div className="w-8 h-8 rounded-full bg-slate-700 flex-shrink-0 overflow-hidden border-2 border-slate-500">
+                                          {profileImage ? (
+                                            <MediaImage url={profileImage} alt={childName} className="w-full h-full object-cover" />
+                                          ) : (
+                                            <User size={16} className="w-full h-full p-1.5 text-slate-400" />
+                                          )}
+                                        </div>
+                                        <span
+                                          className="text-slate-200 font-medium cursor-pointer hover:text-blue-400"
+                                          onClick={() => childPerson && onOpenEditModal && onOpenEditModal(childId)}
+                                        >
+                                          {childName}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <select
+                                          value={relationType}
+                                          onChange={e => {
+                                            const newType = e.target.value;
+                                            setPerson(prev => {
+                                              const rels = { ...prev.relations };
+                                              rels.children = rels.children.map((rel, i) => {
+                                                const relId = typeof rel === 'string' ? rel : (rel?.id || rel);
+                                                if (relId === childId) {
+                                                  if (typeof rel === 'string') {
+                                                    return { id: rel, name: childName, type: newType };
+                                                  }
+                                                  return { ...rel, type: newType };
+                                                }
+                                                return rel;
+                                              });
+                                              return { ...prev, relations: rels };
+                                            });
+                                          }}
+                                          className="bg-slate-900 border border-slate-600 text-xs rounded px-2 py-1 text-slate-200"
+                                        >
+                                          {RELATION_TYPES.child.map(r => <option key={r} value={r}>{r}</option>)}
+                                        </select>
+                                        <button onClick={() => removeRelation('children', childId)} className="text-red-600 hover:text-red-800 text-xs"><Trash2 size={14} /></button>
+                                      </div>
+                                    </div>
                                   );
                                 })
-                   ) : (
+                              ) : (
                                 <p className="text-xs text-slate-500 italic">Inga barn tillagda</p>
-                   )}
-                </div>
-                         </div>
-                       );
-                     })
-                   ) : (
-                     <p className="text-xs text-slate-400">Ingen partner tillagd</p>
-                   )}
-                   
-                   {/* Barn som inte är kopplade till någon partner */}
-                   {(() => {
-                     // Hitta alla barn som INTE har någon partner som förälder (bara fokus-personen)
-                     const unlinkedChildren = (person.relations?.children || []).filter(c => {
-                       const childId = typeof c === 'string' ? c : (c?.id || c);
-                       const childPerson = allPeople.find(pp => pp.id === childId);
-                       if (!childPerson) return false;
-                       const childParents = (childPerson.relations?.parents || []).map(par => typeof par === 'object' ? par.id : par);
-                       // Om barnet bara har fokus-personen som förälder (eller inga föräldrar alls)
-                       return childParents.length <= 1 && childParents.includes(person.id);
-                     });
-                     
-                     if (unlinkedChildren.length > 0) {
-                       return (
-                         <div className="bg-slate-700 rounded-lg border border-slate-600 p-3 mt-4">
-                           <div className="flex justify-between mb-3">
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <p className="text-xs text-slate-400">Ingen partner tillagd</p>
+                    )}
+
+                    {/* Barn som inte är kopplade till någon partner */}
+                    {(() => {
+                      // Hitta alla barn som INTE har någon partner som förälder (bara fokus-personen)
+                      const unlinkedChildren = (person.relations?.children || []).filter(c => {
+                        const childId = typeof c === 'string' ? c : (c?.id || c);
+                        const childPerson = allPeople.find(pp => pp.id === childId);
+                        if (!childPerson) return false;
+                        const childParents = (childPerson.relations?.parents || []).map(par => typeof par === 'object' ? par.id : par);
+                        // Om barnet bara har fokus-personen som förälder (eller inga föräldrar alls)
+                        return childParents.length <= 1 && childParents.includes(person.id);
+                      });
+
+                      if (unlinkedChildren.length > 0) {
+                        return (
+                          <div className="bg-slate-700 rounded-lg border border-slate-600 p-3 mt-4">
+                            <div className="flex justify-between mb-3">
                               <h5 className="text-xs font-semibold text-slate-300 uppercase">Barn (ej kopplade till partner)</h5>
-                              <button onClick={() => openRelationModal('children')} className="text-blue-600 hover:text-blue-800 text-xs flex items-center gap-1"><Plus size={10}/> Lägg till</button>
-                      </div>
-                           {unlinkedChildren.map((c, idx) => {
-                             const childId = typeof c === 'string' ? c : (c?.id || c);
-                             const childPerson = allPeople.find(pp => pp.id === childId);
-                             const childName = childPerson 
-                               ? `${childPerson.firstName || ''} ${childPerson.lastName || ''}`.trim() 
-                               : (typeof c === 'object' && c.name ? c.name : childId || 'Okänd');
-                             const relationType = (typeof c === 'object' && c.type) ? c.type : RELATION_TYPES.child[0];
-                             const profileImage = childPerson?.media && childPerson.media.length > 0 ? childPerson.media[0].url : null;
-                             
-                             return (
-                               <div key={childId || idx} className="flex items-center justify-between bg-slate-800 p-2 rounded mb-2 border border-slate-600">
+                              <button onClick={() => openRelationModal('children')} className="text-blue-600 hover:text-blue-800 text-xs flex items-center gap-1"><Plus size={10} /> Lägg till</button>
+                            </div>
+                            {unlinkedChildren.map((c, idx) => {
+                              const childId = typeof c === 'string' ? c : (c?.id || c);
+                              const childPerson = allPeople.find(pp => pp.id === childId);
+                              const childName = childPerson
+                                ? `${childPerson.firstName || ''} ${childPerson.lastName || ''}`.trim()
+                                : (typeof c === 'object' && c.name ? c.name : childId || 'Okänd');
+                              const relationType = (typeof c === 'object' && c.type) ? c.type : RELATION_TYPES.child[0];
+                              const profileImage = childPerson?.media && childPerson.media.length > 0 ? childPerson.media[0].url : null;
+
+                              return (
+                                <div key={childId || idx} className="flex items-center justify-between bg-slate-800 p-2 rounded mb-2 border border-slate-600">
                                   <div className="flex items-center gap-3 flex-1">
                                     <div className="w-8 h-8 rounded-full bg-slate-700 flex-shrink-0 overflow-hidden border-2 border-slate-500">
                                       {profileImage ? (
@@ -2037,7 +2039,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                         <User size={16} className="w-full h-full p-1.5 text-slate-400" />
                                       )}
                                     </div>
-                                    <span 
+                                    <span
                                       className="text-slate-200 font-medium cursor-pointer hover:text-blue-400"
                                       onClick={() => childPerson && onOpenEditModal && onOpenEditModal(childId)}
                                     >
@@ -2068,340 +2070,273 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                     >
                                       {RELATION_TYPES.child.map(r => <option key={r} value={r}>{r}</option>)}
                                     </select>
-                                    <button onClick={() => removeRelation('children', childId)} className="text-red-600 hover:text-red-800 text-xs"><Trash2 size={14}/></button>
+                                    <button onClick={() => removeRelation('children', childId)} className="text-red-600 hover:text-red-800 text-xs"><Trash2 size={14} /></button>
                                   </div>
-                               </div>
-                             );
-                           })}
-                         </div>
-                       );
-                     }
-                     return null;
-                   })()}
-                </div>
-
-
-                {/* Relation Picker Modal */}
-                {relationModalOpen && (() => {
-                  // Filtrera och sortera personer
-                  const filteredPeople = allPeople
-                    .filter(p => {
-                      if (p.id === person.id) return false; // Exkludera sig själv
-                      if (!relationSearch) return true;
-                      
-                      const searchLower = relationSearch.toLowerCase();
-                      const fullName = `${p.firstName || ''} ${p.lastName || ''}`.toLowerCase();
-                      const ref = (p.refNumber || p.refId || '').toString().toLowerCase();
-                      
-                      // Sök på f.namn, e.namn, ref
-                      return fullName.includes(searchLower) || 
-                             ref.includes(searchLower) ||
-                             (p.firstName || '').toLowerCase().includes(searchLower) ||
-                             (p.lastName || '').toLowerCase().includes(searchLower);
-                    })
-                    .map(p => {
-                      const relationship = getRelationshipType(person.id, p.id);
-                      const modifiedAt = p.modifiedAt || p.createdAt || '';
-                      return { ...p, relationship, modifiedAt };
-                    })
-                    .sort((a, b) => {
-                      if (relationSortBy === 'recent') {
-                        // Sortera efter senast ändrad (nyast först)
-                        return (b.modifiedAt || '').localeCompare(a.modifiedAt || '');
-                      } else if (relationSortBy === 'related') {
-                        // Sortera efter relationstyp (partners först, sedan föräldrar, barn, syskon, osv)
-                        const order = { 'partner': 1, 'parent': 2, 'child': 3, 'sibling': 4 };
-                        const aOrder = order[a.relationship] || 99;
-                        const bOrder = order[b.relationship] || 99;
-                        if (aOrder !== bOrder) return aOrder - bOrder;
-                        // Om samma typ, sortera alfabetiskt
-                        return `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
-                      } else {
-                        // Sortera alfabetiskt (standard)
-                        return `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
                       }
-                    });
+                      return null;
+                    })()}
+                  </div>
 
-                  return (
-                    <WindowFrame
-                      title="Välj person att koppla"
-                      icon={User}
-                      onClose={() => setRelationModalOpen(false)}
-                      initialWidth={800}
-                      initialHeight={600}
-                      zIndex={4200}
-                    >
-                      <div className="h-full flex flex-col bg-slate-800 overflow-hidden">
-                        <div className="p-4 space-y-3 flex-shrink-0">
-                          {/* Sökfält */}
-                          <div className="relative">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18}/>
-                        <input
-                          type="text"
-                          value={relationSearch}
-                          onChange={e => { setRelationSearch(e.target.value); setRelationSearchIndex(0); }}
-                              placeholder="Sök på namn, ref, f.namn, e.namn..."
-                              className="w-full bg-slate-900 border border-slate-700 rounded p-2 pl-10 text-white focus:border-blue-500 focus:outline-none"
-                              autoFocus
-                            />
-                          </div>
-                          
-                          {/* Filter/Sortering */}
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => { setRelationSortBy('name'); setRelationSearchIndex(0); }}
-                              className={`px-3 py-1 text-xs rounded transition-colors ${
-                                relationSortBy === 'name' 
-                                  ? 'bg-blue-600 text-white' 
-                                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                              }`}
-                            >
-                              Namn
-                            </button>
-                            <button
-                              onClick={() => { setRelationSortBy('recent'); setRelationSearchIndex(0); }}
-                              className={`px-3 py-1 text-xs rounded transition-colors ${
-                                relationSortBy === 'recent' 
-                                  ? 'bg-blue-600 text-white' 
-                                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                              }`}
-                            >
-                              Senast tillagd
-                            </button>
-                            <button
-                              onClick={() => { setRelationSortBy('related'); setRelationSearchIndex(0); }}
-                              className={`px-3 py-1 text-xs rounded transition-colors ${
-                                relationSortBy === 'related' 
-                                  ? 'bg-blue-600 text-white' 
-                                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                              }`}
-                            >
-                              Närmast släkt
-                            </button>
-                          </div>
 
-                          {/* Personlista */}
-                          <div className="flex-1 overflow-y-auto divide-y divide-slate-700 custom-scrollbar">
-                            {filteredPeople.length === 0 ? (
-                              <div className="text-slate-400 py-8 text-center">Ingen person hittades</div>
-                            ) : (
-                              filteredPeople.map((p, idx) => {
-                                const { birthDate, birthPlace, deathDate, deathPlace } = getPersonLifeDetails(p);
-                                const sex = p.sex || 'U';
-                                const sexLabel = sex === 'M' ? 'M' : sex === 'K' ? 'F' : 'U';
-                                const profileImage = p.media && p.media.length > 0 ? p.media[0].url : null;
-                                
-                                return (
-                                  <div 
-                                    key={p.id} 
-                                    className={`flex items-start gap-3 py-3 px-3 cursor-pointer hover:bg-slate-700 transition-colors ${
-                                      idx === relationSearchIndex ? 'bg-blue-600 text-white' : 'text-slate-200'
-                                    }`}
-                                onClick={() => addRelation(p.id)}
-                                onMouseEnter={() => setRelationSearchIndex(idx)}
+                  {/* Relation Picker Modal */}
+                  {relationModalOpen && (() => {
+                    // Filtrera och sortera personer
+                    const filteredPeople = allPeople
+                      .filter(p => {
+                        if (p.id === person.id) return false; // Exkludera sig själv
+                        if (!relationSearch) return true;
+
+                        const searchLower = relationSearch.toLowerCase();
+                        const fullName = `${p.firstName || ''} ${p.lastName || ''}`.toLowerCase();
+                        const ref = (p.refNumber || p.refId || '').toString().toLowerCase();
+
+                        // Sök på f.namn, e.namn, ref
+                        return fullName.includes(searchLower) ||
+                          ref.includes(searchLower) ||
+                          (p.firstName || '').toLowerCase().includes(searchLower) ||
+                          (p.lastName || '').toLowerCase().includes(searchLower);
+                      })
+                      .map(p => {
+                        const relationship = getRelationshipType(person.id, p.id);
+                        const modifiedAt = p.modifiedAt || p.createdAt || '';
+                        return { ...p, relationship, modifiedAt };
+                      })
+                      .sort((a, b) => {
+                        if (relationSortBy === 'recent') {
+                          // Sortera efter senast ändrad (nyast först)
+                          return (b.modifiedAt || '').localeCompare(a.modifiedAt || '');
+                        } else if (relationSortBy === 'related') {
+                          // Sortera efter relationstyp (partners först, sedan föräldrar, barn, syskon, osv)
+                          const order = { 'partner': 1, 'parent': 2, 'child': 3, 'sibling': 4 };
+                          const aOrder = order[a.relationship] || 99;
+                          const bOrder = order[b.relationship] || 99;
+                          if (aOrder !== bOrder) return aOrder - bOrder;
+                          // Om samma typ, sortera alfabetiskt
+                          return `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
+                        } else {
+                          // Sortera alfabetiskt (standard)
+                          return `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
+                        }
+                      });
+
+                    return (
+                      <WindowFrame
+                        title="Välj person att koppla"
+                        icon={User}
+                        onClose={() => setRelationModalOpen(false)}
+                        initialWidth={800}
+                        initialHeight={600}
+                        zIndex={4200}
+                      >
+                        <div className="h-full flex flex-col bg-slate-800 overflow-hidden">
+                          <div className="p-4 space-y-3 flex-shrink-0">
+                            {/* Sökfält */}
+                            <div className="relative">
+                              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
+                              <input
+                                type="text"
+                                value={relationSearch}
+                                onChange={e => { setRelationSearch(e.target.value); setRelationSearchIndex(0); }}
+                                placeholder="Sök på namn, ref, f.namn, e.namn..."
+                                className="w-full bg-slate-900 border border-slate-700 rounded p-2 pl-10 text-white focus:border-blue-500 focus:outline-none"
+                                autoFocus
+                              />
+                            </div>
+
+                            {/* Filter/Sortering */}
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => { setRelationSortBy('name'); setRelationSearchIndex(0); }}
+                                className={`px-3 py-1 text-xs rounded transition-colors ${relationSortBy === 'name'
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                                  }`}
                               >
-                                    {/* Rund thumbnail */}
-                                    <div className="w-12 h-12 rounded-full bg-slate-600 flex-shrink-0 overflow-hidden border-2 border-slate-500">
-                                      {profileImage ? (
-                                        <MediaImage url={profileImage} alt={`${p.firstName} ${p.lastName}`} className="w-full h-full object-cover" />
-                                      ) : (
-                                        <User className="w-full h-full p-2 text-slate-400" />
-                                      )}
-                              </div>
-                                    
-                                    {/* Personinfo */}
-                                    <div className="flex-1 min-w-0">
-                                      <div className="font-semibold text-base mb-1">
-                                        {p.firstName} {p.lastName}
-                                        {p.relationship && (
-                                          <span className="ml-2 text-xs font-normal text-slate-400">
-                                            ({p.relationship === 'partner' ? 'Partner' : 
-                                              p.relationship === 'parent' ? 'Förälder' : 
-                                              p.relationship === 'child' ? 'Barn' : 
-                                              p.relationship === 'sibling' ? 'Syskon' : ''})
-                                          </span>
-                          )}
-                        </div>
-                                      
-                                      {/* Födelsedatum och plats */}
-                                      {(birthDate || birthPlace) && (
-                                        <div className="text-sm text-slate-400 mb-0.5">
-                                          * {birthDate || '????-??-??'} {birthPlace && ` ${birthPlace}`} ({sexLabel})
-                  </div>
-                )}
-                                      
-                                      {/* Dödsdatum och plats */}
-                                      {(deathDate || deathPlace) && (
-                                        <div className="text-sm text-slate-400">
-                                          + {deathDate || '????-??-??'} {deathPlace && ` ${deathPlace}`} ({sexLabel})
-              </div>
-            )}
+                                Namn
+                              </button>
+                              <button
+                                onClick={() => { setRelationSortBy('recent'); setRelationSearchIndex(0); }}
+                                className={`px-3 py-1 text-xs rounded transition-colors ${relationSortBy === 'recent'
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                                  }`}
+                              >
+                                Senast tillagd
+                              </button>
+                              <button
+                                onClick={() => { setRelationSortBy('related'); setRelationSearchIndex(0); }}
+                                className={`px-3 py-1 text-xs rounded transition-colors ${relationSortBy === 'related'
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                                  }`}
+                              >
+                                Närmast släkt
+                              </button>
+                            </div>
 
-                                      {/* Om inga datum finns */}
-                                      {!birthDate && !deathDate && (
-                                        <div className="text-sm text-slate-500 italic">
-                                          Inga datum registrerade
+                            {/* Personlista */}
+                            <div className="flex-1 overflow-y-auto divide-y divide-slate-700 custom-scrollbar">
+                              {filteredPeople.length === 0 ? (
+                                <div className="text-slate-400 py-8 text-center">Ingen person hittades</div>
+                              ) : (
+                                filteredPeople.map((p, idx) => {
+                                  const { birthDate, birthPlace, deathDate, deathPlace } = getPersonLifeDetails(p);
+                                  const sex = p.sex || 'U';
+                                  const sexLabel = sex === 'M' ? 'M' : sex === 'K' ? 'F' : 'U';
+                                  const profileImage = p.media && p.media.length > 0 ? p.media[0].url : null;
+
+                                  return (
+                                    <div
+                                      key={p.id}
+                                      className={`flex items-start gap-3 py-3 px-3 cursor-pointer hover:bg-slate-700 transition-colors ${idx === relationSearchIndex ? 'bg-blue-600 text-white' : 'text-slate-200'
+                                        }`}
+                                      onClick={() => addRelation(p.id)}
+                                      onMouseEnter={() => setRelationSearchIndex(idx)}
+                                    >
+                                      {/* Rund thumbnail */}
+                                      <div className="w-12 h-12 rounded-full bg-slate-600 flex-shrink-0 overflow-hidden border-2 border-slate-500">
+                                        {profileImage ? (
+                                          <MediaImage url={profileImage} alt={`${p.firstName} ${p.lastName}`} className="w-full h-full object-cover" />
+                                        ) : (
+                                          <User className="w-full h-full p-2 text-slate-400" />
+                                        )}
+                                      </div>
+
+                                      {/* Personinfo */}
+                                      <div className="flex-1 min-w-0">
+                                        <div className="font-semibold text-base mb-1">
+                                          {p.firstName} {p.lastName}
+                                          {p.relationship && (
+                                            <span className="ml-2 text-xs font-normal text-slate-400">
+                                              ({p.relationship === 'partner' ? 'Partner' :
+                                                p.relationship === 'parent' ? 'Förälder' :
+                                                  p.relationship === 'child' ? 'Barn' :
+                                                    p.relationship === 'sibling' ? 'Syskon' : ''})
+                                            </span>
+                                          )}
+                                        </div>
+
+                                        {/* Födelsedatum och plats */}
+                                        {(birthDate || birthPlace) && (
+                                          <div className="text-sm text-slate-400 mb-0.5">
+                                            * {birthDate || '????-??-??'} {birthPlace && ` ${birthPlace}`} ({sexLabel})
+                                          </div>
+                                        )}
+
+                                        {/* Dödsdatum och plats */}
+                                        {(deathDate || deathPlace) && (
+                                          <div className="text-sm text-slate-400">
+                                            + {deathDate || '????-??-??'} {deathPlace && ` ${deathPlace}`} ({sexLabel})
+                                          </div>
+                                        )}
+
+                                        {/* Om inga datum finns */}
+                                        {!birthDate && !deathDate && (
+                                          <div className="text-sm text-slate-500 italic">
+                                            Inga datum registrerade
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })
+                              )}
+                            </div>
                           </div>
-                                      )}
                         </div>
-                      </div>
-                                );
-                              })
-                            )}
-                    </div>
-                  </div>
+                      </WindowFrame>
+                    );
+                  })()}
                 </div>
-                    </WindowFrame>
-                  );
-                })()}
-                    </div>
-                  )}
+              )}
 
-            {/* FLIK: MEDIA */}
-            {activeTab === 'media' && (
-              <div className="animate-in fade-in duration-300 h-full">
-                <MediaSelector
-                  media={person.media || []}
-                  onMediaChange={(newMedia) => {
-                    const updatedPerson = { ...person, media: newMedia };
-                    setPerson(updatedPerson);
-                    // Uppdatera också i dbData direkt så att media sparas
-                    if (onChange) {
-                      onChange(updatedPerson);
-                    }
-                  }}
-                  entityType="person"
-                  entityId={person.id}
-                  allPeople={allPeople}
-                  onOpenEditModal={onOpenEditModal}
-                  allMediaItems={allMediaItems}
-                  onUpdateAllMedia={onUpdateAllMedia}
-                  allSources={allSources || []}
-                  allPlaces={allPlaces || []}
-                />
-              </div>
-            )}
-
-            {/* FLIK: FORSKNING */}
-            {activeTab === 'research' && (
-              <div className="animate-in fade-in duration-300 space-y-8">
-                {/* FORSKNINGSUPPGIFTER */}
-                <div>
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-md font-bold text-slate-200 uppercase flex items-center gap-2">
-                      <ClipboardList size={18} className="text-blue-400"/> Forskningsuppgifter
-                    </h3>
-                    <button 
-                      onClick={() => {
-                        const newTask = {
-                          id: `task_${Date.now()}`,
-                          task: '',
-                          priority: 0,
-                          status: 'not-started',
-                          deadline: '',
-                          notes: ''
-                        };
-                        const currentResearch = person.research || { tasks: [], notes: '', questions: [] };
-                        setPerson({
-                          ...person,
-                          research: {
-                            ...currentResearch,
-                            tasks: [...(currentResearch.tasks || []), newTask]
-                          }
-                        });
-                        setEditingTaskIndex((currentResearch.tasks || []).length);
-                      }}
-                      className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded flex items-center gap-1.5 transition-colors"
-                    >
-                     <Plus size={14}/> Ny uppgift
-                   </button>
+              {/* FLIK: MEDIA */}
+              {activeTab === 'media' && (
+                <div className="animate-in fade-in duration-300 h-full">
+                  <MediaSelector
+                    media={person.media || []}
+                    onMediaChange={(newMedia) => {
+                      const updatedPerson = { ...person, media: newMedia };
+                      setPerson(updatedPerson);
+                      // Uppdatera också i dbData direkt så att media sparas
+                      if (onChange) {
+                        onChange(updatedPerson);
+                      }
+                    }}
+                    entityType="person"
+                    entityId={person.id}
+                    allPeople={allPeople}
+                    onOpenEditModal={onOpenEditModal}
+                    allMediaItems={allMediaItems}
+                    onUpdateAllMedia={onUpdateAllMedia}
+                    allSources={allSources || []}
+                    allPlaces={allPlaces || []}
+                  />
                 </div>
+              )}
 
-                <div className="space-y-3">
-                    {(person.research?.tasks || []).length === 0 ? (
-                      <div className="bg-slate-900 border border-slate-700 rounded-lg p-8 text-center">
-                        <ClipboardList size={32} className="text-slate-500 mx-auto mb-2"/>
-                        <p className="text-slate-400 text-sm">Inga forskningsuppgifter än. Klicka på "Ny uppgift" för att lägga till en.</p>
-                      </div>
-                    ) : (
-                      (person.research?.tasks || []).map((task, idx) => {
-                        const prio = PRIORITY_LEVELS.find(p => p.level === (task.priority || 0)) || PRIORITY_LEVELS[0];
-                        const status = TASK_STATUS.find(s => s.value === (task.status || 'not-started')) || TASK_STATUS[0];
-                        const isEditing = editingTaskIndex === idx;
-                        
-                     return (
-                          <div key={task.id || idx} className="bg-slate-900 border border-slate-700 rounded-lg p-4 hover:border-slate-600 transition-colors">
-                            <div className="flex justify-between items-start mb-3">
-                             <div className="flex-1">
-                                <input 
-                                  type="text" 
-                                  value={task.task || ''}
-                                  onChange={(e) => {
-                                    const updatedTasks = [...(person.research?.tasks || [])];
-                                    updatedTasks[idx] = { ...task, task: e.target.value };
-                                    setPerson({
-                                      ...person,
-                                      research: {
-                                        ...(person.research || { tasks: [], notes: '', questions: [] }),
-                                        tasks: updatedTasks
-                                      }
-                                    });
-                                  }}
-                                  placeholder="Beskriv uppgiften..."
-                                  className="bg-transparent font-medium text-slate-200 w-full focus:outline-none focus:border-b border-blue-500 pb-1" 
-                                />
-                             </div>
-                              <div className="flex gap-2 ml-4 items-center">
-                                {/* Status */}
-                               <select 
-                                  value={task.status || 'not-started'}
-                                  onChange={(e) => {
-                                    const updatedTasks = [...(person.research?.tasks || [])];
-                                    updatedTasks[idx] = { ...task, status: e.target.value };
-                                    setPerson({
-                                      ...person,
-                                      research: {
-                                        ...(person.research || { tasks: [], notes: '', questions: [] }),
-                                        tasks: updatedTasks
-                                      }
-                                    });
-                                  }}
-                                  className={`bg-slate-800 border border-slate-700 text-xs rounded px-2 py-1 ${status.color}`}
-                                >
-                                  {TASK_STATUS.map(s => (
-                                    <option key={s.value} value={s.value}>{s.label}</option>
-                                  ))}
-                                </select>
-                                
-                                {/* Prioritet */}
-                                <select 
-                                  value={task.priority || 0}
-                                  onChange={(e) => {
-                                    const updatedTasks = [...(person.research?.tasks || [])];
-                                    updatedTasks[idx] = { ...task, priority: parseInt(e.target.value) };
-                                    setPerson({
-                                      ...person,
-                                      research: {
-                                        ...(person.research || { tasks: [], notes: '', questions: [] }),
-                                        tasks: updatedTasks
-                                      }
-                                    });
-                                  }}
-                                  className={`bg-slate-800 border border-slate-700 text-xs rounded px-2 py-1 text-slate-200 ${prio.color}`}
-                               >
-                                 {PRIORITY_LEVELS.map(p => (
-                                   <option key={p.level} value={p.level}>{p.level} - {p.label}</option>
-                                 ))}
-                               </select>
-                                
-                                {/* Deadline */}
-                                <div className="relative">
+              {/* FLIK: FORSKNING */}
+              {activeTab === 'research' && (
+                <div className="animate-in fade-in duration-300 space-y-8">
+                  {/* FORSKNINGSUPPGIFTER */}
+                  <div>
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-md font-bold text-slate-200 uppercase flex items-center gap-2">
+                        <ClipboardList size={18} className="text-blue-400" /> Forskningsuppgifter
+                      </h3>
+                      <button
+                        onClick={() => {
+                          const newTask = {
+                            id: `task_${Date.now()}`,
+                            task: '',
+                            priority: 0,
+                            status: 'not-started',
+                            deadline: '',
+                            notes: ''
+                          };
+                          const currentResearch = person.research || { tasks: [], notes: '', questions: [] };
+                          setPerson({
+                            ...person,
+                            research: {
+                              ...currentResearch,
+                              tasks: [...(currentResearch.tasks || []), newTask]
+                            }
+                          });
+                          setEditingTaskIndex((currentResearch.tasks || []).length);
+                        }}
+                        className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded flex items-center gap-1.5 transition-colors"
+                      >
+                        <Plus size={14} /> Ny uppgift
+                      </button>
+                    </div>
+
+                    <div className="space-y-3">
+                      {(person.research?.tasks || []).length === 0 ? (
+                        <div className="bg-slate-900 border border-slate-700 rounded-lg p-8 text-center">
+                          <ClipboardList size={32} className="text-slate-500 mx-auto mb-2" />
+                          <p className="text-slate-400 text-sm">Inga forskningsuppgifter än. Klicka på "Ny uppgift" för att lägga till en.</p>
+                        </div>
+                      ) : (
+                        (person.research?.tasks || []).map((task, idx) => {
+                          const prio = PRIORITY_LEVELS.find(p => p.level === (task.priority || 0)) || PRIORITY_LEVELS[0];
+                          const status = TASK_STATUS.find(s => s.value === (task.status || 'not-started')) || TASK_STATUS[0];
+                          const isEditing = editingTaskIndex === idx;
+
+                          return (
+                            <div key={task.id || idx} className="bg-slate-900 border border-slate-700 rounded-lg p-4 hover:border-slate-600 transition-colors">
+                              <div className="flex justify-between items-start mb-3">
+                                <div className="flex-1">
                                   <input
-                                    type="date"
-                                    value={task.deadline || ''}
+                                    type="text"
+                                    value={task.task || ''}
                                     onChange={(e) => {
                                       const updatedTasks = [...(person.research?.tasks || [])];
-                                      updatedTasks[idx] = { ...task, deadline: e.target.value };
+                                      updatedTasks[idx] = { ...task, task: e.target.value };
                                       setPerson({
                                         ...person,
                                         research: {
@@ -2410,15 +2345,101 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                         }
                                       });
                                     }}
-                                    className="bg-slate-800 border border-slate-700 text-xs rounded px-2 py-1 text-slate-200 w-32"
+                                    placeholder="Beskriv uppgiften..."
+                                    className="bg-transparent font-medium text-slate-200 w-full focus:outline-none focus:border-b border-blue-500 pb-1"
                                   />
-                                  <Clock size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"/>
                                 </div>
-                                
-                                {/* Ta bort */}
-                                <button 
-                                  onClick={() => {
-                                    const updatedTasks = (person.research?.tasks || []).filter((_, i) => i !== idx);
+                                <div className="flex gap-2 ml-4 items-center">
+                                  {/* Status */}
+                                  <select
+                                    value={task.status || 'not-started'}
+                                    onChange={(e) => {
+                                      const updatedTasks = [...(person.research?.tasks || [])];
+                                      updatedTasks[idx] = { ...task, status: e.target.value };
+                                      setPerson({
+                                        ...person,
+                                        research: {
+                                          ...(person.research || { tasks: [], notes: '', questions: [] }),
+                                          tasks: updatedTasks
+                                        }
+                                      });
+                                    }}
+                                    className={`bg-slate-800 border border-slate-700 text-xs rounded px-2 py-1 ${status.color}`}
+                                  >
+                                    {TASK_STATUS.map(s => (
+                                      <option key={s.value} value={s.value}>{s.label}</option>
+                                    ))}
+                                  </select>
+
+                                  {/* Prioritet */}
+                                  <select
+                                    value={task.priority || 0}
+                                    onChange={(e) => {
+                                      const updatedTasks = [...(person.research?.tasks || [])];
+                                      updatedTasks[idx] = { ...task, priority: parseInt(e.target.value) };
+                                      setPerson({
+                                        ...person,
+                                        research: {
+                                          ...(person.research || { tasks: [], notes: '', questions: [] }),
+                                          tasks: updatedTasks
+                                        }
+                                      });
+                                    }}
+                                    className={`bg-slate-800 border border-slate-700 text-xs rounded px-2 py-1 text-slate-200 ${prio.color}`}
+                                  >
+                                    {PRIORITY_LEVELS.map(p => (
+                                      <option key={p.level} value={p.level}>{p.level} - {p.label}</option>
+                                    ))}
+                                  </select>
+
+                                  {/* Deadline */}
+                                  <div className="relative">
+                                    <input
+                                      type="date"
+                                      value={task.deadline || ''}
+                                      onChange={(e) => {
+                                        const updatedTasks = [...(person.research?.tasks || [])];
+                                        updatedTasks[idx] = { ...task, deadline: e.target.value };
+                                        setPerson({
+                                          ...person,
+                                          research: {
+                                            ...(person.research || { tasks: [], notes: '', questions: [] }),
+                                            tasks: updatedTasks
+                                          }
+                                        });
+                                      }}
+                                      className="bg-slate-800 border border-slate-700 text-xs rounded px-2 py-1 text-slate-200 w-32"
+                                    />
+                                    <Clock size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                  </div>
+
+                                  {/* Ta bort */}
+                                  <button
+                                    onClick={() => {
+                                      const updatedTasks = (person.research?.tasks || []).filter((_, i) => i !== idx);
+                                      setPerson({
+                                        ...person,
+                                        research: {
+                                          ...(person.research || { tasks: [], notes: '', questions: [] }),
+                                          tasks: updatedTasks
+                                        }
+                                      });
+                                    }}
+                                    className="text-slate-400 hover:text-red-600 transition-colors"
+                                    title="Ta bort uppgift"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Noteringar för uppgiften */}
+                              <div className="bg-slate-800 rounded border border-slate-700 mt-2">
+                                <Editor
+                                  value={task.notes || ''}
+                                  onChange={(e) => {
+                                    const updatedTasks = [...(person.research?.tasks || [])];
+                                    updatedTasks[idx] = { ...task, notes: e.target.value };
                                     setPerson({
                                       ...person,
                                       research: {
@@ -2427,304 +2448,278 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                       }
                                     });
                                   }}
-                                  className="text-slate-400 hover:text-red-600 transition-colors"
-                                  title="Ta bort uppgift"
-                                >
-                                  <Trash2 size={16}/>
-                                </button>
-                             </div>
-                          </div>
-                          
-                            {/* Noteringar för uppgiften */}
-                          <div className="bg-slate-800 rounded border border-slate-700 mt-2">
-                              <Editor
-                                value={task.notes || ''}
-                                onChange={(e) => {
-                                  const updatedTasks = [...(person.research?.tasks || [])];
-                                  updatedTasks[idx] = { ...task, notes: e.target.value };
-                                  setPerson({
-                                    ...person,
-                                    research: {
-                                      ...(person.research || { tasks: [], notes: '', questions: [] }),
-                                      tasks: updatedTasks
-                                    }
-                                  });
-                                }}
-                                placeholder="Lägg till noteringar om denna uppgift..."
-                            />
-                          </div>
-                       </div>
-                     );
-                      })
-                    )}
-                </div>
-              </div>
-
-                {/* FORSKNINGSNOTERINGAR */}
-                <div>
-                  <h3 className="text-md font-bold text-slate-200 uppercase mb-4 flex items-center gap-2">
-                    <BookOpen size={18} className="text-blue-400"/> Forskningsnoteringar
-                  </h3>
-                  <div className="bg-slate-900 border border-slate-700 rounded-lg p-4">
-                    <Editor
-                      value={person.research?.notes || ''}
-                      onChange={(e) => {
-                        setPerson({
-                          ...person,
-                          research: {
-                            ...(person.research || { tasks: [], notes: '', questions: [] }),
-                            notes: e.target.value
-                          }
-                        });
-                      }}
-                      placeholder="Skriv fria anteckningar om din forskning här... Vad har du hittat? Vilka källor har du kollat? Vilka teorier har du?"
-                    />
-                  </div>
-                </div>
-
-                {/* FRÅGOR ATT BESVARA */}
-                <div>
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-md font-bold text-slate-200 uppercase flex items-center gap-2">
-                      <HelpCircle size={18} className="text-blue-400"/> Frågor att besvara
-                    </h3>
-                  </div>
-                  
-                  {/* Input för ny fråga */}
-                  <div className="mb-4">
-                    <div className="flex gap-2">
-                  <input 
-                    type="text" 
-                        value={newQuestionInput}
-                        onChange={(e) => setNewQuestionInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && newQuestionInput.trim()) {
-                            const currentResearch = person.research || { tasks: [], notes: '', questions: [] };
-                            setPerson({
-                              ...person,
-                              research: {
-                                ...currentResearch,
-                                questions: [...(currentResearch.questions || []), {
-                                  id: `q_${Date.now()}`,
-                                  question: newQuestionInput.trim(),
-                                  answered: false
-                                }]
-                              }
-                            });
-                            setNewQuestionInput('');
-                          }
-                        }}
-                        placeholder="Skriv en fråga och tryck Enter..."
-                        className="flex-1 bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
-                      />
-                      <button
-                        onClick={() => {
-                          if (newQuestionInput.trim()) {
-                            const currentResearch = person.research || { tasks: [], notes: '', questions: [] };
-                            setPerson({
-                              ...person,
-                              research: {
-                                ...currentResearch,
-                                questions: [...(currentResearch.questions || []), {
-                                  id: `q_${Date.now()}`,
-                                  question: newQuestionInput.trim(),
-                                  answered: false
-                                }]
-                              }
-                            });
-                            setNewQuestionInput('');
-                          }
-                        }}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm flex items-center gap-2 transition-colors"
-                      >
-                        <Plus size={16}/> Lägg till
-                      </button>
+                                  placeholder="Lägg till noteringar om denna uppgift..."
+                                />
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
                     </div>
-                    <p className="text-xs text-slate-500 mt-1">Tryck Enter eller klicka på "Lägg till" för att lägga till frågan</p>
-                </div>
+                  </div>
 
-                  {/* Lista med frågor */}
-                  <div className="space-y-2">
-                    {(person.research?.questions || []).length === 0 ? (
-                      <div className="bg-slate-900 border border-slate-700 rounded-lg p-6 text-center">
-                        <HelpCircle size={32} className="text-slate-500 mx-auto mb-2"/>
-                        <p className="text-slate-400 text-sm">Inga frågor än. Lägg till frågor du behöver hitta svar på.</p>
-                </div>
-                    ) : (
-                      (person.research?.questions || []).map((q, idx) => (
-                        <div 
-                          key={q.id || idx} 
-                          className={`bg-slate-900 border rounded-lg p-3 flex items-start gap-3 transition-colors ${
-                            q.answered ? 'border-green-700/50 bg-green-900/10' : 'border-slate-700 hover:border-slate-600'
-                          }`}
+                  {/* FORSKNINGSNOTERINGAR */}
+                  <div>
+                    <h3 className="text-md font-bold text-slate-200 uppercase mb-4 flex items-center gap-2">
+                      <BookOpen size={18} className="text-blue-400" /> Forskningsnoteringar
+                    </h3>
+                    <div className="bg-slate-900 border border-slate-700 rounded-lg p-4">
+                      <Editor
+                        value={person.research?.notes || ''}
+                        onChange={(e) => {
+                          setPerson({
+                            ...person,
+                            research: {
+                              ...(person.research || { tasks: [], notes: '', questions: [] }),
+                              notes: e.target.value
+                            }
+                          });
+                        }}
+                        placeholder="Skriv fria anteckningar om din forskning här... Vad har du hittat? Vilka källor har du kollat? Vilka teorier har du?"
+                      />
+                    </div>
+                  </div>
+
+                  {/* FRÅGOR ATT BESVARA */}
+                  <div>
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-md font-bold text-slate-200 uppercase flex items-center gap-2">
+                        <HelpCircle size={18} className="text-blue-400" /> Frågor att besvara
+                      </h3>
+                    </div>
+
+                    {/* Input för ny fråga */}
+                    <div className="mb-4">
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={newQuestionInput}
+                          onChange={(e) => setNewQuestionInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && newQuestionInput.trim()) {
+                              const currentResearch = person.research || { tasks: [], notes: '', questions: [] };
+                              setPerson({
+                                ...person,
+                                research: {
+                                  ...currentResearch,
+                                  questions: [...(currentResearch.questions || []), {
+                                    id: `q_${Date.now()}`,
+                                    question: newQuestionInput.trim(),
+                                    answered: false
+                                  }]
+                                }
+                              });
+                              setNewQuestionInput('');
+                            }
+                          }}
+                          placeholder="Skriv en fråga och tryck Enter..."
+                          className="flex-1 bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
+                        />
+                        <button
+                          onClick={() => {
+                            if (newQuestionInput.trim()) {
+                              const currentResearch = person.research || { tasks: [], notes: '', questions: [] };
+                              setPerson({
+                                ...person,
+                                research: {
+                                  ...currentResearch,
+                                  questions: [...(currentResearch.questions || []), {
+                                    id: `q_${Date.now()}`,
+                                    question: newQuestionInput.trim(),
+                                    answered: false
+                                  }]
+                                }
+                              });
+                              setNewQuestionInput('');
+                            }
+                          }}
+                          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm flex items-center gap-2 transition-colors"
                         >
-                          <button
-                            onClick={() => {
-                              const updatedQuestions = [...(person.research?.questions || [])];
-                              updatedQuestions[idx] = { ...q, answered: !q.answered };
-                              setPerson({
-                                ...person,
-                                research: {
-                                  ...(person.research || { tasks: [], notes: '', questions: [] }),
-                                  questions: updatedQuestions
-                                }
-                              });
-                            }}
-                            className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
-                              q.answered 
-                                ? 'bg-green-600 border-green-600 text-white' 
-                                : 'border-slate-600 hover:border-green-600'
-                            }`}
-                            title={q.answered ? 'Markera som obesvarad' : 'Markera som besvarad'}
-                          >
-                            {q.answered && <Check size={14}/>}
-                          </button>
-                          <input
-                            type="text"
-                            value={q.question || ''}
-                            onChange={(e) => {
-                              const updatedQuestions = [...(person.research?.questions || [])];
-                              updatedQuestions[idx] = { ...q, question: e.target.value };
-                              setPerson({
-                                ...person,
-                                research: {
-                                  ...(person.research || { tasks: [], notes: '', questions: [] }),
-                                  questions: updatedQuestions
-                                }
-                              });
-                            }}
-                            className={`flex-1 bg-transparent text-sm ${
-                              q.answered ? 'text-slate-500 line-through' : 'text-slate-200'
-                            } focus:outline-none focus:border-b border-blue-500 pb-1`}
-                            placeholder="Fråga..."
-                          />
-                          <button
-                            onClick={() => {
-                              const updatedQuestions = (person.research?.questions || []).filter((_, i) => i !== idx);
-                              setPerson({
-                                ...person,
-                                research: {
-                                  ...(person.research || { tasks: [], notes: '', questions: [] }),
-                                  questions: updatedQuestions
-                                }
-                              });
-                            }}
-                            className="text-slate-400 hover:text-red-600 transition-colors flex-shrink-0"
-                            title="Ta bort fråga"
-                          >
-                            <X size={16}/>
-                          </button>
+                          <Plus size={16} /> Lägg till
+                        </button>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-1">Tryck Enter eller klicka på "Lägg till" för att lägga till frågan</p>
+                    </div>
+
+                    {/* Lista med frågor */}
+                    <div className="space-y-2">
+                      {(person.research?.questions || []).length === 0 ? (
+                        <div className="bg-slate-900 border border-slate-700 rounded-lg p-6 text-center">
+                          <HelpCircle size={32} className="text-slate-500 mx-auto mb-2" />
+                          <p className="text-slate-400 text-sm">Inga frågor än. Lägg till frågor du behöver hitta svar på.</p>
                         </div>
-                      ))
-                    )}
+                      ) : (
+                        (person.research?.questions || []).map((q, idx) => (
+                          <div
+                            key={q.id || idx}
+                            className={`bg-slate-900 border rounded-lg p-3 flex items-start gap-3 transition-colors ${q.answered ? 'border-green-700/50 bg-green-900/10' : 'border-slate-700 hover:border-slate-600'
+                              }`}
+                          >
+                            <button
+                              onClick={() => {
+                                const updatedQuestions = [...(person.research?.questions || [])];
+                                updatedQuestions[idx] = { ...q, answered: !q.answered };
+                                setPerson({
+                                  ...person,
+                                  research: {
+                                    ...(person.research || { tasks: [], notes: '', questions: [] }),
+                                    questions: updatedQuestions
+                                  }
+                                });
+                              }}
+                              className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${q.answered
+                                ? 'bg-green-600 border-green-600 text-white'
+                                : 'border-slate-600 hover:border-green-600'
+                                }`}
+                              title={q.answered ? 'Markera som obesvarad' : 'Markera som besvarad'}
+                            >
+                              {q.answered && <Check size={14} />}
+                            </button>
+                            <input
+                              type="text"
+                              value={q.question || ''}
+                              onChange={(e) => {
+                                const updatedQuestions = [...(person.research?.questions || [])];
+                                updatedQuestions[idx] = { ...q, question: e.target.value };
+                                setPerson({
+                                  ...person,
+                                  research: {
+                                    ...(person.research || { tasks: [], notes: '', questions: [] }),
+                                    questions: updatedQuestions
+                                  }
+                                });
+                              }}
+                              className={`flex-1 bg-transparent text-sm ${q.answered ? 'text-slate-500 line-through' : 'text-slate-200'
+                                } focus:outline-none focus:border-b border-blue-500 pb-1`}
+                              placeholder="Fråga..."
+                            />
+                            <button
+                              onClick={() => {
+                                const updatedQuestions = (person.research?.questions || []).filter((_, i) => i !== idx);
+                                setPerson({
+                                  ...person,
+                                  research: {
+                                    ...(person.research || { tasks: [], notes: '', questions: [] }),
+                                    questions: updatedQuestions
+                                  }
+                                });
+                              }}
+                              className="text-slate-400 hover:text-red-600 transition-colors flex-shrink-0"
+                              title="Ta bort fråga"
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
 
-            {/* FLIK: NOTERINGAR */}
-            {activeTab === 'notes' && (() => {
-              // Säkerställ att alla noteringar har datum (för bakåtkompatibilitet)
-              const notesWithDates = (person.notes || []).map(note => {
-                if (!note.createdAt) {
-                  return { ...note, createdAt: new Date().toISOString(), modifiedAt: new Date().toISOString() };
-                }
-                if (!note.modifiedAt) {
-                  return { ...note, modifiedAt: note.createdAt };
-                }
-                return note;
-              });
+              {/* FLIK: NOTERINGAR */}
+              {activeTab === 'notes' && (() => {
+                // Säkerställ att alla noteringar har datum (för bakåtkompatibilitet)
+                const notesWithDates = (person.notes || []).map(note => {
+                  if (!note.createdAt) {
+                    return { ...note, createdAt: new Date().toISOString(), modifiedAt: new Date().toISOString() };
+                  }
+                  if (!note.modifiedAt) {
+                    return { ...note, modifiedAt: note.createdAt };
+                  }
+                  return note;
+                });
 
-              // Filtrera noteringar baserat på söktext
-              const filteredNotes = notesWithDates.filter(note => {
-                if (!noteSearch) return true;
-                const searchLower = noteSearch.toLowerCase();
-                const titleMatch = (note.title || '').toLowerCase().includes(searchLower);
-                // Sök även i HTML-innehållet (strippa HTML-taggar för sökning)
-                const contentText = (note.content || '').replace(/<[^>]*>/g, '').toLowerCase();
-                const contentMatch = contentText.includes(searchLower);
-                return titleMatch || contentMatch;
-              });
+                // Filtrera noteringar baserat på söktext
+                const filteredNotes = notesWithDates.filter(note => {
+                  if (!noteSearch) return true;
+                  const searchLower = noteSearch.toLowerCase();
+                  const titleMatch = (note.title || '').toLowerCase().includes(searchLower);
+                  // Sök även i HTML-innehållet (strippa HTML-taggar för sökning)
+                  const contentText = (note.content || '').replace(/<[^>]*>/g, '').toLowerCase();
+                  const contentMatch = contentText.includes(searchLower);
+                  return titleMatch || contentMatch;
+                });
 
-              // Hantera drag start
-              const handleDragStart = (e, index) => {
-                setDraggedNoteIndex(index);
-                e.dataTransfer.effectAllowed = 'move';
-                e.dataTransfer.setData('text/html', e.target.outerHTML);
-                e.target.style.opacity = '0.5';
-              };
+                // Hantera drag start
+                const handleDragStart = (e, index) => {
+                  setDraggedNoteIndex(index);
+                  e.dataTransfer.effectAllowed = 'move';
+                  e.dataTransfer.setData('text/html', e.target.outerHTML);
+                  e.target.style.opacity = '0.5';
+                };
 
-              // Hantera drag over
-              const handleDragOver = (e, index) => {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = 'move';
-                setDragOverIndex(index);
-              };
+                // Hantera drag over
+                const handleDragOver = (e, index) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = 'move';
+                  setDragOverIndex(index);
+                };
 
-              // Hantera drag leave
-              const handleDragLeave = () => {
-                setDragOverIndex(null);
-              };
+                // Hantera drag leave
+                const handleDragLeave = () => {
+                  setDragOverIndex(null);
+                };
 
-              // Hantera drop
-              const handleDrop = (e, dropIndex) => {
-                e.preventDefault();
-                if (draggedNoteIndex === null || draggedNoteIndex === dropIndex) {
+                // Hantera drop
+                const handleDrop = (e, dropIndex) => {
+                  e.preventDefault();
+                  if (draggedNoteIndex === null || draggedNoteIndex === dropIndex) {
+                    setDraggedNoteIndex(null);
+                    setDragOverIndex(null);
+                    return;
+                  }
+
+                  // Hitta originalindex i den ofiltrerade listan
+                  const draggedNote = filteredNotes[draggedNoteIndex];
+                  const originalDraggedIndex = notesWithDates.findIndex(n => n.id === draggedNote.id);
+                  const originalDropIndex = notesWithDates.findIndex(n => n.id === filteredNotes[dropIndex].id);
+
+                  if (originalDraggedIndex !== -1 && originalDropIndex !== -1) {
+                    const newNotes = [...notesWithDates];
+                    const [removed] = newNotes.splice(originalDraggedIndex, 1);
+                    newNotes.splice(originalDropIndex, 0, removed);
+
+                    setPerson(prev => ({
+                      ...prev,
+                      notes: newNotes
+                    }));
+                  }
+
                   setDraggedNoteIndex(null);
                   setDragOverIndex(null);
-                  return;
-                }
+                };
 
-                // Hitta originalindex i den ofiltrerade listan
-                const draggedNote = filteredNotes[draggedNoteIndex];
-                const originalDraggedIndex = notesWithDates.findIndex(n => n.id === draggedNote.id);
-                const originalDropIndex = notesWithDates.findIndex(n => n.id === filteredNotes[dropIndex].id);
+                // Hantera drag end
+                const handleDragEnd = (e) => {
+                  e.target.style.opacity = '1';
+                  setDraggedNoteIndex(null);
+                  setDragOverIndex(null);
+                };
 
-                if (originalDraggedIndex !== -1 && originalDropIndex !== -1) {
-                  const newNotes = [...notesWithDates];
-                  const [removed] = newNotes.splice(originalDraggedIndex, 1);
-                  newNotes.splice(originalDropIndex, 0, removed);
-                  
-                  setPerson(prev => ({
-                    ...prev,
-                    notes: newNotes
-                  }));
-                }
+                // Formatera datum
+                const formatDate = (dateString) => {
+                  if (!dateString) return '';
+                  try {
+                    const date = new Date(dateString);
+                    return date.toLocaleDateString('sv-SE', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    });
+                  } catch {
+                    return dateString;
+                  }
+                };
 
-                setDraggedNoteIndex(null);
-                setDragOverIndex(null);
-              };
-
-              // Hantera drag end
-              const handleDragEnd = (e) => {
-                e.target.style.opacity = '1';
-                setDraggedNoteIndex(null);
-                setDragOverIndex(null);
-              };
-
-              // Formatera datum
-              const formatDate = (dateString) => {
-                if (!dateString) return '';
-                try {
-                  const date = new Date(dateString);
-                  return date.toLocaleDateString('sv-SE', { 
-                    year: 'numeric', 
-                    month: 'short', 
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  });
-                } catch {
-                  return dateString;
-                }
-              };
-
-              return (
-              <div className="space-y-4 animate-in fade-in duration-300">
-                   <div className="flex justify-between items-center mb-4">
+                return (
+                  <div className="space-y-4 animate-in fade-in duration-300">
+                    <div className="flex justify-between items-center mb-4">
                       <h3 className="text-lg font-bold text-slate-200">Noteringar</h3>
-                      <button 
+                      <button
                         onClick={() => {
                           const now = new Date().toISOString();
                           const newNote = {
@@ -2741,106 +2736,105 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                         }}
                         className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded flex items-center gap-1 transition-colors"
                       >
-                        <Plus size={14}/> Ny notering
+                        <Plus size={14} /> Ny notering
                       </button>
-                 </div>
+                    </div>
 
-                   {/* Sökfält */}
-                   <div className="relative mb-4">
-                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18}/>
-                     <input
-                       type="text"
-                       value={noteSearch}
-                       onChange={(e) => setNoteSearch(e.target.value)}
-                       placeholder="Sök i noteringar..."
-                       className="w-full bg-slate-900 border border-slate-700 rounded p-2 pl-10 text-white focus:border-blue-500 focus:outline-none"
-                     />
-                     {noteSearch && (
-                       <button
-                         onClick={() => setNoteSearch('')}
-                         className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-white"
-                       >
-                         <X size={18}/>
-                       </button>
-                     )}
-                         </div>
-                   
-                   {(!notesWithDates || notesWithDates.length === 0) ? (
-                     <div className="text-center py-12 text-slate-400">
-                       <FileText size={48} className="mx-auto mb-4 opacity-50" />
-                       <p className="text-sm">Inga noteringar ännu. Klicka på "Ny notering" för att lägga till en.</p>
-                      </div>
-                   ) : filteredNotes.length === 0 ? (
-                     <div className="text-center py-12 text-slate-400">
-                       <Search size={48} className="mx-auto mb-4 opacity-50" />
-                       <p className="text-sm">Inga noteringar matchar din sökning.</p>
-                     </div>
-                   ) : (
-                     filteredNotes.map((note, idx) => {
-                       // Hitta originalindex
-                       const originalIndex = notesWithDates.findIndex(n => n.id === note.id);
-                       
-                       return (
-                         <div 
-                           key={note.id || idx} 
-                           draggable
-                           onDragStart={(e) => handleDragStart(e, idx)}
-                           onDragOver={(e) => handleDragOver(e, idx)}
-                           onDragLeave={handleDragLeave}
-                           onDrop={(e) => handleDrop(e, idx)}
-                           onDragEnd={handleDragEnd}
-                           className={`bg-slate-900 border border-slate-700 rounded-lg overflow-hidden transition-all cursor-move ${
-                             dragOverIndex === idx ? 'border-blue-500 ring-2 ring-blue-500/50' : ''
-                           } ${draggedNoteIndex === idx ? 'opacity-50' : ''}`}
-                         >
-                            <div className="bg-slate-800 p-3 border-b border-slate-700 flex justify-between items-center">
-                               <div className="flex-1 flex items-center gap-2">
-                                 <div className="text-slate-500 cursor-grab active:cursor-grabbing" title="Dra för att sortera">
-                                   <MoreHorizontal size={18}/>
-                                 </div>
-                                 <input 
-                                   type="text" 
-                                   value={note.title || 'Notering'}
-                                   onChange={(e) => {
-                                     const now = new Date().toISOString();
-                                     setPerson(prev => ({
-                                       ...prev,
-                                       notes: prev.notes.map((n, i) => 
-                                         i === originalIndex 
-                                           ? { ...n, title: e.target.value, modifiedAt: now } 
-                                           : n
-                                       )
-                                     }));
-                                   }}
-                                   className="bg-transparent font-bold text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-2 py-1 flex-1"
-                                   placeholder="Titel på notering..."
-                                   onClick={(e) => e.stopPropagation()}
+                    {/* Sökfält */}
+                    <div className="relative mb-4">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
+                      <input
+                        type="text"
+                        value={noteSearch}
+                        onChange={(e) => setNoteSearch(e.target.value)}
+                        placeholder="Sök i noteringar..."
+                        className="w-full bg-slate-900 border border-slate-700 rounded p-2 pl-10 text-white focus:border-blue-500 focus:outline-none"
                       />
-                   </div>
-                               <div className="flex gap-3 items-center ml-3">
-                                 {/* Datum */}
-                                 <div className="text-xs text-slate-500 flex flex-col items-end">
-                                   {note.createdAt && (
-                                     <span title="Skapad">Skapad: {formatDate(note.createdAt)}</span>
-                                   )}
-                                   {note.modifiedAt && note.modifiedAt !== note.createdAt && (
-                                     <span title="Senast ändrad" className="text-slate-600">Ändrad: {formatDate(note.modifiedAt)}</span>
-                                   )}
-              </div>
-                                 <button 
-                                   onClick={(e) => {
-                                     e.stopPropagation();
-                                     setPerson(prev => ({
-                                       ...prev,
-                                       notes: prev.notes.filter((_, i) => i !== originalIndex)
-                                     }));
-                                   }}
-                                   className="text-slate-400 hover:text-red-600 transition-colors p-1"
-                                   title="Ta bort notering"
-                                 >
-                                   <Trash2 size={16}/>
-                                 </button>
-                               </div>
+                      {noteSearch && (
+                        <button
+                          onClick={() => setNoteSearch('')}
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-white"
+                        >
+                          <X size={18} />
+                        </button>
+                      )}
+                    </div>
+
+                    {(!notesWithDates || notesWithDates.length === 0) ? (
+                      <div className="text-center py-12 text-slate-400">
+                        <FileText size={48} className="mx-auto mb-4 opacity-50" />
+                        <p className="text-sm">Inga noteringar ännu. Klicka på "Ny notering" för att lägga till en.</p>
+                      </div>
+                    ) : filteredNotes.length === 0 ? (
+                      <div className="text-center py-12 text-slate-400">
+                        <Search size={48} className="mx-auto mb-4 opacity-50" />
+                        <p className="text-sm">Inga noteringar matchar din sökning.</p>
+                      </div>
+                    ) : (
+                      filteredNotes.map((note, idx) => {
+                        // Hitta originalindex
+                        const originalIndex = notesWithDates.findIndex(n => n.id === note.id);
+
+                        return (
+                          <div
+                            key={note.id || idx}
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, idx)}
+                            onDragOver={(e) => handleDragOver(e, idx)}
+                            onDragLeave={handleDragLeave}
+                            onDrop={(e) => handleDrop(e, idx)}
+                            onDragEnd={handleDragEnd}
+                            className={`bg-slate-900 border border-slate-700 rounded-lg overflow-hidden transition-all cursor-move ${dragOverIndex === idx ? 'border-blue-500 ring-2 ring-blue-500/50' : ''
+                              } ${draggedNoteIndex === idx ? 'opacity-50' : ''}`}
+                          >
+                            <div className="bg-slate-800 p-3 border-b border-slate-700 flex justify-between items-center">
+                              <div className="flex-1 flex items-center gap-2">
+                                <div className="text-slate-500 cursor-grab active:cursor-grabbing" title="Dra för att sortera">
+                                  <MoreHorizontal size={18} />
+                                </div>
+                                <input
+                                  type="text"
+                                  value={note.title || 'Notering'}
+                                  onChange={(e) => {
+                                    const now = new Date().toISOString();
+                                    setPerson(prev => ({
+                                      ...prev,
+                                      notes: prev.notes.map((n, i) =>
+                                        i === originalIndex
+                                          ? { ...n, title: e.target.value, modifiedAt: now }
+                                          : n
+                                      )
+                                    }));
+                                  }}
+                                  className="bg-transparent font-bold text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-2 py-1 flex-1"
+                                  placeholder="Titel på notering..."
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              </div>
+                              <div className="flex gap-3 items-center ml-3">
+                                {/* Datum */}
+                                <div className="text-xs text-slate-500 flex flex-col items-end">
+                                  {note.createdAt && (
+                                    <span title="Skapad">Skapad: {formatDate(note.createdAt)}</span>
+                                  )}
+                                  {note.modifiedAt && note.modifiedAt !== note.createdAt && (
+                                    <span title="Senast ändrad" className="text-slate-600">Ändrad: {formatDate(note.modifiedAt)}</span>
+                                  )}
+                                </div>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setPerson(prev => ({
+                                      ...prev,
+                                      notes: prev.notes.filter((_, i) => i !== originalIndex)
+                                    }));
+                                  }}
+                                  className="text-slate-400 hover:text-red-600 transition-colors p-1"
+                                  title="Ta bort notering"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
                             </div>
                             <div className="p-4 bg-slate-800" onClick={(e) => e.stopPropagation()}>
                               <Editor
@@ -2849,9 +2843,9 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                   const now = new Date().toISOString();
                                   setPerson(prev => ({
                                     ...prev,
-                                    notes: prev.notes.map((n, i) => 
-                                      i === originalIndex 
-                                        ? { ...n, content: e.target.value, modifiedAt: now } 
+                                    notes: prev.notes.map((n, i) =>
+                                      i === originalIndex
+                                        ? { ...n, content: e.target.value, modifiedAt: now }
                                         : n
                                     )
                                   }));
@@ -2861,16 +2855,16 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                 }}
                               />
                             </div>
-                         </div>
-                       );
-                     })
-                   )}
-                </div>
-              );
-            })()}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                );
+              })()}
 
+            </div>
           </div>
-        </div>
         )}
 
         {/* DETAIL BLOCK - visa källa-info för vald händelse */}
@@ -2878,217 +2872,217 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
           <div className="bg-slate-800 border-t border-slate-700 p-4 max-h-40 overflow-y-auto">
             <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-700">
               <h4 className="text-sm font-bold text-slate-200">
-                {person.events[selectedEventIndex].type} 
+                {person.events[selectedEventIndex].type}
                 {person.events[selectedEventIndex].date && ` - ${person.events[selectedEventIndex].date}`}
               </h4>
               {/* INFO-rad kopiad från livshändelser */}
               <div className="flex gap-3 text-xs text-slate-400">
-                <span 
+                <span
                   className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${person.events[selectedEventIndex].sources?.length > 0 ? 'text-slate-200' : ''} ${eventDetailView === 'sources' ? 'text-blue-400' : ''}`}
                   onClick={() => {
                     setEventDetailView('sources');
                   }}
                 >
-                  <LinkIcon size={12}/> {person.events[selectedEventIndex].sources?.length || 0}
+                  <LinkIcon size={12} /> {person.events[selectedEventIndex].sources?.length || 0}
                 </span>
-                <span 
+                <span
                   className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${person.events[selectedEventIndex].notes ? 'text-slate-200' : ''} ${eventDetailView === 'notes' ? 'text-blue-400' : ''}`}
                   onClick={() => setEventDetailView('notes')}
                   title={person.events[selectedEventIndex].notes || ''}
                 >
-                  <FileText size={12}/> {person.events[selectedEventIndex].notes ? 1 : 0}
+                  <FileText size={12} /> {person.events[selectedEventIndex].notes ? 1 : 0}
                 </span>
-                <span 
+                <span
                   className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${(Array.isArray(person.events[selectedEventIndex].images) ? person.events[selectedEventIndex].images.length : (person.events[selectedEventIndex].images || 0)) > 0 ? 'text-slate-200' : ''} ${eventDetailView === 'images' ? 'text-blue-400' : ''}`}
                   onClick={() => setEventDetailView('images')}
                 >
-                  <ImageIcon size={12}/> {Array.isArray(person.events[selectedEventIndex].images) ? person.events[selectedEventIndex].images.length : (person.events[selectedEventIndex].images || 0)}
+                  <ImageIcon size={12} /> {Array.isArray(person.events[selectedEventIndex].images) ? person.events[selectedEventIndex].images.length : (person.events[selectedEventIndex].images || 0)}
                 </span>
               </div>
             </div>
-            
+
             {/* Källa-sektion */}
             {eventDetailView === 'sources' && (
               <>
-            {person.events[selectedEventIndex].sources && person.events[selectedEventIndex].sources.length > 0 ? (
-              <div className="space-y-2" key={`sources-${sourceRefreshKey}`}>
-                {person.events[selectedEventIndex].sources.map((sourceId) => {
-                  // Hämta källan från allSources
-                  let source = allSources?.find(s => s.id === sourceId);
-                  
-                  if (!source) return null;
-                  
-                  // Mappa database-fältnamn till display-namn
-                  // Database uses: date, imagePage, page, trust
-                  // Display uses: year, image, page, credibility
-                  const displaySource = {
-                    ...source,
-                    year: source.date || source.year,
-                    image: source.imagePage || source.image,
-                    credibility: source.trust || source.credibility
-                  };
-                  
-                  console.log('🔍 SOURCE FOR DISPLAY (mapped):', {
-                    sourceId,
-                    title: displaySource.title,
-                    volume: displaySource.volume,
-                    year: displaySource.year,
-                    image: displaySource.image,
-                    page: displaySource.page,
-                    credibility: displaySource.credibility,
-                    allSourcesLength: allSources?.length
-                  });
-                  
-                  return (
-                    <div key={sourceId} className="bg-slate-800 p-2 rounded border border-slate-700 flex items-start gap-3">
-                      {/* Thumbnails */}
-                      <div className="flex gap-1 items-start">
-                        {displaySource.images && displaySource.images.length > 0 ? (
-                          displaySource.images.slice(0, 3).map((img, idx) => (
-                            <div key={idx} className="relative group">
-                              <img 
-                                src={img.url || img.thumbnail || img} 
-                                alt="Thumbnail" 
-                                className="h-8 w-8 object-cover rounded cursor-pointer border border-slate-600 hover:border-blue-500"
-                                onClick={() => {
-                                  const fullUrl = img.url || img;
-                                  window.open(fullUrl, '_blank');
-                                }}
-                              />
-                              <div className="absolute hidden group-hover:block z-50 bg-slate-900 border border-slate-600 rounded shadow-lg p-1 left-0 top-10">
-                                <img src={img.url || img} alt="Preview" className="h-32 w-32 object-cover rounded" />
+                {person.events[selectedEventIndex].sources && person.events[selectedEventIndex].sources.length > 0 ? (
+                  <div className="space-y-2" key={`sources-${sourceRefreshKey}`}>
+                    {person.events[selectedEventIndex].sources.map((sourceId) => {
+                      // Hämta källan från allSources
+                      let source = allSources?.find(s => s.id === sourceId);
+
+                      if (!source) return null;
+
+                      // Mappa database-fältnamn till display-namn
+                      // Database uses: date, imagePage, page, trust
+                      // Display uses: year, image, page, credibility
+                      const displaySource = {
+                        ...source,
+                        year: source.date || source.year,
+                        image: source.imagePage || source.image,
+                        credibility: source.trust || source.credibility
+                      };
+
+                      console.log('🔍 SOURCE FOR DISPLAY (mapped):', {
+                        sourceId,
+                        title: displaySource.title,
+                        volume: displaySource.volume,
+                        year: displaySource.year,
+                        image: displaySource.image,
+                        page: displaySource.page,
+                        credibility: displaySource.credibility,
+                        allSourcesLength: allSources?.length
+                      });
+
+                      return (
+                        <div key={sourceId} className="bg-slate-800 p-2 rounded border border-slate-700 flex items-start gap-3">
+                          {/* Thumbnails */}
+                          <div className="flex gap-1 items-start">
+                            {displaySource.images && displaySource.images.length > 0 ? (
+                              displaySource.images.slice(0, 3).map((img, idx) => (
+                                <div key={idx} className="relative group">
+                                  <img
+                                    src={img.url || img.thumbnail || img}
+                                    alt="Thumbnail"
+                                    className="h-8 w-8 object-cover rounded cursor-pointer border border-slate-600 hover:border-blue-500"
+                                    onClick={() => {
+                                      const fullUrl = img.url || img;
+                                      window.open(fullUrl, '_blank');
+                                    }}
+                                  />
+                                  <div className="absolute hidden group-hover:block z-50 bg-slate-900 border border-slate-600 rounded shadow-lg p-1 left-0 top-10">
+                                    <img src={img.url || img} alt="Preview" className="h-32 w-32 object-cover rounded" />
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="h-8 w-8 bg-slate-700 rounded flex items-center justify-center text-slate-400">
+                                <ImageIcon size={12} />
                               </div>
+                            )}
+                          </div>
+
+                          {/* Source info */}
+                          <div className="flex-1 text-xs">
+                            <div className="font-semibold text-slate-200 mb-1">
+                              {displaySource.title || 'Ingen titel'}
+                              {displaySource.location && ` (${displaySource.location})`}
+                              {displaySource.volume && ` vol. ${displaySource.volume}`}
+                              {displaySource.year && ` (${displaySource.year})`}
+                              {displaySource.image && ` Bild ${displaySource.image}`}
+                              {displaySource.page && ` / Sida ${displaySource.page}`}
                             </div>
-                          ))
-                        ) : (
-                          <div className="h-8 w-8 bg-slate-700 rounded flex items-center justify-center text-slate-400">
-                            <ImageIcon size={12} />
+
+                            {/* Trovärdighet - Stjärnor */}
+                            <div className="flex gap-0.5 mt-1 items-center">
+                              <span className="text-xs text-slate-400 mr-1">Trovärdighet:</span>
+                              {[...Array(5)].map((_, i) => (
+                                <span key={i} className={i < (displaySource.credibility || 0) ? "text-yellow-500" : "text-slate-600"}>★</span>
+                              ))}
+                              {displaySource.credibilityLabel && <span className="ml-1 text-slate-300 text-xs">{displaySource.credibilityLabel}</span>}
+                            </div>
+
+                            {/* Trovärdighetsikoner */}
+                            <div className="flex gap-2 mt-1">
+                              {/* AD - Arkivdigital */}
+                              <button
+                                className={`px-2 py-0.5 rounded text-xs font-semibold ${displaySource.aid ? 'bg-green-100 text-green-700 hover:bg-green-200 cursor-pointer' : 'bg-slate-700 text-slate-500 cursor-default'}`}
+                                title={displaySource.aid ? `AID: ${displaySource.aid}` : 'Inte länkat till Arkivdigital'}
+                                onClick={() => displaySource.aid && window.open(`https://sok.riksarkivet.se/bildvisning/${displaySource.aid}`, '_blank')}
+                              >
+                                AD
+                              </button>
+
+                              {/* RA - Riksarkivet */}
+                              <button
+                                className={`px-2 py-0.5 rounded text-xs font-semibold ${displaySource.bildId ? 'bg-green-100 text-green-700 hover:bg-green-200 cursor-pointer' : 'bg-slate-700 text-slate-500 cursor-default'}`}
+                                title={displaySource.bildId ? `BILDID: ${displaySource.bildId}` : 'Inte länkat till Riksarkivet'}
+                                onClick={() => displaySource.bildId && window.open(`https://www.riksarkivet.se/bildvisning/${displaySource.bildId}`, '_blank')}
+                              >
+                                RA
+                              </button>
+
+                              {/* NAD - Näringsliv Arkiv Digital */}
+                              <button
+                                className={`px-2 py-0.5 rounded text-xs font-semibold ${displaySource.nad ? 'bg-green-100 text-green-700 hover:bg-green-200 cursor-pointer' : 'bg-slate-700 text-slate-500 cursor-default'}`}
+                                title={displaySource.nad ? `NAD: ${displaySource.nad}` : 'Inte länkat till NAD'}
+                                onClick={() => displaySource.nad && window.open(`https://nad.ra.se/${displaySource.nad}`, '_blank')}
+                              >
+                                NAD
+                              </button>
+                            </div>
+
+                            {displaySource.notes && (
+                              <div className="mt-1 text-slate-400 text-xs italic line-clamp-1">
+                                {displaySource.notes}
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                      
-                      {/* Source info */}
-                      <div className="flex-1 text-xs">
-                        <div className="font-semibold text-slate-200 mb-1">
-                          {displaySource.title || 'Ingen titel'}
-                          {displaySource.location && ` (${displaySource.location})`}
-                          {displaySource.volume && ` vol. ${displaySource.volume}`}
-                          {displaySource.year && ` (${displaySource.year})`}
-                          {displaySource.image && ` Bild ${displaySource.image}`}
-                          {displaySource.page && ` / Sida ${displaySource.page}`}
-                        </div>
-                        
-                        {/* Trovärdighet - Stjärnor */}
-                        <div className="flex gap-0.5 mt-1 items-center">
-                          <span className="text-xs text-slate-400 mr-1">Trovärdighet:</span>
-                          {[...Array(5)].map((_, i) => (
-                            <span key={i} className={i < (displaySource.credibility || 0) ? "text-yellow-500" : "text-slate-600"}>★</span>
-                          ))}
-                          {displaySource.credibilityLabel && <span className="ml-1 text-slate-300 text-xs">{displaySource.credibilityLabel}</span>}
-                        </div>
-                        
-                        {/* Trovärdighetsikoner */}
-                        <div className="flex gap-2 mt-1">
-                          {/* AD - Arkivdigital */}
-                          <button 
-                            className={`px-2 py-0.5 rounded text-xs font-semibold ${displaySource.aid ? 'bg-green-100 text-green-700 hover:bg-green-200 cursor-pointer' : 'bg-slate-700 text-slate-500 cursor-default'}`}
-                            title={displaySource.aid ? `AID: ${displaySource.aid}` : 'Inte länkat till Arkivdigital'}
-                            onClick={() => displaySource.aid && window.open(`https://sok.riksarkivet.se/bildvisning/${displaySource.aid}`, '_blank')}
-                          >
-                            AD
-                          </button>
-                          
-                          {/* RA - Riksarkivet */}
-                          <button 
-                            className={`px-2 py-0.5 rounded text-xs font-semibold ${displaySource.bildId ? 'bg-green-100 text-green-700 hover:bg-green-200 cursor-pointer' : 'bg-slate-700 text-slate-500 cursor-default'}`}
-                            title={displaySource.bildId ? `BILDID: ${displaySource.bildId}` : 'Inte länkat till Riksarkivet'}
-                            onClick={() => displaySource.bildId && window.open(`https://www.riksarkivet.se/bildvisning/${displaySource.bildId}`, '_blank')}
-                          >
-                            RA
-                          </button>
-                          
-                          {/* NAD - Näringsliv Arkiv Digital */}
-                          <button 
-                            className={`px-2 py-0.5 rounded text-xs font-semibold ${displaySource.nad ? 'bg-green-100 text-green-700 hover:bg-green-200 cursor-pointer' : 'bg-slate-700 text-slate-500 cursor-default'}`}
-                            title={displaySource.nad ? `NAD: ${displaySource.nad}` : 'Inte länkat till NAD'}
-                            onClick={() => displaySource.nad && window.open(`https://nad.ra.se/${displaySource.nad}`, '_blank')}
-                          >
-                            NAD
-                          </button>
-                        </div>
-                        
-                        {displaySource.notes && (
-                          <div className="mt-1 text-slate-400 text-xs italic line-clamp-1">
-                            {displaySource.notes}
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Action buttons */}
-                      <div className="flex gap-1 ml-2 items-center text-xs">
-                        {/* Noter-ikon */}
-                        {displaySource.notes && (
-                          <div className="relative group">
-                            <button 
-                              className="text-slate-400 hover:text-blue-600 p-1 flex items-center gap-0.5"
-                              title="Noter"
+
+                          {/* Action buttons */}
+                          <div className="flex gap-1 ml-2 items-center text-xs">
+                            {/* Noter-ikon */}
+                            {displaySource.notes && (
+                              <div className="relative group">
+                                <button
+                                  className="text-slate-400 hover:text-blue-600 p-1 flex items-center gap-0.5"
+                                  title="Noter"
+                                >
+                                  <FileText size={12} />
+                                  <span className="text-slate-400">1</span>
+                                </button>
+                                <div className="absolute hidden group-hover:block z-50 bg-slate-900 text-white text-xs rounded shadow-lg p-2 right-0 top-6 min-w-max max-w-xs whitespace-normal">
+                                  {displaySource.notes}
+                                  <div className="absolute top-0 right-2 transform -translate-y-1 w-2 h-2 bg-slate-900 rotate-45"></div>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Bild-ikon */}
+                            {displaySource.images && displaySource.images.length > 0 && (
+                              <button
+                                className="text-slate-400 hover:text-blue-600 p-1 flex items-center gap-0.5"
+                                title={`${displaySource.images.length} bilder`}
+                              >
+                                <ImageIcon size={12} />
+                                <span className="text-slate-400">{displaySource.images.length}</span>
+                              </button>
+                            )}
+
+                            <button
+                              onClick={() => {
+                                // Öppna Source Drawer för att redigera källan
+                                if (onOpenSourceDrawer) {
+                                  onOpenSourceDrawer(person.id, null);
+                                  // Navigera till källan (detta kan behöva justeras beroende på hur SourceDrawer hanterar navigation)
+                                  console.log('Opening source drawer to edit source:', sourceId);
+                                }
+                              }}
+                              className="text-slate-400 hover:text-blue-600 p-1"
+                              title="Redigera källa"
                             >
-                              <FileText size={12} />
-                              <span className="text-slate-400">1</span>
+                              <Edit3 size={14} />
                             </button>
-                            <div className="absolute hidden group-hover:block z-50 bg-slate-900 text-white text-xs rounded shadow-lg p-2 right-0 top-6 min-w-max max-w-xs whitespace-normal">
-                              {displaySource.notes}
-                              <div className="absolute top-0 right-2 transform -translate-y-1 w-2 h-2 bg-slate-900 rotate-45"></div>
-                            </div>
+                            <button
+                              onClick={() => {
+                                const newSources = person.events[selectedEventIndex].sources.filter(id => id !== sourceId);
+                                const updatedEvents = person.events.map((e, i) =>
+                                  i === selectedEventIndex ? { ...e, sources: newSources } : e
+                                );
+                                setPerson({ ...person, events: updatedEvents });
+                              }}
+                              className="text-slate-400 hover:text-red-600 p-1"
+                              title="Ta bort källa"
+                            >
+                              <Trash2 size={14} />
+                            </button>
                           </div>
-                        )}
-                        
-                        {/* Bild-ikon */}
-                        {displaySource.images && displaySource.images.length > 0 && (
-                          <button 
-                            className="text-slate-400 hover:text-blue-600 p-1 flex items-center gap-0.5"
-                            title={`${displaySource.images.length} bilder`}
-                          >
-                            <ImageIcon size={12} />
-                            <span className="text-slate-400">{displaySource.images.length}</span>
-                          </button>
-                        )}
-                        
-                        <button 
-                          onClick={() => {
-                            // Öppna Source Drawer för att redigera källan
-                            if (onOpenSourceDrawer) {
-                              onOpenSourceDrawer(person.id, null);
-                              // Navigera till källan (detta kan behöva justeras beroende på hur SourceDrawer hanterar navigation)
-                              console.log('Opening source drawer to edit source:', sourceId);
-                            }
-                          }}
-                          className="text-slate-400 hover:text-blue-600 p-1"
-                          title="Redigera källa"
-                        >
-                          <Edit3 size={14} />
-                        </button>
-                        <button 
-                          onClick={() => {
-                            const newSources = person.events[selectedEventIndex].sources.filter(id => id !== sourceId);
-                            const updatedEvents = person.events.map((e, i) => 
-                              i === selectedEventIndex ? { ...e, sources: newSources } : e
-                            );
-                            setPerson({ ...person, events: updatedEvents });
-                          }}
-                          className="text-slate-400 hover:text-red-600 p-1"
-                          title="Ta bort källa"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="text-xs text-slate-400">Ingen källa kopplad till denna händelse</p>
-            )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400">Ingen källa kopplad till denna händelse</p>
+                )}
               </>
             )}
 
@@ -3101,7 +3095,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                       <Editor
                         value={person.events[selectedEventIndex].notes || ''}
                         onChange={(e) => {
-                          const updatedEvents = person.events.map((e, i) => 
+                          const updatedEvents = person.events.map((e, i) =>
                             i === selectedEventIndex ? { ...e, notes: e.target.value } : e
                           );
                           setPerson({ ...person, events: updatedEvents });
@@ -3113,28 +3107,28 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                 ) : (
                   <p className="text-xs text-slate-400">Inga noteringar för denna händelse</p>
                 )}
-          </div>
-        )}
+              </div>
+            )}
 
             {/* Bilder-sektion */}
             {eventDetailView === 'images' && (
               <div className="space-y-2">
                 {(() => {
-                  const eventImages = Array.isArray(person.events[selectedEventIndex].images) 
-                    ? person.events[selectedEventIndex].images 
+                  const eventImages = Array.isArray(person.events[selectedEventIndex].images)
+                    ? person.events[selectedEventIndex].images
                     : [];
-                  
+
                   if (eventImages.length === 0) {
                     return <p className="text-xs text-slate-400">Inga bilder kopplade till denna händelse</p>;
                   }
-                  
+
                   // Hämta media-objekt från allMediaItems
                   const mediaObjects = allMediaItems.filter(m => eventImages.includes(m.id));
-                  
+
                   return (
                     <div className="grid grid-cols-8 gap-2">
                       {mediaObjects.map((mediaItem, idx) => (
-                        <div 
+                        <div
                           key={mediaItem.id}
                           className="relative aspect-square bg-slate-900 rounded-lg border-2 border-slate-700 overflow-hidden cursor-pointer hover:border-blue-500 hover:shadow-lg transition-all group"
                           onDoubleClick={() => {
@@ -3143,9 +3137,9 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                           }}
                           title="Dubbelklicka för att öppna i bildredigerare"
                         >
-                          <MediaImage 
-                            url={mediaItem.url} 
-                            alt={mediaItem.name || 'Bild'} 
+                          <MediaImage
+                            url={mediaItem.url}
+                            alt={mediaItem.name || 'Bild'}
                             className="w-full h-full object-cover"
                             loading="lazy"
                           />
@@ -3154,11 +3148,11 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                             {mediaItem.date && (
                               <p className="text-white/70 text-[10px]">{mediaItem.date}</p>
                             )}
-          </div>
+                          </div>
                           <div className="absolute top-2 right-2 bg-black/50 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <ImageIcon size={14} className="text-white" />
-          </div>
-        </div>
+                          </div>
+                        </div>
                       ))}
                     </div>
                   );
@@ -3175,7 +3169,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                       <Editor
                         value={person.events[selectedEventIndex].notes || ''}
                         onChange={(e) => {
-                          const updatedEvents = person.events.map((e, i) => 
+                          const updatedEvents = person.events.map((e, i) =>
                             i === selectedEventIndex ? { ...e, notes: e.target.value } : e
                           );
                           setPerson({ ...person, events: updatedEvents });
@@ -3209,238 +3203,237 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
           }}
         >
           <div className="flex flex-col h-full">
-              <div className="p-6 space-y-4 flex-1 overflow-y-auto">
-                <div ref={eventTypeSearchRef} className="relative">
-                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Händelsetyp</label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={eventTypeSearchOpen ? eventTypeSearchText : EVENT_TYPES.find(t => t.value === newEvent.type)?.label || ''}
-                      onChange={(e) => {
-                        setEventTypeSearchText(e.target.value);
-                        if (!eventTypeSearchOpen) setEventTypeSearchOpen(true);
-                      }}
-                      onFocus={() => {
-                        setEventTypeSearchOpen(true);
-                        setEventTypeSearchText('');
-                      }}
-                      onKeyDown={handleEventTypeSearchKeyDown}
-                      placeholder="Sök händelsetyp..."
-                      className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-slate-200 focus:border-blue-500 focus:outline-none"
-                    />
-                    {eventTypeSearchOpen && (
-                      <div className="absolute z-10 w-full mt-1 bg-slate-900 border border-slate-600 rounded shadow-lg max-h-60 overflow-y-auto">
-                        {getFilteredEventTypes().map((eventType, index) => {
-                          const isDisabled = eventType.unique && 
-                                           editingEventIndex === null && 
-                                           !canAddEventType(eventType.value);
-                          const isSelected = index === eventTypeSearchIndex;
-                          return (
-                            <div
-                              key={eventType.value}
-                              onClick={() => !isDisabled && handleEventTypeSelect(eventType.value)}
-                              className={`px-3 py-2 cursor-pointer flex items-center gap-2 ${
-                                isSelected ? 'bg-blue-500 text-white' : 'hover:bg-slate-800 text-slate-200'
-                              } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            >
-                              <span>{eventType.icon}</span>
-                              <span>{eventType.label}</span>
-                              {isDisabled && <span className="text-xs ml-auto">(finns redan)</span>}
-                            </div>
-                          );
-                        })}
-                        {getFilteredEventTypes().length === 0 && (
-                          <div className="px-3 py-2 text-slate-400 text-sm">
-                            Inga matchande händelsetyper
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  {newEvent.type && EVENT_TYPES.find(e => e.value === newEvent.type)?.unique && 
-                   editingEventIndex === null && 
-                   !canAddEventType(newEvent.type) && (
-                    <p className="text-xs text-amber-600 mt-1">⚠️ Denna händelse kan bara läggas till en gång</p>
-                  )}
-                </div>
-                {/* Partner dropdown for Vigsel */}
-                {newEvent.type === 'Vigsel' && person.relations?.partners?.length > 0 && (
-                  <div className="mb-4">
-                    <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Partner</label>
-                    <select
-                      value={newEvent.partnerId || ''}
-                      onChange={e => setNewEvent({ ...newEvent, partnerId: e.target.value })}
-                      className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-slate-200 focus:border-blue-500 focus:outline-none"
-                    >
-                      <option value="">Välj partner...</option>
-                      {person.relations.partners.map(p => (
-                        <option key={p.id} value={p.id}>{p.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-                <div className="grid grid-cols-2 gap-4">
-                   <div>
-                      <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Datum</label>
-                      <div className="relative">
-                        <Calendar size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400"/>
-                        <input 
-                          type="text" 
-                          placeholder="t.ex. 21 nov 1980, från 1950, ca 1920"
-                          value={newEvent.date}
-                          onChange={(e) => setNewEvent({...newEvent, date: e.target.value})}
-                          className="w-full bg-slate-900 border border-slate-600 rounded pl-9 p-2 text-slate-200 focus:border-blue-500 focus:outline-none"
-                          onBlur={(e) => setNewEvent({...newEvent, date: parseAndFormatDate(e.target.value)})}
-                        />
-                      </div>
-                      <p className="text-xs text-slate-400 mt-1">Format: ÅÅÅÅ-MM-DD, eller skriv naturligt</p>
-                   </div>
-                   <div>
-                      <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Plats</label>
-                      <PlacePicker
-                        value={newEvent.placeId || ''}
-                        displayValue={newEvent.place || ''}
-                        allPlaces={allPlaces || []}
-                        onChange={(placeId, placeObject) => {
-                          const placeName = placeObject ? (placeObject.name || placeObject.ortnamn || placeObject.sockenstadnamn || '') : '';
-                          setNewEvent({...newEvent, placeId, place: placeName, placeData: placeObject});
-                        }}
-                      />
-                   </div>
-                </div>
-                
-                {/* Källor */}
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <label className="block text-xs font-bold text-slate-300 uppercase">Källor</label>
-                    <button 
-                      onClick={() => {
-                        // Öppna source drawer UTAN att spara personen
-                        // Använd ett speciellt eventId som signalerar att vi är i edit-läge
-                        if (onOpenSourceDrawer) {
-                          // Sätt en global callback som source drawer kan använda
-                          window.__addSourceToEvent = (sourceId) => {
-                            setNewEvent(prev => ({
-                              ...prev,
-                              sources: prev.sources.includes(sourceId) 
-                                ? prev.sources 
-                                : [...prev.sources, sourceId]
-                            }));
-                          };
-                          
-                          // Öppna drawer med ett speciellt flag
-                          onOpenSourceDrawer(person.id, '__editing__');
-                        } else {
-                          setSourceModalOpen(true);
-                        }
-                      }}
-                      className="text-xs bg-slate-700 hover:bg-slate-600 text-blue-400 px-2 py-1 rounded flex items-center gap-1"
-                    >
-                      <Plus size={12}/> Lägg till källa
-                    </button>
-                  </div>
-                  
-                  {newEvent.sources && newEvent.sources.length > 0 ? (
-                    <div className="space-y-2">
-                      {newEvent.sources.map((sourceId, idx) => {
-                        const source = allSources?.find(s => s.id === sourceId);
-                        if (!source) return null;
-                        
+            <div className="p-6 space-y-4 flex-1 overflow-y-auto">
+              <div ref={eventTypeSearchRef} className="relative">
+                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Händelsetyp</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={eventTypeSearchOpen ? eventTypeSearchText : EVENT_TYPES.find(t => t.value === newEvent.type)?.label || ''}
+                    onChange={(e) => {
+                      setEventTypeSearchText(e.target.value);
+                      if (!eventTypeSearchOpen) setEventTypeSearchOpen(true);
+                    }}
+                    onFocus={() => {
+                      setEventTypeSearchOpen(true);
+                      setEventTypeSearchText('');
+                    }}
+                    onKeyDown={handleEventTypeSearchKeyDown}
+                    placeholder="Sök händelsetyp..."
+                    className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-slate-200 focus:border-blue-500 focus:outline-none"
+                  />
+                  {eventTypeSearchOpen && (
+                    <div className="absolute z-10 w-full mt-1 bg-slate-900 border border-slate-600 rounded shadow-lg max-h-60 overflow-y-auto">
+                      {getFilteredEventTypes().map((eventType, index) => {
+                        const isDisabled = eventType.unique &&
+                          editingEventIndex === null &&
+                          !canAddEventType(eventType.value);
+                        const isSelected = index === eventTypeSearchIndex;
                         return (
-                          <div key={sourceId} className="bg-slate-800 p-3 rounded text-sm border border-slate-700 flex justify-between items-start">
-                            <div className="flex-1">
-                              <p className="font-semibold text-slate-200 mb-1">
-                                {source.title || 'Ingen titel'}
-                                {source.location && ` / ${source.location}`}
-                                {source.volume && ` vol. ${source.volume}`}
-                                {source.year && ` (${source.year})`}
-                              </p>
-                              {source.aid && (
-                                <a 
-                                  href={`https://sok.riksarkivet.se/bildvisning/${source.aid}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-blue-600 hover:text-blue-800 underline text-xs"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  AID: {source.aid}
-                                </a>
-                              )}
-                            </div>
-                            <div className="flex gap-2 ml-3">
-                              <button 
-                                onClick={() => setNewEvent({
-                                  ...newEvent, 
-                                  sources: newEvent.sources.filter(id => id !== sourceId)
-                                })}
-                                className="text-slate-400 hover:text-red-600 p-1"
-                                title="Ta bort källa"
-                              >
-                                <Trash2 size={14}/>
-                              </button>
-                            </div>
+                          <div
+                            key={eventType.value}
+                            onClick={() => !isDisabled && handleEventTypeSelect(eventType.value)}
+                            className={`px-3 py-2 cursor-pointer flex items-center gap-2 ${isSelected ? 'bg-blue-500 text-white' : 'hover:bg-slate-800 text-slate-200'
+                              } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          >
+                            <span>{eventType.icon}</span>
+                            <span>{eventType.label}</span>
+                            {isDisabled && <span className="text-xs ml-auto">(finns redan)</span>}
                           </div>
                         );
                       })}
+                      {getFilteredEventTypes().length === 0 && (
+                        <div className="px-3 py-2 text-slate-400 text-sm">
+                          Inga matchande händelsetyper
+                        </div>
+                      )}
                     </div>
-                  ) : (
-                    <p className="text-xs text-slate-400">Ingen källa tillagd</p>
                   )}
                 </div>
-                
-                {/* Bilder */}
+                {newEvent.type && EVENT_TYPES.find(e => e.value === newEvent.type)?.unique &&
+                  editingEventIndex === null &&
+                  !canAddEventType(newEvent.type) && (
+                    <p className="text-xs text-amber-600 mt-1">⚠️ Denna händelse kan bara läggas till en gång</p>
+                  )}
+              </div>
+              {/* Partner dropdown for Vigsel */}
+              {newEvent.type === 'Vigsel' && person.relations?.partners?.length > 0 && (
+                <div className="mb-4">
+                  <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Partner</label>
+                  <select
+                    value={newEvent.partnerId || ''}
+                    onChange={e => setNewEvent({ ...newEvent, partnerId: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-slate-200 focus:border-blue-500 focus:outline-none"
+                  >
+                    <option value="">Välj partner...</option>
+                    {person.relations.partners.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <label className="block text-xs font-bold text-slate-300 uppercase">Bilder</label>
-                  </div>
-                  <div className="bg-slate-900 border border-slate-700 rounded p-3 min-h-[200px]">
-                    <MediaSelector
-                      media={(() => {
-                        // Hämta media-objekt från allMediaItems baserat på IDs i newEvent.images
-                        if (!Array.isArray(newEvent.images) || newEvent.images.length === 0) return [];
-                        return allMediaItems.filter(m => newEvent.images.includes(m.id));
-                      })()}
-                      onMediaChange={(newMedia) => {
-                        // Uppdatera newEvent.images med IDs från valda media
-                        const imageIds = newMedia.map(m => m.id);
-                        setNewEvent({ ...newEvent, images: imageIds });
-                      }}
-                      entityType="event"
-                      entityId={newEvent.id}
-                      allPeople={allPeople || []}
-                      onOpenEditModal={onOpenEditModal}
-                      allMediaItems={allMediaItems}
-                      onUpdateAllMedia={onUpdateAllMedia}
-                      allSources={allSources || []}
-                      allPlaces={allPlaces || []}
+                  <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Datum</label>
+                  <div className="relative">
+                    <Calendar size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="t.ex. 21 nov 1980, från 1950, ca 1920"
+                      value={newEvent.date}
+                      onChange={(e) => setNewEvent({ ...newEvent, date: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-600 rounded pl-9 p-2 text-slate-200 focus:border-blue-500 focus:outline-none"
+                      onBlur={(e) => setNewEvent({ ...newEvent, date: parseAndFormatDate(e.target.value) })}
                     />
                   </div>
+                  <p className="text-xs text-slate-400 mt-1">Format: ÅÅÅÅ-MM-DD, eller skriv naturligt</p>
                 </div>
-                
-                {/* Noteringar */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Noteringar</label>
-                  <div className="bg-slate-900 border border-slate-600 rounded p-2 min-h-[100px]">
-                    <Editor
-                      value={newEvent.notes || ''}
-                    onChange={(e) => setNewEvent({...newEvent, notes: e.target.value})}
+                  <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Plats</label>
+                  <PlacePicker
+                    value={newEvent.placeId || ''}
+                    displayValue={newEvent.place || ''}
+                    allPlaces={allPlaces || []}
+                    onChange={(placeId, placeObject) => {
+                      const placeName = placeObject ? (placeObject.name || placeObject.ortnamn || placeObject.sockenstadnamn || '') : '';
+                      setNewEvent({ ...newEvent, placeId, place: placeName, placeData: placeObject });
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Källor */}
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block text-xs font-bold text-slate-300 uppercase">Källor</label>
+                  <button
+                    onClick={() => {
+                      // Öppna source drawer UTAN att spara personen
+                      // Använd ett speciellt eventId som signalerar att vi är i edit-läge
+                      if (onOpenSourceDrawer) {
+                        // Sätt en global callback som source drawer kan använda
+                        window.__addSourceToEvent = (sourceId) => {
+                          setNewEvent(prev => ({
+                            ...prev,
+                            sources: prev.sources.includes(sourceId)
+                              ? prev.sources
+                              : [...prev.sources, sourceId]
+                          }));
+                        };
+
+                        // Öppna drawer med ett speciellt flag
+                        onOpenSourceDrawer(person.id, '__editing__');
+                      } else {
+                        setSourceModalOpen(true);
+                      }
+                    }}
+                    className="text-xs bg-slate-700 hover:bg-slate-600 text-blue-400 px-2 py-1 rounded flex items-center gap-1"
+                  >
+                    <Plus size={12} /> Lägg till källa
+                  </button>
+                </div>
+
+                {newEvent.sources && newEvent.sources.length > 0 ? (
+                  <div className="space-y-2">
+                    {newEvent.sources.map((sourceId, idx) => {
+                      const source = allSources?.find(s => s.id === sourceId);
+                      if (!source) return null;
+
+                      return (
+                        <div key={sourceId} className="bg-slate-800 p-3 rounded text-sm border border-slate-700 flex justify-between items-start">
+                          <div className="flex-1">
+                            <p className="font-semibold text-slate-200 mb-1">
+                              {source.title || 'Ingen titel'}
+                              {source.location && ` / ${source.location}`}
+                              {source.volume && ` vol. ${source.volume}`}
+                              {source.year && ` (${source.year})`}
+                            </p>
+                            {source.aid && (
+                              <a
+                                href={`https://sok.riksarkivet.se/bildvisning/${source.aid}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-800 underline text-xs"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                AID: {source.aid}
+                              </a>
+                            )}
+                          </div>
+                          <div className="flex gap-2 ml-3">
+                            <button
+                              onClick={() => setNewEvent({
+                                ...newEvent,
+                                sources: newEvent.sources.filter(id => id !== sourceId)
+                              })}
+                              className="text-slate-400 hover:text-red-600 p-1"
+                              title="Ta bort källa"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400">Ingen källa tillagd</p>
+                )}
+              </div>
+
+              {/* Bilder */}
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block text-xs font-bold text-slate-300 uppercase">Bilder</label>
+                </div>
+                <div className="bg-slate-900 border border-slate-700 rounded p-3 min-h-[200px]">
+                  <MediaSelector
+                    media={(() => {
+                      // Hämta media-objekt från allMediaItems baserat på IDs i newEvent.images
+                      if (!Array.isArray(newEvent.images) || newEvent.images.length === 0) return [];
+                      return allMediaItems.filter(m => newEvent.images.includes(m.id));
+                    })()}
+                    onMediaChange={(newMedia) => {
+                      // Uppdatera newEvent.images med IDs från valda media
+                      const imageIds = newMedia.map(m => m.id);
+                      setNewEvent({ ...newEvent, images: imageIds });
+                    }}
+                    entityType="event"
+                    entityId={newEvent.id}
+                    allPeople={allPeople || []}
+                    onOpenEditModal={onOpenEditModal}
+                    allMediaItems={allMediaItems}
+                    onUpdateAllMedia={onUpdateAllMedia}
+                    allSources={allSources || []}
+                    allPlaces={allPlaces || []}
+                  />
+                </div>
+              </div>
+
+              {/* Noteringar */}
+              <div>
+                <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Noteringar</label>
+                <div className="bg-slate-900 border border-slate-600 rounded p-2 min-h-[100px]">
+                  <Editor
+                    value={newEvent.notes || ''}
+                    onChange={(e) => setNewEvent({ ...newEvent, notes: e.target.value })}
                     placeholder="Lägg till noter för denna händelse..."
                   />
-                  </div>
                 </div>
               </div>
-              <div className="bg-slate-800 p-4 border-t border-slate-700 flex justify-end gap-3">
-                 <button onClick={() => {
-                   setEventModalOpen(false);
-                   setEditingEventIndex(null);
-                 }} className="px-4 py-2 text-sm text-slate-400 hover:text-white">Avbryt</button>
-                 <button 
-                   onClick={handleSaveEvent}
-                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-bold"
-                 >
-                   {editingEventIndex !== null ? 'Uppdatera' : 'Lägg till'} händelse
-                 </button>
-              </div>
+            </div>
+            <div className="bg-slate-800 p-4 border-t border-slate-700 flex justify-end gap-3">
+              <button onClick={() => {
+                setEventModalOpen(false);
+                setEditingEventIndex(null);
+              }} className="px-4 py-2 text-sm text-slate-400 hover:text-white">Avbryt</button>
+              <button
+                onClick={handleSaveEvent}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-bold"
+              >
+                {editingEventIndex !== null ? 'Uppdatera' : 'Lägg till'} händelse
+              </button>
+            </div>
           </div>
         </WindowFrame>
       )}
@@ -3448,16 +3441,16 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
       {/* --- IMAGE EDITOR MODAL --- */}
       {isImageEditorOpen && (() => {
         const eventImages = selectedEventIndex !== null && person.events?.[selectedEventIndex]?.images
-          ? (Array.isArray(person.events[selectedEventIndex].images) 
-              ? person.events[selectedEventIndex].images 
-              : [])
+          ? (Array.isArray(person.events[selectedEventIndex].images)
+            ? person.events[selectedEventIndex].images
+            : [])
           : [];
-        
+
         const mediaObjects = allMediaItems.filter(m => eventImages.includes(m.id));
         const currentImage = editingImageIndex !== null ? mediaObjects[editingImageIndex] : null;
         const prevImage = editingImageIndex !== null && editingImageIndex > 0 ? mediaObjects[editingImageIndex - 1] : null;
         const nextImage = editingImageIndex !== null && editingImageIndex < mediaObjects.length - 1 ? mediaObjects[editingImageIndex + 1] : null;
-        
+
         return (
           <ImageEditorModal
             isOpen={isImageEditorOpen}
@@ -3487,7 +3480,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
       })()}
 
       {/* --- SOURCE MODAL (SUB-MODAL) --- */}
-      <SourceModal 
+      <SourceModal
         isOpen={isSourceModalOpen}
         onClose={() => setSourceModalOpen(false)}
         onAdd={handleAddSource}
