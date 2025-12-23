@@ -372,6 +372,60 @@ const SourceModal = ({ isOpen, onClose, onAdd, eventType }) => {
   );
 };
 
+// Dialog för att välja andra föräldern när man skapar barn
+const SecondParentSelector = ({ isOpen, onClose, candidates, onSelect, onSelectOther, onSelectUnknown }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[5000] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="bg-slate-800 border-2 border-slate-600 rounded-xl shadow-2xl w-full max-w-md p-6 transform scale-100 animate-in fade-in zoom-in duration-200">
+        <h3 className="text-xl font-bold text-white mb-2 text-center">Vem är den andra föräldern?</h3>
+        <p className="text-slate-400 text-center text-sm mb-6">
+          Du lägger till ett barn till en förälder som har partners.
+          Vill du koppla barnet till någon av dem?
+        </p>
+
+        <div className="space-y-3">
+          {candidates.map(candidate => (
+            <button
+              key={candidate.id}
+              onClick={() => onSelect(candidate)}
+              className="w-full flex items-center gap-4 p-4 bg-slate-700 hover:bg-slate-600 border border-slate-600 hover:border-blue-500 rounded-lg transition-all group text-left"
+            >
+              <div className="w-10 h-10 rounded-full bg-slate-500 flex-shrink-0 overflow-hidden border-2 border-slate-400 group-hover:border-blue-400">
+                {candidate.media && candidate.media.length > 0 ? (
+                  <MediaImage url={candidate.media[0].url} alt={candidate.name} className="w-full h-full object-cover" />
+                ) : (
+                  <User className="w-full h-full p-2 text-slate-300" />
+                )}
+              </div>
+              <div>
+                <div className="font-bold text-slate-200 group-hover:text-white text-lg">{candidate.name}</div>
+                <div className="text-xs text-slate-400 group-hover:text-blue-300">Nuvarande partner</div>
+              </div>
+            </button>
+          ))}
+
+          <div className="grid grid-cols-2 gap-3 mt-4">
+            <button
+              onClick={onSelectOther}
+              className="flex items-center justify-center gap-2 p-3 bg-slate-750 hover:bg-slate-700 border border-slate-600 rounded-lg text-slate-300 hover:text-white transition-colors"
+            >
+              <Search size={16} /> Välj annan
+            </button>
+            <button
+              onClick={onSelectUnknown}
+              className="flex items-center justify-center gap-2 p-3 bg-slate-750 hover:bg-slate-700 border border-slate-600 rounded-lg text-slate-300 hover:text-white transition-colors"
+            >
+              <HelpCircle size={16} /> Okänd/Ingen
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // --- HUVUDKOMPONENT ---
 
 export default function EditPersonModal({ person: initialPerson, allPlaces, onSave, onClose, onChange, onOpenSourceDrawer, allSources, allPeople, onOpenEditModal, allMediaItems = [], onUpdateAllMedia = () => { }, isDocked = false, onNavigateToPlace, isCollapsed = false, onToggleCollapse }) {
@@ -382,6 +436,11 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
   const [relationSearchIndex, setRelationSearchIndex] = useState(0);
   const [relationSortBy, setRelationSortBy] = useState('name'); // 'name', 'recent', 'related'
   const [selectedPartnerId, setSelectedPartnerId] = useState(null); // För att veta vilken partner man lägger till barn under
+
+  // State för att välja andra föräldern (fix för högerklicks-meny)
+  const [showSecondParentSelector, setShowSecondParentSelector] = useState(false);
+  const [secondParentCandidates, setSecondParentCandidates] = useState([]);
+  const [pendingChildId, setPendingChildId] = useState(null); // Barnets ID som vi håller på att skapa
 
   // Open relation picker modal
   const openRelationModal = (type, partnerId = null) => {
@@ -598,8 +657,54 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
     // 5. Uppdatera dbData med alla ändringar
     console.log(`[syncChildRelations] Uppdaterar dbData med ${updatedPeople.length} personer`);
     setDbData(prev => ({ ...prev, people: updatedPeople }));
-    console.log(`[syncChildRelations] Klar!`);
   };
+
+  // Hantera val av andra förälder från dialogen
+  const handleSelectSecondParent = (partner) => {
+    if (!pendingChildId || !initialPerson?.id) return;
+
+    // partner är antingen ett helt personobjekt eller {id, name}
+    const partnerId = partner.id;
+
+    // Använd syncChildRelations för att koppla ihop allt
+    // parent1 = initialPerson (den vi högerklickade på)
+    // parent2 = den valda partnern
+    // child = pendingChildId (det nya barnet)
+    syncChildRelations(initialPerson.id, partnerId, pendingChildId);
+
+    setShowSecondParentSelector(false);
+    setPendingChildId(null);
+  };
+
+  // Upptäck om vi just skapat ett nytt barn via context menu
+  useEffect(() => {
+    if (initialPerson?._isPlaceholder && initialPerson._placeholderRelation === 'child' && initialPerson._placeholderTargetId) {
+      // Vi är det nya barnet (initialPerson)
+      // _placeholderTargetId är föräldern vi skapades från
+
+      const parentId = initialPerson._placeholderTargetId;
+      const parent = allPeople.find(p => p.id === parentId);
+
+      if (parent && parent.relations?.partners && parent.relations.partners.length > 0) {
+        // Föräldern har partners! Vi måste fråga vem som är den andra föräldern.
+
+        // Mappa partners till kandidater
+        const candidates = parent.relations.partners.map(p => {
+          const pId = typeof p === 'object' ? p.id : p;
+          const distinctP = allPeople.find(x => x.id === pId);
+          return distinctP || { id: pId, name: (typeof p === 'object' ? p.name : 'Okänd partner') };
+        });
+
+        setSecondParentCandidates(candidates);
+        setPendingChildId(initialPerson.id);
+
+        // Visa dialogen (men vänta lite så att modalen hinner laddas klart)
+        setTimeout(() => setShowSecondParentSelector(true), 500);
+      }
+    }
+  }, [initialPerson]);
+  console.log(`[syncChildRelations] Klar!`);
+
 
   // Synka relationer när man lägger till ett barn utan partner (bara en förälder)
   const syncSingleParentChildRelation = (parentId, childId) => {

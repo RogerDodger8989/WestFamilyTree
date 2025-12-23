@@ -481,7 +481,7 @@ function calculateVerticalLayout(db, focusId) {
       }
       const children = childrenIds.map(id => db.persons.find(p => p.id === id)).filter(Boolean).sort((a, b) => a.birthYear - b.birthYear);
 
-      // --- VERTIKAL LIST-LAYOUT (Enligt önskemål) ---
+      // --- VERTIKAL LIST-LAYOUT ---
       // Alla partners staplas vertikalt under varandra.
       // Barnen hamnar indenterat under respektive partner.
 
