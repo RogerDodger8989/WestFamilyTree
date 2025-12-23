@@ -465,12 +465,11 @@ function calculateVerticalLayout(db, focusId) {
       if (kids.length > 0) partners.push(null);
     }
 
-    let maxBranchY = currentY; // Track the maximum Y reached by any partner branch
+    let maxBranchY = currentY;
 
     partners.forEach((partner, index) => {
       let childrenIds = [];
       if (partner) {
-        // Hitta gemensamma barn
         childrenIds = db.persons.filter(p => {
           const rels = db.parent_child.filter(pc => pc.child_id === p.id);
           const hasMe = rels.some(r => r.parent_id === personId);
@@ -478,69 +477,54 @@ function calculateVerticalLayout(db, focusId) {
           return hasMe && hasPartner;
         }).map(p => p.id);
       } else {
-        // Hitta barn till bara mig (om ingen partner finns)
         childrenIds = db.parent_child.filter(pc => pc.parent_id === personId).map(pc => pc.child_id);
       }
       const children = childrenIds.map(id => db.persons.find(p => p.id === id)).filter(Boolean).sort((a, b) => a.birthYear - b.birthYear);
 
-      // Placera partner (PARALLELLT)
-      // Använd samma Y för alla partners (rootY)
-      // X-positionering: Långt vänster för udda, långt höger för jämna
-      const isRight = index % 2 !== 0;
-      const offset = 350;
-      const partnerX = isRight ? rootX + offset : rootX - offset;
-      const partnerY = rootY;
+      // --- VERTIKAL LIST-LAYOUT (Enligt önskemål) ---
+      // Alla partners staplas vertikalt under varandra.
+      // Barnen hamnar indenterat under respektive partner.
 
-      // Om partner finns, rita ut den
+      const partnerX = rootX + 50;
+      const partnerY = currentY;
+
       if (partner) {
         nodes.push({ ...partner, x: partnerX, y: partnerY, type: 'partner' });
 
-        // Linje från roten (personens nod) till partnern
-        // OBS: Om vi är djupt nere i rekursionen måste vi veta "varifrån" vi kom.
-        // I denna layout ritar vi alltid partnern rakt under föregående nivå om det är fokus, men indenterat om det är barn.
-        // Vänta, logiken i gamla koden var:
-        // Focus -> Partner (Step-Left)
-        // Child -> Partner (Step-Left)
-
-        // Vi måste veta var "parent node" ligger för att dra linjen.
-        // Men layoutBranch anropas med rootX/rootY som är positionen DÄR partnern ska hamna ungefär.
         const parentNode = nodes.find(n => n.id === personId);
         if (parentNode) {
           edges.push({
             id: `partner-${personId}-${partner.id}`,
             x1: parentNode.x + (CONFIG.CARD_WIDTH / 2), y1: parentNode.y + CONFIG.CARD_HEIGHT,
-            x2: partnerX + (CONFIG.CARD_WIDTH / 2), y2: partnerY,
-            type: 'elbow-down' // Byt till elbow-down för snyggare koppling
+            x2: partnerX + (CONFIG.CARD_WIDTH / 2),
+            y2: partnerY + (CONFIG.CARD_HEIGHT / 2),
+            type: 'step-left'
           });
         }
       }
+
       const branchStartY = partnerY + CONFIG.CARD_HEIGHT;
       let childBaseY = branchStartY + 20;
 
-      // Barnen hamnar under partnern. Om ingen partner (singel), hamnar de under offset ändå för snyggare träd? 
-      // Nej, om ingen partner, childX = rootX.
-      const childX = partner ? partnerX + CONFIG.INDENT_X : rootX;
+      // Indentera barnen
+      const childX = partnerX + CONFIG.INDENT_X;
 
       children.forEach(child => {
         nodes.push({ ...child, x: childX, y: childBaseY, type: 'child' });
 
-        // Linje från partner (eller föräldern om ingen partner) till barnet
         edges.push({
           id: `child-${personId}-${child.id}`,
-          x1: partner ? partnerX + (CONFIG.CARD_WIDTH / 2) : rootX + (CONFIG.CARD_WIDTH / 2),
-          y1: branchStartY,
+          x1: partnerX + (CONFIG.CARD_WIDTH / 2),
+          y1: partnerY + CONFIG.CARD_HEIGHT, // Dra linje från partnerns nederkant
+          // Alternativt: Dra från "branch line" till vänster om barnen likt bilden?
+          // I nuvarande motor drar vi step-indent (ner och höger)
           x2: childX + (CONFIG.CARD_WIDTH / 2),
-          y2: childBaseY,
-          type: 'straight'
+          y2: childBaseY + (CONFIG.CARD_WIDTH / 2),
+          type: 'step-indent'
         });
 
-        // REKURSION! Rita ut detta barns gren (barnbarn osv)
-        // Nästa nivå startar under detta barn
+        // Rekursion
         const nestedHeight = layoutBranch(child.id, childX, childBaseY + CONFIG.CARD_HEIGHT + 20);
-
-        // Uppdatera childBaseY så nästa syskon hamnar under hela det nyss utritade trädet
-        // layoutBranch returnerar den totala Y-höjden som användes.
-        // Om layoutBranch inte la till något (inga barnbarn), öka bara med standardhöjd.
 
         if (nestedHeight > childBaseY) {
           childBaseY = nestedHeight;
@@ -549,13 +533,18 @@ function calculateVerticalLayout(db, focusId) {
         }
       });
 
-      // Uppdatera maxhöjden för hela denna sektion
-      if (childBaseY > maxBranchY) {
-        maxBranchY = childBaseY;
+      // UPPDATERA Y FÖR NÄSTA PARTNER
+      // Nästa partner ska hamna UNDER sista barnet i denna grenen
+      if (children.length > 0) {
+        currentY = childBaseY + 40; // Lite extra mellanrum mellan familjerna
+      } else {
+        currentY += CONFIG.CARD_HEIGHT + 40;
       }
+
+      maxBranchY = currentY;
     });
 
-    return maxBranchY > currentY ? maxBranchY : currentY + CONFIG.CARD_HEIGHT;
+    return maxBranchY;
   };
 
   // --------------------------------------------------------------------------
