@@ -892,21 +892,27 @@ function App() {
         targetPerson.relations = targetPerson.relations || { parents: [], children: [], spouseId: null };
         updatedNewPerson.relations = updatedNewPerson.relations || { parents: [], children: [], spouseId: null };
         
-        // KORRIGERAD LOGIK: Spara relationen direkt
+        // KORRIGERAD LOGIK: Spara relationen direkt MED OBJEKT
         if (relation === 'parent') { 
-          if (!targetPerson.relations.parents.includes(newPerson.id)) {
-            targetPerson.relations.parents = [...targetPerson.relations.parents, newPerson.id];
+          const newPersonName = `${newPerson.firstName || ''} ${newPerson.lastName || ''}`.trim() || 'Ny person';
+          const targetName = `${targetPerson.firstName || ''} ${targetPerson.lastName || ''}`.trim() || 'Okänd';
+          
+          if (!targetPerson.relations.parents.some(p => (typeof p === 'object' ? p.id : p) === newPerson.id)) {
+            targetPerson.relations.parents = [...targetPerson.relations.parents, { id: newPerson.id, name: newPersonName }];
           }
-          if (!updatedNewPerson.relations.children.includes(targetId)) {
-            updatedNewPerson.relations.children = [...updatedNewPerson.relations.children, targetId];
+          if (!updatedNewPerson.relations.children.some(c => (typeof c === 'object' ? c.id : c) === targetId)) {
+            updatedNewPerson.relations.children = [...updatedNewPerson.relations.children, { id: targetId, name: targetName }];
           }
         } 
         else if (relation === 'child') { 
-          if (!targetPerson.relations.children.includes(newPerson.id)) {
-            targetPerson.relations.children.push(newPerson.id);
+          const newPersonName = `${newPerson.firstName || ''} ${newPerson.lastName || ''}`.trim() || 'Ny person';
+          const targetName = `${targetPerson.firstName || ''} ${targetPerson.lastName || ''}`.trim() || 'Okänd';
+          
+          if (!targetPerson.relations.children.some(c => (typeof c === 'object' ? c.id : c) === newPerson.id)) {
+            targetPerson.relations.children.push({ id: newPerson.id, name: newPersonName });
           }
-          if (!updatedNewPerson.relations.parents.includes(targetId)) {
-            updatedNewPerson.relations.parents.push(targetId);
+          if (!updatedNewPerson.relations.parents.some(p => (typeof p === 'object' ? p.id : p) === targetId)) {
+            updatedNewPerson.relations.parents.push({ id: targetId, name: targetName });
           }
         } 
         else if (relation === 'spouse') {

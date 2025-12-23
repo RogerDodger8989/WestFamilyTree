@@ -388,6 +388,72 @@ function calculateVerticalLayout(db, focusId) {
   });
 
   // --------------------------------------------------------------------------
+  // 3.5. SYSKONS PARTNERS & BARN (NEDÅT) - PRECIS SOM FÖR FOKUSPERSON
+  // --------------------------------------------------------------------------
+  
+  [...olderSiblings, ...youngerSiblings].forEach(sib => {
+    const sibNode = nodes.find(n => n.id === sib.id);
+    if (!sibNode) return;
+
+    // Hitta syskonets partners
+    const sibPartnerRels = db.relationships.filter(r => r.person1_id === sib.id || r.person2_id === sib.id);
+    const sibPartners = sibPartnerRels.map(r => {
+      const pid = r.person1_id === sib.id ? r.person2_id : r.person1_id;
+      return db.persons.find(p => p.id === pid);
+    });
+
+    // Om syskonet har barn men ingen partner, lägg till null
+    if (sibPartners.length === 0) {
+      const kids = db.parent_child.filter(pc => pc.parent_id === sib.id).map(pc => pc.child_id);
+      if (kids.length > 0) sibPartners.push(null);
+    }
+
+    let sibCurrentY = sibNode.y + CONFIG.CARD_HEIGHT + 40;
+
+    sibPartners.forEach(partner => {
+      let childrenIds = [];
+      if (partner) {
+        childrenIds = db.persons.filter(p => {
+          const rels = db.parent_child.filter(pc => pc.child_id === p.id);
+          const hasSib = rels.some(r => r.parent_id === sib.id);
+          const hasPartner = rels.some(r => r.parent_id === partner.id);
+          return hasSib && hasPartner;
+        }).map(p => p.id);
+      } else {
+        childrenIds = db.parent_child.filter(pc => pc.parent_id === sib.id).map(pc => pc.child_id);
+      }
+      const children = childrenIds.map(id => db.persons.find(p => p.id === id)).filter(Boolean).sort((a,b) => a.birthYear - b.birthYear);
+
+      const partnerX = sibNode.x;
+      if (partner) {
+        nodes.push({ ...partner, x: partnerX, y: sibCurrentY, type: 'partner' });
+        edges.push({
+          id: `sib-partner-${sib.id}-${partner.id}`,
+          x1: sibNode.x + 20, y1: sibNode.y + CONFIG.CARD_HEIGHT,
+          x2: partnerX, y2: sibCurrentY + CONFIG.CARD_HEIGHT/2,
+          type: 'step-left'
+        });
+      }
+
+      let childY = sibCurrentY + CONFIG.CARD_HEIGHT + 20;
+      const childX = partnerX + CONFIG.INDENT_X;
+
+      children.forEach(child => {
+        nodes.push({ ...child, x: childX, y: childY, type: 'child' });
+        const sourceY = partner ? sibCurrentY + CONFIG.CARD_HEIGHT : sibNode.y + CONFIG.CARD_HEIGHT;
+        edges.push({
+          id: `sib-child-${sib.id}-${child.id}`,
+          x1: partnerX + 20, y1: sourceY,
+          x2: childX, y2: childY + CONFIG.CARD_HEIGHT/2,
+          type: 'step-indent'
+        });
+        childY += CONFIG.CARD_HEIGHT + 10;
+      });
+      sibCurrentY = childY + 20;
+    });
+  });
+
+  // --------------------------------------------------------------------------
   // 4. JIMMYS PARTNERS & BARN (NEDÅT)
   // --------------------------------------------------------------------------
   
