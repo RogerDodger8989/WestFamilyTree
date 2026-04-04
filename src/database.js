@@ -134,9 +134,19 @@ export async function saveFile(fileHandle, data) {
 }
 
 export async function saveFileAs(data) {
+    console.log('[database.js] saveFileAs anropad. electronAPI tillgängligt:', !!window.electronAPI);
     if (window.electronAPI && typeof window.electronAPI.saveFileAs === 'function') {
-        return await window.electronAPI.saveFileAs(data);
+        try {
+            console.log('[database.js] Anropar window.electronAPI.saveFileAs...');
+            const result = await window.electronAPI.saveFileAs(data);
+            console.log('[database.js] Svar från window.electronAPI.saveFileAs:', result);
+            return result;
+        } catch (err) {
+            console.error('[database.js] Fel (undantag) vid anrop till window.electronAPI.saveFileAs:', err);
+            return { error: err.message };
+        }
     } else {
+        console.error('[database.js] window.electronAPI.saveFileAs saknas!');
         throw new Error('Kan bara använda "Spara som" i desktop/Electron-läge!');
     }
 }

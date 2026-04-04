@@ -3,7 +3,10 @@
   "scripts": {
     "dev": "vite",
     "electron": "electron electron-test/main.js",
-    "build": "vite build"
+    "build": "vite build",
+    "test": "npm run test:integration",
+    "test:integration": "node --test electron/database.integration.test.js",
+    "test:e2e": "npm run build && playwright test tests/electron.spec.js"
   },
   "dependencies": {
     "@tiptap/react": "^3.13.0",
@@ -18,6 +21,7 @@
     "tesseract.js": "^6.0.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@tailwindcss/postcss": "^4.1.17",
     "@vitejs/plugin-react": "^5.1.2",
     "autoprefixer": "^10.4.22",

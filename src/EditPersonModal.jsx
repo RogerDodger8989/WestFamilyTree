@@ -15,7 +15,7 @@ import ImageEditorModal from './ImageEditorModal.jsx';
 import MediaImage from './components/MediaImage.jsx';
 import { useApp } from './AppContext';
 import { calculateRelationship, getAncestryPath } from './relationshipUtils';
-import { ensureParentsArePartners } from './App';
+import { ensureParentsArePartners } from './relationUtils.js';
 
 // --- KONSTANTER ---
 

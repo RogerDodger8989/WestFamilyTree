@@ -17,7 +17,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   createNewDatabase: () => { console.log('[PRELOAD] createNewDatabase'); return ipcRenderer.invoke('create-new-database'); },
   saveDatabase: (fileHandle, data) => ipcRenderer.invoke('save-database', fileHandle, data),
   saveFile: (filePath, data) => ipcRenderer.invoke('save-file', filePath, data),
-  saveFileAs: (data) => ipcRenderer.invoke('save-as-database', data),
+  saveFileAs: (data) => {
+      console.log('[PRELOAD] saveFileAs anropas. Skickar IPC invoke save-as-database...');
+      return ipcRenderer.invoke('save-as-database', data);
+  },
   readDir: (dirPath) => ipcRenderer.invoke('read-dir', dirPath),
   openFolder: (folderPath) => ipcRenderer.send('open-folder', folderPath),
   openFileDialog: (options) => ipcRenderer.invoke('open-file-dialog', options),
@@ -31,6 +34,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   gedcomRead: (filePath) => ipcRenderer.invoke('gedcom:read', filePath),
   gedcomApply: (parsed, options) => ipcRenderer.invoke('gedcom:apply', parsed, options),
   gedcomWrite: (dbData, options) => ipcRenderer.invoke('gedcom:write', dbData, options),
+  exportGedcom: (dbData, options) => ipcRenderer.invoke('export-gedcom', dbData, options),
   // Save an audit backup file into the app user-data folder (audit-backups)
   saveAuditBackup: (fileName, data, dir) => ipcRenderer.invoke('save-audit-backup', fileName, data, dir),
   // Open the audit backup folder (or provided folder)

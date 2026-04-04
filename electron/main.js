@@ -43,23 +43,6 @@ ipcMain.handle('save-database', async (event, fileHandle, data) => {
         date TEXT,
         tags TEXT,
         note TEXT,
-        // Inställnings-store för senaste fil
-        const { loadSettings, saveSettings } = require('./settingsStore');
-        const { ipcMain, app, BrowserWindow, Menu, protocol } = require('electron');
-
-        // IPC: Hämta senaste öppnade fil
-        ipcMain.handle('get-last-opened-file', async () => {
-          const settings = loadSettings();
-          return settings.lastOpenedFile || null;
-        });
-
-        // IPC: Sätt senaste öppnade fil (kan användas vid save as)
-        ipcMain.handle('set-last-opened-file', async (event, filePath) => {
-          const settings = loadSettings();
-          settings.lastOpenedFile = filePath;
-          saveSettings(settings);
-          return true;
-        });
         aid TEXT,
         nad TEXT,
         bildid TEXT,
@@ -1049,6 +1032,52 @@ ipcMain.handle('gedcom:write', async (event, dbData, options) => {
   } catch (err) {
     console.error('[gedcom:write] error', err);
     return { error: err.message };
+  }
+});
+
+ipcMain.handle('export-gedcom', async (event, dbData, options = {}) => {
+  try {
+    const senderWin = event && event.sender ? BrowserWindow.fromWebContents(event.sender) : null;
+    const win = senderWin || BrowserWindow.getFocusedWindow();
+    if (!win) {
+      return { error: 'No focused window' };
+    }
+
+    // 1. Generate GEDCOM text
+    const writeResult = await gedcomHandler.writeGedcom(dbData, options);
+    if (writeResult.error) {
+      return writeResult;
+    }
+
+    // 2. Show save dialog
+    const saveResult = await dialog.showSaveDialog(win, {
+      title: 'Exportera som GEDCOM',
+      defaultPath: `WestFamilyTree_${new Date().toISOString().split('T')[0]}.ged`,
+      filters: [
+        { name: 'GEDCOM-filer', extensions: ['ged'] },
+        { name: 'Alla filer', extensions: ['*'] }
+      ]
+    });
+
+    if (saveResult.canceled || !saveResult.filePath) {
+      return { canceled: true };
+    }
+
+    // 3. Write file to disk with UTF-8 encoding
+    const filePath = saveResult.filePath;
+    await fs.promises.writeFile(filePath, writeResult.gedcomText, 'utf8');
+
+    console.log('[export-gedcom] Successfully exported to:', filePath);
+    return {
+      success: true,
+      filePath,
+      version: writeResult.version,
+      encoding: writeResult.encoding,
+      recordCounts: writeResult.recordCounts
+    };
+  } catch (err) {
+    console.error('[export-gedcom] error:', err);
+    return { error: err && err.message ? err.message : String(err) };
   }
 });
 

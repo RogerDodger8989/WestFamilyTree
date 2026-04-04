@@ -28,184 +28,7 @@ import AuditMergesSettingsModal from './AuditMergesSettingsModal.jsx';
 import Button from './Button.jsx'; 
 import MediaImage from './components/MediaImage.jsx';
 import { User, Settings } from 'lucide-react'; 
-
-// Helper: Build relations array from people array to keep dbData.relations in sync
-export function buildRelationsFromPeople(people = []) {
-  const relations = [];
-  const seen = new Set();
-  
-  const addRelation = (fromPersonId, toPersonId, type) => {
-    if (!fromPersonId || !toPersonId || fromPersonId === toPersonId) return;
-    // Create a normalized key to avoid duplicates (bidirectional)
-    const key1 = `${fromPersonId}|${toPersonId}|${type}`;
-    const key2 = `${toPersonId}|${fromPersonId}|${type}`;
-    if (seen.has(key1) || seen.has(key2)) return;
-    seen.add(key1);
-    
-    relations.push({
-      id: `rel_${fromPersonId}_${toPersonId}_${type}_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
-      fromPersonId,
-      toPersonId,
-      type,
-      createdAt: new Date().toISOString(),
-      modifiedAt: new Date().toISOString(),
-      _archived: false
-    });
-  };
-  
-  for (const person of people) {
-    if (!person || !person.id || !person.relations) continue;
-    
-    const { parents = [], children = [], spouseId = null, siblings = [], partners = [] } = person.relations;
-    
-    // Parent-child relations (bidirectional)
-    for (const parentId of parents) {
-      if (typeof parentId === 'string') {
-        addRelation(parentId, person.id, 'parent');
-      } else if (parentId && typeof parentId === 'object' && parentId.id) {
-        addRelation(parentId.id, person.id, 'parent');
-      }
-    }
-    
-    for (const childId of children) {
-      if (typeof childId === 'string') {
-        addRelation(person.id, childId, 'parent');
-      } else if (childId && typeof childId === 'object' && childId.id) {
-        addRelation(person.id, childId.id, 'parent');
-      }
-    }
-    
-    // Partner relations (från partners-arrayen)
-    if (Array.isArray(partners)) {
-      for (const partnerRef of partners) {
-        const partnerId = typeof partnerRef === 'string' ? partnerRef : (partnerRef?.id || partnerRef);
-        if (partnerId) {
-          addRelation(person.id, partnerId, 'spouse');
-        }
-      }
-    }
-    
-    // Fallback: Spouse relations (från spouseId för bakåtkompatibilitet)
-    if (spouseId) {
-      const spouseIdStr = typeof spouseId === 'string' ? spouseId : (spouseId.id || spouseId);
-      if (spouseIdStr) {
-        addRelation(person.id, spouseIdStr, 'spouse');
-      }
-    }
-    
-    // Sibling relations
-    for (const siblingId of siblings) {
-      if (typeof siblingId === 'string') {
-        addRelation(person.id, siblingId, 'sibling');
-      } else if (siblingId && typeof siblingId === 'object' && siblingId.id) {
-        addRelation(person.id, siblingId.id, 'sibling');
-      }
-    }
-  }
-  
-  return relations;
-}
-
-// Generell funktion: Säkerställ att alla föräldrar till samma barn är partners
-// Denna funktion uppdaterar ALLA berörda personer, inte bara den som sparas
-export const ensureParentsArePartners = (allPeople, personId) => {
-  let updatedPeople = allPeople.map(p => ({ ...p, relations: { ...p.relations } }));
-  
-  // Hitta alla barn som är relaterade till denna person
-  // 1. Barn som personen har i sin children-lista
-  const person = updatedPeople.find(p => p.id === personId);
-  if (!person || !person.relations) return updatedPeople;
-  
-  const childrenFromChildren = (person.relations.children || []).map(c => typeof c === 'object' ? c.id : c);
-  
-  // 2. Barn som har personen i sin parents-lista
-  const childrenFromParents = updatedPeople
-    .filter(p => {
-      const parents = (p.relations?.parents || []).map(par => typeof par === 'object' ? par.id : par);
-      return parents.includes(personId);
-    })
-    .map(p => p.id);
-  
-  const allChildren = [...new Set([...childrenFromChildren, ...childrenFromParents])];
-  
-  // För varje barn, hitta alla dess föräldrar och säkerställ att de är partners
-  allChildren.forEach(childId => {
-    const child = updatedPeople.find(p => p.id === childId);
-    if (!child) return;
-    
-    // Hämta alla föräldrar till barnet
-    const childParentsFromChild = (child.relations?.parents || [])
-      .map(p => typeof p === 'object' ? p.id : p)
-      .filter(Boolean);
-    
-    // Hitta andra personer som har detta barn i sin children-lista
-    const childParentsFromOthers = updatedPeople
-      .filter(p => p.relations?.children)
-      .filter(p => {
-        const pChildren = (p.relations.children || []).map(c => typeof c === 'object' ? c.id : c);
-        return pChildren.includes(childId);
-      })
-      .map(p => p.id);
-    
-    // Kombinera alla föräldrar
-    const allParents = [...new Set([...childParentsFromChild, ...childParentsFromOthers])]
-      .filter(Boolean);
-    
-    // Om barnet har fler än en förälder, säkerställ att alla är partners med varandra
-    if (allParents.length > 1) {
-      console.log(`[ensureParentsArePartners] Person ${person.firstName} ${person.lastName} har barn ${childId} med ${allParents.length} föräldrar:`, allParents);
-      // Uppdatera VARJE förälder så att de har de andra som partners
-      allParents.forEach(parentId => {
-        const parentIndex = updatedPeople.findIndex(p => p.id === parentId);
-        if (parentIndex === -1) return;
-        
-        const parent = updatedPeople[parentIndex];
-        if (!parent.relations) parent.relations = {};
-        if (!parent.relations.partners) parent.relations.partners = [];
-        
-        // Lägg till alla andra föräldrar som partners
-        allParents.forEach(otherParentId => {
-          if (otherParentId === parentId) return; // Skippa sig själv
-          
-          const otherParent = updatedPeople.find(p => p.id === otherParentId);
-          if (!otherParent) return;
-          
-          // Kolla om de redan är partners
-          const alreadyPartners = parent.relations.partners.some(p => 
-            (typeof p === 'object' ? p.id : p) === otherParentId
-          );
-          
-          if (!alreadyPartners) {
-            console.log(`[ensureParentsArePartners] Lägger till ${otherParent.firstName} ${otherParent.lastName} som partner till ${parent.firstName} ${parent.lastName}`);
-            parent.relations.partners.push({ 
-              id: otherParentId, 
-              name: `${otherParent.firstName || ''} ${otherParent.lastName || ''}`.trim(),
-              type: 'Okänd'
-            });
-          }
-        });
-        
-        updatedPeople[parentIndex] = parent;
-      });
-    }
-  });
-  
-  return updatedPeople;
-};
-
-// Kör ensureParentsArePartners för ALLA personer för att säkerställa att alla relationer är korrekta
-export const ensureAllRelations = (allPeople) => {
-  let updatedPeople = allPeople.map(p => ({ ...p, relations: { ...p.relations } }));
-  
-  // Kör ensureParentsArePartners för varje person
-  updatedPeople.forEach(person => {
-    if (person && person.id) {
-      updatedPeople = ensureParentsArePartners(updatedPeople, person.id);
-    }
-  });
-  
-  return updatedPeople;
-};
+import { buildRelationsFromPeople, ensureAllRelations, ensureParentsArePartners } from './relationUtils.js';
 
 function App() {
     // Reset all UI state after new database
@@ -230,6 +53,7 @@ function App() {
       setSourceDrawerLocked(false);
       setPlaceDrawerLocked(false);
       setIsGedcomImporterOpen(false);
+      setIsGedcomExportModalOpen(false);
       setLinkPersonModal({ isOpen: false, preSelectedPersonId: null });
       setShowArchived(false);
       setAuditBackupDirState('');
@@ -267,7 +91,7 @@ function App() {
     showStatus,
     bulkWarningsModal, closeBulkWarningsModal,
     historyState, isHistoryOpen, handleBack, handleForward, handleShowHistory,
-    handleNewFile, handleOpenFile, handleSaveFile, handleSaveFileAs, handleAddPerson,
+    handleNewFile, handleOpenFile, handleSaveFile, handleSaveFileAs, handleExportGedcom, handleAddPerson,
     handleDeletePerson, handleOpenEditModal, handleCloseEditModal, handleSavePersonDetails, 
     handleEditFormChange, handleTabChange, handleDeleteEvent, handleViewInFamilyTree,
     handleSaveRelations, handleToggleSourceDrawer, handleLinkSourceFromDrawer, handleUnlinkSourceFromDrawer,
@@ -307,6 +131,7 @@ function App() {
   const [newPersonToEditId, setNewPersonToEditId] = useState(null);
   const [personToCenter, setPersonToCenter] = useState(null);
   const [isOAIHarvesterOpen, setIsOAIHarvesterOpen] = useState(false);
+  const [isGedcomExportModalOpen, setIsGedcomExportModalOpen] = useState(false);
   
   // Collapse/Expand för EditPersonModal (alltid synlig i familyTree-vyn)
   const [isEditModalCollapsed, setIsEditModalCollapsed] = useState(() => {
@@ -331,6 +156,11 @@ function App() {
   // OBS: Vi expanderar INTE automatiskt - låt användaren välja själv
   // Om användaren vill expandera kan de klicka på hamburger-ikonen
 
+  const handleGedcomExportChoice = async (version) => {
+    setIsGedcomExportModalOpen(false);
+    await handleExportGedcom(version);
+  };
+
   // Listen for Electron menu actions and trigger save handlers
   React.useEffect(() => {
     if (isElectron && window.electronAPI && window.electronAPI.on) {
@@ -350,6 +180,8 @@ function App() {
           handleSaveFile();
         } else if (action === 'save-as-database') {
           handleSaveFileAs('menu');
+        } else if (action === 'export-data') {
+          setIsGedcomExportModalOpen(true);
         } else if (action === 'settings') {
           setShowSettings(true);
         } else if (action === 'audit-merges-settings') {
@@ -374,6 +206,8 @@ function App() {
           handleSaveFile();
         } else if (e.detail === 'save-as-database') {
           handleSaveFileAs('menu');
+        } else if (e.detail === 'export-data') {
+          setIsGedcomExportModalOpen(true);
         } else if (e.detail === 'settings') {
           setShowSettings(true);
         } else if (e.detail === 'audit-merges-settings') {
@@ -385,7 +219,7 @@ function App() {
         window.removeEventListener('menu-action', handler);
       };
     }
-  }, [handleSaveFile, handleSaveFileAs, isElectron, handleNewFile, handleOpenFile]);
+  }, [handleSaveFile, handleSaveFileAs, handleExportGedcom, isElectron, handleNewFile, handleOpenFile]);
 
   useEffect(() => {
     setAuditBackupDirState((dbData?.meta && dbData.meta.auditBackupDir) || '');
@@ -1050,9 +884,35 @@ function App() {
           <Button onClick={() => setIsMergeModalOpen(true)} variant="secondary" size="sm">Slå ihop</Button>
           <Button onClick={() => setIsMergesPanelOpen(true)} variant="secondary" size="sm">Merges</Button>
           <Button onClick={() => setIsGedcomImporterOpen(true)} variant="secondary" size="sm">GEDCOM import</Button>
+          <Button onClick={() => setIsGedcomExportModalOpen(true)} variant="secondary" size="sm">GEDCOM export</Button>
         </div>
         <div className="text-xs text-slate-400"><span>{fileHandle ? `Öppen fil: ${fileHandle.name}` : 'Ny namnlös databas'}</span></div>
       </div>
+
+      {isGedcomExportModalOpen && (
+        <div className="modal" style={{ display: 'block' }} onClick={() => setIsGedcomExportModalOpen(false)}>
+          <div className="modal-content card bg-slate-800 border border-slate-700 p-5 max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="text-lg font-bold text-slate-200">Exportera GEDCOM</h3>
+              <button onClick={() => setIsGedcomExportModalOpen(false)} className="text-slate-400 hover:text-slate-300 text-2xl">&times;</button>
+            </div>
+            <p className="text-sm text-slate-300 mb-4">
+              Välj vilket format du vill exportera till.
+            </p>
+            <div className="flex flex-col gap-2">
+              <Button onClick={() => handleGedcomExportChoice('5.5.1')} variant="primary" size="sm">
+                GEDCOM 5.5.1 (Maximal kompatibilitet)
+              </Button>
+              <Button onClick={() => handleGedcomExportChoice('7.0')} variant="secondary" size="sm">
+                GEDCOM 7.0 (Modern)
+              </Button>
+            </div>
+            <div className="flex justify-end mt-4">
+              <Button onClick={() => setIsGedcomExportModalOpen(false)} variant="danger" size="sm">Avbryt</Button>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* SETTINGS MODAL */}
       {showSettings && (

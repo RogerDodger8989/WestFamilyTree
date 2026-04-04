@@ -3,7 +3,7 @@ import { createNewDatabase, openFile, saveFile, saveFileAs, openDatabaseDialog, 
 import { parseSourceString, generateImagePath, buildSourceString } from './parsing.js';
 import { simulateMerge } from './mergeUtils.js';
 import { remapAndDedupeRelations, transferEventsAndLinks } from './mergeHelpers.js';
-import { buildRelationsFromPeople, ensureAllRelations } from './App.jsx';
+import { buildRelationsFromPeople, ensureAllRelations } from './relationUtils.js';
 
 export default function useAppContext() {
     // ...state hooks och refs deklareras här...
@@ -653,31 +653,102 @@ export default function useAppContext() {
     const isElectron = !!(window && window.electronAPI && typeof window.electronAPI.saveFileAs === 'function');
 
     const handleSaveFileAs = async (source = 'button') => {
+        console.log('[handleSaveFileAs] Anropad med source:', source);
         // Only allow menu-triggered save in Electron
         if (isElectron && source !== 'menu') {
+            console.warn('[handleSaveFileAs] Blockerad i Electron-läge pga fel source. Förväntade "menu", fick:', source);
             showStatus('Använd menyn för Spara som i desktop-läge!');
             return;
         }
-        if (saveAsInProgressRef.current) return;
+        if (window.__WFT_saveAsInProgress) {
+            console.warn('[handleSaveFileAs] Avbruten: global saveAs-lås är redan aktivt');
+            return;
+        }
+        if (saveAsInProgressRef.current) {
+            console.warn('[handleSaveFileAs] Avbruten: saveAsInProgressRef.current är redan true');
+            return;
+        }
         saveAsInProgressRef.current = true;
+        window.__WFT_saveAsInProgress = true;
         try {
+            console.log('[handleSaveFileAs] Startar save-as-flöde...');
+            const currentDbData = dbDataRef.current || dbData || {};
             const dataToSave = { 
-            ...dbData, 
-            meta: { ...dbData.meta, focusPair, bookmarks },
-            media: dbData.media || [] // Säkerställ att media alltid är en array
+            ...currentDbData,
+            meta: { ...(currentDbData.meta || {}), focusPair, bookmarks },
+            media: currentDbData.media || [] // Säkerställ att media alltid är en array
         };
+            console.log('[handleSaveFileAs] Anropar backend saveFileAs med data keys:', Object.keys(dataToSave));
             const newHandle = await saveFileAs(dataToSave);
-            if (newHandle) {
+            console.log('[handleSaveFileAs] Resultat från backend:', newHandle);
+            if (newHandle && !newHandle.error) {
                 setFileHandle(newHandle);
                 setIsDirty(false);
                 if (window.electronAPI && newHandle.path) {
                     // window.electronAPI.setLastOpenedFile is not implemented
                 }
                 showStatus(`Sparad som '${newHandle.name || newHandle.path || 'fil'}'.`);
+            } else if (newHandle && newHandle.error) {
+                console.error('[handleSaveFileAs] Fel från backend:', newHandle.error);
+                if (newHandle.error !== 'Avbruten av användare') {
+                    showStatus(`Fel vid sparning: ${newHandle.error}`, 'error');
+                }
             }
             return newHandle;
+        } catch (err) {
+            console.error('[handleSaveFileAs] Oväntat undantag i renderer:', err);
+            showStatus(`Fel vid sparning: ${err.message || err}`, 'error');
+            return { error: err.message || String(err) };
         } finally {
+            window.__WFT_saveAsInProgress = false;
             setTimeout(() => { saveAsInProgressRef.current = false; }, 500);
+        }
+    };
+
+    const handleExportGedcom = async (format = '5.5.1') => {
+        try {
+            if (!window.electronAPI || typeof window.electronAPI.exportGedcom !== 'function') {
+                showStatus('GEDCOM-export är ej tillgänglig i denna miljö.', 'error');
+                return { error: 'exportGedcom not available' };
+            }
+
+            // Allow user to choose format in a future version
+            // For now, default to 5.5.1 for maximum compatibility
+            const selectedFormat = format || '5.5.1';
+
+            const currentDbData = dbDataRef.current || dbData || {};
+            const dataToExport = {
+                people: currentDbData.people || [],
+                relations: currentDbData.relations || [],
+                sources: currentDbData.sources || [],
+                places: currentDbData.places || [],
+                media: currentDbData.media || []
+            };
+
+            console.log('[handleExportGedcom] Exporterar med format:', selectedFormat, 'People count:', dataToExport.people.length);
+            showStatus(`Exporterar GEDCOM ${selectedFormat}-fil...`);
+
+            const result = await window.electronAPI.exportGedcom(dataToExport, { version: selectedFormat });
+
+            if (result.error) {
+                console.error('[handleExportGedcom] Export-fel:', result.error);
+                showStatus(`Export-fel: ${result.error}`, 'error');
+                return result;
+            }
+
+            if (result.canceled) {
+                console.log('[handleExportGedcom] Avbruten av användare');
+                showStatus('Export avbruten.');
+                return { canceled: true };
+            }
+
+            console.log('[handleExportGedcom] Export lyckades:', result.filePath);
+            showStatus(`GEDCOM ${selectedFormat} exporterad till '${result.filePath}' (${result.recordCounts.indi} individer, ${result.recordCounts.fam} familjer)`);
+            return result;
+        } catch (err) {
+            console.error('[handleExportGedcom] Undantag:', err);
+            showStatus(`Export-fel: ${err.message || err}`, 'error');
+            return { error: err.message || String(err) };
         }
     };
 
@@ -765,13 +836,14 @@ export default function useAppContext() {
                             // Spara också audit och merges till separata filer
                             const audit = currentDbData.meta?.audit || [];
                             const merges = currentDbData.meta?.merges || [];
+                            const dbPathForLog = fileHandle.path ? fileHandle.path : fileHandle;
                             if (audit.length > 0) {
-                                saveAuditLog(fileHandle, audit).catch(err => {
+                                saveAuditLog(dbPathForLog, audit).catch(err => {
                                     console.error('[auto-save] Kunde inte spara audit till fil:', err);
                                 });
                             }
                             if (merges.length > 0) {
-                                saveMergesLog(fileHandle, merges).catch(err => {
+                                saveMergesLog(dbPathForLog, merges).catch(err => {
                                     console.error('[auto-save] Kunde inte spara merges till fil:', err);
                                 });
                             }
@@ -2174,7 +2246,7 @@ export default function useAppContext() {
         familyTreeFocusPersonId, setFamilyTreeFocusPersonId,
         editingRelationsForPerson, setEditingRelationsForPerson, sourcingEventInfo, linkingMediaInfo, isAttachingSource,
         isSourceDrawerOpen, isPlaceDrawerOpen, isCreatingSource, sourceState, undoState, statusToast,
-        handleNewFile, handleOpenFile, handleSaveFile, handleSaveFileAs, handleAddPerson,
+        handleNewFile, handleOpenFile, handleSaveFile, handleSaveFileAs, handleExportGedcom, handleAddPerson,
         handleDeletePerson, handleOpenEditModal, handleCloseEditModal, handleSavePersonDetails,
         handleEditFormChange, handleTabChange, handleDeleteEvent, handleViewInFamilyTree,
         handleSaveRelations, handleNavigateToSource, handleNavigateToPlace, handleToggleSourceDrawer, handleLinkSourceFromDrawer, handleUnlinkSourceFromDrawer,

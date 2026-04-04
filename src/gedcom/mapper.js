@@ -230,11 +230,6 @@ function collectNodes(root) {
 }
 
 function mapIndividuals(parsedNodes, all) {
-      // DEBUG: logga alla taggar för denna person
-      if (typeof window !== 'undefined' && window.console) {
-        const tags = (node.children || []).map(c => _getTag(c));
-        console.log('GEDCOM INDI xref', xref, 'tags:', tags);
-      }
   const individuals = [];
   const allNodes = all || collectNodes(parsedNodes || []);
   const indiNodes = allNodes.filter(n => _getTag(n) === 'INDI');
@@ -251,32 +246,12 @@ function mapIndividuals(parsedNodes, all) {
     const surname = surnNode ? valueToString(_getValue(surnNode)).trim() : '';
     const sex = sexNode ? valueToString(_getValue(sexNode)).trim() : '';
       // events: look for nodes with tags like BIRT, DEAT, BURI, MARR
-      const events = children.filter(c => ['BIRT', 'DEAT', 'BURI', 'CHR', 'BAPT'].includes(c.tag)).map(ev => {
+      const events = children.filter(c => ['BIRT', 'DEAT', 'BURI', 'CHR', 'BAPT', 'EVEN', 'FACT', 'MARR', 'DIV', 'RESI'].includes(c.tag)).map(ev => {
         const date = valueToString(extractValue(ev, 'DATE')) || null;
         const place = valueToString(extractValue(ev, 'PLAC')) || null;
 
-        // --- Platsmatchning: försök hitta placeId ---
-        let placeId = null;
-        if (place) {
-          const parsed = parsePlaceString(place);
-          // Enkel match: Sverige, län, socken, by, gård
-          placeId = (places.find(p =>
-            (p.land || '').toLowerCase() === (parsed.land || '').toLowerCase() &&
-            (!p.lan || (p.lan || '').toLowerCase() === (parsed.lan || '').toLowerCase()) &&
-            (!p.socken || (p.socken || '').toLowerCase() === (parsed.socken || '').toLowerCase()) &&
-            (!p.by || (p.by || '').toLowerCase() === (parsed.by || '').toLowerCase()) &&
-            (!p.gard || (p.gard || '').toLowerCase() === (parsed.gard || '').toLowerCase())
-          ) || {}).id || null;
-          // USA-matchning
-          if (!placeId && parsed.type === 'usa') {
-            placeId = (places.find(p =>
-              (p.land || '').toLowerCase() === (parsed.land || '').toLowerCase() &&
-              (!p.state || (p.state || '').toLowerCase() === (parsed.state || '').toLowerCase()) &&
-              (!p.county || (p.county || '').toLowerCase() === (parsed.county || '').toLowerCase()) &&
-              (!p.city || (p.city || '').toLowerCase() === (parsed.city || '').toLowerCase())
-            ) || {}).id || null;
-          }
-        }
+        // placeId mapping is resolved in the app merge phase; keep null in mapper.
+        const placeId = null;
 
         // collect SOUR pointers attached to this event (may be multiple)
         const srcChildren = (ev.children || []).filter(c => _getTag(c) === 'SOUR');
