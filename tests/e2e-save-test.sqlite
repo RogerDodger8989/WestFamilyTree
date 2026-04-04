@@ -24,5 +24,75 @@
       "name": "Gedcom Exporttest"
     },
     "sourceIds": []
+  },
+  {
+    "id": "audit_1775297099579_m6rdl4j",
+    "type": "create",
+    "entityType": "person",
+    "entityId": "p_1775297099579",
+    "actor": "local",
+    "timestamp": "2026-04-04T10:04:59.579Z",
+    "details": {
+      "refNumber": 1,
+      "name": "anna svensson"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1775308181494_zrukr2v",
+    "type": "create",
+    "entityType": "person",
+    "entityId": "p_1775308181493",
+    "actor": "local",
+    "timestamp": "2026-04-04T13:09:41.494Z",
+    "details": {
+      "refNumber": 1,
+      "name": "x d"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1775321790230_tr5922k",
+    "type": "edit",
+    "entityType": "person",
+    "entityId": "p_1775308181493",
+    "actor": "local",
+    "timestamp": "2026-04-04T16:56:30.230Z",
+    "details": {
+      "before": {
+        "firstName": "x",
+        "lastName": "d",
+        "refNumber": 1
+      },
+      "after": {
+        "firstName": "anna",
+        "lastName": "svensson",
+        "refNumber": 1
+      },
+      "changes": {
+        "firstName": {
+          "before": "x",
+          "after": "anna"
+        },
+        "lastName": {
+          "before": "d",
+          "after": "svensson"
+        }
+      }
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1775321933981_22j6et0",
+    "type": "create",
+    "entityType": "person",
+    "entityId": "p_1775321933980",
+    "actor": "local",
+    "timestamp": "2026-04-04T16:58:53.981Z",
+    "details": {
+      "refNumber": 1,
+      "name": "anna andersson"
+    },
+    "sourceIds": []
   }
 ]

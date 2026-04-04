@@ -220,7 +220,7 @@ export default function useAppContext() {
     const [isEditModalCollapsed, setIsEditModalCollapsed] = useState(true); // Kollapsad eller expanderad
 
     // State för flikar
-    const [activeTab, setActiveTab] = useState('people'); // 'people', 'sources', 'places', 'familyTree'
+    const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard', 'people', 'sources', 'places', 'familyTree'
 
     const [focusPair, setFocusPairRaw] = useState({ primary: null, secondary: null });
     const [bookmarks, setBookmarksRaw] = useState([]);
@@ -407,7 +407,7 @@ export default function useAppContext() {
             } else {
                 setEditingPerson(null);
             }
-            setActiveTab(previous.tab || 'people');
+            setActiveTab(previous.tab || 'dashboard');
             return { past: newPast, present: previous, future: newFuture };
         });
     };
@@ -426,7 +426,7 @@ export default function useAppContext() {
             } else {
                 setEditingPerson(null);
             }
-            setActiveTab(next.tab || 'people');
+            setActiveTab(next.tab || 'dashboard');
             return { past: newPast, present: next, future: newFuture };
         });
     };
@@ -444,7 +444,7 @@ export default function useAppContext() {
             setEditingPerson(null);
         }
         // Apply tab
-        setActiveTab(tab || 'people');
+        setActiveTab(tab || 'dashboard');
         // Apply catalog selections
         setSourceCatalogState(prev => ({ ...prev, selectedSourceId: selectedSourceId || null }));
         setPlaceCatalogState(prev => ({ ...prev, selectedPlaceId: selectedPlaceId || null }));

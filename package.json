@@ -17,6 +17,7 @@
     "node-fetch": "^2.7.0",
     "parse-gedcom": "^2.0.1",
     "react-select": "^5.10.2",
+    "recharts": "^2.15.4",
     "sqlite3": "^5.1.7",
     "tesseract.js": "^6.0.1"
   },

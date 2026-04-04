@@ -20,6 +20,7 @@ import SuggestionsPanel from './SuggestionsPanel.jsx';
 import DuplicateMergePanel from './DuplicateMergePanel.jsx';
 import RelationSettings from './RelationSettings.jsx';
 import GedcomImporter from './GedcomImporter.jsx';
+import DashboardView from './DashboardView.jsx';
 import { MediaManager } from './MediaManager.jsx';
 import WindowFrame from './WindowFrame.jsx';
 import LinkPersonModal from './LinkPersonModal.jsx';
@@ -42,7 +43,7 @@ function App() {
       setNewFirstName("");
       setNewLastName("");
       setEditingPerson(null);
-      setActiveTab('people');
+      setActiveTab('dashboard');
       setPersonDrawerId(null);
       setIsMergeModalOpen(false);
       setIsMergesPanelOpen(false);
@@ -989,6 +990,13 @@ function App() {
             {/* Tab config: (Oförändrad) */}
             {[
               {
+                label: 'Startsida',
+                value: 'dashboard',
+                icon: (
+                  <svg className="w-5 h-5 mr-1 inline-block align-text-bottom" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 10.5L12 3l9 7.5" /><path strokeLinecap="round" strokeLinejoin="round" d="M5.25 9.75V21h13.5V9.75" /></svg>
+                ),
+              },
+              {
                 label: 'Personregister',
                 value: 'people',
                 icon: (
@@ -1075,6 +1083,18 @@ function App() {
 
 
         <div className={`flex-grow min-h-0 ${editingPerson ? 'flex gap-4' : ''}`}>
+          {activeTab === 'dashboard' && (
+            <DashboardView
+              dbData={dbData}
+              handleOpenEditModal={handleOpenEditModal}
+              handleTabChange={onLocalTabChange}
+              onUpdateTodos={(newTodos) => {
+                setDbData(prev => ({ ...prev, meta: { ...prev.meta, todos: newTodos } }));
+                setIsDirty(true);
+              }}
+            />
+          )}
+
           {/* Visa personregistret som fallback om activeTab är null/undefined eller 'people' */}
           {(!activeTab || activeTab === 'people') && (
             <div className="tab-content max-w-6xl mx-auto w-full">
@@ -1240,6 +1260,7 @@ function App() {
                 <div className="w-full border-b border-slate-700 bg-slate-900 shrink-0">
                   <nav className="flex space-x-2 md:space-x-4 lg:space-x-8 px-4 py-2">
                     {[
+                      { label: 'Startsida', value: 'dashboard' },
                       { label: 'Personregister', value: 'people' },
                       { label: 'Källkatalog', value: 'sources' },
                       { label: 'Platsregister', value: 'places' },

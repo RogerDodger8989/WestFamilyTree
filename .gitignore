@@ -3,3 +3,4 @@ node_modules/
 WestFamilyTree/.git_disabled/
 .git_disabled/
 min_slakt.db
+dist/
