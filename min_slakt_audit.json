@@ -254,5 +254,53 @@
       "name": " "
     },
     "sourceIds": []
+  },
+  {
+    "id": "audit_1775377943937_bi58kny",
+    "type": "edit",
+    "entityType": "person-color",
+    "entityId": "p_1775324699529",
+    "actor": "local",
+    "timestamp": "2026-04-05T08:32:23.937Z",
+    "details": {
+      "scope": "self",
+      "color": "#db2777",
+      "personIds": [
+        "p_1775324699529"
+      ]
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1775378594667_rp5j9gn",
+    "type": "edit",
+    "entityType": "person-color",
+    "entityId": "p_1775324699529",
+    "actor": "local",
+    "timestamp": "2026-04-05T08:43:14.667Z",
+    "details": {
+      "scope": "self",
+      "color": "#2563eb",
+      "personIds": [
+        "p_1775324699529"
+      ]
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1775378601001_glk3sj2",
+    "type": "edit",
+    "entityType": "person-color",
+    "entityId": "p_1775324699529",
+    "actor": "local",
+    "timestamp": "2026-04-05T08:43:21.001Z",
+    "details": {
+      "scope": "self",
+      "color": "#ea580c",
+      "personIds": [
+        "p_1775324699529"
+      ]
+    },
+    "sourceIds": []
   }
 ]

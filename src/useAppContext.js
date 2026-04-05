@@ -1130,10 +1130,6 @@ export default function useAppContext() {
             eventsCount: Array.isArray(updatedPerson.events) ? updatedPerson.events.length : 0,
             mediaCount: Array.isArray(updatedPerson.media) ? updatedPerson.media.length : 0
         });
-        // Only update the `editingPerson` modal state if the modal is open.
-        // When editing inline in the tree-drawer we don't want to switch into
-        // the full editing view — so avoid setting `editingPerson` in that case.
-        if (editingPerson) setEditingPerson(updatedPerson);
         // VIKTIGT: Använd dbDataRef.current för att få senaste data, inte closure-värdet
         const currentDbData = dbDataRef.current || dbData;
         if (!currentDbData || !currentDbData.people) {
@@ -1147,12 +1143,22 @@ export default function useAppContext() {
             const updatedPeople = [...currentDbData.people, updatedPerson];
             const relations = buildRelationsFromPeople(updatedPeople);
             setDbData(prevDb => ({ ...prevDb, people: updatedPeople, relations }));
+            if (editingPerson) setEditingPerson(JSON.parse(JSON.stringify(updatedPerson)));
             return;
         }
-        // Uppdatera personen i arrayen - VIKTIGT: Behåll alla fält från updatedPerson
+        // Uppdatera personen i arrayen och behåll fält som inte kommer från editorn just nu
         const updatedPeople = [...currentDbData.people];
-        // Skapa en DIUP kopia av updatedPerson för att säkerställa att ALLA fält bevaras
-        updatedPeople[personIndex] = JSON.parse(JSON.stringify(updatedPerson));
+        const existingPerson = updatedPeople[personIndex] || {};
+        updatedPeople[personIndex] = JSON.parse(JSON.stringify({
+            ...existingPerson,
+            ...updatedPerson,
+            color: updatedPerson.color ?? existingPerson.color,
+            _archived: updatedPerson._archived ?? existingPerson._archived,
+            archiveReason: updatedPerson.archiveReason ?? existingPerson.archiveReason,
+            relations: updatedPerson.relations || existingPerson.relations || { parents: [], children: [], spouseId: null },
+            media: Array.isArray(updatedPerson.media) ? updatedPerson.media : (Array.isArray(existingPerson.media) ? existingPerson.media : []),
+            tags: Array.isArray(updatedPerson.tags) ? updatedPerson.tags : (Array.isArray(existingPerson.tags) ? existingPerson.tags : [])
+        }));
         // Bygg relations-array från people så att dbData.relations är synkad
         const relations = buildRelationsFromPeople(updatedPeople);
         console.log('[handleEditFormChange] Sparar person med relations:', relations.length, 'people:', updatedPeople.length);
@@ -1162,6 +1168,7 @@ export default function useAppContext() {
             console.log('[handleEditFormChange] setDbData anropad, antal personer:', newData.people.length, 'person:', newData.people[personIndex]?.firstName, newData.people[personIndex]?.sex);
             return newData;
         });
+        if (editingPerson) setEditingPerson(JSON.parse(JSON.stringify(updatedPeople[personIndex])));
         // Debounced audit for inline edits: record before snapshot once, then commit after idle
         try {
             const id = updatedPerson.id;

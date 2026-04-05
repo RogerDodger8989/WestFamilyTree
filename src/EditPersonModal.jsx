@@ -306,7 +306,6 @@ const SourceModal = ({ isOpen, onClose, onAdd, eventType }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const modalRef = useRef(null);
-  const firstNameInputRef = useRef(null);
 
   const handleMouseDown = (e) => {
     if (e.target.closest('.modal-header')) {
@@ -881,6 +880,8 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const modalRef = useRef(null);
+  const firstNameInputRef = useRef(null);
+  const focusedPersonIdRef = useRef(null);
 
   // Helper: Få födelse- och dödsdata från events
   const getLifeInfo = (personData) => {
@@ -1142,10 +1143,9 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
       || (!String(initialPerson?.firstName || '').trim() && !String(initialPerson?.lastName || '').trim());
 
     if (!person?.id || !shouldAutofocus || isCollapsed) return;
+    if (focusedPersonIdRef.current === person.id) return;
 
-    if (activeTab !== 'info') {
-      setActiveTab('info');
-    }
+    focusedPersonIdRef.current = person.id;
 
     const focusTimer = window.setTimeout(() => {
       if (firstNameInputRef.current) {
@@ -1155,7 +1155,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
     }, 0);
 
     return () => window.clearTimeout(focusTimer);
-  }, [person?.id, initialPerson?._isDraft, initialPerson?.firstName, initialPerson?.lastName, isCollapsed, activeTab]);
+  }, [person?.id, initialPerson?._isDraft, initialPerson?.firstName, initialPerson?.lastName, isCollapsed]);
 
   // Handle keyboard navigation in relation picker (moved after person definition)
   useEffect(() => {
