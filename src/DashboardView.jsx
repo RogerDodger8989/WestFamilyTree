@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CheckSquare, Square, Plus, Trash2, User } from 'lucide-react';
+import { CheckSquare, Square, Plus, Trash2, User, Dices } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 function getPersonDisplayName(person) {
@@ -96,6 +96,13 @@ export default function DashboardView({ dbData, handleOpenEditModal, handleTabCh
     }]);
     setNewTodoText('');
     setTodoPersonId('');
+  };
+
+  const handleRandomPerson = () => {
+    if (!people.length) return;
+    const randomIndex = Math.floor(Math.random() * people.length);
+    const randomPerson = people[randomIndex];
+    if (randomPerson?.id) handleOpenEditModal(randomPerson.id);
   };
 
   const peopleById = React.useMemo(() => {
@@ -255,7 +262,19 @@ export default function DashboardView({ dbData, handleOpenEditModal, handleTabCh
           <section className="card bg-slate-800 border border-slate-700 rounded-xl p-5 flex-1">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-xl font-bold text-slate-100">Fortsätt där du slutade</h2>
-              <span className="text-xs text-slate-400">Senaste 5</span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleRandomPerson}
+                  disabled={people.length === 0}
+                  className="px-2.5 py-1.5 text-xs bg-indigo-700 text-indigo-100 rounded border border-indigo-600 hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1"
+                  title="Tidsmaskin: slumpa fram en person"
+                >
+                  <Dices className="w-3.5 h-3.5" />
+                  Slumpa person
+                </button>
+                <span className="text-xs text-slate-400">Senaste 5</span>
+              </div>
             </div>
 
             {recentPeople.length === 0 ? (

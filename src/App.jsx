@@ -21,6 +21,7 @@ import DuplicateMergePanel from './DuplicateMergePanel.jsx';
 import RelationSettings from './RelationSettings.jsx';
 import GedcomImporter from './GedcomImporter.jsx';
 import DashboardView from './DashboardView.jsx';
+import RelationshipPanel from './RelationshipPanel.jsx';
 import { MediaManager } from './MediaManager.jsx';
 import WindowFrame from './WindowFrame.jsx';
 import LinkPersonModal from './LinkPersonModal.jsx';
@@ -28,7 +29,7 @@ import OAIArchiveHarvesterModal from './OAIArchiveHarvesterModal.jsx';
 import AuditMergesSettingsModal from './AuditMergesSettingsModal.jsx';
 import Button from './Button.jsx'; 
 import MediaImage from './components/MediaImage.jsx';
-import { User, Settings } from 'lucide-react'; 
+import { User, Settings, PanelRight, Minus, Maximize2, X } from 'lucide-react'; 
 import { buildRelationsFromPeople, ensureAllRelations, ensureParentsArePartners } from './relationUtils.js';
 
 function App() {
@@ -101,7 +102,7 @@ function App() {
     handleCreateAndEditPerson, handleOpenSourceModal, handleCloseSourceModal, handleSourceFormChange,
     handleParseSource, handleSaveSource, handleSaveEditedSource, handleUndo, handleDeleteSource,
     addRelation, getPersonRelations,
-    handleSetFocusPair, handleToggleBookmark, handleAddNewPlace, handleSavePlace, isAttachingSource, handleAttachSources, handleSwitchToCreateSource, handleNavigateToPlace,
+    handleSetFocusPair, handleToggleBookmark, handleSwapFocus, handleClearFocus, handleAddNewPlace, handleSavePlace, isAttachingSource, handleAttachSources, handleSwitchToCreateSource, handleNavigateToPlace,
     handleTogglePlaceDrawer,
     openPlaceDrawerForSelection,
     applyHistoryEntry,
@@ -133,6 +134,29 @@ function App() {
   const [personToCenter, setPersonToCenter] = useState(null);
   const [isOAIHarvesterOpen, setIsOAIHarvesterOpen] = useState(false);
   const [isGedcomExportModalOpen, setIsGedcomExportModalOpen] = useState(false);
+
+  const [isPeopleEditorDocked, setIsPeopleEditorDocked] = useState(() => {
+    try {
+      const saved = localStorage.getItem('peopleEditorDocked');
+      return saved !== 'false';
+    } catch {
+      return true;
+    }
+  });
+  const [peopleEditorWidth, setPeopleEditorWidth] = useState(() => {
+    try {
+      const saved = Number(localStorage.getItem('peopleEditorWidth') || 620);
+      if (Number.isFinite(saved)) return Math.min(Math.max(saved, 420), 1100);
+      return 620;
+    } catch {
+      return 620;
+    }
+  });
+  const [isResizingPeopleEditor, setIsResizingPeopleEditor] = useState(false);
+  const peopleEditorResizeStateRef = useRef({ startX: 0, startWidth: 620 });
+  const PEOPLE_EDITOR_MIN_WIDTH = 560;
+  const PEOPLE_MAIN_MIN_WIDTH = 900;
+  const PEOPLE_SPLIT_RESERVED_WIDTH = 36;
   
   // Collapse/Expand för EditPersonModal (alltid synlig i familyTree-vyn)
   const [isEditModalCollapsed, setIsEditModalCollapsed] = useState(() => {
@@ -153,6 +177,76 @@ function App() {
       console.error('Kunde inte spara collapse-inställning:', e);
     }
   };
+
+  const clampPeopleEditorWidth = (nextWidth) => {
+    const minWidth = PEOPLE_EDITOR_MIN_WIDTH;
+    const maxByMainArea = Math.max(
+      minWidth,
+      window.innerWidth - PEOPLE_MAIN_MIN_WIDTH - PEOPLE_SPLIT_RESERVED_WIDTH
+    );
+    const maxByViewportShare = Math.floor(window.innerWidth * 0.56);
+    const maxWidth = Math.max(minWidth, Math.min(maxByMainArea, maxByViewportShare));
+    return Math.min(Math.max(nextWidth, minWidth), maxWidth);
+  };
+
+  const handleTogglePeopleEditorDock = (forceValue = null) => {
+    setIsPeopleEditorDocked((prev) => {
+      const next = typeof forceValue === 'boolean' ? forceValue : !prev;
+      try {
+        localStorage.setItem('peopleEditorDocked', String(next));
+      } catch (e) {
+        console.error('Kunde inte spara dockningsinställning:', e);
+      }
+      return next;
+    });
+  };
+
+  const handleStartResizePeopleEditor = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    peopleEditorResizeStateRef.current = { startX: e.clientX, startWidth: peopleEditorWidth };
+    setIsResizingPeopleEditor(true);
+  };
+
+  useEffect(() => {
+    if (!isResizingPeopleEditor) return;
+
+    const handleMouseMove = (e) => {
+      const deltaX = peopleEditorResizeStateRef.current.startX - e.clientX;
+      const nextWidth = clampPeopleEditorWidth(peopleEditorResizeStateRef.current.startWidth + deltaX);
+      setPeopleEditorWidth(nextWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizingPeopleEditor(false);
+      try {
+        localStorage.setItem('peopleEditorWidth', String(Math.round(peopleEditorWidth)));
+      } catch (err) {
+        console.error('Kunde inte spara panelbredd:', err);
+      }
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizingPeopleEditor, peopleEditorWidth]);
+
+  useEffect(() => {
+    if (!editingPerson || activeTab !== 'people') return;
+    setPeopleEditorWidth((prev) => clampPeopleEditorWidth(prev));
+  }, [activeTab, editingPerson]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setPeopleEditorWidth((prev) => clampPeopleEditorWidth(prev));
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   
   // OBS: Vi expanderar INTE automatiskt - låt användaren välja själv
   // Om användaren vill expandera kan de klicka på hamburger-ikonen
@@ -286,6 +380,11 @@ function App() {
   useEffect(() => {
     const handler = (e) => {
       if (e.button !== 0) return;
+
+      const isPeopleView = !activeTab || activeTab === 'people';
+      const isDockedPeopleEditorOpen = !!editingPerson && isPeopleView && isPeopleEditorDocked;
+      if (isDockedPeopleEditorOpen) return;
+
       // Ignorera klick inuti modalen, på knappar, eller i sidebar
       if (e.target.closest('.modal-content') || 
           e.target.closest('[role="dialog"]') || 
@@ -301,7 +400,7 @@ function App() {
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, [editingPerson, handleCloseEditModal, activeTab, toggleEditModalCollapse]);
+  }, [editingPerson, handleCloseEditModal, activeTab, toggleEditModalCollapse, isPeopleEditorDocked]);
 
   // Place unlink handler (WFT:unlinkPlaceFromEvent)
   useEffect(() => {
@@ -1082,7 +1181,7 @@ function App() {
         </div>
 
 
-        <div className={`flex-grow min-h-0 ${editingPerson ? 'flex gap-4' : ''}`}>
+        <div className="flex-grow min-h-0">
           {activeTab === 'dashboard' && (
             <DashboardView
               dbData={dbData}
@@ -1096,16 +1195,115 @@ function App() {
           )}
 
           {/* Visa personregistret som fallback om activeTab är null/undefined eller 'people' */}
-          {(!activeTab || activeTab === 'people') && (
-            <div className="tab-content max-w-6xl mx-auto w-full">
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <PersonAddForm newFirstName={newFirstName} setNewFirstName={setNewFirstName} newLastName={newLastName} setNewLastName={setNewLastName} onAddPerson={handleAddPerson} />
-                <div className="flex items-center justify-between w-full mb-2"><div /><div className="flex items-center gap-3"><label className="text-sm text-slate-400 flex items-center gap-2"><input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} /><span className="select-none">Visa arkiverade</span></label></div></div>
-                <PersonList people={visiblePeople} onOpenEditModal={handleOpenEditModal} onOpenRelationModal={handleViewInFamilyTree} onDeletePerson={handleDeletePerson} focusPair={focusPair} onSetFocusPair={handleSetFocusPair} bookmarks={bookmarks} />
-                <div className="lg:col-span-1"><SuggestionsPanel allPeople={visiblePeople} onOpenPair={(pair) => { setMergeInitialPair(pair); setShowDuplicateMerge(true); }} /></div>
+          {(!activeTab || activeTab === 'people') && (() => {
+            const showDockedPeopleEditor = !!editingPerson && isPeopleEditorDocked;
+
+            return (
+              <div className={`w-full h-full min-h-0 ${showDockedPeopleEditor ? 'flex gap-3' : ''}`}>
+                <div className={`min-w-0 ${showDockedPeopleEditor ? 'flex-1 overflow-y-auto people-docked-scroll' : 'w-full'}`}>
+                  <div className={`tab-content w-full ${showDockedPeopleEditor ? '' : 'max-w-6xl mx-auto'}`}>
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                      <PersonAddForm newFirstName={newFirstName} setNewFirstName={setNewFirstName} newLastName={newLastName} setNewLastName={setNewLastName} onAddPerson={handleAddPerson} />
+                      <RelationshipPanel
+                        focusPair={focusPair || { primary: null, secondary: null }}
+                        allPeople={dbData?.people || visiblePeople}
+                        onClearFocus={handleClearFocus}
+                        onSwapFocus={handleSwapFocus}
+                        inline={true}
+                      />
+                      <PersonList people={visiblePeople} onOpenEditModal={handleOpenEditModal} onOpenRelationModal={handleViewInFamilyTree} onDeletePerson={handleDeletePerson} focusPair={focusPair} onSetFocusPair={handleSetFocusPair} bookmarks={bookmarks} />
+                      <div className="lg:col-span-1"><SuggestionsPanel allPeople={visiblePeople} onOpenPair={(pair) => { setMergeInitialPair(pair); setShowDuplicateMerge(true); }} /></div>
+                    </div>
+                  </div>
+                </div>
+
+                {showDockedPeopleEditor && (
+                  <>
+                    <div
+                      className="w-1.5 bg-slate-700/70 hover:bg-blue-500 rounded cursor-col-resize transition-colors"
+                      onMouseDown={handleStartResizePeopleEditor}
+                      title="Dra för att ändra bredd"
+                    />
+                    <div
+                      className="shrink-0 h-full min-h-0 bg-slate-800 border border-slate-700 rounded-lg overflow-hidden shadow-2xl flex flex-col people-docked-panel"
+                      style={{ width: `${peopleEditorWidth}px` }}
+                    >
+                      <div className="h-11 shrink-0 bg-slate-900 border-b border-slate-700 px-2 flex items-center justify-between">
+                        <div className="text-sm font-bold text-slate-200 truncate pl-2">
+                          Redigera {editingPerson.firstName || ''} {editingPerson.lastName || ''}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => {
+                              handleTogglePeopleEditorDock(false);
+                            }}
+                            className="p-1.5 hover:bg-slate-800 rounded text-slate-400 hover:text-white"
+                            title="Frigör från dockning"
+                          >
+                            <PanelRight size={15} />
+                          </button>
+                          <button
+                            onClick={() => {
+                              handleTogglePeopleEditorDock(false);
+                            }}
+                            className="p-1.5 hover:bg-slate-800 rounded text-slate-400 hover:text-white"
+                            title="Minimera"
+                          >
+                            <Minus size={15} />
+                          </button>
+                          <button
+                            onClick={() => {
+                              handleTogglePeopleEditorDock(false);
+                            }}
+                            className="p-1.5 hover:bg-slate-800 rounded text-slate-400 hover:text-white"
+                            title="Maximera"
+                          >
+                            <Maximize2 size={15} />
+                          </button>
+                          <button
+                            onClick={handleCloseEditModalSafe}
+                            className="p-1.5 hover:bg-red-900/50 rounded text-slate-400 hover:text-red-400"
+                            title="Stäng"
+                          >
+                            <X size={15} />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="flex-1 min-h-0 overflow-hidden">
+                        <EditPersonModal
+                          person={editingPerson}
+                          onClose={handleCloseEditModalSafe}
+                          onSave={patchedHandleSavePersonDetails}
+                          onChange={handleEditFormChange}
+                          allSources={dbData.sources}
+                          allPlaces={dbData.places || []}
+                          allPeople={visiblePeople}
+                          onDeleteEvent={handleDeleteEvent}
+                          onOpenSourceDrawer={handleToggleSourceDrawer}
+                          onNavigateToSource={handleNavigateToSource}
+                          onNavigateToPlace={handleNavigateToPlace}
+                          onTogglePlaceDrawer={handleTogglePlaceDrawer}
+                          onViewInFamilyTree={handleViewInFamilyTree}
+                          focusPair={focusPair}
+                          onSetFocusPair={handleSetFocusPair}
+                          activeSourcingEventId={sourcingEventInfo?.eventId}
+                          allMediaItems={dbData.media || []}
+                          onUpdateAllMedia={(updatedMedia) => {
+                            setDbData(prev => ({ ...prev, media: updatedMedia }));
+                            setIsDirty(true);
+                          }}
+                          setIsSourceDrawerOpen={openSourceDrawerForSelection}
+                          setIsPlaceDrawerOpen={openPlaceDrawerForSelection}
+                          isDocked={true}
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {activeTab === 'orphanArchive' && (<OrphanArchiveView people={dbData.people || []} allSources={dbData.sources || []} onOpenPerson={handleOpenEditModal} onViewInFamilyTree={handleViewInFamilyTree} />)}
           {activeTab === 'audit' && ( <AuditPanel /> )}
@@ -1233,7 +1431,7 @@ function App() {
           {activeTab === 'farmArchive' && (<FarmArchiveView places={dbData.places || []} people={visiblePeople} allSources={dbData.sources || []} onSavePlace={handleSavePlace} onOpenPerson={handleOpenEditModal} onViewInFamilyTree={handleViewInFamilyTree} onNavigateToSource={handleNavigateToSource} onOpenSourceDrawer={handleToggleSourceDrawer} onNavigateToPlace={handleNavigateToPlace} onOpenPlaceDrawer={handleTogglePlaceDrawer} onOpenSourceInDrawer={handleOpenSourceInDrawer} />)}
 
           {/* EDITING PERSON (MODAL) */}
-          {editingPerson && (
+          {editingPerson && (!(!activeTab || activeTab === 'people') || !isPeopleEditorDocked) && (
             activeTab === 'familyTree' ? (
               // FAMILYTREE MODE: Collapsible sidebar (alltid synlig)
               <div className="fixed inset-0 z-[4000] bg-slate-900 flex flex-col">
@@ -1391,6 +1589,11 @@ function App() {
               onClose={handleCloseEditModalSafe}
               initialWidth={1200}
               initialHeight={800}
+              onToggleDock={(nextDocked) => {
+                if (nextDocked && (!activeTab || activeTab === 'people')) {
+                  handleTogglePeopleEditorDock(true);
+                }
+              }}
             >
               <EditPersonModal
                 person={editingPerson}
@@ -1563,6 +1766,43 @@ function App() {
           </div>
         </div>
       )}
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        .people-docked-scroll,
+        .people-docked-panel,
+        .people-docked-panel * {
+          scrollbar-width: thin;
+          scrollbar-color: #334155 #0f172a;
+        }
+
+        .people-docked-scroll::-webkit-scrollbar,
+        .people-docked-panel::-webkit-scrollbar,
+        .people-docked-panel *::-webkit-scrollbar {
+          width: 8px;
+          height: 8px;
+        }
+
+        .people-docked-scroll::-webkit-scrollbar-track,
+        .people-docked-panel::-webkit-scrollbar-track,
+        .people-docked-panel *::-webkit-scrollbar-track {
+          background: #0f172a;
+        }
+
+        .people-docked-scroll::-webkit-scrollbar-thumb,
+        .people-docked-panel::-webkit-scrollbar-thumb,
+        .people-docked-panel *::-webkit-scrollbar-thumb {
+          background: #334155;
+          border-radius: 8px;
+          border: 2px solid #0f172a;
+        }
+
+        .people-docked-scroll::-webkit-scrollbar-thumb:hover,
+        .people-docked-panel::-webkit-scrollbar-thumb:hover,
+        .people-docked-panel *::-webkit-scrollbar-thumb:hover {
+          background: #475569;
+        }
+      `}} />
+
     </div>
   )
 }

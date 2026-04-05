@@ -338,6 +338,18 @@ async function writeGedcom(dbData, options = {}) {
 
     const xrefCounter = { indi: 0, fam: 0, sour: 0, obje: 0 };
     const xrefMap = new Map(); // Map from internal ID to GEDCOM XREF
+    const mediaById = buildMediaLookup(dbData && dbData.media);
+    const peopleById = buildPeopleLookup(dbData && dbData.people);
+
+    // Pre-assign all individual XREFs so cross-person refs (e.g. witnesses) resolve reliably.
+    if (dbData.people && Array.isArray(dbData.people)) {
+      for (const person of dbData.people) {
+        if (!person || !person.id) continue;
+        if (!xrefMap.has(person.id)) {
+          xrefMap.set(person.id, `I${++xrefCounter.indi}`);
+        }
+      }
+    }
 
     // ========== SUBMITTER RECORD ==========
     lines.push('0 @SUBM1@ SUBM');
@@ -346,7 +358,7 @@ async function writeGedcom(dbData, options = {}) {
     // ========== INDIVIDUALS (INDI) ==========
     if (dbData.people && Array.isArray(dbData.people)) {
       for (const person of dbData.people) {
-        const xref = `I${++xrefCounter.indi}`;
+        const xref = xrefMap.get(person.id) || `I${++xrefCounter.indi}`;
         xrefMap.set(person.id, xref);
 
         lines.push(`0 @${xref}@ INDI`);
@@ -367,25 +379,69 @@ async function writeGedcom(dbData, options = {}) {
         // EVENTS
         if (person.events && Array.isArray(person.events)) {
           for (const evt of person.events) {
-            const tag = evt.type || 'EVEN';
-            if (['BIRT', 'DEAT', 'BURI', 'CHR', 'BAPT', 'CONF', 'MARR', 'DIV', 'RESI', 'OCCU', 'EDUC'].includes(tag)) {
-              lines.push(`1 ${tag}`);
-              if (evt.date) lines.push(`2 DATE ${formatDateForGedcom(evt.date)}`);
-              if (evt.place) lines.push(`2 PLAC ${evt.place}`);
-              if (evt.description || evt.note) {
-                const note = evt.description || evt.note || '';
-                lines.push(`2 NOTE ${escapeGedcomValue(note)}`);
-              }
-              // Add sources if present
-              if (evt.sources && Array.isArray(evt.sources)) {
-                for (const srcId of evt.sources) {
-                  const srcXref = xrefMap.get(srcId) || `S${srcId}`;
-                  lines.push(`2 SOUR @${srcXref}@`);
+            const eventType = String(evt?.type || '').trim();
+            const eventTypeKey = eventType.toLowerCase();
+            const eventGedcomType = String(evt?.gedcomType || '').trim().toLowerCase();
+
+            // 1) Alternativt namn ska exporteras som extra NAME-block (inte EVEN).
+            const isAlternateName = eventTypeKey === 'alternativt namn';
+            if (isAlternateName) {
+              const altFirstName = String(evt.firstName || '').trim();
+              const altLastName = String(evt.lastName || '').trim();
+              const formattedAltName = altFirstName && altLastName
+                ? `${escapeGedcomValue(altFirstName)} /${escapeGedcomValue(altLastName)}/`
+                : (altFirstName ? escapeGedcomValue(altFirstName) : (altLastName ? `/${escapeGedcomValue(altLastName)}/` : ''));
+
+              if (formattedAltName) {
+                lines.push(`1 NAME ${formattedAltName}`);
+                if (evt.nameType) {
+                  lines.push(`2 TYPE ${escapeGedcomValue(evt.nameType)}`);
                 }
+                appendEventSubLines(lines, evt, xrefMap, mediaById, 2);
               }
+              continue;
             }
+
+            // 5) Attribut ska bära sitt värde direkt på nivå 1 (t.ex. OCCU, TITL, EDUC, ...).
+            if (eventGedcomType === 'attribute') {
+              const attrTag = resolveGedcomAttributeTag(evt);
+              const attrValue = escapeGedcomValue(evt.description || evt.value || '');
+              lines.push(`1 ${attrTag}${attrValue ? ` ${attrValue}` : ''}`);
+              appendEventSubLines(lines, evt, xrefMap, mediaById, 2);
+              continue;
+            }
+
+            // 3) Egen händelse (custom) ska exporteras som EVEN med optional TYPE.
+            if (eventGedcomType === 'custom' || eventTypeKey === 'egen händelse') {
+              lines.push('1 EVEN');
+              if (evt.customType) {
+                lines.push(`2 TYPE ${escapeGedcomValue(evt.customType)}`);
+              }
+              appendEventSubLines(lines, evt, xrefMap, mediaById, 2);
+              continue;
+            }
+
+            // Övriga händelser: mappa typ till GEDCOM-tag och behåll befintliga subrader.
+            const tag = resolveGedcomEventTag(evt);
+            lines.push(`1 ${tag}`);
+
+            // 2) Dödsorsak under DEAT.
+            if (tag === 'DEAT' && evt.cause) {
+              lines.push(`2 CAUS ${escapeGedcomValue(evt.cause)}`);
+            }
+
+            // 4) Resedetaljer för emigration/immigration som NOTE.
+            if ((tag === 'EMIG' || tag === 'IMMI') && evt.travelDetails) {
+              pushGedcomMultiline(lines, 2, 'NOTE', evt.travelDetails);
+            }
+
+            appendEventSubLines(lines, evt, xrefMap, mediaById, 2);
           }
         }
+
+        // Person media as embedded OBJE blocks.
+        const personMediaItems = resolveMediaItems(person.media, mediaById);
+        writeMediaBlocks(lines, 1, personMediaItems);
 
         // RELATIONS: Parents
         if (person.relations && person.relations.parents && Array.isArray(person.relations.parents)) {
@@ -400,7 +456,7 @@ async function writeGedcom(dbData, options = {}) {
 
         // NOTES
         if (person.note) {
-          lines.push(`1 NOTE ${escapeGedcomValue(person.note)}`);
+          pushGedcomMultiline(lines, 1, 'NOTE', person.note);
         }
 
         // Change date
@@ -471,6 +527,13 @@ async function writeGedcom(dbData, options = {}) {
             }
           }
         }
+
+        // Shared partner events (e.g. RESI/CENS) exported at family level when detected.
+        const sharedFamilyEvents = getSharedFamilyEvents(fam, peopleById);
+        for (const famEvt of sharedFamilyEvents) {
+          lines.push(`1 ${resolveGedcomEventTag(famEvt)}`);
+          appendEventSubLines(lines, famEvt, xrefMap, mediaById, 2);
+        }
       }
 
       // Add FAMC/FAMS links to individuals after FAM records are created
@@ -536,6 +599,389 @@ function escapeGedcomValue(str) {
   return String(str)
     .replace(/\\/g, '\\\\') // backslash first
     .replace(/\/@/g, '@');   // avoid accidental XREF markers
+}
+
+function buildPeopleLookup(people) {
+  const map = new Map();
+  if (!Array.isArray(people)) return map;
+  for (const person of people) {
+    if (!person || !person.id) continue;
+    map.set(String(person.id), person);
+  }
+  return map;
+}
+
+function buildMediaLookup(media) {
+  const map = new Map();
+  if (!Array.isArray(media)) return map;
+  for (const mediaItem of media) {
+    if (!mediaItem || !mediaItem.id) continue;
+    map.set(String(mediaItem.id), mediaItem);
+  }
+  return map;
+}
+
+function normalizeLinkedPersonId(entry) {
+  if (!entry) return '';
+  if (typeof entry === 'string' || typeof entry === 'number') return String(entry);
+  return String(
+    entry.personId
+    || entry.linkedPersonId
+    || entry.targetId
+    || entry.id
+    || ''
+  );
+}
+
+function getEventLinkedPersonIds(evt) {
+  const linked = Array.isArray(evt?.linkedPersons) ? evt.linkedPersons : [];
+  const seen = new Set();
+  const out = [];
+
+  for (const item of linked) {
+    const id = normalizeLinkedPersonId(item);
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+  }
+
+  return out;
+}
+
+function getEventLinkedPersonFreeTextNotes(evt, xrefMap) {
+  const linked = Array.isArray(evt?.linkedPersons) ? evt.linkedPersons : [];
+  const notes = [];
+  const seen = new Set();
+
+  for (const entry of linked) {
+    if (!entry || typeof entry !== 'object') continue;
+
+    const linkedId = normalizeLinkedPersonId(entry);
+    const hasKnownPersonRef = linkedId && xrefMap && xrefMap.get(String(linkedId));
+    const role = String(entry.role || '').trim();
+    const name = String(entry.name || entry.personName || '').trim();
+    const noteText = String(entry.note || '').trim();
+
+    if (hasKnownPersonRef && !role && !noteText) continue;
+    if (!name && !role && !noteText) continue;
+
+    const parts = [];
+    if (role) parts.push(role);
+    if (name) parts.push(name);
+    let line = parts.length > 0 ? `Vittne (${parts.join(': ')})` : 'Vittne';
+    if (noteText) line += ` - ${noteText}`;
+
+    if (seen.has(line)) continue;
+    seen.add(line);
+    notes.push(line);
+  }
+
+  return notes;
+}
+
+function splitForGedcomLine(content, maxLength) {
+  if (!content) return [''];
+  const safeMax = Math.max(1, maxLength);
+  const chunks = [];
+  let remaining = String(content);
+  while (remaining.length > safeMax) {
+    chunks.push(remaining.slice(0, safeMax));
+    remaining = remaining.slice(safeMax);
+  }
+  chunks.push(remaining);
+  return chunks;
+}
+
+function pushGedcomMultiline(lines, level, tag, text, options = {}) {
+  if (text === null || text === undefined) return;
+
+  const normalized = String(text).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const logicalLines = normalized.split('\n');
+  const firstPrefix = `${level} ${tag} `;
+  const contPrefix = `${level + 1} CONT `;
+  const concPrefix = `${level + 1} CONC `;
+
+  const firstMax = Math.max(1, 248 - firstPrefix.length);
+  const contMax = Math.max(1, 248 - contPrefix.length);
+  const concMax = Math.max(1, 248 - concPrefix.length);
+
+  const emitWrapped = (prefix, lineValue, wrapMax, emitConcForRest) => {
+    const escaped = escapeGedcomValue(lineValue || '');
+    const chunks = splitForGedcomLine(escaped, wrapMax);
+    lines.push(`${prefix}${chunks[0]}`);
+    if (emitConcForRest) {
+      for (let i = 1; i < chunks.length; i += 1) {
+        lines.push(`${concPrefix}${chunks[i]}`);
+      }
+    }
+  };
+
+  emitWrapped(firstPrefix, logicalLines[0] || '', firstMax, true);
+
+  for (let i = 1; i < logicalLines.length; i += 1) {
+    const lineText = logicalLines[i] || '';
+    const escaped = escapeGedcomValue(lineText);
+    const chunks = splitForGedcomLine(escaped, contMax);
+    lines.push(`${contPrefix}${chunks[0]}`);
+    for (let j = 1; j < chunks.length; j += 1) {
+      const concChunks = splitForGedcomLine(chunks[j], concMax);
+      for (const conc of concChunks) {
+        lines.push(`${concPrefix}${conc}`);
+      }
+    }
+  }
+}
+
+function getMediaFilePath(mediaItem) {
+  return String(
+    mediaItem?.filePath
+    || mediaItem?.path
+    || mediaItem?.url
+    || mediaItem?.fileName
+    || ''
+  ).trim();
+}
+
+function getMediaFormat(mediaItem, filePath) {
+  const fromMeta = String(mediaItem?.format || mediaItem?.mimeType || '').trim().toUpperCase();
+  if (fromMeta) {
+    if (fromMeta.includes('/')) {
+      return fromMeta.split('/').pop();
+    }
+    return fromMeta;
+  }
+
+  const match = String(filePath || '').match(/\.([a-zA-Z0-9]+)(?:\?.*)?$/);
+  return match && match[1] ? String(match[1]).toUpperCase() : '';
+}
+
+function resolveMediaItems(mediaList, mediaById) {
+  if (!Array.isArray(mediaList)) return [];
+  const out = [];
+  const seen = new Set();
+
+  for (const entry of mediaList) {
+    let mediaItem = null;
+    if (typeof entry === 'string' || typeof entry === 'number') {
+      mediaItem = mediaById.get(String(entry)) || null;
+      if (!mediaItem) {
+        mediaItem = { id: String(entry), fileName: String(entry) };
+      }
+    } else if (entry && typeof entry === 'object') {
+      mediaItem = entry.id ? (mediaById.get(String(entry.id)) || entry) : entry;
+    }
+
+    if (!mediaItem) continue;
+    const key = String(mediaItem.id || getMediaFilePath(mediaItem) || Math.random());
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(mediaItem);
+  }
+
+  return out;
+}
+
+function writeMediaBlocks(lines, level, mediaItems) {
+  if (!Array.isArray(mediaItems) || mediaItems.length === 0) return;
+
+  for (const mediaItem of mediaItems) {
+    const filePath = getMediaFilePath(mediaItem);
+    if (!filePath) continue;
+
+    const fileTag = `${level + 1} FILE ${escapeGedcomValue(filePath)}`;
+    lines.push(`${level} OBJE`);
+    lines.push(fileTag);
+
+    const format = getMediaFormat(mediaItem, filePath);
+    if (format) lines.push(`${level + 1} FORM ${escapeGedcomValue(format)}`);
+
+    const title = String(mediaItem.title || mediaItem.name || mediaItem.caption || '').trim();
+    if (title) lines.push(`${level + 1} TITL ${escapeGedcomValue(title)}`);
+  }
+}
+
+const EVENT_TYPE_TO_GEDCOM_TAG = {
+  'födelse': 'BIRT',
+  'birth': 'BIRT',
+  'dop': 'BAPM',
+  'dop som vuxen': 'BAPL',
+  'troendedop': 'BAPL',
+  'konfirmation': 'CONF',
+  'död': 'DEAT',
+  'death': 'DEAT',
+  'begravning': 'BURI',
+  'kremering': 'CREM',
+  'vigsel': 'MARR',
+  'förlovning': 'ENGA',
+  'skilsmässa': 'DIV',
+  'bosatt': 'RESI',
+  'emigration': 'EMIG',
+  'immigration': 'IMMI',
+  'adoption': 'ADOP',
+  'utbildning': 'EDUC',
+  'militärtjänst': 'EVEN',
+  'bar mitzvah': 'BARM',
+  'första nattvarden': 'FCOM',
+  'prästvigling': 'ORDN',
+  'välsignelse': 'BLES',
+  'naturalisering': 'NATU',
+  'folkräkning': 'CENS',
+  'pensionering': 'RETI',
+  'lysning': 'MARB',
+  'samlevnad': 'EVEN',
+  'samvetsäktenskap': 'EVEN',
+  'annulering av vigsel': 'ANUL',
+  'arkivering av skilsmässa': 'DIVF',
+  'bouppteckning': 'PROB'
+};
+
+const ATTRIBUTE_TYPE_TO_GEDCOM_TAG = {
+  'yrke': 'OCCU',
+  'titel': 'TITL',
+  'utbildning': 'EDUC',
+  'personnummer': 'IDNO',
+  'socialförsäkringsnummer': 'IDNO',
+  'nationalitet': 'NATI',
+  'religionstillhörighet': 'RELI',
+  'kast': 'CAST',
+  'egendom': 'PROP',
+  'fysisk status': 'DSCR',
+  'notering': 'FACT',
+  'faktauppgift': 'FACT',
+  'testamente': 'WILL',
+  'antal barn': 'NCHI',
+  'antal äktenskap': 'NMR'
+};
+
+const DIRECT_GEDCOM_EVENT_TAGS = new Set([
+  'BIRT', 'DEAT', 'BURI', 'CREM', 'CHR', 'CHRA', 'BAPM', 'BAPL', 'BLES', 'FCOM', 'CONF',
+  'MARR', 'MARB', 'MARC', 'MARL', 'MARS', 'DIV', 'DIVF', 'ANUL', 'ENGA', 'RESI', 'EMIG',
+  'IMMI', 'NATU', 'ADOP', 'CENS', 'EDUC', 'OCCU', 'TITL', 'RELI', 'CAST', 'DSCR', 'IDNO',
+  'NATI', 'NCHI', 'NMR', 'PROB', 'RETI', 'ORDN', 'WILL', 'EVEN', 'FACT'
+]);
+
+function normalizeEventType(type) {
+  return String(type || '').trim();
+}
+
+function resolveGedcomEventTag(evt) {
+  const rawType = normalizeEventType(evt?.type);
+  const upperType = rawType.toUpperCase();
+  if (DIRECT_GEDCOM_EVENT_TAGS.has(upperType)) return upperType;
+
+  const mappedTag = EVENT_TYPE_TO_GEDCOM_TAG[rawType.toLowerCase()];
+  if (mappedTag) return mappedTag;
+
+  return 'EVEN';
+}
+
+function resolveGedcomAttributeTag(evt) {
+  const rawType = normalizeEventType(evt?.type);
+  const upperType = rawType.toUpperCase();
+  if (DIRECT_GEDCOM_EVENT_TAGS.has(upperType)) return upperType;
+
+  const mappedTag = ATTRIBUTE_TYPE_TO_GEDCOM_TAG[rawType.toLowerCase()];
+  if (mappedTag) return mappedTag;
+
+  return 'FACT';
+}
+
+function getSharedFamilyEvents(fam, peopleById) {
+  const husb = fam && fam.husb ? peopleById.get(String(fam.husb)) : null;
+  const wife = fam && fam.wife ? peopleById.get(String(fam.wife)) : null;
+  if (!husb || !wife) return [];
+
+  const candidateTagSet = new Set(['RESI', 'CENS']);
+  const husbandEvents = Array.isArray(husb.events) ? husb.events : [];
+  const wifeEvents = Array.isArray(wife.events) ? wife.events : [];
+
+  const wifeIndex = new Map();
+  for (const evt of wifeEvents) {
+    const tag = resolveGedcomEventTag(evt);
+    if (!candidateTagSet.has(tag)) continue;
+    const key = `${tag}|${String(evt.date || '').trim()}|${String(evt.place || '').trim()}`;
+    wifeIndex.set(key, evt);
+  }
+
+  const shared = [];
+  const sharedKeys = new Set();
+
+  for (const evt of husbandEvents) {
+    const tag = resolveGedcomEventTag(evt);
+    if (!candidateTagSet.has(tag)) continue;
+
+    const key = `${tag}|${String(evt.date || '').trim()}|${String(evt.place || '').trim()}`;
+    const matchedWifeEvent = wifeIndex.get(key);
+    const linkedIds = getEventLinkedPersonIds(evt);
+    const explicitlyLinkedToSpouse = linkedIds.includes(String(wife.id));
+
+    if (!matchedWifeEvent && !explicitlyLinkedToSpouse) continue;
+    if (sharedKeys.has(key)) continue;
+    sharedKeys.add(key);
+
+    const mergedSources = [
+      ...(Array.isArray(evt.sources) ? evt.sources : []),
+      ...(Array.isArray(matchedWifeEvent && matchedWifeEvent.sources) ? matchedWifeEvent.sources : [])
+    ];
+
+    const mergedImages = [
+      ...(Array.isArray(evt.images) ? evt.images : []),
+      ...(Array.isArray(matchedWifeEvent && matchedWifeEvent.images) ? matchedWifeEvent.images : [])
+    ];
+
+    shared.push({
+      ...evt,
+      type: tag,
+      sources: Array.from(new Set(mergedSources.filter(Boolean))),
+      images: Array.from(new Set(mergedImages.filter(Boolean))),
+      linkedPersons: Array.from(new Set([
+        ...(Array.isArray(evt.linkedPersons) ? evt.linkedPersons.map(normalizeLinkedPersonId) : []),
+        String(husb.id),
+        String(wife.id)
+      ].filter(Boolean)))
+    });
+  }
+
+  return shared;
+}
+
+function appendEventSubLines(lines, evt, xrefMap, mediaById, childLevel = 2) {
+  if (evt.date) lines.push(`${childLevel} DATE ${formatDateForGedcom(evt.date)}`);
+  if (evt.place) lines.push(`${childLevel} PLAC ${escapeGedcomValue(evt.place)}`);
+
+  // Behåll tidigare prioritet: description före note.
+  if (evt.description || evt.note) {
+    const note = evt.description || evt.note || '';
+    pushGedcomMultiline(lines, childLevel, 'NOTE', note);
+  }
+
+  // Exportera kopplade personer under händelse som vittnen/medverkande.
+  const witnessIds = getEventLinkedPersonIds(evt);
+  for (const witnessId of witnessIds) {
+    const witnessXref = xrefMap.get(String(witnessId));
+    if (witnessXref) {
+      lines.push(`${childLevel} WITN @${witnessXref}@`);
+    }
+  }
+
+  const witnessNotes = getEventLinkedPersonFreeTextNotes(evt, xrefMap);
+  for (const witnessNote of witnessNotes) {
+    pushGedcomMultiline(lines, childLevel, 'NOTE', witnessNote);
+  }
+
+  if (evt.sources && Array.isArray(evt.sources)) {
+    for (const srcId of evt.sources) {
+      const srcXref = xrefMap.get(srcId) || `S${srcId}`;
+      lines.push(`${childLevel} SOUR @${srcXref}@`);
+    }
+  }
+
+  // Event-specific media under the event block.
+  const eventMedia = resolveMediaItems(
+    Array.isArray(evt.images) ? evt.images : (Array.isArray(evt.media) ? evt.media : []),
+    mediaById
+  );
+  writeMediaBlocks(lines, childLevel, eventMedia);
 }
 
 module.exports = { readGedcom, applyGedcom, writeGedcom };

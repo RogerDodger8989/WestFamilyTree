@@ -35,7 +35,12 @@ function formatPlaceName(node) {
   }
   return onlyOneKod(cleanName(node.metadata.ortnamn || node.name), node.metadata.lanskod);
 }
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import L from 'leaflet';
+import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 // För Riksarkivet-integration
 const RIKSARKIVET_API = 'https://sok.riksarkivet.se/en/data-api/api';
 import { useApp } from './AppContext.jsx';
@@ -44,6 +49,12 @@ import PlaceEditModal from './PlaceEditModal.jsx';
 import PlaceCreateModal from './PlaceCreateModal.jsx';
 import Editor from './MaybeEditor.jsx';
 import { User, X } from 'lucide-react';
+
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: markerIcon2x,
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
+});
 
 // Ikoner för varje platstyp
 const PLACE_TYPE_ICONS = {
@@ -65,6 +76,35 @@ const PLACE_TYPE_LABELS = {
   'Building': 'Byggnad',
   'Cemetary': 'Kyrkogård',
   'default': 'Plats'
+};
+
+const DEFAULT_MAP_CENTER = [62.2, 15.2];
+
+const toNumberCoordinate = (value) => {
+  if (value === null || value === undefined || value === '') return null;
+  const normalized = String(value).trim().replace(',', '.');
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const getNodeCoordinates = (node) => {
+  if (!node) return null;
+  const lat = toNumberCoordinate(node.metadata?.latitude ?? node.latitude);
+  const lng = toNumberCoordinate(node.metadata?.longitude ?? node.longitude);
+  if (lat === null || lng === null) return null;
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+  return [lat, lng];
+};
+
+const MapSelectionSync = ({ center, zoom }) => {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!center) return;
+    map.flyTo(center, zoom, { duration: 0.6 });
+  }, [map, center, zoom]);
+
+  return null;
 };
 
 // Komponent för att rendera ikoner baserat på platstyp
@@ -237,6 +277,24 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
   const [noteDraft, setNoteDraft] = useState('');
   const [isSavingNote, setIsSavingNote] = useState(false);
   const fileInputRef = useRef(null);
+
+  const mapPlaces = useMemo(() => {
+    return flatPlaces
+      .map((node) => {
+        const coordinates = getNodeCoordinates(node);
+        if (!coordinates) return null;
+
+        return {
+          node,
+          id: node.metadata?.id ?? node.id,
+          name: formatPlaceName(node),
+          coordinates,
+        };
+      })
+      .filter(Boolean);
+  }, [flatPlaces]);
+
+  const selectedCoordinates = useMemo(() => getNodeCoordinates(selectedNode), [selectedNode]);
   // Stäng med ESC när i pick-läge
   useEffect(() => {
     if (!onPick) return;
@@ -696,6 +754,13 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
   // Välj nod
   const handleSelect = (node) => {
     setSelectedNode(node);
+    const selectedId = node?.metadata?.id ?? node?.id;
+    if (selectedId && setCatalogState) {
+      setCatalogState((prev = {}) => ({
+        ...prev,
+        selectedPlaceId: selectedId,
+      }));
+    }
   };
 
   // Dubbelklick för redigering
@@ -1089,6 +1154,47 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
                   highlightTerm={searchTerm}
                 />
               ))
+            )}
+          </div>
+          <div className="h-64 border-t border-slate-700 bg-slate-900">
+            {mapPlaces.length > 0 ? (
+              <MapContainer
+                center={selectedCoordinates || mapPlaces[0].coordinates || DEFAULT_MAP_CENTER}
+                zoom={selectedCoordinates ? 9 : 5}
+                className="h-full w-full"
+                scrollWheelZoom={true}
+              >
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                <MapSelectionSync
+                  center={selectedCoordinates}
+                  zoom={selectedCoordinates ? 10 : 5}
+                />
+                {mapPlaces.map((place) => (
+                  <Marker
+                    key={`${place.id}-${place.node.id}`}
+                    position={place.coordinates}
+                    eventHandlers={{
+                      click: () => handleSelect(place.node),
+                    }}
+                  >
+                    <Popup>
+                      <div className="text-sm">
+                        <div className="font-semibold">{place.name}</div>
+                        <div className="text-slate-600">
+                          {place.coordinates[0].toFixed(5)}, {place.coordinates[1].toFixed(5)}
+                        </div>
+                      </div>
+                    </Popup>
+                  </Marker>
+                ))}
+              </MapContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-xs text-slate-400 px-3 text-center">
+                Inga platser med giltiga koordinater att visa på kartan.
+              </div>
             )}
           </div>
         </div>

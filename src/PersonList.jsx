@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from './AppContext';
-import { Search, LayoutGrid, List, X, Image as ImageIcon, BookOpen, AlertTriangle, ArrowUpDown, ChevronUp, ChevronDown, SlidersHorizontal, Plus, Trash2, Download, Save } from 'lucide-react';
+import { Search, LayoutGrid, List, X, Image as ImageIcon, BookOpen, AlertTriangle, ArrowUpDown, ChevronUp, ChevronDown, SlidersHorizontal, Plus, Trash2, Download, Save, Palette } from 'lucide-react';
 
 const FILTER_PRESET_STORAGE_KEY = 'westfamilytree_personlist_filter_presets_v1';
+const BRANCH_COLOR_PRESETS = ['#2563eb', '#7c3aed', '#db2777', '#dc2626', '#ea580c', '#ca8a04', '#16a34a', '#0891b2'];
 const ALL_PERSON_EVENT_TYPES = [
   'Adoption',
   'Alternativt namn',
@@ -86,21 +87,9 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
   const [savedPresets, setSavedPresets] = useState([]);
   const [activePresetId, setActivePresetId] = useState('');
   const [contextMenu, setContextMenu] = useState({ isOpen: false, x: 0, y: 0, personId: null });
-  const [hoverPreview, setHoverPreview] = useState({
-    isMounted: false,
-    isVisible: false,
-    personId: null,
-    x: 0,
-    y: 0,
-    placement: 'bottom',
-    placementX: 'right'
-  });
-
-  const hoverShowTimerRef = useRef(null);
-  const hoverHideTimerRef = useRef(null);
-  const hoverSessionIdRef = useRef(0);
+  const [colorMenu, setColorMenu] = useState({ isOpen: false, personId: null, color: BRANCH_COLOR_PRESETS[0] });
   const advancedRuleCounterRef = useRef(1);
-  const { dbData, undoMerge, restorePerson, showStatus, setFamilyTreeFocusPersonId, familyTreeFocusPersonId } = useApp();
+  const { dbData, setDbData, undoMerge, restorePerson, showStatus, setFamilyTreeFocusPersonId, familyTreeFocusPersonId, recordAudit } = useApp();
 
   const advancedFilterFields = useMemo(
     () => [
@@ -114,7 +103,8 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
       { value: 'hasSources', label: 'Har källor' },
       { value: 'hasMedia', label: 'Har media' },
       { value: 'hasWarnings', label: 'Har varningar' },
-      { value: 'isEmigrant', label: 'Är emigrant' }
+      { value: 'isEmigrant', label: 'Är emigrant' },
+      { value: 'color', label: 'Grenfärg' }
     ],
     []
   );
@@ -122,6 +112,30 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
   const booleanFields = useMemo(() => new Set(['hasSources', 'hasMedia', 'hasWarnings', 'isEmigrant']), []);
   const dateFields = useMemo(() => new Set(['eventDate', 'createdAt', 'updatedAt']), []);
   const numberFields = useMemo(() => new Set(['ref']), []);
+
+  const extractIdFromRelationEntry = (entry) => {
+    if (!entry) return null;
+    if (typeof entry === 'string' || typeof entry === 'number') return String(entry);
+    return String(
+      entry.id
+      || entry.personId
+      || entry.parentId
+      || entry.childId
+      || entry.fromPersonId
+      || entry.toPersonId
+      || ''
+    ) || null;
+  };
+
+  const getPersonByIdMap = useMemo(() => {
+    const sourcePeople = Array.isArray(dbData?.people) ? dbData.people : people;
+    const map = new Map();
+    for (const person of sourcePeople) {
+      if (!person?.id) continue;
+      map.set(String(person.id), person);
+    }
+    return map;
+  }, [dbData, people]);
 
   const eventTypeMatches = (eventType, candidateTypes) => {
     const normalized = String(eventType || '').toLowerCase();
@@ -309,6 +323,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
 
   const applyFilterPreset = (preset) => {
     if (!preset) return;
+    forceHideHover();
     setQuickFilter(String(preset.quickFilter || 'all'));
     setQuery(String(preset.query || ''));
     setSortBy(String(preset.sortBy || 'ref'));
@@ -381,6 +396,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
   const advancedFieldValueOptions = useMemo(() => {
     const eventTypes = new Set(ALL_PERSON_EVENT_TYPES);
     const eventPlaces = new Set();
+    const colorOptions = new Set(BRANCH_COLOR_PRESETS);
 
     for (const person of people) {
       const events = Array.isArray(person?.events) ? person.events : [];
@@ -388,117 +404,22 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
         if (event?.type) eventTypes.add(String(event.type).trim());
         if (event?.place) eventPlaces.add(String(event.place).trim());
       }
+
+      if (person?.color) colorOptions.add(String(person.color));
     }
 
     const sortSv = (values) => values.filter(Boolean).sort((a, b) => a.localeCompare(b, 'sv'));
 
     return {
       eventType: sortSv([...eventTypes]),
-      eventPlace: sortSv([...eventPlaces])
+      eventPlace: sortSv([...eventPlaces]),
+      color: sortSv([...colorOptions])
     };
   }, [people]);
 
   const getFieldValueOptions = (field) => advancedFieldValueOptions[field] || [];
 
-  const eventLabel = (type) => {
-    if (eventTypeMatches(type, ['birt', 'födelse', 'fodelse', 'född', 'fodd'])) return 'Födelse';
-    if (eventTypeMatches(type, ['marr', 'vigsel', 'gift'])) return 'Vigsel';
-    if (eventTypeMatches(type, ['deat', 'död', 'dod', 'begravning', 'begravd'])) return 'Död';
-    return String(type || 'Händelse');
-  };
-
-  const clearHoverTimers = () => {
-    if (hoverShowTimerRef.current) {
-      clearTimeout(hoverShowTimerRef.current);
-      hoverShowTimerRef.current = null;
-    }
-    if (hoverHideTimerRef.current) {
-      clearTimeout(hoverHideTimerRef.current);
-      hoverHideTimerRef.current = null;
-    }
-  };
-
-  const hideHoverPreview = () => {
-    setHoverPreview((prev) => ({ ...prev, isVisible: false }));
-    if (hoverHideTimerRef.current) clearTimeout(hoverHideTimerRef.current);
-    hoverHideTimerRef.current = setTimeout(() => {
-      setHoverPreview((prev) => ({ ...prev, isMounted: false, personId: null }));
-    }, 200);
-  };
-
-  const computeHoverPosition = (targetElement) => {
-    const rect = targetElement.getBoundingClientRect();
-    const previewWidth = 288;
-    const previewHeight = 220;
-    const viewportPadding = 8;
-    const preferredGap = 10;
-    const sideGap = 12;
-
-    // Default: show preview on the right side of hovered item.
-    let placementX = 'right';
-    let x = rect.right + sideGap;
-
-    // Side flip: if right side overflows, place on the left side.
-    if (x + previewWidth > window.innerWidth - viewportPadding) {
-      placementX = 'left';
-      x = rect.left - previewWidth - sideGap;
-
-      // If left side also overflows, fallback to best-fit clamped position.
-      if (x < viewportPadding) {
-        placementX = 'right';
-        x = window.innerWidth - previewWidth - viewportPadding;
-      }
-    }
-
-    if (x < viewportPadding) x = viewportPadding;
-
-    const canShowBelow = rect.bottom + preferredGap + previewHeight <= window.innerHeight - viewportPadding;
-    const placement = canShowBelow ? 'bottom' : 'top';
-
-    let y = canShowBelow ? rect.bottom + preferredGap : rect.top - previewHeight - preferredGap;
-    if (y < viewportPadding) y = viewportPadding;
-    if (y + previewHeight > window.innerHeight - viewportPadding) {
-      y = window.innerHeight - previewHeight - viewportPadding;
-    }
-
-    return { x, y, placement, placementX };
-  };
-
-  const handlePersonHoverEnter = (personId, event) => {
-    if (viewMode !== 'list') return;
-    clearHoverTimers();
-    const currentSessionId = ++hoverSessionIdRef.current;
-    const targetElement = event.currentTarget;
-
-    hoverShowTimerRef.current = setTimeout(() => {
-      if (currentSessionId !== hoverSessionIdRef.current) return;
-      const position = computeHoverPosition(targetElement);
-
-      setHoverPreview({
-        isMounted: true,
-        isVisible: false,
-        personId,
-        x: position.x,
-        y: position.y,
-        placement: position.placement,
-        placementX: position.placementX
-      });
-
-      requestAnimationFrame(() => {
-        if (currentSessionId !== hoverSessionIdRef.current) return;
-        setHoverPreview((prev) => ({ ...prev, isVisible: true }));
-      });
-    }, 350);
-  };
-
-  const handlePersonHoverLeave = () => {
-    if (viewMode !== 'list') return;
-    if (hoverShowTimerRef.current) {
-      clearTimeout(hoverShowTimerRef.current);
-      hoverShowTimerRef.current = null;
-    }
-    hideHoverPreview();
-  };
+  const forceHideHover = () => {};
 
   const personMatchesQuery = (person, rawQuery) => {
     const trimmed = String(rawQuery || '').trim().toLowerCase();
@@ -571,6 +492,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
     if (field === 'hasMedia') return personHasMedia(person);
     if (field === 'hasWarnings') return personHasWarnings(person);
     if (field === 'isEmigrant') return personIsEmigrant(person);
+    if (field === 'color') return String(person?.color || '');
 
     return '';
   };
@@ -678,6 +600,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
     if (activeFilter === 'missing-sources') return !personHasSources(person);
     if (activeFilter === 'emigrants') return personIsEmigrant(person);
     if (activeFilter === 'warnings') return personHasWarnings(person);
+    if (activeFilter === 'bookmarked') return bookmarks.includes(person.id);
     return true;
   };
 
@@ -731,17 +654,92 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
     const counts = {
       'missing-sources': 0,
       emigrants: 0,
-      warnings: 0
+      warnings: 0,
+      bookmarked: 0
     };
 
     for (const person of sortedPeople) {
       if (!personHasSources(person)) counts['missing-sources'] += 1;
       if (personIsEmigrant(person)) counts.emigrants += 1;
       if (personHasWarnings(person)) counts.warnings += 1;
+      if (bookmarks.includes(person.id)) counts.bookmarked += 1;
     }
 
     return counts;
-  }, [sortedPeople]);
+  }, [sortedPeople, bookmarks]);
+
+  const getParentIds = (personId) => {
+    const person = getPersonByIdMap.get(String(personId));
+    if (!person) return [];
+    const fromPerson = Array.isArray(person?.relations?.parents)
+      ? person.relations.parents.map(extractIdFromRelationEntry).filter(Boolean)
+      : [];
+    return [...new Set(fromPerson)];
+  };
+
+  const getChildIds = (personId) => {
+    const person = getPersonByIdMap.get(String(personId));
+    if (!person) return [];
+    const fromPerson = Array.isArray(person?.relations?.children)
+      ? person.relations.children.map(extractIdFromRelationEntry).filter(Boolean)
+      : [];
+    return [...new Set(fromPerson)];
+  };
+
+  const collectLineageIds = (startPersonId, direction) => {
+    const seen = new Set();
+    const queue = [String(startPersonId)];
+
+    while (queue.length > 0) {
+      const currentId = queue.shift();
+      if (!currentId || seen.has(currentId)) continue;
+      seen.add(currentId);
+
+      const nextIds = direction === 'ancestors' ? getParentIds(currentId) : getChildIds(currentId);
+      nextIds.forEach((nextId) => {
+        if (!seen.has(nextId)) queue.push(nextId);
+      });
+    }
+
+    return seen;
+  };
+
+  const applyBranchColor = (personId, scope, color) => {
+    if (!personId || !color) return;
+
+    const selectedColor = String(color).trim();
+    if (!selectedColor) return;
+
+    let targetIds = new Set([String(personId)]);
+    if (scope === 'ancestors') targetIds = collectLineageIds(personId, 'ancestors');
+    if (scope === 'descendants') targetIds = collectLineageIds(personId, 'descendants');
+
+    setDbData((prev) => {
+      if (!prev || !Array.isArray(prev.people)) return prev;
+      const updatedPeople = prev.people.map((person) => (
+        targetIds.has(String(person.id)) ? { ...person, color: selectedColor } : person
+      ));
+      return { ...prev, people: updatedPeople };
+    });
+
+    try {
+      recordAudit({
+        type: 'edit',
+        entityType: 'person-color',
+        entityId: String(personId),
+        details: {
+          scope,
+          color: selectedColor,
+          personIds: Array.from(targetIds)
+        }
+      });
+    } catch {
+      // Ignore audit failures for color tagging.
+    }
+
+    const scopeText = scope === 'self' ? 'denna person' : scope === 'ancestors' ? 'alla anor' : 'alla ättlingar';
+    showStatus(`Grenfärg satt på ${scopeText}.`);
+  };
 
   const getLifeSpanString = (person) => {
     const birthEvent = getBirthEvent(person);
@@ -874,6 +872,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
 
   const closeContextMenu = () => {
     setContextMenu({ isOpen: false, x: 0, y: 0, personId: null });
+    setColorMenu({ isOpen: false, personId: null, color: BRANCH_COLOR_PRESETS[0] });
   };
 
   const copyText = async (value) => {
@@ -888,6 +887,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
   };
 
   const executePersonAction = (action, personId) => {
+    forceHideHover();
     const person = people.find((p) => p.id === personId);
     if (!person) return;
 
@@ -897,6 +897,9 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
     if (action === 'secondary') onSetFocusPair('secondary', person.id);
     if (action === 'copy-ref') copyText(person.refNumber);
     if (action === 'copy-name') copyText(`${person.firstName || ''} ${person.lastName || ''}`.trim());
+    if (action === 'color-self') applyBranchColor(person.id, 'self', colorMenu.color);
+    if (action === 'color-ancestors') applyBranchColor(person.id, 'ancestors', colorMenu.color);
+    if (action === 'color-descendants') applyBranchColor(person.id, 'descendants', colorMenu.color);
     if (action === 'delete') onDeletePerson(person.id);
 
     closeContextMenu();
@@ -904,17 +907,26 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
 
   const handleContextMenu = (event, personId) => {
     event.preventDefault();
+    forceHideHover();
+
     const menuWidth = 260;
-    const menuHeight = 312;
+    const menuHeight = Math.min(580, window.innerHeight - 16);
     let x = event.clientX;
     let y = event.clientY;
 
-    if (x + menuWidth > window.innerWidth) x = window.innerWidth - menuWidth - 8;
-    if (y + menuHeight > window.innerHeight) y = window.innerHeight - menuHeight - 8;
-    if (x < 8) x = 8;
-    if (y < 8) y = 8;
+    const maxX = Math.max(8, window.innerWidth - menuWidth - 8);
+    const maxY = Math.max(8, window.innerHeight - menuHeight - 8);
+
+    x = Math.min(Math.max(x, 8), maxX);
+    y = Math.min(Math.max(y, 8), maxY);
 
     setContextMenu({ isOpen: true, x, y, personId });
+    const person = people.find((p) => p.id === personId);
+    setColorMenu({
+      isOpen: false,
+      personId,
+      color: person?.color || BRANCH_COLOR_PRESETS[0]
+    });
   };
 
   useEffect(() => {
@@ -944,17 +956,6 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
       window.removeEventListener('keydown', handleMenuShortcuts);
     };
   }, [contextMenu.isOpen, contextMenu.personId]);
-
-  useEffect(() => {
-    return () => clearHoverTimers();
-  }, []);
-
-  useEffect(() => {
-    if (viewMode !== 'list') {
-      clearHoverTimers();
-      hideHoverPreview();
-    }
-  }, [viewMode]);
 
   useEffect(() => {
     try {
@@ -987,6 +988,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
   const PersonRow = ({ person }) => {
     const handleRestore = (e) => {
       e.stopPropagation();
+      forceHideHover();
       const merge = (dbData?.meta?.merges || []).find(m => (m.originalPersonIds || []).includes(person.id));
       if (merge && undoMerge) {
         try {
@@ -1014,24 +1016,23 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
       <div
         key={person.id}
         onContextMenu={(e) => handleContextMenu(e, person.id)}
-        onMouseEnter={(e) => handlePersonHoverEnter(person.id, e)}
-        onMouseLeave={handlePersonHoverLeave}
         className="relative flex justify-between items-center gap-3 p-3 hover:bg-slate-700 transition border-b border-slate-700 last:border-0"
+        style={person?.color ? { borderLeft: `4px solid ${person.color}`, paddingLeft: '0.5rem' } : undefined}
       >
         <div className="flex items-center gap-2">
           <span className="text-xs text-slate-500 font-mono mr-2">REF: {person.refNumber}</span>
           <span
-            onClick={(e) => { e.stopPropagation(); onSetFocusPair('primary', person.id); }}
+            onClick={(e) => { e.stopPropagation(); forceHideHover(); onSetFocusPair('primary', person.id); }}
             className={`cursor-pointer text-xl ${person.id === focusPair.primary ? 'text-yellow-400' : 'text-slate-500 hover:text-yellow-300'}`}
             title="Sätt som Primär Fokus"
           >★</span>
           <span
-            onClick={(e) => { e.stopPropagation(); onSetFocusPair('secondary', person.id); }}
+            onClick={(e) => { e.stopPropagation(); forceHideHover(); onSetFocusPair('secondary', person.id); }}
             className={`cursor-pointer text-xl ${person.id === focusPair.secondary ? 'text-blue-500' : 'text-slate-500 hover:text-blue-400'}`}
             title="Sätt som Sekundär Fokus"
           >★</span>
           <GenderIcon gender={person.gender} className="mr-2 flex-shrink-0" />
-          <span className="cursor-pointer hover:text-blue-400" onClick={() => onOpenEditModal(person.id)}>
+          <span className="cursor-pointer hover:text-blue-400" onClick={() => { forceHideHover(); onOpenEditModal(person.id); }}>
             <span className="font-bold text-slate-200">{person.firstName} {person.lastName}</span>
             {person._archived && <span className="text-red-500 font-semibold ml-2">ARKIVERAD</span>}
             {person._archived && (
@@ -1039,12 +1040,20 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
             )}
             <span className="text-slate-400 text-sm font-normal ml-1">{getLifeSpanString(person)}</span>
           </span>
+          {person?.color && (
+            <span
+              className="inline-flex w-2.5 h-2.5 rounded-full border border-white/30"
+              style={{ backgroundColor: person.color }}
+              title={`Grenfärg: ${person.color}`}
+            />
+          )}
           <StatusIndicators person={person} />
         </div>
         <div className="flex gap-2 items-center">
           <button
         onClick={(e) => {
           e.stopPropagation();
+          forceHideHover();
           setFamilyTreeFocusPersonId(person.id);
           // setFamilyTreeFocusPersonId wrapper sätter automatiskt isDirty
           showStatus('Huvudperson sparad!');
@@ -1056,7 +1065,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
           </button>
 
           <button
-            onClick={() => onOpenEditModal(person.id)}
+            onClick={() => { forceHideHover(); onOpenEditModal(person.id); }}
             title="Redigera person"
             className="px-2 py-0.5 text-xs bg-slate-700 border border-slate-600 text-slate-200 rounded hover:bg-slate-600"
           >
@@ -1064,7 +1073,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
           </button>
 
           <button
-            onClick={() => onOpenRelationModal(person.id)}
+            onClick={() => { forceHideHover(); onOpenRelationModal(person.id); }}
             title="Koppla person till annan"
             className="px-2 py-0.5 text-xs border border-purple-600 text-purple-300 rounded hover:bg-purple-900"
           >
@@ -1072,7 +1081,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
           </button>
 
           <button
-            onClick={() => onDeletePerson(person.id)}
+            onClick={() => { forceHideHover(); onDeletePerson(person.id); }}
             title="Ta bort person"
             className="px-2 py-0.5 text-xs border border-red-600 text-red-400 rounded hover:bg-red-900 font-semibold"
           >
@@ -1116,6 +1125,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
         key={person.id}
         onContextMenu={(e) => handleContextMenu(e, person.id)}
         className="relative bg-slate-900 border border-slate-700 rounded-lg p-3 hover:border-slate-500 transition"
+        style={person?.color ? { borderLeft: `4px solid ${person.color}` } : undefined}
       >
         <div className="flex items-start gap-3">
           {portraitImage ? (
@@ -1134,9 +1144,16 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xs text-slate-500 font-mono">REF: {person.refNumber}</span>
               <GenderIcon gender={person.gender} className="flex-shrink-0" />
+              {person?.color && (
+                <span
+                  className="inline-flex w-2.5 h-2.5 rounded-full border border-white/30"
+                  style={{ backgroundColor: person.color }}
+                  title={`Grenfärg: ${person.color}`}
+                />
+              )}
               <StatusIndicators person={person} />
             </div>
-            <button type="button" onClick={() => onOpenEditModal(person.id)} className="text-left hover:text-blue-300">
+            <button type="button" onClick={() => { forceHideHover(); onOpenEditModal(person.id); }} className="text-left hover:text-blue-300">
               <div className="font-semibold text-slate-200 truncate">{person.firstName} {person.lastName}</div>
               <div className="text-xs text-slate-400 truncate">{getLifeSpanString(person) || 'Okänt livsspann'}</div>
             </button>
@@ -1152,6 +1169,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
           <button
             onClick={(e) => {
               e.stopPropagation();
+              forceHideHover();
               setFamilyTreeFocusPersonId(person.id);
               showStatus('Huvudperson sparad!');
             }}
@@ -1161,21 +1179,21 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
             Huvudperson
           </button>
           <button
-            onClick={() => onOpenEditModal(person.id)}
+            onClick={() => { forceHideHover(); onOpenEditModal(person.id); }}
             title="Redigera person"
             className="px-2 py-0.5 text-xs bg-slate-700 border border-slate-600 text-slate-200 rounded hover:bg-slate-600"
           >
             Redigera
           </button>
           <button
-            onClick={() => onOpenRelationModal(person.id)}
+            onClick={() => { forceHideHover(); onOpenRelationModal(person.id); }}
             title="Koppla person till annan"
             className="px-2 py-0.5 text-xs border border-purple-600 text-purple-300 rounded hover:bg-purple-900"
           >
             Koppla
           </button>
           <button
-            onClick={() => onDeletePerson(person.id)}
+            onClick={() => { forceHideHover(); onDeletePerson(person.id); }}
             title="Ta bort person"
             className="px-2 py-0.5 text-xs border border-red-600 text-red-400 rounded hover:bg-red-900 font-semibold"
           >
@@ -1185,6 +1203,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
             type="button"
             onClick={(e) => {
               e.stopPropagation();
+              forceHideHover();
               onSetFocusPair('primary', person.id);
             }}
             className={`px-2 py-0.5 text-xs border rounded ${person.id === focusPair.primary ? 'border-yellow-500 text-yellow-300 bg-yellow-900/20' : 'border-slate-600 text-slate-300 hover:bg-slate-700'}`}
@@ -1195,6 +1214,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
             type="button"
             onClick={(e) => {
               e.stopPropagation();
+              forceHideHover();
               onSetFocusPair('secondary', person.id);
             }}
             className={`px-2 py-0.5 text-xs border rounded ${person.id === focusPair.secondary ? 'border-blue-500 text-blue-300 bg-blue-900/20' : 'border-slate-600 text-slate-300 hover:bg-slate-700'}`}
@@ -1207,10 +1227,6 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
   };
 
   const contextMenuPerson = people.find((person) => person.id === contextMenu.personId);
-  const hoverPerson = people.find((person) => person.id === hoverPreview.personId);
-  const hoverPersonEvents = hoverPerson ? getKeyLifeEvents(hoverPerson) : [];
-  const hoverPersonImage = hoverPerson ? getMediaPreviewSrc(hoverPerson) : '';
-
   return (
     <div className="lg:col-span-2 h-[84vh]">
       <div className="card min-h-[500px] h-full flex flex-col">
@@ -1361,6 +1377,13 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
             >
               Varningar ({quickFilterCounts.warnings})
             </button>
+            <button
+              type="button"
+              onClick={() => setQuickFilter('bookmarked')}
+              className={`px-2.5 py-1 rounded-full text-xs border ${quickFilter === 'bookmarked' ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'}`}
+            >
+              Bokmärkta ({quickFilterCounts.bookmarked})
+            </button>
 
             {activeFilterChips.map((chip) => (
               <span key={chip.id} className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-slate-700/80 border border-slate-600 text-slate-200">
@@ -1407,67 +1430,14 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
           )}
         </div>
 
-        {viewMode === 'list' && hoverPreview.isMounted && hoverPerson && (
-          <div
-            className={`fixed w-72 bg-slate-900 border border-slate-600 rounded-lg shadow-xl z-[6500] pointer-events-none transition-all duration-200 ${
-              hoverPreview.isVisible
-                ? 'opacity-100 translate-y-0'
-                : hoverPreview.placement === 'top'
-                  ? `opacity-0 translate-y-1 ${hoverPreview.placementX === 'left' ? 'translate-x-1' : '-translate-x-1'}`
-                  : `opacity-0 -translate-y-1 ${hoverPreview.placementX === 'left' ? 'translate-x-1' : '-translate-x-1'}`
-            }`}
-            style={{ left: hoverPreview.x, top: hoverPreview.y }}
-          >
-            <div
-              className={`absolute w-3 h-3 bg-slate-900 rotate-45 border-slate-600 ${
-                hoverPreview.placementX === 'right'
-                  ? '-left-1.5 border-l border-b'
-                  : '-right-1.5 border-r border-t'
-              } ${hoverPreview.placement === 'top' ? 'bottom-4' : 'top-4'}`}
-            />
-            <div className="p-3 border-b border-slate-700 flex items-center gap-3">
-              {hoverPersonImage ? (
-                <img
-                  src={hoverPersonImage}
-                  alt="Porträtt"
-                  className="w-12 h-12 rounded-md object-cover border border-slate-600 bg-slate-800"
-                  loading="lazy"
-                />
-              ) : (
-                <div className="w-12 h-12 rounded-md border border-slate-600 bg-slate-800 flex items-center justify-center text-xs text-slate-400">
-                  <ImageIcon className="w-4 h-4" />
-                </div>
-              )}
-              <div className="min-w-0">
-                <div className="text-sm text-slate-100 font-semibold truncate">{hoverPerson.firstName} {hoverPerson.lastName}</div>
-                <div className="text-xs text-slate-400">REF: {hoverPerson.refNumber}</div>
-              </div>
-            </div>
-            <div className="p-3">
-              <div className="text-xs uppercase tracking-wide text-slate-500 mb-2">Viktiga livshändelser</div>
-              {hoverPersonEvents.length === 0 ? (
-                <p className="text-xs text-slate-400">Inga nyckelhändelser ännu.</p>
-              ) : (
-                <ul className="space-y-1.5">
-                  {hoverPersonEvents.map((event, index) => (
-                    <li
-                      key={`${event.type || 'event'}_${event.date || index}`}
-                      className="text-xs text-slate-300 flex items-start justify-between gap-2"
-                    >
-                      <span className="text-slate-200">{eventLabel(event.type)}</span>
-                      <span className="text-slate-400 text-right">{event.date || 'Okänt datum'}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-        )}
-
         {contextMenu.isOpen && contextMenuPerson && (
           <div
-            className="fixed z-[7000] w-64 bg-slate-900 border border-slate-700 rounded-lg shadow-2xl py-1"
-            style={{ left: contextMenu.x, top: contextMenu.y }}
+            className="fixed z-[7000] w-64 bg-slate-900 border border-slate-700 rounded-lg shadow-2xl py-1 overflow-y-auto"
+            style={{
+              left: contextMenu.x,
+              top: contextMenu.y,
+              maxHeight: 'calc(100vh - 16px)'
+            }}
             onClick={(event) => event.stopPropagation()}
           >
             <div className="px-3 py-1.5 text-[11px] uppercase tracking-wide text-slate-500">Huvudåtgärder</div>
@@ -1495,6 +1465,60 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
             <button onClick={() => executePersonAction('copy-name', contextMenu.personId)} className="w-full px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-800">
               Kopiera fullständigt namn
             </button>
+
+            <hr className="border-slate-700 my-1" />
+            <div className="px-3 py-1.5 text-[11px] uppercase tracking-wide text-slate-500">Grenfärg</div>
+            <button
+              onClick={() => setColorMenu((prev) => ({
+                isOpen: !(prev.isOpen && prev.personId === contextMenu.personId),
+                personId: contextMenu.personId,
+                color: prev.personId === contextMenu.personId ? prev.color : (contextMenuPerson?.color || BRANCH_COLOR_PRESETS[0])
+              }))}
+              className="w-full px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-800 flex items-center gap-2"
+            >
+              <Palette className="w-4 h-4" />
+              Färgkoda gren...
+            </button>
+
+            {colorMenu.isOpen && colorMenu.personId === contextMenu.personId && (
+              <div className="px-3 pb-2 pt-1 space-y-2">
+                <div className="flex flex-wrap gap-1.5">
+                  {BRANCH_COLOR_PRESETS.map((swatch) => (
+                    <button
+                      key={swatch}
+                      type="button"
+                      onClick={() => setColorMenu((prev) => ({ ...prev, color: swatch }))}
+                      className={`w-5 h-5 rounded-full border ${colorMenu.color === swatch ? 'border-white' : 'border-slate-500'}`}
+                      style={{ backgroundColor: swatch }}
+                      title={swatch}
+                    />
+                  ))}
+                </div>
+                <div className="grid grid-cols-1 gap-1">
+                  <button
+                    type="button"
+                    onClick={() => executePersonAction('color-self', contextMenu.personId)}
+                    className="w-full px-2 py-1.5 text-left text-xs text-slate-200 bg-slate-800 border border-slate-700 rounded hover:bg-slate-700"
+                  >
+                    Bara denna person
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => executePersonAction('color-ancestors', contextMenu.personId)}
+                    className="w-full px-2 py-1.5 text-left text-xs text-slate-200 bg-slate-800 border border-slate-700 rounded hover:bg-slate-700"
+                  >
+                    Alla anor (bakåt)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => executePersonAction('color-descendants', contextMenu.personId)}
+                    className="w-full px-2 py-1.5 text-left text-xs text-slate-200 bg-slate-800 border border-slate-700 rounded hover:bg-slate-700"
+                  >
+                    Alla ättlingar (framåt)
+                  </button>
+                </div>
+              </div>
+            )}
 
             <hr className="border-slate-700 my-1" />
             <button onClick={() => executePersonAction('delete', contextMenu.personId)} className="w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-red-900/20 flex items-center justify-between">

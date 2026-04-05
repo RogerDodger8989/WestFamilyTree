@@ -2,6 +2,11 @@ import React from 'react';
 import { getAncestryPath } from './relationshipUtils.js';
 import { useApp } from './AppContext';
 
+function isFemale(person) {
+    const value = String(person?.gender || person?.sex || '').trim().toLowerCase();
+    return value === 'k' || value === 'f' || value === 'female' || value === 'kvinna';
+}
+
 function getConnectingRelationship(currentPerson, previousPerson, getPersonRelations) {
     if (!currentPerson || !previousPerson) return '';
     const rels = getPersonRelations ? (getPersonRelations(currentPerson.id) || []) : [];
@@ -12,13 +17,13 @@ function getConnectingRelationship(currentPerson, previousPerson, getPersonRelat
         const to = r.toPersonId;
         if (t === 'parent') {
             // from is parent of to
-            if (from === previousPerson.id && to === currentPerson.id) return previousPerson.gender === 'K' ? 'Mor' : 'Far';
-            if (from === currentPerson.id && to === previousPerson.id) return previousPerson.gender === 'K' ? 'Dotter' : 'Son';
+            if (from === previousPerson.id && to === currentPerson.id) return isFemale(previousPerson) ? 'Mor' : 'Far';
+            if (from === currentPerson.id && to === previousPerson.id) return isFemale(previousPerson) ? 'Dotter' : 'Son';
         }
         if (t === 'child') {
             // from is child of to
-            if (from === previousPerson.id && to === currentPerson.id) return previousPerson.gender === 'K' ? 'Dotter' : 'Son';
-            if (from === currentPerson.id && to === previousPerson.id) return previousPerson.gender === 'K' ? 'Mor' : 'Far';
+            if (from === previousPerson.id && to === currentPerson.id) return isFemale(previousPerson) ? 'Dotter' : 'Son';
+            if (from === currentPerson.id && to === previousPerson.id) return isFemale(previousPerson) ? 'Mor' : 'Far';
         }
     }
     return 'Släkt'; // Fallback

@@ -3,7 +3,7 @@ import {
   X, Minus, Maximize2, Minimize2, Layers, 
   MapPin, Search, Image as ImageIcon, CheckSquare, 
   Trash2, User as UserIcon, AlertCircle, Calendar,
-  Monitor, Settings, UploadCloud
+  Monitor, Settings, UploadCloud, PanelRight
 } from 'lucide-react';
 
 // Global tracker för vilket WindowFrame som är aktivt
@@ -54,12 +54,17 @@ export function WindowFrame({ windowId, children, title, icon: Icon = Layers, in
   };
 
   const [winState, setWinState] = useState(getInitialState);
+  const [isDockedRight, setIsDockedRight] = useState(Boolean(isDocked));
 
   const isDraggingWindow = useRef(false);
   const isResizingWindow = useRef(false);
   const dragOffset = useRef({ x: 0, y: 0 });
   const startSize = useRef({ w: 0, h: 0, x: 0, y: 0 });
   const dragTimeout = useRef(null);
+
+  useEffect(() => {
+    setIsDockedRight(Boolean(isDocked));
+  }, [isDocked]);
   
   // --- FOOTER STATE MANAGEMENT ---
   const [footerContent, setFooterContent] = useState(null);
@@ -142,16 +147,26 @@ export function WindowFrame({ windowId, children, title, icon: Icon = Layers, in
   }, [onClose, internalId]);
 
   const startDrag = (e) => {
-    if (winState.isMaximized || winState.isMinimized) return;
+    if (isDockedRight || winState.isMaximized || winState.isMinimized) return;
     isDraggingWindow.current = true;
     dragOffset.current = { x: e.clientX - winState.x, y: e.clientY - winState.y };
   };
 
   const startResize = (e) => {
     e.stopPropagation(); 
-    if (winState.isMaximized || winState.isMinimized) return;
+    if (isDockedRight || winState.isMaximized || winState.isMinimized) return;
     isResizingWindow.current = true;
     startSize.current = { w: winState.width, h: winState.height, x: e.clientX, y: e.clientY };
+  };
+
+  const toggleDockRight = () => {
+    const nextDocked = !isDockedRight;
+    isDraggingWindow.current = false;
+    isResizingWindow.current = false;
+    setIsDockedRight(nextDocked);
+    if (typeof onToggleDock === 'function') {
+      onToggleDock(nextDocked);
+    }
   };
 
   const toggleMaximize = () => {
@@ -172,7 +187,9 @@ export function WindowFrame({ windowId, children, title, icon: Icon = Layers, in
       }
   };
 
-  const windowStyle = winState.isMaximized 
+  const windowStyle = isDockedRight
+    ? { top: 0, right: 0, left: 'auto', width: '50vw', height: '100vh', borderRadius: 0, transform: 'none' }
+    : winState.isMaximized 
     ? { top: 0, left: 0, width: '100%', height: '100%', borderRadius: 0 }
     : winState.isMinimized 
         ? { bottom: 10, left: 10, width: 250, height: 40, overflow: 'hidden' } 
@@ -185,7 +202,7 @@ export function WindowFrame({ windowId, children, title, icon: Icon = Layers, in
         
         {/* WINDOW CONTAINER */}
         <div className={`bg-slate-900 border border-slate-700 shadow-2xl flex flex-col overflow-hidden transition-all duration-200 ease-out 
-             ${winState.isMaximized ? '' : 'rounded-xl'}`}
+             ${(winState.isMaximized || isDockedRight) ? '' : 'rounded-xl'}`}
              style={{ ...windowStyle, position: 'fixed' }}
              onMouseDown={(e) => {
                e.stopPropagation();
@@ -196,27 +213,27 @@ export function WindowFrame({ windowId, children, title, icon: Icon = Layers, in
         
             {/* WINDOW HEADER */}
             <div 
-                className="bg-slate-900 border-b border-slate-800 p-2 flex justify-between items-center select-none cursor-grab active:cursor-grabbing"
+              className={`bg-slate-900 border-b border-slate-800 p-2 flex justify-between items-center select-none ${isDockedRight ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'}`}
                 onMouseDown={startDrag}
-                onDoubleClick={toggleMaximize} 
+              onDoubleClick={() => {
+                if (!isDockedRight) toggleMaximize();
+              }} 
             >
                 <div className="flex items-center gap-2 text-slate-300 text-sm font-bold pl-2">
                     <Icon size={16}/> {title}
                 </div>
                 <div className="flex items-center gap-1">
-                    {showDockButton && (
-                        <button 
-                            onClick={onToggleDock} 
-                            className="p-1.5 hover:bg-slate-800 rounded text-slate-400 hover:text-white" 
-                            title={isDocked ? "Frigör från dockning" : "Docka till vänster"}
-                        >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                            </svg>
-                        </button>
+                    {(showDockButton || typeof onToggleDock === 'function') && (
+                      <button
+                        onClick={toggleDockRight}
+                        className={`p-1.5 rounded transition-colors ${isDockedRight ? 'bg-blue-600/30 text-blue-300' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}
+                        title={isDockedRight ? 'Frigör från dockning' : 'Docka till höger'}
+                      >
+                        <PanelRight size={16} />
+                      </button>
                     )}
                     <button onClick={toggleMinimize} className="p-1.5 hover:bg-slate-800 rounded text-slate-400 hover:text-white" title="Minimera"><Minus size={16}/></button>
-                    <button onClick={toggleMaximize} className="p-1.5 hover:bg-slate-800 rounded text-slate-400 hover:text-white" title={winState.isMaximized ? "Återställ" : "Maximera"}>
+                    <button onClick={() => { if (!isDockedRight) toggleMaximize(); }} className="p-1.5 hover:bg-slate-800 rounded text-slate-400 hover:text-white" title={winState.isMaximized ? "Återställ" : "Maximera"}>
                         {winState.isMaximized ? <Minimize2 size={16}/> : <Maximize2 size={16}/>}
                     </button>
                     <button onClick={onClose} className="p-1.5 hover:bg-red-900/50 rounded text-slate-400 hover:text-red-400" title="Stäng"><X size={16}/></button>
@@ -252,7 +269,7 @@ export function WindowFrame({ windowId, children, title, icon: Icon = Layers, in
             )}
             
             {/* RESIZE HANDLE */}
-            {!winState.isMaximized && !winState.isMinimized && (
+            {!isDockedRight && !winState.isMaximized && !winState.isMinimized && (
                 <div 
                   className="absolute bottom-0 right-0 w-6 h-6 cursor-se-resize flex items-center justify-center"
                   onMouseDown={startResize}

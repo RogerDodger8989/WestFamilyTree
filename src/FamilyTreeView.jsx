@@ -77,6 +77,7 @@ const convertPersonForDisplay = (person) => {
     relations: person.relations || {},
     events: person.events || [],
     media: person.media || []
+    ,color: person.color || ''
   };
 };
 
@@ -864,8 +865,28 @@ export default function FamilyTreeView({
                   }}
                   onContextMenu={(e) => handleContextMenu(e, person)}
                   className={`vt-card ${displayPerson.gender} ${node.type}`}
-                  style={{ left: node.x, top: node.y }}
+                  style={{
+                    left: node.x,
+                    top: node.y,
+                    borderLeft: displayPerson.color ? `4px solid ${displayPerson.color}` : undefined
+                  }}
                 >
+                  {displayPerson.color && (
+                    <span
+                      style={{
+                        position: 'absolute',
+                        top: 6,
+                        left: 6,
+                        width: 10,
+                        height: 10,
+                        borderRadius: 999,
+                        border: '1px solid rgba(255,255,255,0.4)',
+                        backgroundColor: displayPerson.color,
+                        zIndex: 2
+                      }}
+                      title={`Grenfärg: ${displayPerson.color}`}
+                    />
+                  )}
                   {displayPerson.deathDate && (
                     <span className="vt-deceased-marker">✝</span>
                   )}

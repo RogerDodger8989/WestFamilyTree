@@ -1,0 +1,186 @@
+[
+  {
+    "id": "audit_1775324699529_sjl2wvj",
+    "type": "create",
+    "entityType": "person",
+    "entityId": "p_1775324699529",
+    "actor": "local",
+    "timestamp": "2026-04-04T17:44:59.529Z",
+    "details": {
+      "refNumber": 1,
+      "name": "anna svensson"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1775325123344_hau1791",
+    "type": "edit",
+    "entityType": "person-color",
+    "entityId": "p_1775324699529",
+    "actor": "local",
+    "timestamp": "2026-04-04T17:52:03.344Z",
+    "details": {
+      "scope": "self",
+      "color": "#dc2626",
+      "personIds": [
+        "p_1775324699529"
+      ]
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1775325515909_hj8clys",
+    "type": "edit",
+    "entityType": "person",
+    "entityId": "p_1775325505905",
+    "actor": "local",
+    "timestamp": "2026-04-04T17:58:35.909Z",
+    "details": {
+      "before": {
+        "firstName": "",
+        "lastName": "",
+        "refNumber": 2
+      },
+      "after": {
+        "firstName": "dotter",
+        "lastName": "Svensson",
+        "refNumber": 2
+      },
+      "changes": {
+        "firstName": {
+          "before": "",
+          "after": "dotter"
+        },
+        "lastName": {
+          "before": "",
+          "after": "Svensson"
+        }
+      }
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1775366178864_l5mdj5c",
+    "type": "edit",
+    "entityType": "person",
+    "entityId": "p_1775324699529",
+    "actor": "local",
+    "timestamp": "2026-04-05T05:16:18.864Z",
+    "details": {
+      "before": {
+        "firstName": "anna",
+        "lastName": "svensson",
+        "refNumber": 1
+      },
+      "after": {
+        "firstName": "Anna ",
+        "lastName": "svensson",
+        "refNumber": 1
+      },
+      "changes": {
+        "firstName": {
+          "before": "anna",
+          "after": "Anna "
+        }
+      }
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1775366185850_ioc33mp",
+    "type": "edit",
+    "entityType": "person",
+    "entityId": "p_1775324699529",
+    "actor": "local",
+    "timestamp": "2026-04-05T05:16:25.850Z",
+    "details": {
+      "before": {
+        "firstName": "Anna ",
+        "lastName": "svensson",
+        "refNumber": 1
+      },
+      "after": {
+        "firstName": "Anna Stina \"Ann\"",
+        "lastName": "svensson",
+        "refNumber": 1
+      },
+      "changes": {
+        "firstName": {
+          "before": "Anna ",
+          "after": "Anna Stina \"Ann\""
+        }
+      }
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1775366191476_waj1eqc",
+    "type": "edit",
+    "entityType": "person",
+    "entityId": "p_1775324699529",
+    "actor": "local",
+    "timestamp": "2026-04-05T05:16:31.476Z",
+    "details": {
+      "before": {
+        "firstName": "Anna Stina \"Ann\"",
+        "lastName": "svensson",
+        "refNumber": 1
+      },
+      "after": {
+        "firstName": "Anna Stina \"Ann\"",
+        "lastName": "Svensson",
+        "refNumber": 1
+      },
+      "changes": {
+        "lastName": {
+          "before": "svensson",
+          "after": "Svensson"
+        }
+      }
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1775366479323_87sc28k",
+    "type": "edit",
+    "entityType": "person",
+    "entityId": "p_1775324699529",
+    "actor": "local",
+    "timestamp": "2026-04-05T05:21:19.323Z",
+    "details": {
+      "before": {
+        "firstName": "Anna Stina \"Ann\"",
+        "lastName": "Svensson",
+        "refNumber": 1
+      },
+      "after": {
+        "firstName": "Anna Stina \"Ann\"",
+        "lastName": "Svensson",
+        "refNumber": "1"
+      },
+      "changes": {
+        "refNumber": {
+          "before": 1,
+          "after": "1"
+        }
+      }
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1775366955454_yw7hhv5",
+    "type": "edit",
+    "entityType": "person-color",
+    "entityId": "p_1775324699529",
+    "actor": "local",
+    "timestamp": "2026-04-05T05:29:15.454Z",
+    "details": {
+      "scope": "self",
+      "color": "#2563eb",
+      "personIds": [
+        "p_1775324699529"
+      ]
+    },
+    "sourceIds": []
+  }
+]

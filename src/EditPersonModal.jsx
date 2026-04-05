@@ -1,10 +1,13 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X, User, Users, Image as ImageIcon, FileText,
   Activity, Tag, Plus, Trash2, Calendar, MapPin,
   Link as LinkIcon, Camera, Edit3, AlertCircle, Check,
+  Copy, Star,
   ChevronDown, ChevronUp, MoreHorizontal, Search, Globe, HelpCircle,
-  ClipboardList, BookOpen, Clock
+  ClipboardList, BookOpen, Clock,
+  Sparkles, DownloadCloud
 } from 'lucide-react';
 import WindowFrame from './WindowFrame.jsx';
 import PlacePicker from './PlacePicker.jsx';
@@ -42,54 +45,128 @@ const TASK_STATUS = [
 ];
 
 const EVENT_TYPES = [
-  { value: 'Adoption', label: 'Adoption', icon: '❤️', unique: false },
-  { value: 'Alternativt namn', label: 'Alternativt namn', icon: '💬', unique: false },
-  { value: 'Annulering av vigsel', label: 'Annulering av vigsel', icon: '💔', unique: false },
-  { value: 'Antal barn', label: 'Antal barn', icon: '👶', unique: false },
-  { value: 'Antal äktenskap', label: 'Antal äktenskap', icon: '💍', unique: false },
-  { value: 'Arkivering av skilsmässa', label: 'Arkivering av skilsmässa', icon: '📁', unique: false },
-  { value: 'Bar mitzvah', label: 'Bar mitzvah', icon: '🕎', unique: true },
-  { value: 'Begravning', label: 'Begravning', icon: '⚰️', unique: true },
-  { value: 'Bosatt', label: 'Bosatt', icon: '🏠', unique: false },
-  { value: 'Bouppteckning', label: 'Bouppteckning', icon: '✍️', unique: false },
-  { value: 'Dop', label: 'Dop', icon: '💧', unique: true },
-  { value: 'Dop som vuxen', label: 'Dop som vuxen', icon: '💧', unique: true },
-  { value: 'Död', label: 'Död', icon: '✝️', unique: true },
-  { value: 'Egen händelse', label: 'Egen händelse', icon: '📅', unique: false },
-  { value: 'Egendom', label: 'Egendom', icon: '📋', unique: false },
-  { value: 'Emigration', label: 'Emigration', icon: '➡️', unique: false },
-  { value: 'Examen', label: 'Examen', icon: '🎓', unique: false },
-  { value: 'Faktauppgift', label: 'Faktauppgift', icon: '✝️', unique: false },
-  { value: 'Folkräkning', label: 'Folkräkning', icon: '📋', unique: false },
-  { value: 'Fysisk status', label: 'Fysisk status', icon: '✓', unique: false },
-  { value: 'Födelse', label: 'Födelse', icon: '👶', unique: true },
-  { value: 'Förlovning', label: 'Förlovning', icon: '💐', unique: false },
-  { value: 'Första nattvarden', label: 'Första nattvarden', icon: '🍞', unique: true },
-  { value: 'Immigration', label: 'Immigration', icon: '⬅️', unique: false },
-  { value: 'Kast', label: 'Kast', icon: '👤', unique: false },
-  { value: 'Konfirmation', label: 'Konfirmation', icon: '🙏', unique: true },
-  { value: 'Kremering', label: 'Kremering', icon: '🔥', unique: true },
-  { value: 'Lysning', label: 'Lysning', icon: '📢', unique: false },
-  { value: 'Militärtjänst', label: 'Militärtjänst', icon: '⚔️', unique: false },
-  { value: 'Nationalitet', label: 'Nationalitet', icon: '🏴', unique: false },
-  { value: 'Naturalisering', label: 'Naturalisering', icon: '🤝', unique: false },
-  { value: 'Notering', label: 'Notering', icon: '📝', unique: false },
-  { value: 'Pensionering', label: 'Pensionering', icon: '💰', unique: false },
-  { value: 'Personnummer', label: 'Personnummer', icon: '📋', unique: false },
-  { value: 'Prästvigling', label: 'Prästvigling', icon: '⛪', unique: false },
-  { value: 'Religionstillhörighet', label: 'Religionstillhörighet', icon: '⚙️', unique: false },
-  { value: 'Samlevnad', label: 'Samlevnad', icon: '🤝', unique: false },
-  { value: 'Samvetsäktenskap', label: 'Samvetsäktenskap', icon: '💕', unique: false },
-  { value: 'Skilsmässa', label: 'Skilsmässa', icon: '💔', unique: false },
-  { value: 'Socialförsäkringsnummer', label: 'Socialförsäkringsnummer', icon: '📋', unique: false },
-  { value: 'Testamente', label: 'Testamente', icon: '📜', unique: false },
-  { value: 'Titel', label: 'Titel', icon: '💬', unique: false },
-  { value: 'Troendedop', label: 'Troendedop', icon: '💧', unique: true },
-  { value: 'Utbildning', label: 'Utbildning', icon: '📚', unique: false },
-  { value: 'Vigsel', label: 'Vigsel', icon: '💒', unique: false },
-  { value: 'Välsignelse', label: 'Välsignelse', icon: '🙏', unique: false },
-  { value: 'Yrke', label: 'Yrke', icon: '💼', unique: false }
+  { value: 'Adoption', label: 'Adoption', icon: '❤️', unique: false, category: 'Familj', gedcomType: 'event' },
+  { value: 'Alternativt namn', label: 'Alternativt namn', icon: '💬', unique: false, category: 'Fakta & Egenskaper', gedcomType: 'attribute' },
+  { value: 'Annulering av vigsel', label: 'Annulering av vigsel', icon: '💔', unique: false, category: 'Familj', gedcomType: 'event' },
+  { value: 'Antal barn', label: 'Antal barn', icon: '👶', unique: false, category: 'Familj', gedcomType: 'attribute' },
+  { value: 'Antal äktenskap', label: 'Antal äktenskap', icon: '💍', unique: false, category: 'Familj', gedcomType: 'attribute' },
+  { value: 'Arkivering av skilsmässa', label: 'Arkivering av skilsmässa', icon: '📁', unique: false, category: 'Familj', gedcomType: 'event' },
+  { value: 'Bar mitzvah', label: 'Bar mitzvah', icon: '🕎', unique: true, category: 'Religiöst', gedcomType: 'event' },
+  { value: 'Begravning', label: 'Begravning', icon: '⚰️', unique: true, category: 'Livshändelser', gedcomType: 'event' },
+  { value: 'Bosatt', label: 'Bosatt', icon: '🏠', unique: false, category: 'Livshändelser', gedcomType: 'event' },
+  { value: 'Bouppteckning', label: 'Bouppteckning', icon: '✍️', unique: false, category: 'Livshändelser', gedcomType: 'event' },
+  { value: 'Dop', label: 'Dop', icon: '💧', unique: true, category: 'Religiöst', gedcomType: 'event' },
+  { value: 'Dop som vuxen', label: 'Dop som vuxen', icon: '💧', unique: true, category: 'Religiöst', gedcomType: 'event' },
+  { value: 'Död', label: 'Död', icon: '✝️', unique: true, category: 'Livshändelser', gedcomType: 'event' },
+  { value: 'Egen händelse', label: 'Egen händelse', icon: '📅', unique: false, category: 'Fakta & Egenskaper', gedcomType: 'custom' },
+  { value: 'Egendom', label: 'Egendom', icon: '📋', unique: false, category: 'Fakta & Egenskaper', gedcomType: 'attribute' },
+  { value: 'Emigration', label: 'Emigration', icon: '➡️', unique: false, category: 'Livshändelser', gedcomType: 'event' },
+  { value: 'Examen', label: 'Examen', icon: '🎓', unique: false, category: 'Livshändelser', gedcomType: 'event' },
+  { value: 'Faktauppgift', label: 'Faktauppgift', icon: '✝️', unique: false, category: 'Fakta & Egenskaper', gedcomType: 'attribute' },
+  { value: 'Folkräkning', label: 'Folkräkning', icon: '📋', unique: false, category: 'Livshändelser', gedcomType: 'event' },
+  { value: 'Fysisk status', label: 'Fysisk status', icon: '✓', unique: false, category: 'Fakta & Egenskaper', gedcomType: 'attribute' },
+  { value: 'Födelse', label: 'Födelse', icon: '👶', unique: true, category: 'Livshändelser', gedcomType: 'event' },
+  { value: 'Förlovning', label: 'Förlovning', icon: '💐', unique: false, category: 'Familj', gedcomType: 'event' },
+  { value: 'Första nattvarden', label: 'Första nattvarden', icon: '🍞', unique: true, category: 'Religiöst', gedcomType: 'event' },
+  { value: 'Immigration', label: 'Immigration', icon: '⬅️', unique: false, category: 'Livshändelser', gedcomType: 'event' },
+  { value: 'Kast', label: 'Kast', icon: '👤', unique: false, category: 'Fakta & Egenskaper', gedcomType: 'attribute' },
+  { value: 'Konfirmation', label: 'Konfirmation', icon: '🙏', unique: true, category: 'Religiöst', gedcomType: 'event' },
+  { value: 'Kremering', label: 'Kremering', icon: '🔥', unique: true, category: 'Livshändelser', gedcomType: 'event' },
+  { value: 'Lysning', label: 'Lysning', icon: '📢', unique: false, category: 'Familj', gedcomType: 'event' },
+  { value: 'Militärtjänst', label: 'Militärtjänst', icon: '⚔️', unique: false, category: 'Livshändelser', gedcomType: 'event' },
+  { value: 'Nationalitet', label: 'Nationalitet', icon: '🏴', unique: false, category: 'Fakta & Egenskaper', gedcomType: 'attribute' },
+  { value: 'Naturalisering', label: 'Naturalisering', icon: '🤝', unique: false, category: 'Livshändelser', gedcomType: 'event' },
+  { value: 'Notering', label: 'Notering', icon: '📝', unique: false, category: 'Fakta & Egenskaper', gedcomType: 'attribute' },
+  { value: 'Pensionering', label: 'Pensionering', icon: '💰', unique: false, category: 'Livshändelser', gedcomType: 'event' },
+  { value: 'Personnummer', label: 'Personnummer', icon: '📋', unique: false, category: 'Fakta & Egenskaper', gedcomType: 'attribute' },
+  { value: 'Prästvigling', label: 'Prästvigling', icon: '⛪', unique: false, category: 'Religiöst', gedcomType: 'event' },
+  { value: 'Religionstillhörighet', label: 'Religionstillhörighet', icon: '⚙️', unique: false, category: 'Fakta & Egenskaper', gedcomType: 'attribute' },
+  { value: 'Samlevnad', label: 'Samlevnad', icon: '🤝', unique: false, category: 'Familj', gedcomType: 'event' },
+  { value: 'Samvetsäktenskap', label: 'Samvetsäktenskap', icon: '💕', unique: false, category: 'Familj', gedcomType: 'event' },
+  { value: 'Skilsmässa', label: 'Skilsmässa', icon: '💔', unique: false, category: 'Familj', gedcomType: 'event' },
+  { value: 'Socialförsäkringsnummer', label: 'Socialförsäkringsnummer', icon: '📋', unique: false, category: 'Fakta & Egenskaper', gedcomType: 'attribute' },
+  { value: 'Testamente', label: 'Testamente', icon: '📜', unique: false, category: 'Fakta & Egenskaper', gedcomType: 'attribute' },
+  { value: 'Titel', label: 'Titel', icon: '💬', unique: false, category: 'Fakta & Egenskaper', gedcomType: 'attribute' },
+  { value: 'Troendedop', label: 'Troendedop', icon: '💧', unique: true, category: 'Religiöst', gedcomType: 'event' },
+  { value: 'Utbildning', label: 'Utbildning', icon: '📚', unique: false, category: 'Livshändelser', gedcomType: 'event' },
+  { value: 'Vigsel', label: 'Vigsel', icon: '💒', unique: false, category: 'Familj', gedcomType: 'event' },
+  { value: 'Välsignelse', label: 'Välsignelse', icon: '🙏', unique: false, category: 'Religiöst', gedcomType: 'event' },
+  { value: 'Yrke', label: 'Yrke', icon: '💼', unique: false, category: 'Fakta & Egenskaper', gedcomType: 'attribute' }
 ];
+
+const EVENT_TYPE_CATEGORIES = ['Livshändelser', 'Familj', 'Fakta & Egenskaper', 'Religiöst'];
+
+const ATTRIBUTE_VALUE_LABELS = {
+  'Yrke': 'Yrke / Titel',
+  'Titel': 'Titel / Benämning',
+  'Personnummer': 'Personnummer / ID',
+  'Socialförsäkringsnummer': 'Socialförsäkringsnummer / ID',
+  'Alternativt namn': 'Alternativt namn / Variant'
+};
+
+const GENERIC_WITNESS_ROLE_OPTIONS = [
+  'Vittne',
+  'Uppgiftslämnare',
+  'Informant',
+  'Annan'
+];
+
+const EVENT_WITNESS_ROLE_OPTIONS = {
+  'Dop': ['Fadder', 'Gudmor', 'Gudfar', 'Gudförälder', 'Präst', 'Klockare', 'Far', 'Mor', 'Förälder'],
+  'Dop som vuxen': ['Fadder', 'Gudförälder', 'Präst', 'Klockare'],
+  'Troendedop': ['Fadder', 'Gudförälder', 'Präst', 'Klockare'],
+  'Födelse': ['Mor', 'Far', 'Förälder', 'Barnmorska', 'Gudförälder'],
+  'Konfirmation': ['Präst', 'Fadder', 'Gudförälder', 'Förälder'],
+  'Bar mitzvah': ['Präst', 'Förälder', 'Gudförälder'],
+  'Första nattvarden': ['Präst', 'Fadder', 'Gudförälder', 'Förälder'],
+  'Prästvigling': ['Präst', 'Ledare', 'Vän'],
+  'Välsignelse': ['Präst', 'Förälder', 'Gudförälder'],
+
+  'Vigsel': ['Brud', 'Brudgum', 'Vigselförrättare', 'Präst', 'Brudens far', 'Brudens mor', 'Brudgummens far', 'Brudgummens mor', 'Make/maka'],
+  'Förlovning': ['Förlovningsvittne', 'Brud', 'Brudgum', 'Make/maka'],
+  'Lysning': ['Präst', 'Brud', 'Brudgum', 'Make/maka'],
+  'Samlevnad': ['Make/maka', 'Hustru', 'Vän', 'Granne'],
+  'Samvetsäktenskap': ['Make/maka', 'Präst', 'Vigselförrättare'],
+  'Skilsmässa': ['Make/maka', 'Ombud', 'Vän'],
+  'Annulering av vigsel': ['Make/maka', 'Ombud', 'Präst'],
+  'Arkivering av skilsmässa': ['Ombud', 'Uppgiftslämnare'],
+  'Adoption': ['Adoptivfar', 'Adoptivmor', 'Biologisk far', 'Biologisk mor', 'Förmyndare'],
+
+  'Bosatt': ['Ägare', 'Inneboende', 'Hyresgäst', 'Arrendator', 'Hushållsföreståndare', 'Dräng', 'Piga', 'Tjänstefolk', 'Logerande', 'Granne', 'Make/maka', 'Barn'],
+  'Folkräkning': ['Hushållsföreståndare', 'Inneboende', 'Hyresgäst', 'Ägare', 'Dräng', 'Piga', 'Tjänstefolk', 'Logerande', 'Granne', 'Make/maka', 'Barn'],
+  'Emigration': ['Resesällskap', 'Medföljande', 'Arbetsgivare', 'Uppgiftslämnare'],
+  'Immigration': ['Resesällskap', 'Medföljande', 'Arbetsgivare', 'Uppgiftslämnare'],
+
+  'Död': ['Arvinge', 'Dödsbodelägare', 'Informant', 'Förmyndare'],
+  'Begravning': ['Präst', 'Gravrättsinnehavare', 'Arvinge', 'Dödsbodelägare'],
+  'Kremering': ['Präst', 'Gravrättsinnehavare', 'Arvinge'],
+  'Bouppteckning': ['Bouppteckningsman', 'Arvinge', 'Dödsbodelägare', 'Exekutor'],
+  'Testamente': ['Testamentstagare', 'Exekutor', 'Arvinge', 'Dödsbodelägare'],
+
+  'Militärtjänst': ['Befäl', 'Kamrat', 'Ledare'],
+  'Utbildning': ['Lärare', 'Mentor', 'Examensvittne'],
+  'Examen': ['Lärare', 'Mentor', 'Examensvittne'],
+  'Yrke': ['Arbetsgivare', 'Arbetskamrat', 'Mästare', 'Gesäll', 'Lärling'],
+  'Titel': ['Arbetsgivare', 'Arbetskamrat', 'Mästare', 'Ledare'],
+  'Egen händelse': ['Vittne', 'Vän', 'Uppgiftslämnare']
+};
+
+function getWitnessRolesForEventType(eventType, currentRole = '') {
+  const eventSpecific = EVENT_WITNESS_ROLE_OPTIONS[String(eventType || '').trim()] || [];
+  const combined = [...eventSpecific, ...GENERIC_WITNESS_ROLE_OPTIONS];
+
+  if (currentRole && !combined.includes(currentRole)) {
+    combined.unshift(currentRole);
+  }
+
+  return Array.from(new Set(combined));
+}
+
+const formatWitnessPersonName = (person) => {
+  if (!person) return '';
+  const fullName = `${person.firstName || ''} ${person.lastName || ''}`.trim();
+  return fullName || `Person ${person.id || ''}`.trim();
+};
 
 // Smart datumformatterare med stöd för olika format och prefix
 const parseAndFormatDate = (input) => {
@@ -429,6 +506,35 @@ const SecondParentSelector = ({ isOpen, onClose, candidates, onSelect, onSelectO
 // --- HUVUDKOMPONENT ---
 
 export default function EditPersonModal({ person: initialPerson, allPlaces, onSave, onClose, onChange, onOpenSourceDrawer, allSources, allPeople, onOpenEditModal, allMediaItems = [], onUpdateAllMedia = () => { }, isDocked = false, onNavigateToPlace, isCollapsed = false, onToggleCollapse }) {
+  const extractNicknameFromQuotedName = (nameText) => {
+    const text = String(nameText || '');
+    const match = text.match(/"([^"]+)"/);
+    return match ? match[1].trim() : '';
+  };
+
+  const normalizeAdditionalNames = (personInput) => {
+    const previousNames = Array.isArray(personInput?.previousNames)
+      ? personInput.previousNames.filter((name) => String(name || '').trim().length > 0)
+      : [];
+    const alternateLastName = String(
+      personInput?.alternateLastName
+      || personInput?.birthName
+      || previousNames[0]
+      || ''
+    ).trim();
+    const alternateFirstName = String(personInput?.alternateFirstName || '').trim();
+    const nicknameFromFirstName = extractNicknameFromQuotedName(personInput?.firstName);
+    const explicitNickname = String(personInput?.nickname || '').trim();
+
+    return {
+      nickname: explicitNickname || nicknameFromFirstName,
+      alternateFirstName,
+      alternateLastName,
+      birthName: alternateLastName,
+      previousNames: alternateLastName ? [alternateLastName, ...previousNames.slice(1)] : previousNames
+    };
+  };
+
   // Relation linking modal state
   const [relationModalOpen, setRelationModalOpen] = useState(false);
   const [relationTypeToAdd, setRelationTypeToAdd] = useState(null);
@@ -933,6 +1039,11 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
       refId: '',
       firstName: '',
       lastName: '',
+      nickname: '',
+      alternateFirstName: '',
+      alternateLastName: '',
+      birthName: '',
+      previousNames: [],
       sex: 'U',
       birthDate: '',
       deathDate: '',
@@ -967,6 +1078,11 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
     if (!Array.isArray(base.research.questions)) base.research.questions = [];
     if (typeof base.research.notes !== 'string') base.research.notes = '';
 
+    const normalizedNames = normalizeAdditionalNames(base);
+    base.nickname = normalizedNames.nickname;
+    base.birthName = normalizedNames.birthName;
+    base.previousNames = normalizedNames.previousNames;
+
     return base;
   });
 
@@ -997,6 +1113,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
         ...initialPerson,
         events,
         research,
+        ...normalizeAdditionalNames(initialPerson),
         media: Array.isArray(initialPerson.media) ? initialPerson.media : [],
         tags: Array.isArray(initialPerson.tags) ? initialPerson.tags : [],
         relations: initialPerson.relations || { parents: [], partners: [], children: [] }
@@ -1083,10 +1200,18 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
   const [isEventModalDragging, setIsEventModalDragging] = useState(false);
   const [eventModalDragOffset, setEventModalDragOffset] = useState({ x: 0, y: 0 });
   const eventModalRef = useRef(null);
-  const [eventTypeSearchOpen, setEventTypeSearchOpen] = useState(false);
-  const [eventTypeSearchText, setEventTypeSearchText] = useState('');
-  const [eventTypeSearchIndex, setEventTypeSearchIndex] = useState(0);
-  const eventTypeSearchRef = useRef(null);
+  const [isEventTypeMenuOpen, setEventTypeMenuOpen] = useState(false);
+  const [eventTypeMenuPosition, setEventTypeMenuPosition] = useState({
+    top: 0,
+    left: 0,
+    width: 420,
+    maxHeight: 460
+  });
+  const eventTypeMenuRef = useRef(null);
+  const eventTypeButtonRef = useRef(null);
+  const eventTypeSearchInputRef = useRef(null);
+  const [eventTypeSearch, setEventTypeSearch] = useState('');
+  const [eventTypeActiveIndex, setEventTypeActiveIndex] = useState(-1);
   const [newEvent, setNewEvent] = useState({
     id: `evt_${Date.now()}`,
     type: 'Födelse',
@@ -1095,18 +1220,32 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
     placeId: '',
     sources: [],
     images: [], // Ändrat från siffra till array av media-IDs
-    notes: ''
+    notes: '',
+    linkedPersons: []
+  });
+  const [isWitnessModalOpen, setWitnessModalOpen] = useState(false);
+  const [selectedWitnessId, setSelectedWitnessId] = useState(null);
+  const [witnessMode, setWitnessMode] = useState('existing');
+  const [witnessSearch, setWitnessSearch] = useState('');
+  const [witnessDraft, setWitnessDraft] = useState({
+    id: null,
+    personId: '',
+    name: '',
+    role: 'Vittne',
+    note: ''
   });
 
   const [tagInput, setTagInput] = useState('');
   const [tagSuggestions, setTagSuggestions] = useState([]);
   const tagInputRef = useRef(null);
-  const { getAllTags, setDbData, dbData } = useApp();
   const [selectedEventIndex, setSelectedEventIndex] = useState(null);
   const [eventDetailView, setEventDetailView] = useState('sources'); // 'sources', 'notes', 'images'
   const [sourceRefreshKey, setSourceRefreshKey] = useState(0);
   const [isImageEditorOpen, setIsImageEditorOpen] = useState(false);
   const [editingImageIndex, setEditingImageIndex] = useState(null);
+  const [isRefCopied, setIsRefCopied] = useState(false);
+  const refCopyTimeoutRef = useRef(null);
+  const { getAllTags, setDbData, dbData, bookmarks = [], handleToggleBookmark } = useApp();
 
   // State för noteringar-fliken
   const [noteSearch, setNoteSearch] = useState('');
@@ -1121,6 +1260,43 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
   useEffect(() => {
     setSourceRefreshKey(prev => prev + 1);
   }, [allSources]);
+
+  useEffect(() => {
+    return () => {
+      if (refCopyTimeoutRef.current) {
+        clearTimeout(refCopyTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleCopyRefNumber = async () => {
+    const refValue = String(person?.refNumber || '').trim();
+    if (!refValue) return;
+
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(refValue);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = refValue;
+        textarea.setAttribute('readonly', '');
+        textarea.style.position = 'absolute';
+        textarea.style.left = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+
+      setIsRefCopied(true);
+      if (refCopyTimeoutRef.current) clearTimeout(refCopyTimeoutRef.current);
+      refCopyTimeoutRef.current = setTimeout(() => setIsRefCopied(false), 2000);
+    } catch (err) {
+      console.warn('[EditPersonModal] Kunde inte kopiera Ref Nr:', err);
+    }
+  };
+
+  const isBookmarked = Array.isArray(bookmarks) && bookmarks.includes(person?.id);
 
   // VIKTIGT: Auto-save när person-data ändras (debounced)
   // Detta säkerställer att ALLA ändringar sparas automatiskt i realtid till SQLite
@@ -1192,6 +1368,243 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
     return !person.events?.some(e => e.type === eventType);
   };
 
+  const normalizeEventSearchText = (value) => String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
+  const eventTypeOptions = EVENT_TYPES.filter((eventType) => {
+    const query = normalizeEventSearchText(eventTypeSearch).trim();
+    if (!query) return true;
+    const haystack = normalizeEventSearchText(`${eventType.label} ${eventType.value} ${eventType.category}`);
+    return haystack.includes(query);
+  });
+
+  const hasBirthEvent = Array.isArray(person.events) && person.events.some((eventItem) => eventItem?.type === 'Födelse');
+  const hasDeathEvent = Array.isArray(person.events) && person.events.some((eventItem) => eventItem?.type === 'Död');
+  const selectedEventTypeConfig = EVENT_TYPES.find((eventType) => eventType.value === newEvent.type);
+  const selectedEventGedcomType = selectedEventTypeConfig?.gedcomType || newEvent.gedcomType || 'event';
+  const witnessRoleOptionsForType = useMemo(
+    () => getWitnessRolesForEventType(newEvent.type, witnessDraft.role),
+    [newEvent.type, witnessDraft.role]
+  );
+  const sortedPeopleForWitnesses = useMemo(() => {
+    return [...(allPeople || [])].sort((a, b) => {
+      const firstNameA = String(a?.firstName || '').toLocaleLowerCase('sv');
+      const firstNameB = String(b?.firstName || '').toLocaleLowerCase('sv');
+      if (firstNameA !== firstNameB) return firstNameA.localeCompare(firstNameB, 'sv');
+
+      const lastNameA = String(a?.lastName || '').toLocaleLowerCase('sv');
+      const lastNameB = String(b?.lastName || '').toLocaleLowerCase('sv');
+      return lastNameA.localeCompare(lastNameB, 'sv');
+    });
+  }, [allPeople]);
+  const linkedPersonsForEvent = useMemo(() => {
+    const rawEntries = Array.isArray(newEvent.linkedPersons) ? newEvent.linkedPersons : [];
+    const normalized = [];
+    const seen = new Set();
+    const fallbackRole = getWitnessRolesForEventType(newEvent.type)[0] || 'Vittne';
+
+    rawEntries.forEach((entry, index) => {
+      let personId = '';
+      let name = '';
+      let role = fallbackRole;
+      let note = '';
+      let stableId = '';
+
+      if (typeof entry === 'string' || typeof entry === 'number') {
+        personId = String(entry);
+      } else if (entry && typeof entry === 'object') {
+        personId = String(entry.personId || entry.linkedPersonId || entry.targetId || '').trim();
+        name = String(entry.name || entry.personName || '').trim();
+        role = String(entry.role || fallbackRole).trim() || fallbackRole;
+        note = String(entry.note || '').trim();
+        stableId = String(entry.id || '').trim();
+      }
+
+      const personMatch = personId
+        ? sortedPeopleForWitnesses.find((candidate) => String(candidate.id) === personId)
+        : null;
+
+      const resolvedName = name || (personMatch ? formatWitnessPersonName(personMatch) : '');
+      if (!personId && !resolvedName) return;
+
+      const uniqueKey = personId
+        ? `person:${personId}`
+        : `name:${resolvedName.toLocaleLowerCase('sv')}|role:${role.toLocaleLowerCase('sv')}`;
+
+      if (seen.has(uniqueKey)) return;
+      seen.add(uniqueKey);
+
+      normalized.push({
+        id: stableId || `witness_${personId || resolvedName.replace(/\s+/g, '_') || index}_${index}`,
+        personId,
+        name: resolvedName,
+        role,
+        note
+      });
+    });
+
+    return normalized;
+  }, [newEvent.linkedPersons, sortedPeopleForWitnesses, newEvent.type]);
+
+  const filteredWitnessCandidates = useMemo(() => {
+    const query = witnessSearch.trim().toLocaleLowerCase('sv');
+    if (!query) return sortedPeopleForWitnesses.slice(0, 60);
+    return sortedPeopleForWitnesses
+      .filter((candidate) => {
+        const haystack = `${candidate.firstName || ''} ${candidate.lastName || ''} ${candidate.refNumber || ''}`
+          .toLocaleLowerCase('sv');
+        return haystack.includes(query);
+      })
+      .slice(0, 60);
+  }, [witnessSearch, sortedPeopleForWitnesses]);
+
+  const getAttributeValueLabel = (eventType) => {
+    if (!eventType) return 'Värde / Beskrivning';
+    return ATTRIBUTE_VALUE_LABELS[eventType] || `${eventType} / Beskrivning`;
+  };
+
+  const resetWitnessDraft = (mode = 'existing') => {
+    setWitnessMode(mode);
+    setWitnessSearch('');
+    const defaultRole = getWitnessRolesForEventType(newEvent.type)[0] || 'Vittne';
+    setWitnessDraft({
+      id: null,
+      personId: '',
+      name: '',
+      role: defaultRole,
+      note: ''
+    });
+    setSelectedWitnessId(null);
+  };
+
+  const loadWitnessIntoDraft = (entry) => {
+    if (!entry) {
+      resetWitnessDraft('existing');
+      return;
+    }
+
+    setSelectedWitnessId(entry.id);
+    setWitnessMode(entry.personId ? 'existing' : 'free');
+    setWitnessSearch('');
+    setWitnessDraft({
+      id: entry.id,
+      personId: entry.personId || '',
+      name: entry.name || '',
+      role: entry.role || (getWitnessRolesForEventType(newEvent.type)[0] || 'Vittne'),
+      note: entry.note || ''
+    });
+  };
+
+  const handlePickWitnessPerson = (personId) => {
+    const personMatch = sortedPeopleForWitnesses.find((candidate) => String(candidate.id) === String(personId));
+    setWitnessDraft((prev) => ({
+      ...prev,
+      personId: personMatch ? String(personMatch.id) : '',
+      name: personMatch ? formatWitnessPersonName(personMatch) : prev.name
+    }));
+  };
+
+  const handleSaveWitnessDraft = (closeAfterSave = false) => {
+    const defaultRole = getWitnessRolesForEventType(newEvent.type)[0] || 'Vittne';
+    const normalizedRole = String(witnessDraft.role || defaultRole).trim() || defaultRole;
+    const normalizedNote = String(witnessDraft.note || '').trim();
+    const normalizedName = String(witnessDraft.name || '').trim();
+    const normalizedPersonId = witnessMode === 'existing'
+      ? String(witnessDraft.personId || '').trim()
+      : '';
+
+    if (witnessMode === 'existing' && !normalizedPersonId) {
+      return;
+    }
+
+    if (witnessMode === 'free' && !normalizedName) {
+      return;
+    }
+
+    const personMatch = normalizedPersonId
+      ? sortedPeopleForWitnesses.find((candidate) => String(candidate.id) === normalizedPersonId)
+      : null;
+
+    const finalEntry = {
+      id: witnessDraft.id || `witness_${Date.now()}_${Math.floor(Math.random() * 100000)}`,
+      personId: normalizedPersonId,
+      name: normalizedPersonId
+        ? formatWitnessPersonName(personMatch || { id: normalizedPersonId })
+        : normalizedName,
+      role: normalizedRole,
+      note: normalizedNote
+    };
+
+    const currentEntries = linkedPersonsForEvent;
+    const isUpdating = Boolean(witnessDraft.id && currentEntries.some((entry) => entry.id === witnessDraft.id));
+    const nextEntries = isUpdating
+      ? currentEntries.map((entry) => (entry.id === witnessDraft.id ? finalEntry : entry))
+      : [...currentEntries, finalEntry];
+
+    setNewEvent((prev) => ({
+      ...prev,
+      linkedPersons: nextEntries
+    }));
+
+    if (closeAfterSave) {
+      setWitnessModalOpen(false);
+    } else {
+      loadWitnessIntoDraft(finalEntry);
+    }
+  };
+
+  const handleDeleteWitnessEntry = (entryId) => {
+    const nextEntries = linkedPersonsForEvent.filter((entry) => entry.id !== entryId);
+    setNewEvent((prev) => ({ ...prev, linkedPersons: nextEntries }));
+
+    if (selectedWitnessId === entryId) {
+      if (nextEntries.length > 0) {
+        loadWitnessIntoDraft(nextEntries[0]);
+      } else {
+        resetWitnessDraft('existing');
+      }
+    }
+  };
+
+  const getEventWitnessCount = (eventItem) => {
+    const linked = Array.isArray(eventItem?.linkedPersons) ? eventItem.linkedPersons : [];
+    const unique = new Set();
+
+    linked.forEach((entry) => {
+      if (typeof entry === 'string' || typeof entry === 'number') {
+        unique.add(`id:${String(entry)}`);
+        return;
+      }
+
+      if (!entry || typeof entry !== 'object') return;
+      const personId = String(entry.personId || entry.linkedPersonId || entry.targetId || '').trim();
+      const freeName = String(entry.name || entry.personName || '').trim().toLocaleLowerCase('sv');
+
+      if (personId) {
+        unique.add(`id:${personId}`);
+      } else if (freeName) {
+        unique.add(`name:${freeName}`);
+      }
+    });
+
+    return unique.size;
+  };
+
+  const getNextSelectableEventTypeIndex = (startIndex, direction = 1) => {
+    if (!eventTypeOptions.length) return -1;
+
+    for (let step = 0; step < eventTypeOptions.length; step += 1) {
+      const candidateIndex = (startIndex + (step * direction) + eventTypeOptions.length) % eventTypeOptions.length;
+      const candidate = eventTypeOptions[candidateIndex];
+      const isDisabled = candidate?.unique && editingEventIndex === null && !canAddEventType(candidate.value);
+      if (!isDisabled) return candidateIndex;
+    }
+
+    return -1;
+  };
+
   // Tag handling (samma som MediaManager/SourceCatalog)
   // Få förslag baserat på input (använder centraliserad tag-lista)
   const getTagSuggestions = (input) => {
@@ -1236,24 +1649,340 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
     setPerson({ ...person, tags: person.tags.filter(t => t !== tagToRemove) });
   };
 
+  const getEventByCandidateTypes = (candidateTypes) => {
+    const normalizedCandidates = candidateTypes.map((candidate) => String(candidate || '').toLowerCase());
+    return (person.events || []).find((eventItem) => normalizedCandidates.includes(String(eventItem?.type || '').toLowerCase()));
+  };
+
+  const getRelatedPersonName = (relationEntry) => {
+    const relationId = typeof relationEntry === 'object' ? relationEntry?.id : relationEntry;
+    const personMatch = (allPeople || []).find((candidate) => candidate.id === relationId);
+    if (personMatch) {
+      return `${personMatch.firstName || ''} ${personMatch.lastName || ''}`.trim();
+    }
+    if (typeof relationEntry === 'object' && relationEntry?.name) {
+      return relationEntry.name;
+    }
+    return '';
+  };
+
+  const handleGenerateBiography = () => {
+    const fullName = `${person.firstName || ''} ${person.lastName || ''}`.trim() || 'Okänd person';
+    const birthEvent = getEventByCandidateTypes(['Födelse', 'BIRT', 'Birth']);
+    const deathEvent = getEventByCandidateTypes(['Död', 'DEAT', 'Death']);
+    const occupationEvents = (person.events || []).filter((eventItem) =>
+      ['yrke', 'occu', 'occupation', 'titel', 'title'].includes(String(eventItem?.type || '').toLowerCase())
+    );
+
+    const uniquePlaces = Array.from(new Set(
+      (person.events || [])
+        .map((eventItem) => String(eventItem?.place || '').trim())
+        .filter(Boolean)
+    ));
+
+    const parentNames = (person.relations?.parents || []).map(getRelatedPersonName).filter(Boolean);
+    const partnerNames = (person.relations?.partners || []).map(getRelatedPersonName).filter(Boolean);
+    const childNames = (person.relations?.children || []).map(getRelatedPersonName).filter(Boolean);
+
+    const lines = [];
+    let intro = `${fullName} `;
+
+    if (birthEvent?.date || birthEvent?.place) {
+      const birthDateText = birthEvent?.date ? `född ${birthEvent.date}` : 'född';
+      const birthPlaceText = birthEvent?.place ? ` i ${birthEvent.place}` : '';
+      intro += `var ${birthDateText}${birthPlaceText}`;
+    } else {
+      intro += 'är en person i släktträdet';
+    }
+
+    if (deathEvent?.date || deathEvent?.place) {
+      const deathDateText = deathEvent?.date ? ` och avled ${deathEvent.date}` : ' och avled';
+      const deathPlaceText = deathEvent?.place ? ` i ${deathEvent.place}` : '';
+      intro += `${deathDateText}${deathPlaceText}`;
+    }
+
+    intro += '.';
+    lines.push(intro);
+
+    if (occupationEvents.length > 0) {
+      const occupationSummary = occupationEvents
+        .map((eventItem) => [eventItem.type, eventItem.notes || eventItem.date || ''].filter(Boolean).join(' - '))
+        .slice(0, 3)
+        .join(', ');
+      lines.push(`Kända yrken eller roller: ${occupationSummary}.`);
+    }
+
+    if (uniquePlaces.length > 0) {
+      const placeSummary = uniquePlaces.slice(0, 5).join(', ');
+      lines.push(`Personen är knuten till följande platser: ${placeSummary}.`);
+    }
+
+    if (parentNames.length > 0) {
+      lines.push(`Föräldrar: ${parentNames.join(' och ')}.`);
+    }
+
+    if (partnerNames.length > 0) {
+      lines.push(`Partner: ${partnerNames.join(', ')}.`);
+    }
+
+    if (childNames.length > 0) {
+      lines.push(`Barn: ${childNames.join(', ')}.`);
+    }
+
+    const now = new Date().toISOString();
+    const existingBiographyCount = (person.notes || []).filter((noteItem) =>
+      String(noteItem?.title || '').toLowerCase().startsWith('biografi')
+    ).length;
+
+    const biographyNote = {
+      id: `note_biography_${Date.now()}`,
+      title: existingBiographyCount > 0 ? `Biografi ${existingBiographyCount + 1}` : 'Biografi',
+      content: `<p>${lines.join('</p><p>')}</p>`,
+      createdAt: now,
+      modifiedAt: now
+    };
+
+    setPerson((prev) => ({
+      ...prev,
+      notes: [...(prev.notes || []), biographyNote]
+    }));
+  };
+
+  const inferImageExtension = (url = '', mimeType = '') => {
+    const mimeMap = {
+      'image/jpeg': 'jpg',
+      'image/png': 'png',
+      'image/gif': 'gif',
+      'image/webp': 'webp',
+      'image/bmp': 'bmp'
+    };
+
+    if (mimeType && mimeMap[mimeType]) return mimeMap[mimeType];
+
+    const urlWithoutQuery = String(url || '').split('?')[0].split('#')[0];
+    const extMatch = urlWithoutQuery.match(/\.([a-zA-Z0-9]+)$/);
+    if (extMatch && extMatch[1]) return extMatch[1].toLowerCase();
+
+    return 'jpg';
+  };
+
+  const sanitizeFilename = (input, fallback = 'bild') => {
+    const cleaned = String(input || '').trim().replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ');
+    return cleaned || fallback;
+  };
+
+  const resolveMediaToBlob = async (imageUrl) => {
+    if (!imageUrl) throw new Error('Saknar bild-URL');
+
+    if (imageUrl.startsWith('media://')) {
+      if (!window.electronAPI || typeof window.electronAPI.readFile !== 'function') {
+        throw new Error('media:// kräver Electron API för fil-läsning');
+      }
+
+      let filePath = imageUrl.replace('media://', '');
+      try {
+        filePath = decodeURIComponent(filePath);
+      } catch {
+        filePath = filePath.replace(/%2F/g, '/').replace(/%20/g, ' ').replace(/%5C/g, '\\');
+      }
+      filePath = filePath.replace(/%2F/g, '/');
+
+      const fileData = await window.electronAPI.readFile(filePath);
+      if (!fileData || fileData.error) {
+        throw new Error(fileData?.error || 'Kunde inte läsa mediafil');
+      }
+
+      let uint8Array;
+      if (fileData instanceof ArrayBuffer) {
+        uint8Array = new Uint8Array(fileData);
+      } else if (fileData instanceof Uint8Array) {
+        uint8Array = fileData;
+      } else if (fileData.data instanceof Uint8Array) {
+        uint8Array = fileData.data;
+      } else if (fileData.data instanceof ArrayBuffer) {
+        uint8Array = new Uint8Array(fileData.data);
+      } else if (Array.isArray(fileData.data)) {
+        uint8Array = new Uint8Array(fileData.data);
+      } else if (Array.isArray(fileData)) {
+        uint8Array = new Uint8Array(fileData);
+      } else {
+        uint8Array = new Uint8Array(fileData.data || fileData);
+      }
+
+      const extension = inferImageExtension(filePath);
+      const mimeType = {
+        jpg: 'image/jpeg',
+        jpeg: 'image/jpeg',
+        png: 'image/png',
+        gif: 'image/gif',
+        webp: 'image/webp',
+        bmp: 'image/bmp'
+      }[extension] || 'image/jpeg';
+
+      return new Blob([uint8Array], { type: mimeType });
+    }
+
+    const response = await fetch(imageUrl);
+    if (!response.ok) {
+      throw new Error(`Kunde inte ladda bild (${response.status})`);
+    }
+    return response.blob();
+  };
+
+  const handleDownloadPersonImages = async () => {
+    const mediaList = Array.isArray(person.media) ? person.media : [];
+    if (mediaList.length === 0) {
+      alert('Personen har inga bilder att ladda ner.');
+      return;
+    }
+
+    let successCount = 0;
+    const failed = [];
+
+    for (let index = 0; index < mediaList.length; index += 1) {
+      const mediaItem = mediaList[index];
+      const imageUrl = mediaItem?.url || mediaItem?.path || '';
+
+      try {
+        const blob = await resolveMediaToBlob(imageUrl);
+        const blobUrl = URL.createObjectURL(blob);
+        const extension = inferImageExtension(imageUrl, blob.type);
+        const baseName = sanitizeFilename(
+          mediaItem?.name || mediaItem?.title || `${person.firstName || 'person'}_${person.lastName || 'bild'}_${index + 1}`,
+          `bild_${index + 1}`
+        );
+
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = `${baseName}.${extension}`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
+        successCount += 1;
+      } catch (error) {
+        failed.push(mediaItem?.name || mediaItem?.title || `Bild ${index + 1}`);
+      }
+    }
+
+    if (failed.length > 0) {
+      alert(`Laddade ner ${successCount} bilder. Kunde inte ladda ner: ${failed.join(', ')}`);
+      return;
+    }
+
+    alert(`Laddade ner ${successCount} bilder.`);
+  };
+
   // Event handling
   const handleAddEvent = () => {
+    if (isEventTypeMenuOpen) {
+      closeEventTypeMenu();
+      return;
+    }
+
+    const buttonRect = eventTypeButtonRef.current?.getBoundingClientRect();
+    if (!buttonRect) return;
+
+    const viewportPadding = 12;
+    const menuWidth = 420;
+    const maxHeight = Math.min(460, window.innerHeight - viewportPadding * 2);
+    const placeBelow = buttonRect.bottom + 8 + maxHeight <= window.innerHeight - viewportPadding;
+    const top = placeBelow
+      ? buttonRect.bottom + 8
+      : Math.max(viewportPadding, buttonRect.top - 8 - maxHeight);
+    const left = Math.min(
+      Math.max(viewportPadding, buttonRect.left),
+      window.innerWidth - menuWidth - viewportPadding
+    );
+
+    setEventTypeMenuPosition({ top, left, width: menuWidth, maxHeight });
+    setEventTypeSearch('');
+    setEventTypeMenuOpen(true);
+  };
+
+  const closeEventTypeMenu = () => {
+    setEventTypeSearch('');
+    setEventTypeActiveIndex(-1);
+    setEventTypeMenuOpen(false);
+  };
+
+  const handleSelectEventType = (eventType) => {
+    if (editingEventIndex === null && !canAddEventType(eventType)) {
+      return;
+    }
+
+    const eventConfig = EVENT_TYPES.find((item) => item.value === eventType);
+
     setEditingEventIndex(null);
     setNewEvent({
-      id: `evt_${Date.now()}`,
-      type: 'Födelse',
+      id: `evt_${Date.now()}_${eventType}`,
+      type: eventType,
+      gedcomType: eventConfig?.gedcomType || 'event',
+      customType: eventConfig?.gedcomType === 'custom' ? '' : undefined,
+      description: '',
+      value: '',
       date: '',
       place: '',
       placeId: '',
       placeData: null,
       sources: [],
-      images: [], // Ändrat från siffra till array
-      notes: ''
+      images: [],
+      notes: '',
+      linkedPersons: []
     });
+    resetWitnessDraft('existing');
+    setWitnessModalOpen(false);
+    setEventTypeMenuOpen(false);
     setEventModalOpen(true);
   };
 
-  const handleEditEvent = (eventId) => {
+  const handleQuickAddEvent = (eventType) => {
+    handleSelectEventType(eventType);
+  };
+
+  const handleEventTypeMenuKeyDown = (e) => {
+    if (!eventTypeOptions.length) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const start = eventTypeActiveIndex === -1 ? 0 : (eventTypeActiveIndex + 1) % eventTypeOptions.length;
+      const next = getNextSelectableEventTypeIndex(start, 1);
+      if (next !== -1) setEventTypeActiveIndex(next);
+      return;
+    }
+
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const start = eventTypeActiveIndex === -1
+        ? eventTypeOptions.length - 1
+        : (eventTypeActiveIndex - 1 + eventTypeOptions.length) % eventTypeOptions.length;
+      const next = getNextSelectableEventTypeIndex(start, -1);
+      if (next !== -1) setEventTypeActiveIndex(next);
+      return;
+    }
+
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const selected = eventTypeOptions[eventTypeActiveIndex] || eventTypeOptions[0];
+      if (!selected) return;
+      handleSelectEventType(selected.value);
+      return;
+    }
+
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeEventTypeMenu();
+    }
+  };
+
+  const closeEventModal = () => {
+    setEventModalOpen(false);
+    setEditingEventIndex(null);
+    setEventTypeMenuOpen(false);
+    setWitnessModalOpen(false);
+  };
+
+  const handleEditEvent = (eventId, openWitnessEditor = false) => {
     // Hitta rätt index i den ursprungliga person.events arrayen baserat på eventId
     const actualIndex = person.events.findIndex(e => e.id === eventId);
     if (actualIndex === -1) {
@@ -1261,14 +1990,86 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
       return;
     }
     setEditingEventIndex(actualIndex);
-    setNewEvent(person.events[actualIndex]);
+    const existingEvent = person.events[actualIndex] || {};
+    const eventConfig = EVENT_TYPES.find((eventType) => eventType.value === existingEvent.type);
+    const resolvedGedcomType = eventConfig?.gedcomType || existingEvent.gedcomType || 'event';
+    setNewEvent({
+      ...existingEvent,
+      gedcomType: resolvedGedcomType,
+      customType: resolvedGedcomType === 'custom' ? (existingEvent.customType || '') : existingEvent.customType,
+      description: existingEvent.description ?? existingEvent.value ?? '',
+      value: existingEvent.value ?? existingEvent.description ?? '',
+      linkedPersons: Array.isArray(existingEvent.linkedPersons) ? existingEvent.linkedPersons : []
+    });
+    resetWitnessDraft('existing');
+    setWitnessModalOpen(false);
     setEventModalOpen(true);
+
+    if (openWitnessEditor) {
+      const firstWitness = Array.isArray(existingEvent.linkedPersons) ? existingEvent.linkedPersons[0] : null;
+      window.setTimeout(() => {
+        if (firstWitness && (typeof firstWitness === 'string' || typeof firstWitness === 'number')) {
+          const personId = String(firstWitness);
+          const personMatch = sortedPeopleForWitnesses.find((candidate) => String(candidate.id) === personId);
+          setSelectedWitnessId(null);
+          setWitnessMode('existing');
+          setWitnessSearch('');
+          setWitnessDraft({
+            id: null,
+            personId,
+            name: personMatch ? formatWitnessPersonName(personMatch) : '',
+            role: getWitnessRolesForEventType(existingEvent.type)[0] || 'Vittne',
+            note: ''
+          });
+        } else if (firstWitness && typeof firstWitness === 'object') {
+          const personId = String(firstWitness.personId || firstWitness.linkedPersonId || firstWitness.targetId || '').trim();
+          const mode = personId ? 'existing' : 'free';
+          setSelectedWitnessId(firstWitness.id || null);
+          setWitnessMode(mode);
+          setWitnessSearch('');
+          setWitnessDraft({
+            id: firstWitness.id || null,
+            personId,
+            name: String(firstWitness.name || firstWitness.personName || '').trim(),
+            role: String(firstWitness.role || (getWitnessRolesForEventType(existingEvent.type)[0] || 'Vittne')).trim() || (getWitnessRolesForEventType(existingEvent.type)[0] || 'Vittne'),
+            note: String(firstWitness.note || '').trim()
+          });
+        } else {
+          resetWitnessDraft('existing');
+        }
+
+        setWitnessModalOpen(true);
+      }, 0);
+    }
   };
 
   const handleSaveEvent = () => {
+    const eventConfig = EVENT_TYPES.find((eventType) => eventType.value === newEvent.type);
+    const resolvedGedcomType = eventConfig?.gedcomType || newEvent.gedcomType || 'event';
+    const normalizedDescription = (newEvent.description ?? newEvent.value ?? '').trim();
+    const normalizedCustomType = (newEvent.customType || '').trim();
+
+    const normalizedEvent = {
+      ...newEvent,
+      gedcomType: resolvedGedcomType,
+      description: normalizedDescription,
+      value: resolvedGedcomType === 'attribute' ? normalizedDescription : (newEvent.value || ''),
+      linkedPersons: linkedPersonsForEvent.map((entry) => ({
+        id: entry.id,
+        personId: entry.personId || '',
+        name: String(entry.name || '').trim(),
+        role: String(entry.role || (getWitnessRolesForEventType(newEvent.type)[0] || 'Vittne')).trim() || (getWitnessRolesForEventType(newEvent.type)[0] || 'Vittne'),
+        note: String(entry.note || '').trim()
+      }))
+      .filter((entry) => entry.personId || entry.name)
+    };
+
+    if (resolvedGedcomType === 'custom') {
+      normalizedEvent.customType = normalizedCustomType;
+    }
+
     // Validera: om det är en ny händelse (inte redigering) och händelsen är unique, kolla om den redan finns
     if (editingEventIndex === null) {
-      const eventConfig = EVENT_TYPES.find(e => e.value === newEvent.type);
       if (eventConfig?.unique && person.events?.some(e => e.type === newEvent.type)) {
         alert(`Händelsen "${newEvent.type}" finns redan och kan bara läggas till en gång.`);
         return;
@@ -1276,23 +2077,30 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
     }
 
     if (editingEventIndex !== null) {
-      const updated = person.events.map((e, i) => i === editingEventIndex ? newEvent : e);
+      const updated = person.events.map((e, i) => i === editingEventIndex ? normalizedEvent : e);
       setPerson({ ...person, events: updated });
     } else {
-      setPerson({ ...person, events: [...person.events, newEvent] });
+      setPerson({ ...person, events: [...person.events, normalizedEvent] });
     }
     setEventModalOpen(false);
     setEditingEventIndex(null);
+    setWitnessModalOpen(false);
+    resetWitnessDraft('existing');
     setNewEvent({
       id: `evt_${Date.now()}`,
       type: 'Födelse',
+      gedcomType: 'event',
+      customType: '',
+      description: '',
+      value: '',
       date: '',
       place: '',
       placeId: '',
       placeData: null,
       sources: [],
       images: [], // Ändrat från siffra till array
-      notes: ''
+      notes: '',
+      linkedPersons: []
     });
   };
 
@@ -1301,16 +2109,23 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
     // Reset modal state if open
     setEventModalOpen(false);
     setEditingEventIndex(null);
+    setWitnessModalOpen(false);
+    resetWitnessDraft('existing');
     setNewEvent({
       id: `evt_${Date.now()}`,
       type: 'Födelse',
+      gedcomType: 'event',
+      customType: '',
+      description: '',
+      value: '',
       date: '',
       place: '',
       placeId: '',
       placeData: null,
       sources: [],
       images: [], // Ändrat från siffra till array
-      notes: ''
+      notes: '',
+      linkedPersons: []
     });
   };
 
@@ -1357,69 +2172,51 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
     }
   }, [isEventModalDragging, eventModalDragOffset]);
 
-  // Event type search functions
-  const getFilteredEventTypes = () => {
-    if (!eventTypeSearchText) return EVENT_TYPES;
-    const search = eventTypeSearchText.toLowerCase();
-    return EVENT_TYPES.filter(t => t.label.toLowerCase().includes(search));
-  };
+  useEffect(() => {
+    if (!isEventTypeMenuOpen) return;
 
-  const handleEventTypeSearchKeyDown = (e) => {
-    const filteredTypes = getFilteredEventTypes();
+    const firstSelectable = getNextSelectableEventTypeIndex(0, 1);
+    setEventTypeActiveIndex(firstSelectable);
 
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setEventTypeSearchIndex(prev => Math.min(prev + 1, filteredTypes.length - 1));
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setEventTypeSearchIndex(prev => Math.max(prev - 1, 0));
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      if (filteredTypes[eventTypeSearchIndex]) {
-        const selectedType = filteredTypes[eventTypeSearchIndex];
-        if (editingEventIndex !== null || canAddEventType(selectedType.value)) {
-          setNewEvent({ ...newEvent, type: selectedType.value });
-          setEventTypeSearchOpen(false);
-          setEventTypeSearchText('');
-          setEventTypeSearchIndex(0);
-        }
+    const focusTimer = window.setTimeout(() => {
+      if (eventTypeSearchInputRef.current) {
+        eventTypeSearchInputRef.current.focus();
       }
-    } else if (e.key === 'Escape') {
-      setEventTypeSearchOpen(false);
-      setEventTypeSearchText('');
-      setEventTypeSearchIndex(0);
-    }
-  };
+    }, 10);
 
-  const handleEventTypeSelect = (eventType) => {
-    if (editingEventIndex !== null || canAddEventType(eventType)) {
-      setNewEvent({ ...newEvent, type: eventType });
-      setEventTypeSearchOpen(false);
-      setEventTypeSearchText('');
-      setEventTypeSearchIndex(0);
-    }
-  };
-
-  useEffect(() => {
-    if (eventTypeSearchText !== '') {
-      setEventTypeSearchIndex(0);
-    }
-  }, [eventTypeSearchText]);
-
-  useEffect(() => {
     const handleClickOutside = (e) => {
-      if (eventTypeSearchRef.current && !eventTypeSearchRef.current.contains(e.target)) {
-        setEventTypeSearchOpen(false);
-        setEventTypeSearchText('');
-        setEventTypeSearchIndex(0);
+      if (eventTypeMenuRef.current && eventTypeMenuRef.current.contains(e.target)) {
+        return;
+      }
+
+      if (eventTypeButtonRef.current && eventTypeButtonRef.current.contains(e.target)) {
+        return;
+      }
+
+      closeEventTypeMenu();
+    };
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        closeEventTypeMenu();
       }
     };
 
-    if (eventTypeSearchOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [eventTypeSearchOpen]);
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.clearTimeout(focusTimer);
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isEventTypeMenuOpen, eventTypeOptions.length]);
+
+  useEffect(() => {
+    if (!isEventTypeMenuOpen) return;
+    const next = getNextSelectableEventTypeIndex(0, 1);
+    setEventTypeActiveIndex(next);
+  }, [eventTypeSearch, isEventTypeMenuOpen]);
 
   // Image paste handler - TAS BORT: MediaSelector hanterar paste nu
 
@@ -1441,9 +2238,31 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                 )}
               </div>
               <div>
-                <h1 className="text-lg font-bold text-slate-200 leading-tight">
-                  {person.firstName} {person.lastName}
-                </h1>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-lg font-bold text-slate-200 leading-tight">
+                    {person.firstName} {person.lastName}
+                  </h1>
+                  {person?.color && (
+                    <span
+                      className="inline-flex w-2.5 h-2.5 rounded-full border border-white/40"
+                      style={{ backgroundColor: person.color }}
+                      title={`Grenfärg: ${person.color}`}
+                    />
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (typeof handleToggleBookmark === 'function' && person?.id) {
+                        handleToggleBookmark(person.id);
+                      }
+                    }}
+                    className={`p-1 rounded transition-colors ${isBookmarked ? 'text-yellow-300 hover:text-yellow-200' : 'text-slate-400 hover:text-slate-200'}`}
+                    title={isBookmarked ? 'Ta bort bokmärke' : 'Lägg till bokmärke'}
+                    aria-label={isBookmarked ? 'Ta bort bokmärke' : 'Lägg till bokmärke'}
+                  >
+                    <Star className={`w-4 h-4 ${isBookmarked ? 'fill-current' : ''}`} />
+                  </button>
+                </div>
                 <p className="text-xs text-slate-400">
                   {(() => {
                     const { birthYear, deathYear, lifeSpan } = getLifeInfo(person);
@@ -1549,10 +2368,19 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                       <div>
                         <label className="text-xs uppercase font-bold text-slate-300">Förnamn</label>
                         <input type="text" value={person.firstName} onChange={e => {
-                          const updated = { ...person, firstName: e.target.value };
+                          const nextFirstName = e.target.value;
+                          const parsedNickname = extractNicknameFromQuotedName(nextFirstName);
+                          const updated = {
+                            ...person,
+                            firstName: nextFirstName,
+                            nickname: parsedNickname || person.nickname || ''
+                          };
                           setPerson(updated);
                           if (onChange) onChange(updated);
-                        }} className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-slate-200 focus:border-blue-500 focus:outline-none" />
+                        }}
+                          title='Tilltalsnamn skrivs med STORA bokstäver (GEDCOM-standard). Smeknamn tolkas när de skrivs inom citattecken i förnamn, t.ex. "Kalle".'
+                          className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-slate-200 focus:border-blue-500 focus:outline-none"
+                        />
                       </div>
                       <div>
                         <label className="text-xs uppercase font-bold text-slate-300">Efternamn</label>
@@ -1562,6 +2390,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                           if (onChange) onChange(updated);
                         }} className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-slate-200 focus:border-blue-500 focus:outline-none" />
                       </div>
+
                       <div>
                         <label className="text-xs uppercase font-bold text-slate-300">Kön</label>
                         <select value={person.sex} onChange={e => {
@@ -1575,7 +2404,18 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                         </select>
                       </div>
                       <div>
-                        <label className="text-xs uppercase font-bold text-slate-300">Ref Nr</label>
+                        <div className="flex items-center gap-2 mb-1">
+                          <label className="text-xs uppercase font-bold text-slate-300">Ref Nr</label>
+                          <button
+                            type="button"
+                            onClick={handleCopyRefNumber}
+                            className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] transition-colors ${isRefCopied ? 'border-green-500 text-green-300 bg-green-900/20' : 'border-slate-600 text-slate-300 hover:bg-slate-700'}`}
+                            title={isRefCopied ? 'Kopierat' : 'Kopiera REF-nummer'}
+                            aria-label={isRefCopied ? 'Kopierat' : 'Kopiera REF-nummer'}
+                          >
+                            {isRefCopied ? <Check size={12} /> : <Copy size={12} />}
+                          </button>
+                        </div>
                         <input
                           type="text"
                           value={person.refNumber || ''}
@@ -1717,12 +2557,31 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                       <h3 className="text-md font-bold text-slate-200 uppercase tracking-wide flex items-center gap-2">
                         <Activity size={16} className="text-blue-600" /> Livshändelser
                       </h3>
-                      <button
-                        onClick={handleAddEvent}
-                        className="flex items-center gap-1 text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded transition-colors"
-                      >
-                        <Plus size={14} /> Lägg till händelse
-                      </button>
+                      <div className="flex items-center gap-2">
+                        {!hasBirthEvent && (
+                          <button
+                            onClick={() => handleQuickAddEvent('Födelse')}
+                            className="flex items-center gap-1 text-xs bg-slate-700 hover:bg-slate-600 text-slate-100 px-2.5 py-1 rounded transition-colors"
+                          >
+                            <Plus size={13} /> Födelse
+                          </button>
+                        )}
+                        {!hasDeathEvent && (
+                          <button
+                            onClick={() => handleQuickAddEvent('Död')}
+                            className="flex items-center gap-1 text-xs bg-slate-700 hover:bg-slate-600 text-slate-100 px-2.5 py-1 rounded transition-colors"
+                          >
+                            <Plus size={13} /> Död
+                          </button>
+                        )}
+                        <button
+                          onClick={handleAddEvent}
+                          ref={eventTypeButtonRef}
+                          className="flex items-center gap-1 text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded transition-colors"
+                        >
+                          <Plus size={14} /> Lägg till händelse
+                        </button>
+                      </div>
                     </div>
 
                     <div className="bg-slate-900 rounded-lg border border-slate-700 overflow-hidden">
@@ -1741,6 +2600,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                         <tbody className="divide-y divide-gray-200">
                           {sortedEvents().map((evt, idx) => {
                             const age = calculateAgeAtEvent(person.events?.find(e => e.type === 'Födelse')?.date, evt.date);
+                            const witnessCount = getEventWitnessCount(evt);
                             let partnerName = '';
                             // Hitta partner-namn för vigsel, lysning, samlevnad, skilsmässa, förlovning
                             if (['Vigsel', 'Lysning', 'Samlevnad', 'Skilsmässa', 'Förlovning'].includes(evt.type) && evt.partnerId && person.relations?.partners?.length > 0) {
@@ -1836,6 +2696,16 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                       title="Bilder"
                                     >
                                       <ImageIcon size={10} /> {Array.isArray(evt.images) ? evt.images.length : (evt.images || 0)}
+                                    </span>
+                                    <span
+                                      className={`flex items-center gap-0.5 cursor-pointer hover:text-blue-600 ${witnessCount > 0 ? 'text-slate-200' : 'text-slate-500'}`}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleEditEvent(evt.id, true);
+                                      }}
+                                      title="Dopvittnen / medverkande"
+                                    >
+                                      <Users size={10} /> {witnessCount}
                                     </span>
                                   </div>
                                 </td>
@@ -2363,6 +3233,14 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
               {/* FLIK: MEDIA */}
               {activeTab === 'media' && (
                 <div className="animate-in fade-in duration-300 h-full">
+                  <div className="flex justify-end mb-3">
+                    <button
+                      onClick={handleDownloadPersonImages}
+                      className="text-xs bg-slate-700 hover:bg-slate-600 text-slate-100 px-3 py-1.5 rounded flex items-center gap-1 transition-colors"
+                    >
+                      <DownloadCloud size={14} /> Ladda ner personens bilder
+                    </button>
+                  </div>
                   <MediaSelector
                     media={person.media || []}
                     onMediaChange={(newMedia) => {
@@ -2824,25 +3702,33 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                   <div className="space-y-4 animate-in fade-in duration-300">
                     <div className="flex justify-between items-center mb-4">
                       <h3 className="text-lg font-bold text-slate-200">Noteringar</h3>
-                      <button
-                        onClick={() => {
-                          const now = new Date().toISOString();
-                          const newNote = {
-                            id: `note_${Date.now()}`,
-                            title: 'Ny notering',
-                            content: '',
-                            createdAt: now,
-                            modifiedAt: now
-                          };
-                          setPerson(prev => ({
-                            ...prev,
-                            notes: [...(prev.notes || []), newNote]
-                          }));
-                        }}
-                        className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded flex items-center gap-1 transition-colors"
-                      >
-                        <Plus size={14} /> Ny notering
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={handleGenerateBiography}
+                          className="text-xs bg-slate-700 hover:bg-slate-600 text-slate-100 px-3 py-1.5 rounded flex items-center gap-1 transition-colors"
+                        >
+                          <Sparkles size={14} /> Generera Biografi
+                        </button>
+                        <button
+                          onClick={() => {
+                            const now = new Date().toISOString();
+                            const newNote = {
+                              id: `note_${Date.now()}`,
+                              title: 'Ny notering',
+                              content: '',
+                              createdAt: now,
+                              modifiedAt: now
+                            };
+                            setPerson(prev => ({
+                              ...prev,
+                              notes: [...(prev.notes || []), newNote]
+                            }));
+                          }}
+                          className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded flex items-center gap-1 transition-colors"
+                        >
+                          <Plus size={14} /> Ny notering
+                        </button>
+                      </div>
                     </div>
 
                     {/* Sökfält */}
@@ -3296,114 +4182,221 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
       </div>
 
       {/* --- EVENT MODAL (SUB-MODAL) --- */}
+      {isEventTypeMenuOpen && createPortal(
+        <div
+          ref={eventTypeMenuRef}
+          className="fixed z-[6005] rounded-lg border border-slate-700 bg-slate-900 shadow-2xl overflow-hidden"
+          style={{
+            top: `${eventTypeMenuPosition.top}px`,
+            left: `${eventTypeMenuPosition.left}px`,
+            width: `${eventTypeMenuPosition.width}px`,
+            maxHeight: `${eventTypeMenuPosition.maxHeight}px`
+          }}
+        >
+          <div className="px-3 py-2 border-b border-slate-700 space-y-2">
+            <div className="text-xs font-bold uppercase tracking-wide text-slate-400">Välj händelsetyp</div>
+            <div className="relative">
+              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
+              <input
+                ref={eventTypeSearchInputRef}
+                type="text"
+                value={eventTypeSearch}
+                onChange={(e) => setEventTypeSearch(e.target.value)}
+                onKeyDown={handleEventTypeMenuKeyDown}
+                placeholder="Sök händelsetyp..."
+                role="combobox"
+                aria-expanded={isEventTypeMenuOpen}
+                aria-controls="event-type-listbox"
+                aria-autocomplete="list"
+                aria-activedescendant={eventTypeActiveIndex >= 0 && eventTypeOptions[eventTypeActiveIndex] ? `event-type-option-${eventTypeOptions[eventTypeActiveIndex].value}` : undefined}
+                className="w-full bg-slate-950 border border-slate-700 rounded pl-8 pr-2 py-1.5 text-sm text-slate-100 focus:outline-none focus:border-blue-500"
+              />
+            </div>
+          </div>
+          <div
+            id="event-type-listbox"
+            role="listbox"
+            aria-label="Händelsetyper"
+            className="overflow-y-auto"
+            style={{ maxHeight: `${Math.max(220, eventTypeMenuPosition.maxHeight - 82)}px` }}
+          >
+            {eventTypeOptions.length === 0 && (
+              <div className="px-3 py-4 text-sm text-slate-400">Ingen händelsetyp matchade sökningen.</div>
+            )}
+
+            {EVENT_TYPE_CATEGORIES.map((category) => {
+              const categoryItems = eventTypeOptions.filter((eventType) => eventType.category === category);
+              if (categoryItems.length === 0) return null;
+
+              return (
+                <div key={category} role="group" aria-label={category}>
+                  <div className="px-3 py-1.5 bg-slate-800/60 border-y border-slate-800 text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                    {category}
+                  </div>
+                  {categoryItems.map((eventType) => {
+                    const optionIndex = eventTypeOptions.findIndex((item) => item.value === eventType.value);
+                    const isActive = optionIndex === eventTypeActiveIndex;
+                    const isDisabled = eventType.unique && editingEventIndex === null && !canAddEventType(eventType.value);
+
+                    return (
+                      <button
+                        key={eventType.value}
+                        id={`event-type-option-${eventType.value}`}
+                        role="option"
+                        aria-selected={isActive}
+                        onClick={() => handleSelectEventType(eventType.value)}
+                        onMouseEnter={() => setEventTypeActiveIndex(optionIndex)}
+                        disabled={isDisabled}
+                        className={`w-full flex items-center gap-3 px-3 py-2 text-left text-sm transition-colors ${isDisabled
+                          ? 'text-slate-600 cursor-not-allowed'
+                          : isActive
+                            ? 'bg-blue-900/40 text-slate-100'
+                            : 'text-slate-200 hover:bg-slate-800'
+                          }`}
+                      >
+                        <span className="text-base w-5 text-center">{eventType.icon}</span>
+                        <span className="flex-1">{eventType.label}</span>
+                        <span className="text-[10px] uppercase tracking-wide text-slate-500">{eventType.gedcomType}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        </div>,
+        document.body
+      )}
+
       {isEventModalOpen && (
         <WindowFrame
           title={`${editingEventIndex !== null ? 'Redigera' : 'Lägg till'} händelse`}
           icon={Activity}
           initialWidth={600}
           initialHeight={650}
-          onClose={() => {
-            setEventModalOpen(false);
-            setEditingEventIndex(null);
-          }}
+            onClose={closeEventModal}
         >
           <div className="flex flex-col h-full">
             <div className="p-6 space-y-4 flex-1 overflow-y-auto">
-              <div ref={eventTypeSearchRef} className="relative">
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Händelsetyp</label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={eventTypeSearchOpen ? eventTypeSearchText : EVENT_TYPES.find(t => t.value === newEvent.type)?.label || ''}
-                    onChange={(e) => {
-                      setEventTypeSearchText(e.target.value);
-                      if (!eventTypeSearchOpen) setEventTypeSearchOpen(true);
-                    }}
-                    onFocus={() => {
-                      setEventTypeSearchOpen(true);
-                      setEventTypeSearchText('');
-                    }}
-                    onKeyDown={handleEventTypeSearchKeyDown}
-                    placeholder="Sök händelsetyp..."
-                    className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-slate-200 focus:border-blue-500 focus:outline-none"
-                  />
-                  {eventTypeSearchOpen && (
-                    <div className="absolute z-10 w-full mt-1 bg-slate-900 border border-slate-600 rounded shadow-lg max-h-60 overflow-y-auto">
-                      {getFilteredEventTypes().map((eventType, index) => {
-                        const isDisabled = eventType.unique &&
-                          editingEventIndex === null &&
-                          !canAddEventType(eventType.value);
-                        const isSelected = index === eventTypeSearchIndex;
-                        return (
-                          <div
-                            key={eventType.value}
-                            onClick={() => !isDisabled && handleEventTypeSelect(eventType.value)}
-                            className={`px-3 py-2 cursor-pointer flex items-center gap-2 ${isSelected ? 'bg-blue-500 text-white' : 'hover:bg-slate-800 text-slate-200'
-                              } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                          >
-                            <span>{eventType.icon}</span>
-                            <span>{eventType.label}</span>
-                            {isDisabled && <span className="text-xs ml-auto">(finns redan)</span>}
-                          </div>
-                        );
-                      })}
-                      {getFilteredEventTypes().length === 0 && (
-                        <div className="px-3 py-2 text-slate-400 text-sm">
-                          Inga matchande händelsetyper
-                        </div>
-                      )}
-                    </div>
-                  )}
+              <div className="space-y-3">
+                <div className="rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-2">
+                  <div className="text-xs font-bold uppercase text-slate-400 mb-1">Händelsetyp</div>
+                  <div className="flex items-center gap-2 text-sm text-slate-100">
+                    <span>{selectedEventTypeConfig?.icon || '•'}</span>
+                    <span>{selectedEventTypeConfig?.label || newEvent.type || 'Okänd'}</span>
+                  </div>
                 </div>
-                {newEvent.type && EVENT_TYPES.find(e => e.value === newEvent.type)?.unique &&
-                  editingEventIndex === null &&
-                  !canAddEventType(newEvent.type) && (
-                    <p className="text-xs text-amber-600 mt-1">⚠️ Denna händelse kan bara läggas till en gång</p>
-                  )}
-              </div>
-              {/* Partner dropdown for Vigsel */}
-              {newEvent.type === 'Vigsel' && person.relations?.partners?.length > 0 && (
-                <div className="mb-4">
-                  <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Partner</label>
-                  <select
-                    value={newEvent.partnerId || ''}
-                    onChange={e => setNewEvent({ ...newEvent, partnerId: e.target.value })}
-                    className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-slate-200 focus:border-blue-500 focus:outline-none"
-                  >
-                    <option value="">Välj partner...</option>
-                    {person.relations.partners.map(p => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Datum</label>
-                  <div className="relative">
-                    <Calendar size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
+
+                {newEvent.type === 'Vigsel' && person.relations?.partners?.length > 0 && (
+                  <div className="mb-4">
+                    <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Partner</label>
+                    <select
+                      value={newEvent.partnerId || ''}
+                      onChange={e => setNewEvent({ ...newEvent, partnerId: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-slate-200 focus:border-blue-500 focus:outline-none"
+                    >
+                      <option value="">Välj partner...</option>
+                      {person.relations.partners.map(p => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {selectedEventGedcomType === 'custom' && (
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Egen händelsetyp</label>
                     <input
                       type="text"
-                      placeholder="t.ex. 21 nov 1980, från 1950, ca 1920"
-                      value={newEvent.date}
-                      onChange={(e) => setNewEvent({ ...newEvent, date: e.target.value })}
-                      className="w-full bg-slate-900 border border-slate-600 rounded pl-9 p-2 text-slate-200 focus:border-blue-500 focus:outline-none"
-                      onBlur={(e) => setNewEvent({ ...newEvent, date: parseAndFormatDate(e.target.value) })}
+                      value={newEvent.customType || ''}
+                      onChange={(e) => setNewEvent({ ...newEvent, customType: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-slate-200 focus:border-blue-500 focus:outline-none"
+                      placeholder="t.ex. Kontraktsskrivning, Flytt till gård..."
                     />
                   </div>
-                  <p className="text-xs text-slate-400 mt-1">Format: ÅÅÅÅ-MM-DD, eller skriv naturligt</p>
+                )}
+
+                {selectedEventGedcomType === 'attribute' && (
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 uppercase mb-1">{getAttributeValueLabel(newEvent.type)}</label>
+                    <input
+                      type="text"
+                      value={newEvent.description ?? newEvent.value ?? ''}
+                      onChange={(e) => {
+                        const nextValue = e.target.value;
+                        setNewEvent({ ...newEvent, description: nextValue, value: nextValue });
+                      }}
+                      className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-slate-200 focus:border-blue-500 focus:outline-none"
+                      placeholder={`Ange ${newEvent.type?.toLowerCase() || 'värde'}...`}
+                    />
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Datum</label>
+                    <div className="relative">
+                      <Calendar size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="text"
+                        placeholder="t.ex. 21 nov 1980, från 1950, ca 1920"
+                        value={newEvent.date}
+                        onChange={(e) => setNewEvent({ ...newEvent, date: e.target.value })}
+                        className="w-full bg-slate-900 border border-slate-600 rounded pl-9 p-2 text-slate-200 focus:border-blue-500 focus:outline-none"
+                        onBlur={(e) => setNewEvent({ ...newEvent, date: parseAndFormatDate(e.target.value) })}
+                      />
+                    </div>
+                    <p className="text-xs text-slate-400 mt-1">Format: ÅÅÅÅ-MM-DD, eller skriv naturligt</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Plats</label>
+                    <PlacePicker
+                      value={newEvent.placeId || ''}
+                      displayValue={newEvent.place || ''}
+                      allPlaces={allPlaces || []}
+                      onChange={(placeId, placeObject) => {
+                        const placeName = placeObject ? (placeObject.name || placeObject.ortnamn || placeObject.sockenstadnamn || '') : '';
+                        setNewEvent({ ...newEvent, placeId, place: placeName, placeData: placeObject });
+                      }}
+                    />
+                  </div>
                 </div>
+
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Plats</label>
-                  <PlacePicker
-                    value={newEvent.placeId || ''}
-                    displayValue={newEvent.place || ''}
-                    allPlaces={allPlaces || []}
-                    onChange={(placeId, placeObject) => {
-                      const placeName = placeObject ? (placeObject.name || placeObject.ortnamn || placeObject.sockenstadnamn || '') : '';
-                      setNewEvent({ ...newEvent, placeId, place: placeName, placeData: placeObject });
-                    }}
-                  />
+                  <div className="flex items-center justify-between mb-1 gap-2">
+                    <label className="block text-xs font-bold text-slate-300 uppercase">Medverkande / Vittnen (Dopvittnen, inneboende etc)</label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setWitnessModalOpen(true);
+                        if (linkedPersonsForEvent.length > 0) {
+                          loadWitnessIntoDraft(linkedPersonsForEvent[0]);
+                        } else {
+                          resetWitnessDraft('existing');
+                        }
+                      }}
+                      className="text-xs bg-slate-700 hover:bg-slate-600 text-blue-300 px-2 py-1 rounded"
+                    >
+                      Hantera
+                    </button>
+                  </div>
+
+                  {linkedPersonsForEvent.length > 0 ? (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {linkedPersonsForEvent.map((personLink) => (
+                        <span
+                          key={personLink.id}
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-blue-900/30 border border-blue-700/60 text-blue-100 text-xs"
+                          title={personLink.note || undefined}
+                        >
+                          <span className="font-semibold">{personLink.role || 'Vittne'}:</span>
+                          <span>{personLink.name}</span>
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-400 mt-1">Inga vittnen tillagda</p>
+                  )}
                 </div>
               </div>
 
@@ -3528,16 +4521,192 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
               </div>
             </div>
             <div className="bg-slate-800 p-4 border-t border-slate-700 flex justify-end gap-3">
-              <button onClick={() => {
-                setEventModalOpen(false);
-                setEditingEventIndex(null);
-              }} className="px-4 py-2 text-sm text-slate-400 hover:text-white">Avbryt</button>
+              <button onClick={closeEventModal} className="px-4 py-2 text-sm text-slate-400 hover:text-white">Avbryt</button>
               <button
                 onClick={handleSaveEvent}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-bold"
               >
                 {editingEventIndex !== null ? 'Uppdatera' : 'Lägg till'} händelse
               </button>
+            </div>
+          </div>
+        </WindowFrame>
+      )}
+
+      {isEventModalOpen && isWitnessModalOpen && (
+        <WindowFrame
+          title={`Vittnen till [${newEvent.type || 'Händelse'}] ${newEvent.date || ''} ${newEvent.place || ''}`.trim()}
+          icon={Users}
+          initialWidth={1040}
+          initialHeight={740}
+          onClose={() => setWitnessModalOpen(false)}
+        >
+          <div className="flex flex-col h-full bg-slate-900">
+            <div className="flex-1 grid grid-cols-12 gap-3 p-4 overflow-hidden">
+              <div className="col-span-5 border border-slate-700 rounded-md bg-slate-850 overflow-hidden flex flex-col">
+                <div className="px-3 py-2 text-xs font-bold uppercase text-slate-300 border-b border-slate-700 flex justify-between items-center">
+                  <span>Vittnen</span>
+                  <button
+                    type="button"
+                    onClick={() => resetWitnessDraft('existing')}
+                    className="text-[11px] px-2 py-1 rounded bg-slate-700 hover:bg-slate-600 text-slate-100"
+                  >
+                    Nytt vittne
+                  </button>
+                </div>
+                <div className="overflow-auto flex-1">
+                  {linkedPersonsForEvent.length === 0 ? (
+                    <div className="p-4 text-sm text-slate-400">Inga vittnen registrerade ännu.</div>
+                  ) : (
+                    <table className="w-full text-sm">
+                      <thead className="sticky top-0 bg-slate-800 border-b border-slate-700 text-slate-300">
+                        <tr>
+                          <th className="text-left px-3 py-2 font-semibold">Roll</th>
+                          <th className="text-left px-3 py-2 font-semibold">Vittne</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {linkedPersonsForEvent.map((entry) => (
+                          <tr
+                            key={entry.id}
+                            className={`cursor-pointer border-b border-slate-800 ${selectedWitnessId === entry.id ? 'bg-blue-900/30' : 'hover:bg-slate-800/60'}`}
+                            onClick={() => loadWitnessIntoDraft(entry)}
+                          >
+                            <td className="px-3 py-2 text-slate-300">{entry.role || 'Vittne'}</td>
+                            <td className="px-3 py-2 text-blue-300 underline underline-offset-2">{entry.name}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+
+              <div className="col-span-7 border border-slate-700 rounded-md bg-slate-850 p-4 flex flex-col">
+                <div className="space-y-3 flex-1">
+                  <h3 className="text-lg font-semibold text-slate-100">{witnessDraft.id ? 'Redigera vittne' : 'Nytt vittne'}</h3>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Vittne</label>
+                    <select
+                      value={witnessMode}
+                      onChange={(e) => {
+                        const nextMode = e.target.value;
+                        setWitnessMode(nextMode);
+                        setWitnessDraft((prev) => ({
+                          ...prev,
+                          personId: nextMode === 'existing' ? prev.personId : '',
+                          name: nextMode === 'free' ? prev.name : prev.name
+                        }));
+                      }}
+                      className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-slate-200"
+                    >
+                      <option value="existing">Befintlig person</option>
+                      <option value="free">Ny person / Fritext</option>
+                    </select>
+                  </div>
+
+                  {witnessMode === 'existing' ? (
+                    <div className="space-y-2">
+                      <input
+                        type="text"
+                        value={witnessSearch}
+                        onChange={(e) => setWitnessSearch(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-slate-200"
+                        placeholder="Sök befintlig person i fritext..."
+                      />
+                      <div className="max-h-44 overflow-auto border border-slate-700 rounded bg-slate-900">
+                        {filteredWitnessCandidates.length === 0 ? (
+                          <p className="p-2 text-xs text-slate-400">Inga matchningar</p>
+                        ) : (
+                          filteredWitnessCandidates.map((candidate) => {
+                            const displayName = formatWitnessPersonName(candidate);
+                            const isSelected = String(witnessDraft.personId || '') === String(candidate.id);
+                            return (
+                              <button
+                                key={candidate.id}
+                                type="button"
+                                onClick={() => handlePickWitnessPerson(candidate.id)}
+                                className={`w-full text-left px-2 py-1.5 text-sm border-b border-slate-800 last:border-b-0 ${isSelected ? 'bg-blue-900/35 text-blue-200' : 'text-slate-200 hover:bg-slate-800'}`}
+                              >
+                                {displayName}
+                                {candidate.refNumber ? ` (REF: ${candidate.refNumber})` : ''}
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <input
+                        type="text"
+                        value={witnessDraft.name}
+                        onChange={(e) => setWitnessDraft((prev) => ({ ...prev, name: e.target.value, personId: '' }))}
+                        className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-slate-200"
+                        placeholder="Namn på vittne (fritext)..."
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Roll</label>
+                    <select
+                      value={witnessDraft.role || (witnessRoleOptionsForType[0] || 'Vittne')}
+                      onChange={(e) => setWitnessDraft((prev) => ({ ...prev, role: e.target.value }))}
+                      className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-slate-200"
+                    >
+                      {witnessRoleOptionsForType.map((roleOption) => (
+                        <option key={roleOption} value={roleOption}>{roleOption}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Notering</label>
+                    <textarea
+                      value={witnessDraft.note || ''}
+                      onChange={(e) => setWitnessDraft((prev) => ({ ...prev, note: e.target.value }))}
+                      className="w-full h-24 bg-slate-900 border border-slate-600 rounded p-2 text-slate-200 resize-none"
+                      placeholder="Frivillig notering..."
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center gap-2 mt-4 pt-3 border-t border-slate-700">
+                  <button
+                    type="button"
+                    onClick={() => witnessDraft.id && handleDeleteWitnessEntry(witnessDraft.id)}
+                    disabled={!witnessDraft.id}
+                    className="px-3 py-2 text-sm rounded bg-red-900/50 border border-red-700 text-red-100 hover:bg-red-800 disabled:opacity-50"
+                  >
+                    Ta bort
+                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setWitnessModalOpen(false)}
+                      className="px-3 py-2 text-sm rounded border border-slate-600 text-slate-300 hover:bg-slate-700"
+                    >
+                      Stäng
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSaveWitnessDraft(false)}
+                      className="px-3 py-2 text-sm rounded bg-slate-700 text-slate-100 hover:bg-slate-600"
+                    >
+                      Spara
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSaveWitnessDraft(true)}
+                      className="px-3 py-2 text-sm rounded bg-blue-600 text-white hover:bg-blue-500"
+                    >
+                      Spara och stäng
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </WindowFrame>
