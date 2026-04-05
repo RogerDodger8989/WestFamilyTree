@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useApp } from './AppContext';
 import { syncRelations } from './syncRelations';
 import PersonList from './PersonList.jsx';
@@ -234,9 +235,9 @@ function App() {
   }, [isResizingPeopleEditor, peopleEditorWidth]);
 
   useEffect(() => {
-    if (!editingPerson || activeTab !== 'people') return;
+    if (!editingPerson || !isPeopleEditorDocked) return;
     setPeopleEditorWidth((prev) => clampPeopleEditorWidth(prev));
-  }, [activeTab, editingPerson]);
+  }, [editingPerson, isPeopleEditorDocked]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -442,9 +443,7 @@ function App() {
     const handler = (e) => {
       if (e.button !== 0) return;
 
-      const isPeopleView = !activeTab || activeTab === 'people';
-      const isDockedPeopleEditorOpen = !!editingPerson && isPeopleView && isPeopleEditorDocked;
-      if (isDockedPeopleEditorOpen) return;
+      if (editingPerson && isPeopleEditorDocked) return;
 
       // Ignorera klick inuti modalen, på knappar, eller i sidebar
       if (e.target.closest('.modal-content') || 
@@ -1498,7 +1497,7 @@ function App() {
           {activeTab === 'farmArchive' && (<FarmArchiveView places={dbData.places || []} people={visiblePeople} allSources={dbData.sources || []} onSavePlace={handleSavePlace} onOpenPerson={handleOpenEditModal} onViewInFamilyTree={handleViewInFamilyTree} onNavigateToSource={handleNavigateToSource} onOpenSourceDrawer={handleToggleSourceDrawer} onNavigateToPlace={handleNavigateToPlace} onOpenPlaceDrawer={handleTogglePlaceDrawer} onOpenSourceInDrawer={handleOpenSourceInDrawer} />)}
 
           {/* EDITING PERSON (MODAL) */}
-          {editingPerson && (!(!activeTab || activeTab === 'people') || !isPeopleEditorDocked) && (
+          {editingPerson && (!isPeopleEditorDocked || activeTab === 'familyTree') && (
             activeTab === 'familyTree' ? (
               // FAMILYTREE MODE: Collapsible sidebar (alltid synlig)
               <div className="fixed inset-0 z-[4000] bg-slate-900 flex flex-col">
@@ -1690,6 +1689,66 @@ function App() {
               />
             </WindowFrame>
             )
+          )}
+
+          {editingPerson && isPeopleEditorDocked && activeTab !== 'people' && activeTab !== 'familyTree' && createPortal(
+            <div className="fixed top-[120px] right-4 bottom-4 z-[8500] flex items-stretch gap-3 pointer-events-none">
+              <div className="pointer-events-auto w-1.5 bg-slate-700/70 hover:bg-blue-500 rounded cursor-col-resize transition-colors" onMouseDown={handleStartResizePeopleEditor} title="Dra för att ändra bredd" />
+              <div
+                className="pointer-events-auto shrink-0 h-full min-h-0 bg-slate-800 border border-slate-700 rounded-lg overflow-hidden shadow-2xl flex flex-col people-docked-panel"
+                style={{ width: `${peopleEditorWidth}px` }}
+              >
+                <div className="h-11 shrink-0 bg-slate-900 border-b border-slate-700 px-2 flex items-center justify-between">
+                  <div className="text-sm font-bold text-slate-200 truncate pl-2">
+                    Redigera {editingPerson.firstName || ''} {editingPerson.lastName || ''}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => handleTogglePeopleEditorDock(false)} className="p-1.5 hover:bg-slate-800 rounded text-slate-400 hover:text-white" title="Frigör från dockning">
+                      <PanelRight size={15} />
+                    </button>
+                    <button onClick={() => handleTogglePeopleEditorDock(false)} className="p-1.5 hover:bg-slate-800 rounded text-slate-400 hover:text-white" title="Minimera">
+                      <Minus size={15} />
+                    </button>
+                    <button onClick={() => handleTogglePeopleEditorDock(false)} className="p-1.5 hover:bg-slate-800 rounded text-slate-400 hover:text-white" title="Maximera">
+                      <Maximize2 size={15} />
+                    </button>
+                    <button onClick={handleCloseEditModalSafe} className="p-1.5 hover:bg-red-900/50 rounded text-slate-400 hover:text-red-400" title="Stäng">
+                      <X size={15} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex-1 min-h-0 overflow-hidden">
+                  <EditPersonModal
+                    person={editingPerson}
+                    onClose={handleCloseEditModalSafe}
+                    onSave={patchedHandleSavePersonDetails}
+                    onChange={handleEditFormChange}
+                    allSources={dbData.sources}
+                    allPlaces={dbData.places || []}
+                    allPeople={visiblePeople}
+                    onDeleteEvent={handleDeleteEvent}
+                    onOpenSourceDrawer={handleToggleSourceDrawer}
+                    onNavigateToSource={handleNavigateToSource}
+                    onNavigateToPlace={handleNavigateToPlace}
+                    onTogglePlaceDrawer={handleTogglePlaceDrawer}
+                    onViewInFamilyTree={handleViewInFamilyTree}
+                    focusPair={focusPair}
+                    onSetFocusPair={handleSetFocusPair}
+                    activeSourcingEventId={sourcingEventInfo?.eventId}
+                    allMediaItems={dbData.media || []}
+                    onUpdateAllMedia={(updatedMedia) => {
+                      setDbData(prev => ({ ...prev, media: updatedMedia }));
+                      setIsDirty(true);
+                    }}
+                    setIsSourceDrawerOpen={openSourceDrawerForSelection}
+                    setIsPlaceDrawerOpen={openPlaceDrawerForSelection}
+                    isDocked={true}
+                  />
+                </div>
+              </div>
+            </div>,
+            document.body
           )}
         </div>
       </div>

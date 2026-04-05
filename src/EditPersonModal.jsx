@@ -1037,6 +1037,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
       };
     }
   }, [isDragging, dragOffset]);
+
   const [personRaw, setPersonRaw] = useState(() => {
     const base = initialPerson || {
       id: 'I_new',
@@ -1343,18 +1344,46 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
   const [dragOverEventIndex, setDragOverEventIndex] = useState(null);
   const [draggedEventIndex, setDraggedEventIndex] = useState(null);
   const [eventSortOverIndex, setEventSortOverIndex] = useState(null);
+  // State för högerklicksmeny på händelser
+  const [eventContextMenu, setEventContextMenu] = useState({ isOpen: false, x: 0, y: 0, eventIndex: null, eventId: null });
+  const eventContextMenuRef = useRef(null);
   const [sourceRefreshKey, setSourceRefreshKey] = useState(0);
   const [isImageEditorOpen, setIsImageEditorOpen] = useState(false);
   const [editingImageIndex, setEditingImageIndex] = useState(null);
   const [imageEditorContext, setImageEditorContext] = useState('event');
   const [isRefCopied, setIsRefCopied] = useState(false);
   const refCopyTimeoutRef = useRef(null);
+  
   const { getAllTags, setDbData, dbData, bookmarks = [], handleToggleBookmark, showStatus = () => { } } = useApp();
 
   // State för noteringar-fliken
   const [noteSearch, setNoteSearch] = useState('');
   const [draggedNoteIndex, setDraggedNoteIndex] = useState(null);
   const [dragOverIndex, setDragOverIndex] = useState(null);
+
+  // Stäng högerklicksmeny när man klickar utanför eller trycker Escape
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (eventContextMenuRef.current && !eventContextMenuRef.current.contains(e.target)) {
+        setEventContextMenu({ isOpen: false, x: 0, y: 0, eventIndex: null, eventId: null });
+      }
+    };
+
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        setEventContextMenu({ isOpen: false, x: 0, y: 0, eventIndex: null, eventId: null });
+      }
+    };
+
+    if (eventContextMenu.isOpen) {
+      document.addEventListener('click', handleClickOutside);
+      document.addEventListener('keydown', handleEscape);
+      return () => {
+        document.removeEventListener('click', handleClickOutside);
+        document.removeEventListener('keydown', handleEscape);
+      };
+    }
+  }, [eventContextMenu.isOpen]);
 
   // State för forskning-fliken
   const [newQuestionInput, setNewQuestionInput] = useState('');
@@ -2407,6 +2436,142 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
     });
   };
 
+  // Högerklicksmeny handler för händelser
+  const handleEventContextMenu = (e, eventIndex, eventId) => {
+    e.preventDefault();
+    setEventContextMenu({
+      isOpen: true,
+      x: e.clientX,
+      y: e.clientY,
+      eventIndex,
+      eventId
+    });
+  };
+
+  // Kopiera händelse (utan ID) till localStorage
+  const handleCopyEvent = (eventIndex) => {
+    const evt = person.events[eventIndex];
+    if (!evt) return;
+    
+    const eventCopy = { ...evt };
+    delete eventCopy.id;
+    
+    localStorage.setItem('copiedEvent', JSON.stringify(eventCopy));
+    showStatus('Händelse kopierad');
+    setEventContextMenu({ isOpen: false, x: 0, y: 0, eventIndex: null, eventId: null });
+  };
+
+  // Kopiera källorna från en händelse
+  const handleCopyEventSources = (eventIndex) => {
+    const evt = person.events[eventIndex];
+    if (!evt || !evt.sources) return;
+    
+    localStorage.setItem('copiedSources', JSON.stringify(evt.sources));
+    showStatus('Källa kopierad');
+    setEventContextMenu({ isOpen: false, x: 0, y: 0, eventIndex: null, eventId: null });
+  };
+
+  // Klistra in tidigare kopierade källor
+  const handlePasteEventSources = (eventIndex) => {
+    const copiedStr = localStorage.getItem('copiedSources');
+    if (!copiedStr) {
+      showStatus('Ingen källa att klistra in');
+      return;
+    }
+
+    try {
+      const copiedSources = JSON.parse(copiedStr);
+      if (!Array.isArray(copiedSources)) return;
+
+      const evt = person.events[eventIndex];
+      if (!evt) return;
+
+      // Slå ihop med befintliga källor (utan dubbletter)
+      const existingIds = new Set(evt.sources?.map(s => s.id) || []);
+      const newSources = copiedSources
+        .filter(s => !existingIds.has(s.id))
+        .map(s => ({ ...s, id: `src_${Date.now()}_${Math.random()}` }));
+
+      const updatedEvent = {
+        ...evt,
+        sources: [...(evt.sources || []), ...newSources]
+      };
+
+      const updatedEvents = person.events.map((e, i) => i === eventIndex ? updatedEvent : e);
+      setPerson({ ...person, events: updatedEvents });
+
+      showStatus('Källa inklistrad');
+    } catch (err) {
+      console.error('Fel vid klistring av källor:', err);
+    }
+
+    setEventContextMenu({ isOpen: false, x: 0, y: 0, eventIndex: null, eventId: null });
+  };
+
+  // Kopiera händelse som text
+  const handleCopyEventAsText = (eventIndex) => {
+    const evt = person.events[eventIndex];
+    if (!evt) return;
+
+    const text = `[${evt.type}]: ${evt.date || '-'} i ${evt.place || '-'}`;
+    navigator.clipboard.writeText(text).then(() => {
+      showStatus('Kopierat som text');
+    }).catch(err => {
+      console.error('Fel vid kopiering:', err);
+    });
+
+    setEventContextMenu({ isOpen: false, x: 0, y: 0, eventIndex: null, eventId: null });
+  };
+
+  const hasCopiedEvent = Boolean(typeof window !== 'undefined' && window.localStorage.getItem('copiedEvent'));
+  const hasCopiedSources = Boolean(typeof window !== 'undefined' && window.localStorage.getItem('copiedSources'));
+
+  // Sök händelse i Riksarkivet
+  const handleSearchInArchive = (eventIndex) => {
+    const evt = person.events[eventIndex];
+    if (!evt) return;
+
+    const searchStr = `${person.firstName || ''} ${person.lastName || ''} ${evt.date || ''} ${evt.place || ''}`.trim();
+    const url = `https://sok.riksarkivet.se/?Sokord=${encodeURIComponent(searchStr)}`;
+    
+    window.open(url, '_blank');
+    setEventContextMenu({ isOpen: false, x: 0, y: 0, eventIndex: null, eventId: null });
+  };
+
+  // Klistra in tidigare kopierad händelse
+  const handlePasteEvent = () => {
+    const copiedStr = localStorage.getItem('copiedEvent');
+    if (!copiedStr) {
+      showStatus('Ingen händelse att klistra in');
+      return;
+    }
+
+    try {
+      const copiedEvent = JSON.parse(copiedStr);
+      const eventConfig = EVENT_TYPES.find((eventType) => eventType.value === copiedEvent?.type);
+
+      if (eventConfig?.unique && Array.isArray(person.events) && person.events.some((eventItem) => eventItem?.type === copiedEvent?.type)) {
+        showStatus('Den här händelsen får man endast ha en av');
+        return;
+      }
+
+      const newEvent = {
+        ...copiedEvent,
+        id: `evt_${Date.now()}`
+      };
+
+      setPerson({
+        ...person,
+        events: [...(person.events || []), newEvent]
+      });
+
+      showStatus('Händelse inklistrad');
+      setEventContextMenu({ isOpen: false, x: 0, y: 0, eventIndex: null, eventId: null });
+    } catch (err) {
+      console.error('Fel vid klistring av händelse:', err);
+    }
+  };
+
   const handleAddSource = (source) => {
     const updatedEvent = {
       ...newEvent,
@@ -2962,6 +3127,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                     setSelectedEventIndex(selectedEventIndex === idx ? null : idx);
                                   }
                                 }}
+                                onContextMenu={(e) => handleEventContextMenu(e, idx, evt.id)}
                                 className={`hover:bg-slate-800 transition-colors group cursor-move ${selectedEventIndex === idx && editingEventIndex === null ? 'bg-blue-900/30 border-l-4 border-blue-500' : ''} ${dragOverEventIndex === idx && draggedEventIndex === null ? 'bg-blue-900/60 ring-2 ring-inset ring-blue-500' : ''} ${eventSortOverIndex === idx && draggedEventIndex !== null ? 'border-t-2 border-emerald-500' : ''}`}
                               >
                                 <td className="p-2 text-slate-300 text-xs whitespace-nowrap">{age !== null ? `${age} år` : '-'}</td>
@@ -4650,12 +4816,12 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
           title={`${editingEventIndex !== null ? 'Redigera' : 'Lägg till'} händelse`}
           icon={Activity}
           initialWidth={600}
-          initialHeight={650}
-            onClose={closeEventModal}
+          initialHeight={720}
+          onClose={closeEventModal}
         >
           <div className="flex flex-col h-full">
-            <div className="p-6 space-y-4 flex-1 overflow-y-auto">
-              <div className="space-y-3">
+            <div className="p-4 space-y-3 flex-1 overflow-y-auto custom-scrollbar min-h-0 pr-1">
+              <div className="space-y-2.5">
                 <div className="rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-2">
                   <div className="text-xs font-bold uppercase text-slate-400 mb-1">Händelsetyp</div>
                   <select
@@ -4672,7 +4838,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                 </div>
 
                 {newEvent.type === 'Vigsel' && person.relations?.partners?.length > 0 && (
-                  <div className="mb-4">
+                  <div className="mb-3">
                     <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Partner</label>
                     <select
                       value={newEvent.partnerId || ''}
@@ -4716,7 +4882,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Datum</label>
                     <div className="relative">
@@ -4766,7 +4932,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                   </div>
 
                   {linkedPersonsForEvent.length > 0 ? (
-                    <div className="mt-2 flex flex-wrap gap-2">
+                      <div className="mt-2 flex flex-wrap gap-2">
                       {linkedPersonsForEvent.map((personLink) => (
                         <span
                           key={personLink.id}
@@ -4868,7 +5034,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                 <div className="flex justify-between items-center mb-2">
                   <label className="block text-xs font-bold text-slate-300 uppercase">Bilder</label>
                 </div>
-                <div className="bg-slate-900 border border-slate-700 rounded p-3 min-h-[200px]">
+                <div className="bg-slate-900 border border-slate-700 rounded p-3 min-h-[140px]">
                   <MediaSelector
                     media={(() => {
                       // Hämta media-objekt från allMediaItems baserat på IDs i newEvent.images
@@ -4895,7 +5061,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
               {/* Noteringar */}
               <div>
                 <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Noteringar</label>
-                <div className="bg-slate-900 border border-slate-600 rounded p-2 min-h-[100px]">
+                <div className="bg-slate-900 border border-slate-600 rounded p-2 min-h-[80px]">
                   <Editor
                     value={newEvent.notes || ''}
                     onChange={(e) => setNewEvent({ ...newEvent, notes: e.target.value })}
@@ -4904,11 +5070,11 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                 </div>
               </div>
             </div>
-            <div className="bg-slate-800 p-4 border-t border-slate-700 flex justify-end gap-3">
-              <button onClick={closeEventModal} className="px-4 py-2 text-sm text-slate-400 hover:text-white">Avbryt</button>
+            <div className="bg-slate-900 px-4 py-3 border-t border-slate-700 flex justify-end gap-3 shrink-0">
+              <button onClick={closeEventModal} className="px-4 py-2 text-sm text-slate-400 hover:text-white rounded-md transition-colors">Avbryt</button>
               <button
                 onClick={handleSaveEvent}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-bold"
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-md text-sm font-medium transition-colors"
               >
                 {editingEventIndex !== null ? 'Uppdatera' : 'Lägg till'} händelse
               </button>
@@ -5149,6 +5315,133 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
         onAdd={handleAddSource}
         eventType={newEvent.type}
       />
+
+      {/* --- HÖGERKLICKSMENY FÖR HÄNDELSER --- */}
+      {eventContextMenu.isOpen && (
+        <div
+          ref={eventContextMenuRef}
+          className="fixed z-[9999] bg-slate-800 border border-slate-600 rounded-lg shadow-lg inline-block"
+          style={{
+            left: `${eventContextMenu.x}px`,
+            top: `${eventContextMenu.y}px`
+          }}
+        >
+          <div className="py-1 min-w-[200px]">
+            {/* Redigera händelse */}
+            <button
+              onClick={() => {
+                handleEditEvent(eventContextMenu.eventId);
+                setEventContextMenu({ isOpen: false, x: 0, y: 0, eventIndex: null, eventId: null });
+              }}
+              className="w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 transition-colors flex items-center gap-2"
+            >
+              <Edit3 size={14} /> Redigera händelse
+            </button>
+
+            {/* Byt händelse */}
+            <button
+              onClick={() => {
+                handleEditEvent(eventContextMenu.eventId);
+                setEventContextMenu({ isOpen: false, x: 0, y: 0, eventIndex: null, eventId: null });
+              }}
+              className="w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 transition-colors flex items-center gap-2"
+            >
+              <Edit3 size={14} /> Byt händelse
+            </button>
+
+            <div className="my-1 h-px bg-slate-700"></div>
+
+            {/* Kopiera händelse */}
+            <button
+              onClick={() => handleCopyEvent(eventContextMenu.eventIndex)}
+              className="w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 transition-colors flex items-center gap-2"
+            >
+              <Copy size={14} /> Kopiera händelse
+            </button>
+
+            {/* Klistra in händelse */}
+            <button
+              onClick={() => {
+                if (!hasCopiedEvent) return;
+                handlePasteEvent();
+              }}
+              disabled={!hasCopiedEvent}
+              className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 transition-colors ${hasCopiedEvent ? 'text-slate-200 hover:bg-slate-700' : 'text-slate-500 cursor-not-allowed opacity-50'}`}
+            >
+              <ClipboardList size={14} /> Klistra in händelse
+            </button>
+
+            {/* Kopiera källa */}
+            <button
+              onClick={() => handleCopyEventSources(eventContextMenu.eventIndex)}
+              className="w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 transition-colors flex items-center gap-2"
+            >
+              <Copy size={14} /> Kopiera källa
+            </button>
+
+            {/* Klistra in källa */}
+            <button
+              onClick={() => {
+                if (!hasCopiedSources) return;
+                handlePasteEventSources(eventContextMenu.eventIndex);
+              }}
+              disabled={!hasCopiedSources}
+              className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 transition-colors ${hasCopiedSources ? 'text-slate-200 hover:bg-slate-700' : 'text-slate-500 cursor-not-allowed opacity-50'}`}
+            >
+              <ClipboardList size={14} /> Klistra in källa
+            </button>
+
+            {/* Kopiera som text */}
+            <button
+              onClick={() => handleCopyEventAsText(eventContextMenu.eventIndex)}
+              className="w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 transition-colors flex items-center gap-2"
+            >
+              <Copy size={14} /> Kopiera som text
+            </button>
+
+            <div className="my-1 h-px bg-slate-700"></div>
+
+            {/* Gå till platsen (endast om placeId finns) */}
+            {person.events[eventContextMenu.eventIndex]?.placeId && (
+              <button
+                onClick={() => {
+                  const evt = person.events[eventContextMenu.eventIndex];
+                  if (evt?.placeId && onNavigateToPlace) {
+                    onNavigateToPlace(evt.placeId);
+                  }
+                  setEventContextMenu({ isOpen: false, x: 0, y: 0, eventIndex: null, eventId: null });
+                }}
+                className="w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 transition-colors flex items-center gap-2"
+              >
+                <MapPin size={14} /> Gå till platsen
+              </button>
+            )}
+
+            {/* Sök händelse i arkiv */}
+            <button
+              onClick={() => handleSearchInArchive(eventContextMenu.eventIndex)}
+              className="w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 transition-colors flex items-center gap-2"
+            >
+              <Globe size={14} /> Sök händelse i arkiv
+            </button>
+
+            <div className="my-1 h-px bg-slate-700"></div>
+
+            {/* Radera händelse */}
+            <button
+              onClick={() => {
+                if (window.confirm('Är du säker på att du vill ta bort denna händelse?')) {
+                  handleDeleteEvent(eventContextMenu.eventIndex);
+                  setEventContextMenu({ isOpen: false, x: 0, y: 0, eventIndex: null, eventId: null });
+                }
+              }}
+              className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-900/30 transition-colors flex items-center gap-2"
+            >
+              <Trash2 size={14} /> Radera händelse
+            </button>
+          </div>
+        </div>
+      )}
 
       <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
