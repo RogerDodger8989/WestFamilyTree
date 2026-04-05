@@ -3,6 +3,8 @@ import { useApp } from './AppContext';
 import { Search, LayoutGrid, List, X, Image as ImageIcon, BookOpen, AlertTriangle, ArrowUpDown, ChevronUp, ChevronDown, SlidersHorizontal, Plus, Trash2, Download, Save, Palette } from 'lucide-react';
 
 const FILTER_PRESET_STORAGE_KEY = 'westfamilytree_personlist_filter_presets_v1';
+const PERSON_LIST_COLUMNS_STORAGE_KEY = 'westfamilytree_personlist_columns_v1';
+const NARROW_VIEWPORT_WIDTH = 768;
 const BRANCH_COLOR_PRESETS = ['#2563eb', '#7c3aed', '#db2777', '#dc2626', '#ea580c', '#ca8a04', '#16a34a', '#0891b2'];
 const ALL_PERSON_EVENT_TYPES = [
   'Adoption',
@@ -72,7 +74,30 @@ function GenderIcon({ gender, className = '' }) {
   return null;
 }
 
-function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePerson, focusPair, onSetFocusPair, bookmarks }) {
+function getDefaultVisibleColumnsByViewport() {
+  const wideDefaults = {
+    ref: true,
+    name: true,
+    gender: true,
+    birth: true,
+    death: true,
+    occupation: true
+  };
+
+  if (typeof window === 'undefined') return wideDefaults;
+  if (window.innerWidth >= NARROW_VIEWPORT_WIDTH) return wideDefaults;
+
+  return {
+    ref: false,
+    name: true,
+    gender: false,
+    birth: true,
+    death: true,
+    occupation: false
+  };
+}
+
+function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePerson, focusPair, onSetFocusPair, bookmarks, onCreatePerson }) {
   const [viewMode, setViewMode] = useState('list');
   const [query, setQuery] = useState('');
   const [quickFilter, setQuickFilter] = useState('all');
@@ -88,7 +113,14 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
   const [activePresetId, setActivePresetId] = useState('');
   const [contextMenu, setContextMenu] = useState({ isOpen: false, x: 0, y: 0, personId: null });
   const [colorMenu, setColorMenu] = useState({ isOpen: false, personId: null, color: BRANCH_COLOR_PRESETS[0] });
+  const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false);
+  const [columnOrder, setColumnOrder] = useState(['ref', 'name', 'gender', 'birth', 'death', 'occupation']);
+  const [visibleColumns, setVisibleColumns] = useState(() => getDefaultVisibleColumnsByViewport());
+  const [draggedColumnId, setDraggedColumnId] = useState(null);
+  const [dragOverColumnId, setDragOverColumnId] = useState(null);
+  const [hasLoadedColumnPreferences, setHasLoadedColumnPreferences] = useState(false);
   const advancedRuleCounterRef = useRef(1);
+  const columnsMenuRef = useRef(null);
   const { dbData, setDbData, undoMerge, restorePerson, showStatus, setFamilyTreeFocusPersonId, familyTreeFocusPersonId, recordAudit } = useApp();
 
   const advancedFilterFields = useMemo(
@@ -750,6 +782,132 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
     return `(${birthDate} - ${deathDate})`;
   };
 
+  const personColumns = useMemo(() => ([
+    { id: 'ref', label: 'Ref Nr' },
+    { id: 'name', label: 'Namn' },
+    { id: 'gender', label: 'Kön' },
+    { id: 'birth', label: 'Född (datum + plats)' },
+    { id: 'death', label: 'Död (datum + plats)' },
+    { id: 'occupation', label: 'Yrke / Titel' }
+  ]), []);
+
+  const getOccupationText = (person) => {
+    const events = Array.isArray(person?.events) ? person.events : [];
+    const occupationEvent = events.find((event) => {
+      const type = String(event?.type || '').toLowerCase();
+      return type === 'yrke' || type === 'titel';
+    });
+    if (!occupationEvent) return '';
+    return String(occupationEvent?.description || occupationEvent?.value || occupationEvent?.notes || '').trim();
+  };
+
+  const getDatePlaceText = (event) => {
+    if (!event) return '-';
+    const date = String(event?.date || '').trim();
+    const place = String(event?.place || '').trim();
+    if (!date && !place) return '-';
+    if (!place) return date;
+    if (!date) return place;
+    return `${date} | ${place}`;
+  };
+
+  const renderedColumnOrder = useMemo(
+    () => columnOrder.filter((columnId) => visibleColumns[columnId]),
+    [columnOrder, visibleColumns]
+  );
+
+  const toggleColumnVisibility = (columnId) => {
+    setVisibleColumns((prev) => {
+      const next = { ...prev, [columnId]: !prev[columnId] };
+      const anyVisible = Object.values(next).some(Boolean);
+      return anyVisible ? next : prev;
+    });
+  };
+
+  const handleColumnDragStart = (columnId) => {
+    setDraggedColumnId(columnId);
+    setDragOverColumnId(null);
+  };
+
+  const handleColumnDragOver = (event, targetColumnId) => {
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+    if (draggedColumnId && draggedColumnId !== targetColumnId) {
+      setDragOverColumnId(targetColumnId);
+    } else {
+      setDragOverColumnId(null);
+    }
+  };
+
+  const handleColumnDragLeave = (event, targetColumnId) => {
+    const nextTarget = event.relatedTarget;
+    if (nextTarget && event.currentTarget.contains(nextTarget)) return;
+    setDragOverColumnId((prev) => (prev === targetColumnId ? null : prev));
+  };
+
+  const handleColumnDragEnd = () => {
+    setDraggedColumnId(null);
+    setDragOverColumnId(null);
+  };
+
+  const handleColumnDrop = (targetColumnId) => {
+    if (!draggedColumnId || draggedColumnId === targetColumnId) {
+      setDraggedColumnId(null);
+      setDragOverColumnId(null);
+      return;
+    }
+
+    setColumnOrder((prev) => {
+      const next = [...prev];
+      const fromIndex = next.indexOf(draggedColumnId);
+      const toIndex = next.indexOf(targetColumnId);
+      if (fromIndex === -1 || toIndex === -1) return prev;
+      next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, draggedColumnId);
+      return next;
+    });
+    setDraggedColumnId(null);
+    setDragOverColumnId(null);
+  };
+
+  const renderPersonCell = (person, columnId) => {
+    if (columnId === 'ref') return <span className="font-mono text-xs text-slate-400">{person.refNumber || '-'}</span>;
+
+    if (columnId === 'name') {
+      return (
+        <div className="flex items-center gap-2 min-w-0">
+          <span
+            onClick={(e) => {
+              e.stopPropagation();
+              forceHideHover();
+              onSetFocusPair('primary', person.id);
+            }}
+            className={`cursor-pointer text-base leading-none ${person.id === focusPair.primary ? 'text-yellow-400' : 'text-slate-500 hover:text-yellow-300'}`}
+            title="Sätt som Primär Fokus"
+          >★</span>
+          <span
+            onClick={(e) => {
+              e.stopPropagation();
+              forceHideHover();
+              onSetFocusPair('secondary', person.id);
+            }}
+            className={`cursor-pointer text-base leading-none ${person.id === focusPair.secondary ? 'text-blue-400' : 'text-slate-500 hover:text-blue-300'}`}
+            title="Sätt som Sekundär Fokus"
+          >★</span>
+          <GenderIcon gender={person.gender} className="flex-shrink-0" />
+          <span className="truncate font-semibold text-slate-100">{person.firstName} {person.lastName}</span>
+        </div>
+      );
+    }
+
+    if (columnId === 'gender') return <span className="text-slate-300">{person.gender || person.sex || '-'}</span>;
+    if (columnId === 'birth') return <span className="text-slate-300">{getDatePlaceText(getBirthEvent(person))}</span>;
+    if (columnId === 'death') return <span className="text-slate-300">{getDatePlaceText(getDeathEvent(person))}</span>;
+    if (columnId === 'occupation') return <span className="text-slate-300">{getOccupationText(person) || '-'}</span>;
+
+    return <span className="text-slate-500">-</span>;
+  };
+
   const toIsoDate = (timestamp) => {
     if (!timestamp) return '';
     const date = new Date(timestamp);
@@ -976,6 +1134,69 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
       // Ignore storage write failures.
     }
   }, [savedPresets]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(PERSON_LIST_COLUMNS_STORAGE_KEY);
+      if (!raw) {
+        setHasLoadedColumnPreferences(true);
+        return;
+      }
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object') {
+        setHasLoadedColumnPreferences(true);
+        return;
+      }
+
+      if (Array.isArray(parsed.order)) {
+        const allowed = new Set(personColumns.map((column) => column.id));
+        const filtered = parsed.order.filter((columnId) => allowed.has(columnId));
+        const missing = personColumns.map((column) => column.id).filter((columnId) => !filtered.includes(columnId));
+        setColumnOrder([...filtered, ...missing]);
+      }
+
+      if (parsed.visible && typeof parsed.visible === 'object') {
+        setVisibleColumns((prev) => {
+          const next = { ...prev };
+          for (const column of personColumns) {
+            if (typeof parsed.visible[column.id] === 'boolean') {
+              next[column.id] = parsed.visible[column.id];
+            }
+          }
+          const anyVisible = Object.values(next).some(Boolean);
+          return anyVisible ? next : prev;
+        });
+      }
+    } catch {
+      // Ignore malformed storage.
+    } finally {
+      setHasLoadedColumnPreferences(true);
+    }
+  }, [personColumns]);
+
+  useEffect(() => {
+    if (!hasLoadedColumnPreferences) return;
+    try {
+      localStorage.setItem(PERSON_LIST_COLUMNS_STORAGE_KEY, JSON.stringify({
+        order: columnOrder,
+        visible: visibleColumns
+      }));
+    } catch {
+      // Ignore storage write failures.
+    }
+  }, [columnOrder, visibleColumns, hasLoadedColumnPreferences]);
+
+  useEffect(() => {
+    if (!isColumnMenuOpen) return undefined;
+
+    const handleClickOutside = (event) => {
+      if (columnsMenuRef.current && columnsMenuRef.current.contains(event.target)) return;
+      setIsColumnMenuOpen(false);
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isColumnMenuOpen]);
 
   const StatusIndicators = ({ person }) => (
     <div className="flex items-center gap-1.5 ml-2">
@@ -1228,8 +1449,8 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
 
   const contextMenuPerson = people.find((person) => person.id === contextMenu.personId);
   return (
-    <div className="lg:col-span-2 h-[84vh]">
-      <div className="card min-h-[500px] h-full flex flex-col">
+    <div className="h-full min-h-0 flex flex-col">
+      <div className="card h-full min-h-0 flex flex-col">
         <div className="p-4 border-b border-slate-700 bg-slate-900 flex justify-between items-center rounded-t-lg">
           <div>
             <h2 className="font-semibold text-slate-200">Människor i databasen</h2>
@@ -1238,25 +1459,64 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
         </div>
 
         <div className="p-3 border-b border-slate-700 bg-slate-900/80 space-y-3">
-          <div className="relative">
-            <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Sök namn, datum, ort..."
-              className="w-full bg-slate-900 border border-slate-700 rounded pl-9 pr-8 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
-            />
-            {query && (
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1 min-w-0">
+              <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Sök namn, datum, ort..."
+                className="w-full bg-slate-900 border border-slate-700 rounded pl-9 pr-8 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
+              />
+              {query && (
+                <button
+                  type="button"
+                  onClick={() => setQuery('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                  aria-label="Rensa sök"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => onCreatePerson && onCreatePerson()}
+              className="px-3 py-2 rounded bg-green-600 hover:bg-green-500 text-white text-sm font-semibold flex items-center gap-1"
+              title="Skapa ny person"
+            >
+              <Plus className="w-4 h-4" />
+              Ny
+            </button>
+
+            <div className="relative" ref={columnsMenuRef}>
               <button
                 type="button"
-                onClick={() => setQuery('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
-                aria-label="Rensa sök"
+                onClick={() => setIsColumnMenuOpen((prev) => !prev)}
+                className="px-3 py-2 rounded border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm flex items-center gap-1"
+                title="Visa eller dölj kolumner"
               >
-                <X className="w-4 h-4" />
+                <SlidersHorizontal className="w-4 h-4" />
+                Kolumner
               </button>
-            )}
+              {isColumnMenuOpen && (
+                <div className="absolute right-0 mt-2 w-64 bg-slate-900 border border-slate-700 rounded shadow-xl z-20 p-2 space-y-1">
+                  {personColumns.map((column) => (
+                    <label key={column.id} className="flex items-center gap-2 text-sm text-slate-200 px-2 py-1 rounded hover:bg-slate-800 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(visibleColumns[column.id])}
+                        onChange={() => toggleColumnVisibility(column.id)}
+                      />
+                      <span>{column.label}</span>
+                    </label>
+                  ))}
+                  <p className="text-[11px] text-slate-500 px-2 pt-1">Dra kolumnrubriker i tabellen för att ändra ordning.</p>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
@@ -1401,18 +1661,97 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
           </div>
         </div>
 
-        <div className="flex-grow max-h-[600px] overflow-y-auto bg-slate-800">
+        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar bg-slate-800">
           {filteredPeople.length === 0 ? (
             <div className="p-8 text-center text-slate-500">Registret är tomt.</div>
           ) : (
             <>
               {viewMode === 'list' && (
-                <div className="divide-y divide-slate-700">
-                  {bookmarkedPeople.map((person) => <PersonRow key={person.id} person={person} />)}
-                  {bookmarkedPeople.length > 0 && otherPeople.length > 0 && (
-                    <hr className="my-2 border-t-2 border-dashed border-slate-700" />
-                  )}
-                  {otherPeople.map((person) => <PersonRow key={person.id} person={person} />)}
+                <div className="max-w-full overflow-x-auto overflow-y-visible custom-scrollbar">
+                  <table className="w-full min-w-[980px] text-sm text-left border-separate border-spacing-0">
+                    <thead className="sticky top-0 z-10 bg-slate-900 text-slate-300 text-xs uppercase">
+                      <tr>
+                        {renderedColumnOrder.map((columnId) => {
+                          const column = personColumns.find((entry) => entry.id === columnId);
+                          const isDragged = draggedColumnId === columnId;
+                          const isDropTarget = dragOverColumnId === columnId && draggedColumnId && draggedColumnId !== columnId;
+                          return (
+                            <th
+                              key={columnId}
+                              draggable
+                              onDragStart={() => handleColumnDragStart(columnId)}
+                              onDragOver={(event) => handleColumnDragOver(event, columnId)}
+                              onDragLeave={(event) => handleColumnDragLeave(event, columnId)}
+                              onDragEnd={handleColumnDragEnd}
+                              onDrop={() => handleColumnDrop(columnId)}
+                              className={`px-3 py-2 border-b border-slate-700 cursor-move select-none transition-colors ${isDragged ? 'opacity-50' : ''} ${isDropTarget ? 'border-l-4 border-l-blue-500 bg-blue-900/40' : ''}`}
+                              title="Dra för att flytta kolumn"
+                            >
+                              {column?.label || columnId}
+                            </th>
+                          );
+                        })}
+                        <th className="px-3 py-2 border-b border-slate-700 text-right">Åtgärder</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[...bookmarkedPeople, ...otherPeople].map((person) => (
+                        <tr
+                          key={person.id}
+                          onContextMenu={(event) => handleContextMenu(event, person.id)}
+                          onClick={() => {
+                            forceHideHover();
+                            onOpenEditModal(person.id);
+                          }}
+                          className="border-b border-slate-700 hover:bg-slate-700/60 cursor-pointer"
+                          style={person?.color ? { borderLeft: `4px solid ${person.color}` } : undefined}
+                        >
+                          {renderedColumnOrder.map((columnId) => (
+                            <td key={`${person.id}-${columnId}`} className="px-3 py-2 align-top">
+                              {renderPersonCell(person, columnId)}
+                            </td>
+                          ))}
+                          <td className="px-3 py-2 align-top">
+                            <div className="flex gap-2 justify-end">
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  forceHideHover();
+                                  onOpenEditModal(person.id);
+                                }}
+                                className="px-2 py-0.5 text-xs bg-slate-700 border border-slate-600 text-slate-200 rounded hover:bg-slate-600"
+                              >
+                                Redigera
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  forceHideHover();
+                                  onOpenRelationModal(person.id);
+                                }}
+                                className="px-2 py-0.5 text-xs border border-purple-600 text-purple-300 rounded hover:bg-purple-900"
+                              >
+                                Koppla
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  forceHideHover();
+                                  onDeletePerson(person.id);
+                                }}
+                                className="px-2 py-0.5 text-xs border border-red-600 text-red-400 rounded hover:bg-red-900 font-semibold"
+                              >
+                                Ta bort
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
 

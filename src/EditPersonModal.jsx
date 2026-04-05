@@ -306,6 +306,7 @@ const SourceModal = ({ isOpen, onClose, onAdd, eventType }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const modalRef = useRef(null);
+  const firstNameInputRef = useRef(null);
 
   const handleMouseDown = (e) => {
     if (e.target.closest('.modal-header')) {
@@ -1135,6 +1136,26 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
 
   // Exponera personRaw som person för kompatibilitet
   const person = personRaw;
+
+  useEffect(() => {
+    const shouldAutofocus = Boolean(initialPerson?._isDraft)
+      || (!String(initialPerson?.firstName || '').trim() && !String(initialPerson?.lastName || '').trim());
+
+    if (!person?.id || !shouldAutofocus || isCollapsed) return;
+
+    if (activeTab !== 'info') {
+      setActiveTab('info');
+    }
+
+    const focusTimer = window.setTimeout(() => {
+      if (firstNameInputRef.current) {
+        firstNameInputRef.current.focus();
+        firstNameInputRef.current.select();
+      }
+    }, 0);
+
+    return () => window.clearTimeout(focusTimer);
+  }, [person?.id, initialPerson?._isDraft, initialPerson?.firstName, initialPerson?.lastName, isCollapsed, activeTab]);
 
   // Handle keyboard navigation in relation picker (moved after person definition)
   useEffect(() => {
@@ -2367,7 +2388,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                     <div className="col-span-10 grid grid-cols-2 gap-4 content-start">
                       <div>
                         <label className="text-xs uppercase font-bold text-slate-300">Förnamn</label>
-                        <input type="text" value={person.firstName} onChange={e => {
+                        <input ref={firstNameInputRef} type="text" value={person.firstName} onChange={e => {
                           const nextFirstName = e.target.value;
                           const parsedNickname = extractNicknameFromQuotedName(nextFirstName);
                           const updated = {

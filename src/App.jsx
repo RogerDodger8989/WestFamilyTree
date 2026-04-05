@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from './AppContext';
 import { syncRelations } from './syncRelations';
-import PersonAddForm from './PersonAddForm.jsx';
 import PersonList from './PersonList.jsx';
 import EditPersonModal from './EditPersonModal.jsx';
 import SourceCatalog from './SourceCatalog.jsx';
@@ -99,7 +98,7 @@ function App() {
     handleSaveRelations, handleToggleSourceDrawer, handleLinkSourceFromDrawer, handleUnlinkSourceFromDrawer,
     handleLinkSourceToMedia, handleLinkPlaceToMedia, linkingMediaInfo,
     openSourceDrawerForSelection,
-    handleCreateAndEditPerson, handleOpenSourceModal, handleCloseSourceModal, handleSourceFormChange,
+    handleOpenSourceModal, handleCloseSourceModal, handleSourceFormChange,
     handleParseSource, handleSaveSource, handleSaveEditedSource, handleUndo, handleDeleteSource,
     addRelation, getPersonRelations,
     handleSetFocusPair, handleToggleBookmark, handleSwapFocus, handleClearFocus, handleAddNewPlace, handleSavePlace, isAttachingSource, handleAttachSources, handleSwitchToCreateSource, handleNavigateToPlace,
@@ -325,10 +324,6 @@ function App() {
     if (newPersonToEditId && dbData?.people) {
       const newPerson = dbData.people.find(p => p.id === newPersonToEditId);
       if (newPerson) {
-        // Säkerställ att vi är i familyTree-vyn
-        if (activeTab !== 'familyTree') {
-          handleTabChange('familyTree');
-        }
         // Expandera modalen alltid när en ny person skapas
         setIsEditModalCollapsed(false);
         // Öppna modalen för den nya personen
@@ -336,7 +331,7 @@ function App() {
         setNewPersonToEditId(null);
       }
     }
-  }, [newPersonToEditId, dbData?.people, handleOpenEditModal, activeTab, handleTabChange]);
+  }, [newPersonToEditId, dbData?.people, handleOpenEditModal]);
 
   // Ytterligare hooks som måste vara före conditional return
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, targetPersonId: null });
@@ -355,6 +350,72 @@ function App() {
   // personDrawer måste vara före conditional return eftersom den används i useEffect dependencies
   const personDrawer = (dbData && dbData.people ? dbData.people : []).find(p => p.id === personDrawerId) || null;
 
+  const handleCreateAndEditPerson = React.useCallback((prefill = {}) => {
+    const people = Array.isArray(dbData?.people) ? dbData.people : [];
+    const maxRef = people.reduce((max, candidate) => {
+      const ref = Number(candidate?.refNumber);
+      return Number.isFinite(ref) ? Math.max(max, ref) : max;
+    }, 0);
+
+    const timestamp = Date.now();
+    const newPerson = {
+      id: `p_${timestamp}`,
+      refNumber: maxRef + 1,
+      firstName: String(prefill?.firstName || '').trim(),
+      lastName: String(prefill?.lastName || '').trim(),
+      gender: prefill?.gender || '',
+      sex: prefill?.sex || prefill?.gender || 'U',
+      events: [],
+      notes: '',
+      links: {},
+      relations: { parents: [], children: [], spouseId: null, partners: [] },
+      _isDraft: true
+    };
+
+    setDbData((prev) => ({
+      ...prev,
+      people: [...(prev?.people || []), newPerson]
+    }));
+    setIsDirty(true);
+    setNewPersonToEditId(newPerson.id);
+    showStatus(`Ny person (REF ${newPerson.refNumber}) skapad. Öppnar för redigering...`);
+  }, [dbData?.people, setDbData, setIsDirty, setNewPersonToEditId, showStatus]);
+
+  const closeEditModalWithDraftSafety = React.useCallback(() => {
+    if (activeTab === 'familyTree') {
+      toggleEditModalCollapse();
+      return;
+    }
+
+    const current = editingPerson;
+    if (current?._isDraft) {
+      const firstName = String(current.firstName || '').trim();
+      const lastName = String(current.lastName || '').trim();
+
+      if (!firstName && !lastName) {
+        setDbData((prev) => ({
+          ...prev,
+          people: (prev?.people || []).filter((person) => person.id !== current.id)
+        }));
+      } else {
+        setDbData((prev) => ({
+          ...prev,
+          people: (prev?.people || []).map((person) => (
+            person.id === current.id
+              ? (() => {
+                  const { _isDraft, ...rest } = person;
+                  return rest;
+                })()
+              : person
+          ))
+        }));
+      }
+      setIsDirty(true);
+    }
+
+    handleCloseEditModal();
+  }, [activeTab, editingPerson, handleCloseEditModal, setDbData, setIsDirty, toggleEditModalCollapse]);
+
   // Escape key handler
   useEffect(() => {
     const onKey = (e) => {
@@ -363,7 +424,7 @@ function App() {
       if (editingPerson && activeTab === 'familyTree') {
         toggleEditModalCollapse();
       } else if (editingPerson) {
-        handleCloseEditModal();
+        closeEditModalWithDraftSafety();
       } else if (isSourceDrawerOpen) {
         handleToggleSourceDrawer();
       } else if (isPlaceDrawerOpen) {
@@ -374,7 +435,7 @@ function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [editingPerson, isSourceDrawerOpen, isPlaceDrawerOpen, isRelationshipDrawerOpen, handleCloseEditModal, handleToggleSourceDrawer, handleTogglePlaceDrawer, handleToggleRelationshipDrawer, activeTab, toggleEditModalCollapse]);
+  }, [editingPerson, isSourceDrawerOpen, isPlaceDrawerOpen, isRelationshipDrawerOpen, closeEditModalWithDraftSafety, handleToggleSourceDrawer, handleTogglePlaceDrawer, handleToggleRelationshipDrawer, activeTab, toggleEditModalCollapse]);
 
   // Click outside modal handler
   useEffect(() => {
@@ -395,12 +456,12 @@ function App() {
       if (editingPerson && activeTab === 'familyTree') {
         toggleEditModalCollapse();
       } else if (editingPerson) {
-        handleCloseEditModal();
+        closeEditModalWithDraftSafety();
       }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, [editingPerson, handleCloseEditModal, activeTab, toggleEditModalCollapse, isPeopleEditorDocked]);
+  }, [editingPerson, closeEditModalWithDraftSafety, activeTab, toggleEditModalCollapse, isPeopleEditorDocked]);
 
   // Place unlink handler (WFT:unlinkPlaceFromEvent)
   useEffect(() => {
@@ -439,14 +500,7 @@ function App() {
     </div>;
   }
 
-  const handleCloseEditModalSafe = () => {
-    // I familyTree-vyn: Kollapsa istället för att stänga
-    if (activeTab === 'familyTree') {
-      toggleEditModalCollapse();
-    } else {
-      handleCloseEditModal();
-    }
-  };
+  const handleCloseEditModalSafe = closeEditModalWithDraftSafety;
 
   const forceCloseSourceModal = () => {
       if (sourcingEventInfo) {
@@ -1200,10 +1254,12 @@ function App() {
 
             return (
               <div className={`w-full h-full min-h-0 ${showDockedPeopleEditor ? 'flex gap-3' : ''}`}>
-                <div className={`min-w-0 ${showDockedPeopleEditor ? 'flex-1 overflow-y-auto people-docked-scroll' : 'w-full'}`}>
-                  <div className={`tab-content w-full ${showDockedPeopleEditor ? '' : 'max-w-6xl mx-auto'}`}>
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                      <PersonAddForm newFirstName={newFirstName} setNewFirstName={setNewFirstName} newLastName={newLastName} setNewLastName={setNewLastName} onAddPerson={handleAddPerson} />
+                <div className={`min-w-0 min-h-0 ${showDockedPeopleEditor ? 'flex-1 flex flex-col people-docked-scroll' : 'w-full flex flex-col'}`}>
+                  <div className={`tab-content w-full flex flex-col min-h-0 ${showDockedPeopleEditor ? '' : 'max-w-6xl mx-auto h-full'}`}>
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4 shrink-0">
+                      <div className="lg:col-span-2">
+                        <SuggestionsPanel allPeople={visiblePeople} onOpenPair={(pair) => { setMergeInitialPair(pair); setShowDuplicateMerge(true); }} />
+                      </div>
                       <RelationshipPanel
                         focusPair={focusPair || { primary: null, secondary: null }}
                         allPeople={dbData?.people || visiblePeople}
@@ -1211,8 +1267,19 @@ function App() {
                         onSwapFocus={handleSwapFocus}
                         inline={true}
                       />
-                      <PersonList people={visiblePeople} onOpenEditModal={handleOpenEditModal} onOpenRelationModal={handleViewInFamilyTree} onDeletePerson={handleDeletePerson} focusPair={focusPair} onSetFocusPair={handleSetFocusPair} bookmarks={bookmarks} />
-                      <div className="lg:col-span-1"><SuggestionsPanel allPeople={visiblePeople} onOpenPair={(pair) => { setMergeInitialPair(pair); setShowDuplicateMerge(true); }} /></div>
+                    </div>
+
+                    <div className="flex-1 min-h-0">
+                      <PersonList
+                        people={visiblePeople}
+                        onOpenEditModal={handleOpenEditModal}
+                        onOpenRelationModal={handleViewInFamilyTree}
+                        onDeletePerson={handleDeletePerson}
+                        focusPair={focusPair}
+                        onSetFocusPair={handleSetFocusPair}
+                        bookmarks={bookmarks}
+                        onCreatePerson={handleCreateAndEditPerson}
+                      />
                     </div>
                   </div>
                 </div>
