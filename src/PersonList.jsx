@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from './AppContext';
-import { Search, LayoutGrid, List, X, Image as ImageIcon, BookOpen, AlertTriangle, ArrowUpDown, ChevronUp, ChevronDown, SlidersHorizontal, Plus, Trash2, Download, Save, Palette } from 'lucide-react';
+import MediaImage from './components/MediaImage.jsx';
+import { getAvatarImageStyle } from './imageUtils.js';
+import { Search, LayoutGrid, List, X, Image as ImageIcon, BookOpen, AlertTriangle, ArrowUpDown, ChevronUp, ChevronDown, SlidersHorizontal, Plus, Trash2, Download, Save, Palette, Network } from 'lucide-react';
 
 const FILTER_PRESET_STORAGE_KEY = 'westfamilytree_personlist_filter_presets_v1';
 const PERSON_LIST_COLUMNS_STORAGE_KEY = 'westfamilytree_personlist_columns_v1';
@@ -1294,11 +1296,13 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
           </button>
 
           <button
+            type="button"
             onClick={() => { forceHideHover(); onOpenRelationModal(person.id); }}
-            title="Koppla person till annan"
-            className="px-2 py-0.5 text-xs border border-purple-600 text-purple-300 rounded hover:bg-purple-900"
+            title="Visa i släktträd"
+            aria-label="Visa i släktträd"
+            className="inline-flex items-center gap-1 px-2 py-0.5 text-xs border border-cyan-600 text-cyan-300 rounded hover:bg-cyan-900/40"
           >
-            Koppla
+            <Network className="w-3.5 h-3.5" />
           </button>
 
           <button
@@ -1315,6 +1319,10 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
 
   const PersonCard = ({ person }) => {
     const portraitImage = getMediaPreviewSrc(person);
+    const primaryMedia = Array.isArray(person?.media) ? person.media.find((entry) => entry && typeof entry === 'object') : null;
+    const latestPrimaryMedia = Array.isArray(dbData?.media)
+      ? dbData.media.find((entry) => String(entry?.id) === String(primaryMedia?.id)) || primaryMedia
+      : primaryMedia;
 
     const handleRestore = (e) => {
       e.stopPropagation();
@@ -1350,12 +1358,15 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
       >
         <div className="flex items-start gap-3">
           {portraitImage ? (
-            <img
-              src={portraitImage}
-              alt={`${person.firstName || ''} ${person.lastName || ''}`.trim() || 'Porträtt'}
-              className="w-10 h-10 rounded-full border border-slate-600 object-cover bg-slate-800"
-              loading="lazy"
-            />
+            <div className="w-10 h-10 rounded-full border border-slate-600 bg-slate-800 overflow-hidden">
+              <MediaImage
+                url={portraitImage}
+                alt={`${person.firstName || ''} ${person.lastName || ''}`.trim() || 'Porträtt'}
+                className="w-full h-full object-cover"
+                style={getAvatarImageStyle(latestPrimaryMedia, person.id)}
+                loading="lazy"
+              />
+            </div>
           ) : (
             <div className="w-10 h-10 rounded-full border border-slate-600 bg-slate-800 text-slate-200 flex items-center justify-center font-semibold text-sm">
               {getPersonInitials(person)}
@@ -1407,12 +1418,15 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
             Redigera
           </button>
           <button
+            type="button"
             onClick={() => { forceHideHover(); onOpenRelationModal(person.id); }}
-            title="Koppla person till annan"
-            className="px-2 py-0.5 text-xs border border-purple-600 text-purple-300 rounded hover:bg-purple-900"
+            title="Visa i släktträd"
+            aria-label="Visa i släktträd"
+            className="inline-flex items-center gap-1 px-2 py-0.5 text-xs border border-cyan-600 text-cyan-300 rounded hover:bg-cyan-900/40"
           >
-            Koppla
+            <Network className="w-3.5 h-3.5" />
           </button>
+
           <button
             onClick={() => { forceHideHover(); onDeletePerson(person.id); }}
             title="Ta bort person"
@@ -1671,6 +1685,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
                   <table className="w-full min-w-[980px] text-sm text-left border-separate border-spacing-0">
                     <thead className="sticky top-0 z-10 bg-slate-900 text-slate-300 text-xs uppercase">
                       <tr>
+                        <th className="w-1 px-0 py-0 border-b border-slate-700" aria-hidden="true" />
                         {renderedColumnOrder.map((columnId) => {
                           const column = personColumns.find((entry) => entry.id === columnId);
                           const isDragged = draggedColumnId === columnId;
@@ -1704,8 +1719,12 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
                             onOpenEditModal(person.id);
                           }}
                           className="border-b border-slate-700 hover:bg-slate-700/60 cursor-pointer"
-                          style={person?.color ? { borderLeft: `4px solid ${person.color}` } : undefined}
                         >
+                          <td
+                            className="w-1 px-0 py-0"
+                            style={person?.color ? { backgroundColor: person.color } : { backgroundColor: 'transparent' }}
+                            aria-hidden="true"
+                          />
                           {renderedColumnOrder.map((columnId) => (
                             <td key={`${person.id}-${columnId}`} className="px-3 py-2 align-top">
                               {renderPersonCell(person, columnId)}
@@ -1731,9 +1750,11 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
                                   forceHideHover();
                                   onOpenRelationModal(person.id);
                                 }}
-                                className="px-2 py-0.5 text-xs border border-purple-600 text-purple-300 rounded hover:bg-purple-900"
+                                className="inline-flex items-center gap-1 px-2 py-0.5 text-xs border border-cyan-600 text-cyan-300 rounded hover:bg-cyan-900/40"
+                                title="Visa i släktträd"
+                                aria-label="Visa i släktträd"
                               >
-                                Koppla
+                                <Network className="w-3.5 h-3.5" />
                               </button>
                               <button
                                 type="button"

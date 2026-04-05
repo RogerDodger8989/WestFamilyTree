@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import MediaImage from './components/MediaImage.jsx';
+import { getAvatarImageStyle } from './imageUtils.js';
 
 /**
  * Modal för att välja förälder när man skapar ett barn
@@ -139,10 +141,11 @@ export default function SelectFatherModal({ mother, allPeople, getPersonRelation
                     {/* Rund thumbnail */}
                     <div className="w-12 h-12 rounded-full bg-slate-600 flex-shrink-0 overflow-hidden border-2 border-slate-500">
                       {profileImage ? (
-                        <img 
-                          src={profileImage} 
+                        <MediaImage 
+                          url={profileImage}
                           alt={`${person.firstName} ${person.lastName}`}
                           className="w-full h-full object-cover"
+                          style={getAvatarImageStyle(person.media?.[0], person.id)}
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-slate-400 text-xs">
@@ -207,10 +210,11 @@ export default function SelectFatherModal({ mother, allPeople, getPersonRelation
                       {/* Rund thumbnail */}
                       <div className="w-12 h-12 rounded-full bg-slate-600 flex-shrink-0 overflow-hidden border-2 border-slate-500">
                         {profileImage ? (
-                          <img 
-                            src={profileImage} 
+                          <MediaImage 
+                            url={profileImage}
                             alt={`${person.firstName} ${person.lastName}`}
                             className="w-full h-full object-cover"
+                            style={getAvatarImageStyle(person.media?.[0], person.id)}
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-slate-400 text-xs">

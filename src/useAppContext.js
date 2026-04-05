@@ -262,6 +262,19 @@ export default function useAppContext() {
     useEffect(() => {
         bookmarksRef.current = bookmarks;
     }, [bookmarks]);
+
+    useEffect(() => {
+        if (!editingPerson?.id || !dbData?.people) return;
+
+        const latestPerson = dbData.people.find((person) => person.id === editingPerson.id);
+        if (!latestPerson) return;
+
+        const latestPersonString = JSON.stringify(latestPerson);
+        const editingPersonString = JSON.stringify(editingPerson);
+        if (latestPersonString === editingPersonString) return;
+
+        setEditingPerson(JSON.parse(JSON.stringify(latestPerson)));
+    }, [dbData?.people, editingPerson?.id]);
     
     // State för att komma ihåg vyn i källkatalogen
     const [sourceCatalogState, setSourceCatalogState] = useState({

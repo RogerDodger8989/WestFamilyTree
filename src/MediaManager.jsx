@@ -34,6 +34,8 @@ import {
   ArrowUpDown, Filter, SlidersHorizontal
 } from 'lucide-react';
 import Button from './Button.jsx';
+import MediaImage from './components/MediaImage.jsx';
+import { getAvatarImageStyle } from './imageUtils.js';
 
 const SYSTEM_LIBRARIES = [
   { id: 'all', label: 'Alla bilder', icon: Layers, type: 'system', path: '' },
@@ -774,6 +776,10 @@ export function MediaManager({ allPeople = [], allSources = [], onOpenEditModal 
         setSelectedImage(item);
         setImageViewerOpen(true);
         break;
+      case 'edit':
+        setEditingImage(item);
+        setIsImageEditorOpen(true);
+        break;
       case 'rotate':
         // Open image editor for rotation
         const rotateItem = mediaItems.find(m => m.id === contextMenuItemId);
@@ -783,7 +789,9 @@ export function MediaManager({ allPeople = [], allSources = [], onOpenEditModal 
         }
         break;
       case 'delete':
-        handleDeleteImage(item);
+        if (window.confirm('Är du säker på att du vill ta bort bilden?')) {
+          handleDeleteImage(item);
+        }
         break;
     }
     setContextMenuOpen(false);
@@ -877,6 +885,8 @@ export function MediaManager({ allPeople = [], allSources = [], onOpenEditModal 
     }
     
     try {
+      const deletionIndex = mediaItems.findIndex(m => m.id === item.id);
+
       // Försök hitta filePath från olika källor
       let filePathToDelete = item.filePath;
       
@@ -1088,10 +1098,21 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
     if (selectedImage && mediaItems.length > 0) {
       const updatedSelected = mediaItems.find(m => m.id === selectedImage.id);
       if (updatedSelected) {
-        // Jämför connections för att se om de har ändrats
-        const oldConnections = JSON.stringify(selectedImage.connections || {});
-        const newConnections = JSON.stringify(updatedSelected.connections || {});
-        if (oldConnections !== newConnections) {
+        const oldSnapshot = JSON.stringify({
+          connections: selectedImage.connections || {},
+          faces: selectedImage.faces || [],
+          name: selectedImage.name || '',
+          description: selectedImage.description || '',
+          note: selectedImage.note || ''
+        });
+        const newSnapshot = JSON.stringify({
+          connections: updatedSelected.connections || {},
+          faces: updatedSelected.faces || [],
+          name: updatedSelected.name || '',
+          description: updatedSelected.description || '',
+          note: updatedSelected.note || ''
+        });
+        if (oldSnapshot !== newSnapshot) {
           console.log('[MediaManager] Uppdaterar selectedImage med nya connections:', {
             id: updatedSelected.id,
             name: updatedSelected.name,
@@ -1635,12 +1656,16 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
       return;
     }
     
-    const itemsToDelete = mediaItems.filter(m => selectedIds.has(m.id));
+    const itemsToDelete = mediaItems
+      .map((m, index) => ({ item: m, index }))
+      .filter(({ item }) => selectedIds.has(item.id));
     const deletedIds = new Set();
+    const deletedItems = [];
     const failedItems = [];
     
     // Flytta alla valda bilder till papperskorgen
-    for (const item of itemsToDelete) {
+    for (const entry of itemsToDelete) {
+      const { item, index } = entry;
       try {
         let filePathToDelete = item.filePath;
         
@@ -1654,6 +1679,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
           const result = await window.electronAPI.moveFileToTrash(filePathToDelete);
           if (result && result.success) {
             deletedIds.add(item.id);
+            deletedItems.push({ ...item, __originalIndex: index });
           } else {
             failedItems.push(item.name);
           }
@@ -1679,6 +1705,51 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
         } else {
           showStatus(`${deletedIds.size} bilder flyttade till papperskorgen.`, 'success');
         }
+      }
+
+      if (typeof showUndoToast === 'function' && deletedItems.length > 0) {
+        showUndoToast(`${deletedItems.length} bilder flyttades till papperskorgen. Ångra?`, async () => {
+          for (const deletedItem of deletedItems) {
+            try {
+              if (deletedItem.filePath && window.electronAPI && window.electronAPI.restoreFileFromTrash) {
+                const trashFilesResult = await window.electronAPI.getTrashFiles();
+                if (trashFilesResult && trashFilesResult.success) {
+                  const trashFile = trashFilesResult.files.find(f =>
+                    f.originalName === deletedItem.name || f.path.includes(deletedItem.name)
+                  );
+                  if (trashFile) {
+                    await window.electronAPI.restoreFileFromTrash(trashFile.name, deletedItem.filePath);
+                  }
+                }
+              }
+            } catch (restoreError) {
+              console.warn('[MediaManager] Kunde inte återställa från papperskorgen:', deletedItem.name, restoreError);
+            }
+          }
+
+          updateMedia(prev => {
+            const existingIds = new Set(prev.map(m => m.id));
+            const toRestore = deletedItems
+              .filter(m => !existingIds.has(m.id))
+              .sort((a, b) => (a.__originalIndex || 0) - (b.__originalIndex || 0));
+            if (toRestore.length === 0) return prev;
+
+            const merged = [...prev];
+            toRestore.forEach((restored) => {
+              const copy = { ...restored };
+              delete copy.__originalIndex;
+              const insertAt = typeof restored.__originalIndex === 'number'
+                ? Math.min(restored.__originalIndex, merged.length)
+                : merged.length;
+              merged.splice(insertAt, 0, copy);
+            });
+            return merged;
+          });
+
+          if (typeof showStatus === 'function') {
+            showStatus(`${deletedItems.length} bilder återställda.`, 'success');
+          }
+        });
       }
     } else {
       if (typeof showStatus === 'function') {
@@ -2664,6 +2735,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                   <div key={item.id} 
                       onClick={(e) => handleImageClick(item, e)} 
                       onDoubleClick={(e) => handleImageDoubleClick(item, e)}
+                    onContextMenu={(e) => handleContextMenu(e, item.id)}
                       draggable 
                       onDragStart={(e) => handleItemDragStart(e, item.id)} 
                       className={`flex items-center gap-4 p-2 rounded border cursor-pointer ${selectedIds.has(item.id) ? 'bg-blue-900/30 border-blue-500' : (selectedImage?.id === item.id ? 'bg-slate-800 border-blue-500' : 'bg-slate-800/30 border-slate-700 hover:bg-slate-800')}`}>
@@ -2892,7 +2964,8 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                           const sexLabel = sex === 'M' ? 'M' : sex === 'K' ? 'F' : 'U';
                           
                           // Hämta profilbild (samma logik som EditPersonModal)
-                          const profileImage = person.media && person.media.length > 0 ? person.media[0].url : null;
+                          const primaryMedia = person.media && person.media.length > 0 ? person.media[0] : null;
+                          const profileImage = primaryMedia ? (primaryMedia.url || primaryMedia.path) : null;
                           
                           return (
                             <div 
@@ -2907,10 +2980,11 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                               {/* Rund thumbnail (samma som EditPersonModal) */}
                               <div className="w-10 h-10 rounded-full bg-slate-600 flex-shrink-0 overflow-hidden border-2 border-slate-500">
                                 {profileImage ? (
-                                  <img 
-                                    src={profileImage} 
+                                  <MediaImage
+                                    url={profileImage}
                                     alt={`${person.firstName} ${person.lastName}`} 
-                                    className="w-full h-full object-cover" 
+                                    className="w-full h-full object-cover"
+                                    style={getAvatarImageStyle(primaryMedia, person.id)}
                                   />
                                 ) : (
                                   <User className="w-full h-full p-2 text-slate-400" />
@@ -3683,6 +3757,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
         onClose={() => setImageViewerOpen(false)}
         imageSrc={selectedImage?.url}
         imageTitle={selectedImage?.name}
+        imageMeta={selectedImage}
         regions={selectedImage?.faces || []}
         onSaveRegions={(newRegions) => {
           if (selectedImage) {
@@ -3693,6 +3768,25 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
             ));
             setSelectedImage({ ...selectedImage, faces: newRegions });
           }
+        }}
+        onSaveImageMeta={(metaPatch) => {
+          if (!selectedImage || !metaPatch) return;
+          updateMedia(prev => prev.map(item =>
+            item.id === selectedImage.id
+              ? {
+                  ...item,
+                  name: metaPatch.name ?? item.name,
+                  description: metaPatch.description ?? item.description,
+                  note: metaPatch.note ?? item.note
+                }
+              : item
+          ));
+          setSelectedImage(prev => prev ? {
+            ...prev,
+            name: metaPatch.name ?? prev.name,
+            description: metaPatch.description ?? prev.description,
+            note: metaPatch.note ?? prev.note
+          } : prev);
         }}
         people={allPeople}
         onOpenEditModal={onOpenEditModal}
@@ -3734,6 +3828,13 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
             Tagga
           </button>
           <button
+            onClick={() => performAction('edit')}
+            className="w-full px-4 py-2 text-left text-sm text-white hover:bg-slate-700 flex items-center gap-2"
+          >
+            <Edit2 size={16} />
+            Redigera bild
+          </button>
+          <button
             onClick={() => performAction('rotate')}
             className="w-full px-4 py-2 text-left text-sm text-white hover:bg-slate-700 flex items-center gap-2"
           >
@@ -3745,7 +3846,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
             className="w-full px-4 py-2 text-left text-sm text-white hover:bg-slate-700 flex items-center gap-2"
           >
             <Trash2 size={16} />
-            Radera
+            Ta bort
           </button>
         </div>
       )}

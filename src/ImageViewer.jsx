@@ -1,7 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import WindowFrame from './WindowFrame';
 import Button from './Button';
 import LinkPersonModal from './LinkPersonModal';
+import MediaImage from './components/MediaImage.jsx';
+import { getAvatarImageStyle } from './imageUtils.js';
+import { Search, Pencil, Trash2, Eye, EyeOff, UserPlus, X } from 'lucide-react';
 
 // --- HJÄLPFUNKTIONER ---
 function getLifeRange(person) {
@@ -17,7 +20,7 @@ function getLifeRange(person) {
 }
 
 // --- UNDERKOMPONENT FÖR RESIZE/DRAG (Fixad med useCallback) ---
-const RegionComponent = React.memo(({ region, idx, people, onStartEdit, onStopEdit, onRegionChange, onDelete, onOpenPerson }) => {
+const RegionComponent = React.memo(({ region, idx, people, isHighlighted, onStartEdit, onStopEdit, onRegionChange, onDelete }) => {
     const [isResizing, setIsResizing] = useState(false);
     const [isMoving, setIsMoving] = useState(false);
     const startPoint = useRef({ x: 0, y: 0 });
@@ -27,7 +30,9 @@ const RegionComponent = React.memo(({ region, idx, people, onStartEdit, onStopEd
     // Hitta personinfo för visning
     const person = people?.find(p => p.id === region.personId);
     const lifeSpan = person ? getLifeRange(person) : '';
-    const labelText = person ? `Ref ${person.refNumber} ${person.firstName} ${person.lastName} ${lifeSpan}`.trim() : region.label;
+    const personName = person ? `${person.firstName || ''} ${person.lastName || ''}`.trim() : String(region.label || '').trim();
+    const refText = person?.refNumber ? `Ref ${person.refNumber}` : '';
+    const labelText = [refText, personName, lifeSpan].filter(Boolean).join(' ').trim() || 'Okänd person';
 
     // Fix: Använd useCallback för att stabilisera funktionerna som används som globala event listeners
     const handleMouseUp = useCallback(() => {
@@ -124,7 +129,7 @@ const RegionComponent = React.memo(({ region, idx, people, onStartEdit, onStopEd
     return (
         <div 
             ref={containerRef}
-            className="absolute border-2 border-green-400 group hover:bg-green-400/20 transition-colors"
+            className={`absolute border-2 group transition-colors ${isHighlighted ? 'border-emerald-300 bg-emerald-400/20 shadow-[0_0_0_2px_rgba(16,185,129,0.4)]' : 'border-green-400 hover:bg-green-400/20'}`}
             style={{ 
                 left: `${region.x}%`, top: `${region.y}%`, 
                 width: `${region.w}%`, height: `${region.h}%`,
@@ -132,17 +137,9 @@ const RegionComponent = React.memo(({ region, idx, people, onStartEdit, onStopEd
                 zIndex: (isMoving || isResizing) ? 2 : 1
             }}
             onMouseDown={(e) => handleMouseDown(e, 'move')}
-            title={labelText}
         >
-            <div className="absolute bottom-full left-0 bg-green-600 text-white text-xs px-2 py-0.5 whitespace-nowrap rounded-t opacity-0 group-hover:opacity-100 flex items-center transition-opacity pointer-events-none group-hover:pointer-events-auto">
-                <span className="pointer-events-none">{labelText}</span>
-                <button 
-                    onClick={(e) => { e.stopPropagation(); onDelete(idx); }}
-                    className="ml-2 text-red-200 hover:text-white font-bold leading-none pointer-events-auto"
-                    title="Ta bort tagg"
-                >
-                    ×
-                </button>
+            <div className={`absolute top-full left-0 mt-1 text-[9px] px-1.5 py-0.5 rounded text-white pointer-events-none ${isHighlighted ? 'bg-emerald-700/95' : 'bg-black/70'}`}>
+                {labelText}
             </div>
             
             {/* RESIZE HANDLES (Dragpunkter) */}
@@ -180,7 +177,9 @@ export default function ImageViewer({
     onNext,
     hasPrev = false,
     hasNext = false,
-    connections = {}
+    connections = {},
+    imageMeta = null,
+    onSaveImageMeta = null
 }) {
     // ... (resten av koden är oförändrad)
     const [blobUrl, setBlobUrl] = useState(null);
@@ -196,13 +195,122 @@ export default function ImageViewer({
     const [currentBox, setCurrentBox] = useState(null);
     const [showLinkModal, setShowLinkModal] = useState(false); 
     const [editingRegion, setEditingRegion] = useState(null); 
+    const [editingTagIndex, setEditingTagIndex] = useState(null);
+    const [hoveredRegionIndex, setHoveredRegionIndex] = useState(null);
+    const [personSearchTerm, setPersonSearchTerm] = useState('');
+    const [showFaceBoxes, setShowFaceBoxes] = useState(true);
+    const [metaTitle, setMetaTitle] = useState('');
+    const [metaDescription, setMetaDescription] = useState('');
+    const [minZoom, setMinZoom] = useState(0.1);
+    const [baseImageSize, setBaseImageSize] = useState({ w: 0, h: 0 });
+    const [saveStatus, setSaveStatus] = useState('');
     const isInteracting = isDragging || isPanning || editingRegion !== null;
     const imgRef = useRef(null);
+    const viewerContainerRef = useRef(null);
+    const pendingBoxRef = useRef(null);
+    const saveStatusTimeoutRef = useRef(null);
+
+    const samePersonId = useCallback((a, b) => String(a ?? '') === String(b ?? ''), []);
+
+    const getPersonDisplayName = useCallback((person) => {
+        if (!person) return '';
+        return `${person.lastName || ''}, ${person.firstName || ''}`.replace(/^,\s*/, '').trim();
+    }, []);
+
+    const getPersonLifeYears = useCallback((person) => {
+        if (!person) return '';
+        const getYear = (type) => {
+            const evt = person.events?.find(e => e.type === type || e.type === (type === 'BIRT' ? 'Födelse' : 'Död'));
+            const date = evt?.date || '';
+            return date ? String(date).substring(0, 4) : '?';
+        };
+        const birthYear = getYear('BIRT');
+        const deathYear = getYear('DEAT');
+        if (birthYear === '?' && deathYear === '?') return '';
+        return `${birthYear}-${deathYear}`;
+    }, []);
+
+    const applyFitToScreen = useCallback(() => {
+        if (!imgRef.current) return;
+        const img = imgRef.current;
+        const container = viewerContainerRef.current || img.parentElement;
+        if (!container) return;
+
+        const imgW = img.naturalWidth || 0;
+        const imgH = img.naturalHeight || 0;
+        const contW = container.clientWidth || 0;
+        const contH = container.clientHeight || 0;
+        if (!imgW || !imgH || !contW || !contH) return;
+
+        const scaleW = contW / imgW;
+        const scaleH = contH / imgH;
+        const fitScale = Math.max(0.05, Math.min(scaleW, scaleH));
+        setBaseImageSize({ w: imgW * fitScale, h: imgH * fitScale });
+        setZoomLevel(1);
+        setMinZoom(0.25);
+        setPanOffset({ x: 0, y: 0 });
+    }, []);
+
+    const normalizeImageKey = useCallback((value) => {
+        if (!value) return '';
+        return String(value)
+            .replace(/^media:\/\//, '')
+            .replace(/^file:\/\//, '')
+            .replace(/\\/g, '/')
+            .toLowerCase();
+    }, []);
+
+    const activeImageKeys = useMemo(() => {
+        const keys = [
+            imageSrc,
+            imageMeta?.id,
+            imageMeta?.filePath,
+            imageMeta?.path,
+            imageMeta?.url,
+            imageMeta?.name,
+            imageTitle
+        ]
+            .map(normalizeImageKey)
+            .filter(Boolean);
+        return new Set(keys);
+    }, [imageSrc, imageMeta?.id, imageMeta?.filePath, imageMeta?.path, imageMeta?.url, imageMeta?.name, imageTitle, normalizeImageKey]);
+
+    const personHasCurrentImage = useCallback((person) => {
+        if (!person || !Array.isArray(person.media) || !person.media.length) return false;
+        return person.media.some((m) => {
+            const candidateKeys = [m?.id, m?.filePath, m?.path, m?.url, m?.name]
+                .map(normalizeImageKey)
+                .filter(Boolean);
+            return candidateKeys.some((k) => activeImageKeys.has(k));
+        });
+    }, [activeImageKeys, normalizeImageKey]);
+
+    const getRenderedImageRect = useCallback(() => {
+        if (!imgRef.current) return null;
+        const rect = imgRef.current.getBoundingClientRect();
+        if (!rect.width || !rect.height) return null;
+        return rect;
+    }, []);
+
+    const getPointerPositionPercent = useCallback((clientX, clientY) => {
+        const rect = getRenderedImageRect();
+        if (!rect) return null;
+        const x = ((clientX - rect.left) / rect.width) * 100;
+        const y = ((clientY - rect.top) / rect.height) * 100;
+        return {
+            x: Math.max(0, Math.min(100, x)),
+            y: Math.max(0, Math.min(100, y))
+        };
+    }, [getRenderedImageRect]);
     
     useEffect(() => {
         if (isOpen && imageSrc) {
             setLoading(true); setError(null);
             setZoomLevel(1.0); setPanOffset({ x: 0, y: 0 }); // Återställ zoom och pan
+            setCurrentBox(null);
+            setStartPos(null);
+            setIsDrawing(false);
+            setShowFaceBoxes(true);
             
             // Check if it's an HTTP URL, blob URL, or data URL
             if (imageSrc.startsWith('http://') || imageSrc.startsWith('https://') || 
@@ -210,26 +318,6 @@ export default function ImageViewer({
                 // For HTTP URLs, blob URLs, or data URLs, use directly
                 setBlobUrl(imageSrc);
                 setLoading(false);
-                // Vänta tills bilden laddats och mät storlek
-                setTimeout(() => {
-                    if (imgRef.current) {
-                        const img = imgRef.current;
-                        const container = img.parentElement;
-                        if (container) {
-                            const imgW = img.naturalWidth;
-                            const imgH = img.naturalHeight;
-                            const contW = container.clientWidth;
-                            const contH = container.clientHeight;
-                            if (imgW && imgH && contW && contH) {
-                                const scaleW = contW / imgW;
-                                const scaleH = contH / imgH;
-                                const fitZoom = Math.min(scaleW, scaleH, 1);
-                                setZoomLevel(fitZoom);
-                                setPanOffset({ x: 0, y: 0 });
-                            }
-                        }
-                    }
-                }, 50);
             } else {
                 // For local files, use Electron API (om den finns)
                 if (window.electronAPI && typeof window.electronAPI.readFile === 'function') {
@@ -239,26 +327,6 @@ export default function ImageViewer({
                                 const blob = new Blob([data]);
                                 const url = URL.createObjectURL(blob);
                                 setBlobUrl(url);
-                            // Vänta tills bilden laddats och mät storlek
-                            setTimeout(() => {
-                                if (imgRef.current) {
-                                    const img = imgRef.current;
-                                    const container = img.parentElement;
-                                    if (container) {
-                                        const imgW = img.naturalWidth;
-                                        const imgH = img.naturalHeight;
-                                        const contW = container.clientWidth;
-                                        const contH = container.clientHeight;
-                                        if (imgW && imgH && contW && contH) {
-                                            const scaleW = contW / imgW;
-                                            const scaleH = contH / imgH;
-                                            const fitZoom = Math.min(scaleW, scaleH, 1);
-                                            setZoomLevel(fitZoom);
-                                            setPanOffset({ x: 0, y: 0 });
-                                        }
-                                    }
-                                }
-                            }, 50);
                             } else { setError("Kunde inte läsa in bilden."); }
                         })
                         .catch(err => setError(err.message))
@@ -280,6 +348,50 @@ export default function ImageViewer({
         };
     }, [isOpen, imageSrc]);
 
+    useEffect(() => {
+        if (!isOpen || !blobUrl) return;
+        const raf1 = requestAnimationFrame(() => {
+            const raf2 = requestAnimationFrame(() => {
+                applyFitToScreen();
+            });
+            return () => cancelAnimationFrame(raf2);
+        });
+        return () => cancelAnimationFrame(raf1);
+    }, [blobUrl, isOpen, applyFitToScreen]);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        const handleResize = () => applyFitToScreen();
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, [isOpen, applyFitToScreen]);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        setMetaTitle(String(imageMeta?.name || imageTitle || ''));
+        setMetaDescription(String(imageMeta?.description || imageMeta?.note || ''));
+    }, [isOpen, imageMeta?.id, imageMeta?.name, imageMeta?.description, imageMeta?.note, imageTitle]);
+
+    useEffect(() => {
+        if (!isOpen || typeof onSaveImageMeta !== 'function') return;
+        const timer = setTimeout(() => {
+            onSaveImageMeta({
+                name: metaTitle,
+                description: metaDescription,
+                note: metaDescription
+            });
+            setSaveStatus('saved');
+            if (saveStatusTimeoutRef.current) clearTimeout(saveStatusTimeoutRef.current);
+            saveStatusTimeoutRef.current = setTimeout(() => {
+                setSaveStatus('');
+            }, 2000);
+        }, 220);
+        return () => {
+            clearTimeout(timer);
+            if (saveStatusTimeoutRef.current) clearTimeout(saveStatusTimeoutRef.current);
+        };
+    }, [metaTitle, metaDescription, onSaveImageMeta, isOpen]);
+
     // Tangentbordsnavigering: vänster/höger
     useEffect(() => {
         if (!isOpen) return;
@@ -293,7 +405,7 @@ export default function ImageViewer({
     }, [isOpen, hasPrev, hasNext, onPrev, onNext, onClose]);
 
     const handlePanStart = (e) => {
-        if (showLinkModal || e.button !== 0 || isDrawing || editingRegion !== null || zoomLevel === 1) return;
+        if (showLinkModal || e.button !== 0 || isDrawing || editingRegion !== null) return;
         e.preventDefault();
         setIsPanning(true);
         panStart.current = { x: e.clientX, y: e.clientY };
@@ -302,24 +414,20 @@ export default function ImageViewer({
     const handleZoom = (e) => {
         if (showLinkModal) return;
         e.preventDefault();
-        const delta = e.deltaY * -0.01;
-        const newZoom = Math.min(Math.max(1, zoomLevel + delta), 4);
+        const zoomFactor = Math.exp(-e.deltaY * 0.002);
+        const newZoom = Math.min(Math.max(minZoom, zoomLevel * zoomFactor), 8);
         setZoomLevel(newZoom);
     };
 
     const handleMouseDown = (e) => {
         if (showLinkModal || isPanning || editingRegion !== null || !isDrawing || e.target !== imgRef.current) return;
         e.preventDefault();
-        const rect = imgRef.current.getBoundingClientRect();
-        // Ta hänsyn till zoom och pan
-        const container = imgRef.current.parentElement;
-        const contRect = container.getBoundingClientRect();
-        const offsetX = (e.clientX - contRect.left - panOffset.x * zoomLevel) / (rect.width * zoomLevel) * 100;
-        const offsetY = (e.clientY - contRect.top - panOffset.y * zoomLevel) / (rect.height * zoomLevel) * 100;
-        const x = Math.max(0, Math.min(100, offsetX));
-        const y = Math.max(0, Math.min(100, offsetY));
+        const pointer = getPointerPositionPercent(e.clientX, e.clientY);
+        if (!pointer) return;
+        const { x, y } = pointer;
         setStartPos({ x, y });
         setCurrentBox({ x, y, w: 0, h: 0 });
+        pendingBoxRef.current = { x, y, w: 0, h: 0 };
         setIsDragging(true);
     };
 
@@ -328,17 +436,16 @@ export default function ImageViewer({
         if (isPanning) {
             const dx = e.clientX - panStart.current.x;
             const dy = e.clientY - panStart.current.y;
-            setPanOffset(prev => ({ x: prev.x + dx / zoomLevel, y: prev.y + dy / zoomLevel }));
+            setPanOffset(prev => ({ x: prev.x + dx, y: prev.y + dy }));
             panStart.current = { x: e.clientX, y: e.clientY };
             return;
         }
 
         if (!isDrawing || !startPos || !imgRef.current || !isDragging) return;
-        const rect = imgRef.current.getBoundingClientRect();
-        const container = imgRef.current.parentElement;
-        const contRect = container.getBoundingClientRect();
-        const currentX = (e.clientX - contRect.left - panOffset.x * zoomLevel) / (rect.width * zoomLevel) * 100;
-        const currentY = (e.clientY - contRect.top - panOffset.y * zoomLevel) / (rect.height * zoomLevel) * 100;
+        const pointer = getPointerPositionPercent(e.clientX, e.clientY);
+        if (!pointer) return;
+        const currentX = pointer.x;
+        const currentY = pointer.y;
 
         const x = Math.max(0, Math.min(100, Math.min(startPos.x, currentX)));
         const y = Math.max(0, Math.min(100, Math.min(startPos.y, currentY)));
@@ -346,9 +453,10 @@ export default function ImageViewer({
         const h = Math.abs(currentY - startPos.y);
 
         setCurrentBox({ x, y, w, h });
+        pendingBoxRef.current = { x, y, w, h };
     };
 
-    const handleMouseUp = () => {
+    const handleMouseUp = useCallback(() => {
         if (showLinkModal) return;
         if (isPanning) { setIsPanning(false); return; }
         if (editingRegion !== null) { setEditingRegion(null); return; }
@@ -359,27 +467,60 @@ export default function ImageViewer({
         if (!currentBox || currentBox.w < 1 || currentBox.h < 1) {
             setStartPos(null);
             setCurrentBox(null);
+            pendingBoxRef.current = null;
             return;
         }
-        
-        setShowLinkModal(true);
-    };
+    }, [showLinkModal, isPanning, editingRegion, isDrawing, isDragging, currentBox]);
+
+    useEffect(() => {
+        if (!isDragging && !isPanning) return;
+        const onGlobalMouseUp = () => {
+            handleMouseUp();
+        };
+        window.addEventListener('mouseup', onGlobalMouseUp);
+        return () => window.removeEventListener('mouseup', onGlobalMouseUp);
+    }, [isDragging, isPanning, handleMouseUp]);
 
     const handlePersonSelected = (personId, eventId) => {
         // For face tagging, we only care about personId, ignore eventId
+        const selectedPersonId = String(personId ?? '');
+
+        const draftBox = currentBox || pendingBoxRef.current;
+        if (editingTagIndex === null && (!draftBox || draftBox.w < 1 || draftBox.h < 1)) {
+            return;
+        }
+
         // Check if person is already tagged
-        if (regions.some(r => r.personId === personId)) {
+        if (editingTagIndex === null && regions.some(r => samePersonId(r.personId, selectedPersonId))) {
             alert('Denna person är redan taggad på bilden!');
             setShowLinkModal(false);
             setCurrentBox(null);
             setStartPos(null);
+            pendingBoxRef.current = null;
             return;
         }
         
-        const person = people.find(p => p.id === personId);
+        const person = people.find(p => samePersonId(p.id, selectedPersonId));
         if (!person) return;
+
+        if (editingTagIndex !== null) {
+            const updatedRegions = regions.map((region, index) => {
+                if (index !== editingTagIndex) return region;
+                return {
+                    ...region,
+                    personId: person.id,
+                    label: `${person.firstName} ${person.lastName}`.trim() || region.label,
+                    refNumber: person.refNumber
+                };
+            });
+            onSaveRegions(updatedRegions);
+            setEditingTagIndex(null);
+            setShowLinkModal(false);
+            return;
+        }
+
         const newRegion = {
-            ...currentBox,
+            ...draftBox,
             personId: person.id,
             label: `${person.firstName} ${person.lastName}`,
             refNumber: person.refNumber
@@ -389,6 +530,7 @@ export default function ImageViewer({
         setShowLinkModal(false);
         setCurrentBox(null);
         setStartPos(null);
+        pendingBoxRef.current = null;
     };
     
     const handleDeleteRegion = (index) => {
@@ -396,6 +538,21 @@ export default function ImageViewer({
             const updated = regions.filter((_, i) => i !== index);
             onSaveRegions(updated);
         }
+    };
+
+    const handleReassignRegionPerson = (regionIndex, personId) => {
+        const person = people.find(p => samePersonId(p.id, personId));
+        if (!person) return;
+        const updatedRegions = regions.map((region, idx) => {
+            if (idx !== regionIndex) return region;
+            return {
+                ...region,
+                personId: person.id,
+                label: `${person.firstName} ${person.lastName}`.trim() || region.label,
+                refNumber: person.refNumber
+            };
+        });
+        onSaveRegions(updatedRegions);
     };
     
     // --- REDIGERING AV REGION ---
@@ -413,40 +570,35 @@ export default function ImageViewer({
         setEditingRegion(null);
     };
 
-    // --- Sidopanel data ---
-    // Kombinera personer från regions (ansiktstagging) och connections.people
-    const allConnectedPeople = new Map();
-    
-    // Lägg till personer från regions (ansiktstagging)
-    regions.forEach(region => {
+    const regionsWithDetails = regions.map((region, index) => {
         const person = people.find(p => p.id === region.personId);
-        if (person && !allConnectedPeople.has(person.id)) {
-            allConnectedPeople.set(person.id, {
-                ...person,
-                lifeRange: getLifeRange(person),
-                region,
-                source: 'tagged' // Ansiktstagging
-            });
-        }
+        return {
+            ...region,
+            index,
+            person,
+            personName: person ? `${person.firstName || ''} ${person.lastName || ''}`.trim() : String(region.label || 'Okänd person').trim(),
+            refNumber: person?.refNumber || region.refNumber || '',
+            lifeRange: person ? getLifeRange(person) : ''
+        };
     });
-    
-    // Lägg till personer från connections.people
-    if (connections.people && Array.isArray(connections.people)) {
-        connections.people.forEach(conn => {
-            // Hantera både objekt ({id, name, ...}) och strängar (bara id)
-            const personId = typeof conn === 'string' ? conn : (conn?.id || conn);
-            const person = people.find(p => p.id === personId);
-            if (person && !allConnectedPeople.has(person.id)) {
-                allConnectedPeople.set(person.id, {
-                    ...person,
-                    lifeRange: getLifeRange(person),
-                    source: 'connected' // Kopplad via connections
-                });
-            }
+
+    const filteredPeople = useMemo(() => {
+        const query = personSearchTerm.trim().toLowerCase();
+        const base = people.filter((p) => {
+            if (!query) return true;
+            const fullName = `${p.firstName || ''} ${p.lastName || ''}`.toLowerCase();
+            const revName = `${p.lastName || ''}, ${p.firstName || ''}`.toLowerCase();
+            const ref = String(p.refNumber || '').toLowerCase();
+            return fullName.includes(query) || revName.includes(query) || ref.includes(query);
         });
-    }
-    
-    const taggedPeopleWithDetails = Array.from(allConnectedPeople.values());
+
+        return [...base].sort((a, b) => {
+            const aHas = personHasCurrentImage(a) ? 1 : 0;
+            const bHas = personHasCurrentImage(b) ? 1 : 0;
+            if (aHas !== bHas) return bHas - aHas;
+            return getPersonDisplayName(a).localeCompare(getPersonDisplayName(b), 'sv');
+        });
+    }, [people, personSearchTerm, personHasCurrentImage, getPersonDisplayName]);
 
 
     if (!isOpen) return null;
@@ -455,11 +607,17 @@ export default function ImageViewer({
         <>
             <LinkPersonModal 
                 isOpen={showLinkModal}
-                onClose={() => { setShowLinkModal(false); setCurrentBox(null); }}
+                onClose={() => {
+                    setShowLinkModal(false);
+                    setEditingTagIndex(null);
+                    if (editingTagIndex === null) {
+                        setCurrentBox(null);
+                    }
+                }}
                 people={people}
                 onLink={handlePersonSelected}
                 skipEventSelection={true}
-                excludePersonIds={regions.map(r => r.personId).filter(Boolean)}
+                excludePersonIds={editingTagIndex !== null ? [] : regions.map(r => r.personId).filter(Boolean)}
                 zIndex={6000}
             />
 
@@ -477,6 +635,7 @@ export default function ImageViewer({
                     >
                         {/* VÄNSTER: BILDOMRÅDE (Flex-1) */}
                         <div 
+                            ref={viewerContainerRef}
                             className={`flex-1 flex items-center justify-center overflow-hidden p-4 relative ${isInteracting ? 'cursor-grabbing' : ''}`}
                             onWheel={handleZoom}
                         >
@@ -486,11 +645,13 @@ export default function ImageViewer({
                             {blobUrl && !loading && (
                                 <div className="relative inline-block"
                                     style={{
-                                        cursor: isDrawing ? 'crosshair' : (zoomLevel > 1 && editingRegion === null ? (isPanning ? 'grabbing' : 'grab') : 'default'),
-                                        transform: `scale(${zoomLevel}) translate(${panOffset.x}px, ${panOffset.y}px)`,
+                                        width: baseImageSize.w > 0 ? `${baseImageSize.w}px` : 'auto',
+                                        height: baseImageSize.h > 0 ? `${baseImageSize.h}px` : 'auto',
+                                        cursor: isDrawing ? 'crosshair' : (editingRegion === null ? (isPanning ? 'grabbing' : 'grab') : 'default'),
+                                        transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomLevel})`,
                                         transition: isPanning ? 'none' : 'transform 0.1s ease-out',
                                         transformOrigin: 'center center',
-                                        maxWidth: '100%', maxHeight: '100%' 
+                                        willChange: 'transform'
                                     }}
                                     onMouseDown={handlePanStart}
                                 >
@@ -498,23 +659,24 @@ export default function ImageViewer({
                                         ref={imgRef}
                                         src={blobUrl} 
                                         alt={imageTitle} 
-                                        className="max-w-full max-h-full block select-none pointer-events-auto"
+                                        className="block select-none pointer-events-auto w-full h-full"
+                                        onLoad={applyFitToScreen}
                                         onMouseDown={handleMouseDown} 
                                         onDragStart={(e) => e.preventDefault()}
                                     />
                                     
                                     {/* RENDERAR REDIGERBARA BOXAR */}
-                                    {regions.map((r, idx) => (
+                                    {showFaceBoxes && regions.map((r, idx) => (
                                         <RegionComponent
                                             key={r.personId + idx}
                                             region={r}
                                             idx={idx}
                                             people={people}
+                                            isHighlighted={hoveredRegionIndex === idx}
                                             onStartEdit={handleStartRegionEdit}
                                             onStopEdit={handleStopRegionEdit}
                                             onRegionChange={handleRegionChange}
                                             onDelete={handleDeleteRegion}
-                                            onOpenPerson={onOpenEditModal}
                                         />
                                     ))}
 
@@ -533,41 +695,202 @@ export default function ImageViewer({
                         </div>
                         
                         {/* HÖGER: SIDOPANEL MED TAGGAR */}
-                        {taggedPeopleWithDetails.length > 0 && (
-                            <div className="w-64 bg-slate-800 p-4 shrink-0 overflow-y-auto text-white border-l border-slate-700">
+                        <div className="w-72 bg-slate-800 p-4 shrink-0 overflow-y-auto custom-scrollbar text-white border-l border-slate-700">
+                                <div className="mb-4 pb-3 border-b border-slate-700">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <h4 className="text-sm font-bold text-slate-200">Bildinformation</h4>
+                                        <span className="text-[10px] text-slate-400 italic transition-opacity">
+                                            {saveStatus === 'saving' ? 'Sparar...' : saveStatus === 'saved' ? 'Sparat ✓' : ''}
+                                        </span>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <div>
+                                            <label className="block text-[10px] uppercase tracking-wide text-slate-400 mb-1">Rubrik</label>
+                                            <input
+                                                type="text"
+                                                value={metaTitle}
+                                                onChange={(e) => { setSaveStatus('saving'); setMetaTitle(e.target.value); }}
+                                                className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+                                                placeholder="Ange rubrik..."
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] uppercase tracking-wide text-slate-400 mb-1">Beskrivning / Notis</label>
+                                            <textarea
+                                                value={metaDescription}
+                                                onChange={(e) => { setSaveStatus('saving'); setMetaDescription(e.target.value); }}
+                                                className="w-full h-20 bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-100 resize-none focus:outline-none focus:border-blue-500"
+                                                placeholder="Skriv notis..."
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <h4 className="text-sm font-bold border-b border-slate-700 pb-2 mb-2">
-                                    Taggade personer ({taggedPeopleWithDetails.length})
+                                    Personregister (för ny tagg)
+                                </h4>
+                                <div className="mb-3">
+                                    <label className="block text-[11px] uppercase tracking-wide text-slate-400 mb-1">Sök person</label>
+                                    <div className="relative">
+                                        <Search size={13} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-500" />
+                                        <input
+                                            type="text"
+                                            value={personSearchTerm}
+                                            onChange={(e) => setPersonSearchTerm(e.target.value)}
+                                            placeholder="Namn eller ref..."
+                                            className="w-full bg-slate-900 border border-slate-700 rounded pl-7 pr-2 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+                                        />
+                                    </div>
+                                </div>
+                                {currentBox ? (
+                                    <div className="mb-3 p-2 rounded border border-emerald-700/50 bg-emerald-900/20 text-[10px] text-emerald-200 flex items-center justify-between gap-2">
+                                        <span>Ny ruta ritad. Välj person nedan.</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => { setCurrentBox(null); setStartPos(null); }}
+                                            className="inline-flex items-center justify-center w-5 h-5 rounded border border-emerald-500/50 hover:border-emerald-400 hover:bg-emerald-800/40"
+                                            title="Avbryt ny tagg"
+                                        >
+                                            <X size={11} />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <p className="mb-3 text-[10px] text-slate-500">Rita först en ruta på bilden för att skapa ny tagg.</p>
+                                )}
+                                <div className="max-h-36 overflow-y-auto custom-scrollbar space-y-1 mb-4 border border-slate-700 rounded p-1.5 bg-slate-900/40">
+                                    {filteredPeople.slice(0, 60).map((candidate) => {
+                                        const candidateName = getPersonDisplayName(candidate) || `${candidate.firstName || ''} ${candidate.lastName || ''}`.trim();
+                                        const candidateYears = getPersonLifeYears(candidate);
+                                        const candidatePrimaryMedia = Array.isArray(candidate.media) ? candidate.media[0] : null;
+                                        const candidateImageUrl = candidatePrimaryMedia ? (candidatePrimaryMedia.url || candidatePrimaryMedia.path) : '';
+                                        const hasThisImage = personHasCurrentImage(candidate);
+                                        return (
+                                            <button
+                                                key={candidate.id}
+                                                type="button"
+                                                disabled={!currentBox}
+                                                onClick={() => handlePersonSelected(candidate.id)}
+                                                className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded border border-slate-700 hover:border-blue-500 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                title={currentBox ? 'Lägg till som ny tagg' : 'Rita först en ruta på bilden'}
+                                            >
+                                                <div className="w-7 h-7 rounded-full overflow-hidden border border-slate-600 bg-slate-800 shrink-0">
+                                                    {candidateImageUrl ? (
+                                                        <MediaImage
+                                                            url={candidateImageUrl}
+                                                            alt={candidateName}
+                                                            className="w-full h-full object-cover"
+                                                            style={getAvatarImageStyle(candidatePrimaryMedia, candidate.id)}
+                                                        />
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center text-[10px] text-slate-500">?</div>
+                                                    )}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <div className="text-[10px] text-slate-400">Ref {candidate.refNumber || '-'}</div>
+                                                    <div className="text-[11px] text-slate-100 truncate">{candidateName}</div>
+                                                    {candidateYears && <div className="text-[10px] text-slate-500">{candidateYears}</div>}
+                                                    {hasThisImage && <div className="text-[10px] text-emerald-300">Har redan denna bild</div>}
+                                                </div>
+                                                <UserPlus size={12} className="ml-auto text-blue-300" />
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+
+                                <h4 className="text-sm font-bold border-b border-slate-700 pb-2 mb-2">
+                                    Taggade personer ({regionsWithDetails.length})
                                 </h4>
                                 <ul className="space-y-3 text-xs">
-                                    {taggedPeopleWithDetails.map((person, idx) => (
-                                        <li key={idx} className="pb-3 border-b border-slate-700">
-                                            <div className="text-slate-400">Ref {person.refNumber}</div>
-                                            <button 
-                                                className="text-blue-300 hover:text-blue-100 hover:underline font-bold text-left block"
-                                                onClick={() => onOpenEditModal && onOpenEditModal(person.id)}
-                                                title={`Öppna redigering för ${person.firstName} ${person.lastName}`}
-                                            >
-                                                {person.firstName} {person.lastName}
-                                            </button>
-                                            <div className="text-slate-400">{person.lifeRange}</div>
+                                    {regionsWithDetails.map((tagRegion) => (
+                                        <li
+                                            key={`${tagRegion.personId || 'unknown'}_${tagRegion.index}`}
+                                            className={`pb-3 border-b border-slate-700 rounded ${hoveredRegionIndex === tagRegion.index ? 'bg-emerald-900/20 border-emerald-700/60' : ''}`}
+                                            onMouseEnter={() => setHoveredRegionIndex(tagRegion.index)}
+                                            onMouseLeave={() => setHoveredRegionIndex(null)}
+                                        >
+                                            <div className="flex items-start gap-2">
+                                                <div className="w-7 h-7 rounded-full overflow-hidden border border-slate-600 bg-slate-800 shrink-0 mt-0.5">
+                                                    {tagRegion.person?.media?.[0] ? (
+                                                        <MediaImage
+                                                            url={tagRegion.person.media[0].url || tagRegion.person.media[0].path}
+                                                            alt={tagRegion.personName}
+                                                            className="w-full h-full object-cover"
+                                                            style={getAvatarImageStyle(tagRegion.person.media[0], tagRegion.person.id)}
+                                                        />
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center text-[10px] text-slate-500">?</div>
+                                                    )}
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="text-slate-400">{tagRegion.refNumber ? `Ref ${tagRegion.refNumber}` : 'Ref saknas'}</div>
+                                                    <button 
+                                                        className="text-blue-300 hover:text-blue-100 hover:underline font-bold text-left block truncate"
+                                                        onClick={() => tagRegion.person && onOpenEditModal && onOpenEditModal(tagRegion.person.id)}
+                                                        title={`Öppna redigering för ${tagRegion.personName}`}
+                                                    >
+                                                        {tagRegion.personName}
+                                                    </button>
+                                                    {tagRegion.lifeRange && <div className="text-slate-400">{tagRegion.lifeRange}</div>}
+                                                </div>
+                                            </div>
+                                            <div className="mt-2 grid grid-cols-[1fr_auto_auto] gap-1 items-center">
+                                                <select
+                                                    value={tagRegion.personId || ''}
+                                                    onChange={(e) => handleReassignRegionPerson(tagRegion.index, e.target.value)}
+                                                    className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-[11px] text-slate-200"
+                                                >
+                                                    <option value="">Välj person...</option>
+                                                    {filteredPeople.map((p) => (
+                                                        <option key={p.id} value={p.id}>
+                                                            Ref {p.refNumber || '-'} - {`${p.firstName || ''} ${p.lastName || ''}`.trim() || p.id}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setEditingTagIndex(tagRegion.index);
+                                                        setShowLinkModal(true);
+                                                    }}
+                                                    className="inline-flex items-center justify-center w-7 h-7 rounded border border-slate-600 text-slate-300 hover:text-blue-200 hover:border-blue-500"
+                                                    title="Byt person med sökdialog"
+                                                >
+                                                    <Pencil size={12} />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleDeleteRegion(tagRegion.index)}
+                                                    className="inline-flex items-center justify-center w-7 h-7 rounded border border-red-700/60 bg-red-900/20 text-red-200 hover:text-red-100 hover:border-red-500 hover:bg-red-900/40"
+                                                    title="Ta bort tagg"
+                                                >
+                                                    <Trash2 size={12} />
+                                                </button>
+                                            </div>
                                         </li>
                                     ))}
                                 </ul>
                             </div>
-                        )}
                     </div>
 
                     {/* VERKTYGSFÄLT */}
                     <div className="bg-slate-800 p-3 border-t border-slate-700 flex justify-between items-center shrink-0">
                         <div className="text-slate-400 text-xs flex gap-4">
-                            {isDrawing ? "Klicka och dra en ruta för att tagga en person." : `${taggedPeopleWithDetails.length} personer kopplade.`}
-                            {zoomLevel > 1 && <span className="text-sm text-white">Zoom: {Math.round(zoomLevel * 100)}%</span>}
+                            {isDrawing ? "Klicka och dra en ruta för att tagga en person." : `${regionsWithDetails.length} ansiktstaggar.`}
+                            {zoomLevel > 0 && <span className="text-sm text-white">Zoom: {Math.round(zoomLevel * 100)}%</span>}
                         </div>
                         <div className="flex gap-2 items-center">
+                            <Button
+                                onClick={() => setShowFaceBoxes((prev) => !prev)}
+                                variant="secondary"
+                                size="sm"
+                                title={showFaceBoxes ? 'Dölj ansiktsboxar' : 'Visa ansiktsboxar'}
+                            >
+                                {showFaceBoxes ? <EyeOff size={14} /> : <Eye size={14} />}
+                            </Button>
                             <Button onClick={() => setIsDrawing(s => !s)} variant={isDrawing ? "danger" : "primary"} size="sm" disabled={editingRegion !== null}>
                                 {isDrawing ? "Avbryt Taggning" : "🔍 Tagga ansikten"}
                             </Button>
-                            <Button onClick={() => setZoomLevel(1.0)} disabled={zoomLevel === 1.0} variant="secondary" size="sm">Återställ zoom</Button>
+                            <Button onClick={applyFitToScreen} variant="secondary" size="sm">Anpassa till vy</Button>
                             <Button onClick={onPrev} disabled={!hasPrev} variant="secondary" size="sm">◀</Button>
                             <Button onClick={onNext} disabled={!hasNext} variant="secondary" size="sm">▶</Button>
                             <Button onClick={onClose} variant="danger" size="sm">Avbryt</Button>

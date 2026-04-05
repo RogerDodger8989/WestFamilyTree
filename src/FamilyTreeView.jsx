@@ -10,6 +10,7 @@ import Button from './Button.jsx';
 import SelectFatherModal from './SelectFatherModal.jsx';
 import { useApp } from './AppContext';
 import MediaImage from './components/MediaImage.jsx';
+import { getAvatarImageStyle } from './imageUtils.js';
 
 // --- HJÄLPFUNKTIONER ---
 const calculateAge = (birthDate, deathDate) => {
@@ -71,7 +72,7 @@ const convertPersonForDisplay = (person) => {
     deathPlace: deathEvent?.place || '',
     age: age,
     status: status,
-    img: person.media?.find(m => m.isProfilePicture)?.url || person.media?.[0]?.url || null,
+    img: person.media?.find(m => m.isProfilePicture)?.url || person.media?.[0]?.url || person.media?.[0]?.path || null,
     occupations: occupations,
     childrenCount: childrenCount,
     relations: person.relations || {},
@@ -204,6 +205,7 @@ const STYLES = `
     color: #94a3b8;
     flex-shrink: 0;
     border: 2px solid #475569;
+    overflow: hidden;
   }
   .vt-info { 
     display: flex; 
@@ -893,9 +895,10 @@ export default function FamilyTreeView({
                   <div className="vt-avatar">
                     {node.img ? (
                       <MediaImage
-                        src={node.img}
+                        url={node.img}
                         alt={node.name}
                         className="w-full h-full object-cover"
+                        style={getAvatarImageStyle(displayPerson?.media?.[0], node.id)}
                       />
                     ) : (
                       <User size={32} />

@@ -8,7 +8,7 @@ import { useMediaUrl } from '../hooks/useMediaUrl.js';
  * @param {string} className - CSS-klasser
  * @param {object} props - Övriga props som skickas till <img> taggen
  */
-export default function MediaImage({ url, alt, className, ...props }) {
+export default function MediaImage({ url, alt, className, style, ...props }) {
   const { blobUrl, loading, error } = useMediaUrl(url);
 
   if (error) {
@@ -35,6 +35,7 @@ export default function MediaImage({ url, alt, className, ...props }) {
       src={blobUrl || url} 
       alt={alt || 'Bild'} 
       className={className}
+      style={style}
       {...props}
     />
   );

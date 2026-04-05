@@ -45,6 +45,8 @@ import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 const RIKSARKIVET_API = 'https://sok.riksarkivet.se/en/data-api/api';
 import { useApp } from './AppContext.jsx';
 import WindowFrame from './WindowFrame.jsx';
+import MediaImage from './components/MediaImage.jsx';
+import { getAvatarImageStyle } from './imageUtils.js';
 import PlaceEditModal from './PlaceEditModal.jsx';
 import PlaceCreateModal from './PlaceCreateModal.jsx';
 import Editor from './MaybeEditor.jsx';
@@ -1361,7 +1363,8 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
                           const sexLabel = sex === 'M' || sex === 'Man' ? 'M' : sex === 'K' || sex === 'Kvinna' || sex === 'F' ? 'F' : 'U';
                           
                           // Hämta profilbild (samma logik som MediaManager)
-                          const profileImage = person.media && person.media.length > 0 ? person.media[0].url : null;
+                          const primaryMedia = person.media && person.media.length > 0 ? person.media[0] : null;
+                          const profileImage = primaryMedia ? (primaryMedia.url || primaryMedia.path) : null;
                           
                           return (
                             <div 
@@ -1376,10 +1379,11 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
                               {/* Rund thumbnail (samma som MediaManager) */}
                               <div className="w-10 h-10 rounded-full bg-slate-600 flex-shrink-0 overflow-hidden border-2 border-slate-500">
                                 {profileImage ? (
-                                  <img 
-                                    src={profileImage} 
+                                  <MediaImage 
+                                    url={profileImage}
                                     alt={`${person.firstName} ${person.lastName}`} 
-                                    className="w-full h-full object-cover" 
+                                    className="w-full h-full object-cover"
+                                    style={getAvatarImageStyle(primaryMedia, person.id)}
                                   />
                                 ) : (
                                   <User className="w-full h-full p-2 text-slate-400" />

@@ -5,9 +5,9 @@ import {
   Activity, Tag, Plus, Trash2, Calendar, MapPin,
   Link as LinkIcon, Camera, Edit3, AlertCircle, Check,
   Copy, Star,
-  ChevronDown, ChevronUp, MoreHorizontal, Search, Globe, HelpCircle,
+  ChevronDown, ChevronUp, MoreHorizontal, Search, Globe, HelpCircle, Network,
   ClipboardList, BookOpen, Clock,
-  Sparkles, DownloadCloud
+  Sparkles, DownloadCloud, ArrowUpDown
 } from 'lucide-react';
 import WindowFrame from './WindowFrame.jsx';
 import PlacePicker from './PlacePicker.jsx';
@@ -16,6 +16,7 @@ import Editor from './MaybeEditor.jsx';
 import MediaSelector from './MediaSelector.jsx';
 import ImageEditorModal from './ImageEditorModal.jsx';
 import MediaImage from './components/MediaImage.jsx';
+import { getAvatarImageStyle } from './imageUtils.js';
 import { useApp } from './AppContext';
 import { calculateRelationship, getAncestryPath } from './relationshipUtils';
 import { ensureParentsArePartners } from './relationUtils.js';
@@ -471,7 +472,12 @@ const SecondParentSelector = ({ isOpen, onClose, candidates, onSelect, onSelectO
             >
               <div className="w-10 h-10 rounded-full bg-slate-500 flex-shrink-0 overflow-hidden border-2 border-slate-400 group-hover:border-blue-400">
                 {candidate.media && candidate.media.length > 0 ? (
-                  <MediaImage url={candidate.media[0].url} alt={candidate.name} className="w-full h-full object-cover" />
+                  <MediaImage
+                    url={candidate.media[0].url || candidate.media[0].path}
+                    alt={candidate.name}
+                    className="w-full h-full object-cover"
+                    style={getAvatarImageStyle(candidate.media[0], candidate.id)}
+                  />
                 ) : (
                   <User className="w-full h-full p-2 text-slate-300" />
                 )}
@@ -505,7 +511,7 @@ const SecondParentSelector = ({ isOpen, onClose, candidates, onSelect, onSelectO
 
 // --- HUVUDKOMPONENT ---
 
-export default function EditPersonModal({ person: initialPerson, allPlaces, onSave, onClose, onChange, onOpenSourceDrawer, allSources, allPeople, onOpenEditModal, allMediaItems = [], onUpdateAllMedia = () => { }, isDocked = false, onNavigateToPlace, isCollapsed = false, onToggleCollapse }) {
+export default function EditPersonModal({ person: initialPerson, allPlaces, onSave, onClose, onChange, onOpenSourceDrawer, allSources, allPeople, onOpenEditModal, allMediaItems = [], onUpdateAllMedia = () => { }, isDocked = false, onNavigateToPlace, onViewInFamilyTree, isCollapsed = false, onToggleCollapse }) {
   const extractNicknameFromQuotedName = (nameText) => {
     const text = String(nameText || '');
     const match = text.match(/"([^"]+)"/);
@@ -962,11 +968,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
   // Helper: Sortera events efter datum
   const sortedEvents = () => {
     if (!person.events) return [];
-    return [...person.events].sort((a, b) => {
-      const dateA = a.date || '';
-      const dateB = b.date || '';
-      return dateA.localeCompare(dateB);
-    });
+    return person.events || [];
   };
 
   // Helper: Bygg platshierarki från placeId eller placeData
@@ -1139,6 +1141,83 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
   const person = personRaw;
 
   useEffect(() => {
+    if (!person?.id || !Array.isArray(person.media) || person.media.length === 0 || !Array.isArray(allMediaItems) || allMediaItems.length === 0) {
+      return;
+    }
+
+    const mediaMap = new Map(allMediaItems.map((media) => [String(media.id), media]));
+    let hasChanges = false;
+
+    const syncedMedia = person.media.map((mediaItem) => {
+      if (!mediaItem || mediaItem.id === undefined || mediaItem.id === null) return mediaItem;
+      const latest = mediaMap.get(String(mediaItem.id));
+      if (!latest) return mediaItem;
+
+      const merged = { ...mediaItem, ...latest };
+      // Bevara lokalt redigerade face-tag-fält så de inte skrivs över av stale global state.
+      if (Object.prototype.hasOwnProperty.call(mediaItem, 'regions')) {
+        merged.regions = mediaItem.regions;
+      }
+      if (Object.prototype.hasOwnProperty.call(mediaItem, 'faces')) {
+        merged.faces = mediaItem.faces;
+      }
+      if (!hasChanges && JSON.stringify(mediaItem) !== JSON.stringify(merged)) {
+        hasChanges = true;
+      }
+      return merged;
+    });
+
+    if (!hasChanges) return;
+
+    setPersonRaw((prev) => ({
+      ...prev,
+      media: syncedMedia
+    }));
+  }, [allMediaItems, person?.id, person?.media]);
+
+  const openPrimaryProfileImage = useCallback(() => {
+    const mediaList = Array.isArray(person?.media) ? person.media : [];
+    if (mediaList.length === 0) {
+      setActiveTab('media');
+      return;
+    }
+
+    setImageEditorContext('person');
+    setEditingImageIndex(0);
+    setIsImageEditorOpen(true);
+  }, [person?.media]);
+
+  const primaryAvatarStyle = useMemo(() => {
+    const primary = person?.media?.[0];
+    if (!primary) return undefined;
+    const latestPrimary = Array.isArray(allMediaItems)
+      ? allMediaItems.find((media) => String(media?.id) === String(primary?.id)) || primary
+      : primary;
+    return getAvatarImageStyle(latestPrimary, person?.id) || getAvatarImageStyle(latestPrimary, person?.refNumber);
+  }, [allMediaItems, person?.media, person?.id, person?.refNumber]);
+
+  useEffect(() => {
+    if (!initialPerson?.id || initialPerson.id !== person?.id) return;
+
+    const nextColor = initialPerson?.color || '';
+    const nextArchived = Boolean(initialPerson?._archived);
+    const nextArchiveReason = String(initialPerson?.archiveReason || '');
+
+    const currentColor = String(person?.color || '');
+    const currentArchived = Boolean(person?._archived);
+    const currentArchiveReason = String(person?.archiveReason || '');
+
+    if (currentColor === nextColor && currentArchived === nextArchived && currentArchiveReason === nextArchiveReason) return;
+
+    setPersonRaw((prev) => ({
+      ...prev,
+      color: nextColor,
+      _archived: nextArchived || undefined,
+      archiveReason: nextArchiveReason || undefined
+    }));
+  }, [initialPerson?.id, initialPerson?.color, initialPerson?._archived, initialPerson?.archiveReason, person?.id, person?.color, person?._archived, person?.archiveReason]);
+
+  useEffect(() => {
     const shouldAutofocus = Boolean(initialPerson?._isDraft)
       || (!String(initialPerson?.firstName || '').trim() && !String(initialPerson?.lastName || '').trim());
 
@@ -1261,12 +1340,16 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
   const tagInputRef = useRef(null);
   const [selectedEventIndex, setSelectedEventIndex] = useState(null);
   const [eventDetailView, setEventDetailView] = useState('sources'); // 'sources', 'notes', 'images'
+  const [dragOverEventIndex, setDragOverEventIndex] = useState(null);
+  const [draggedEventIndex, setDraggedEventIndex] = useState(null);
+  const [eventSortOverIndex, setEventSortOverIndex] = useState(null);
   const [sourceRefreshKey, setSourceRefreshKey] = useState(0);
   const [isImageEditorOpen, setIsImageEditorOpen] = useState(false);
   const [editingImageIndex, setEditingImageIndex] = useState(null);
+  const [imageEditorContext, setImageEditorContext] = useState('event');
   const [isRefCopied, setIsRefCopied] = useState(false);
   const refCopyTimeoutRef = useRef(null);
-  const { getAllTags, setDbData, dbData, bookmarks = [], handleToggleBookmark } = useApp();
+  const { getAllTags, setDbData, dbData, bookmarks = [], handleToggleBookmark, showStatus = () => { } } = useApp();
 
   // State för noteringar-fliken
   const [noteSearch, setNoteSearch] = useState('');
@@ -2064,6 +2147,180 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
     }
   };
 
+  const handleDropSourceOnEvent = (evt, eventId, eventDisplayIndex) => {
+    evt.preventDefault();
+    evt.stopPropagation();
+
+    let payload = null;
+    try {
+      payload = JSON.parse(evt.dataTransfer.getData('application/json') || '{}');
+    } catch (error) {
+      payload = null;
+    }
+
+    if (!payload || payload.type !== 'source' || !payload.id) {
+      setDragOverEventIndex(null);
+      return;
+    }
+
+    if (!Array.isArray(person.events)) {
+      setDragOverEventIndex(null);
+      return;
+    }
+
+    const actualIndex = person.events.findIndex((eventItem) => eventItem.id === eventId);
+    if (actualIndex === -1) {
+      setDragOverEventIndex(null);
+      return;
+    }
+
+    const targetEvent = person.events[actualIndex] || {};
+    const targetSources = Array.isArray(targetEvent.sources) ? targetEvent.sources : [];
+    const sourceAlreadyLinked = targetSources.includes(payload.id);
+
+    if (sourceAlreadyLinked) {
+      setDragOverEventIndex(null);
+      setSelectedEventIndex(eventDisplayIndex);
+      setEventDetailView('sources');
+      showStatus('Källan är redan kopplad till denna händelse.', 'warning');
+      return;
+    }
+
+    const updatedEvents = person.events.map((eventItem, index) => {
+      if (index !== actualIndex) return eventItem;
+      const currentSources = Array.isArray(eventItem.sources) ? eventItem.sources : [];
+      return {
+        ...eventItem,
+        sources: [...currentSources, payload.id]
+      };
+    });
+
+    const updatedPerson = { ...person, events: updatedEvents };
+    setPerson(updatedPerson);
+    if (onChange) onChange(updatedPerson);
+    setDragOverEventIndex(null);
+    setSelectedEventIndex(eventDisplayIndex);
+    setEventDetailView('sources');
+    showStatus('Källa kopplad till händelsen.');
+  };
+
+  const handleEventDragStart = (e, index) => {
+    setDraggedEventIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(index));
+    if (e.currentTarget) {
+      e.currentTarget.style.opacity = '0.5';
+    }
+  };
+
+  const handleEventDragEnd = (e) => {
+    setDraggedEventIndex(null);
+    setEventSortOverIndex(null);
+    if (e.currentTarget) {
+      e.currentTarget.style.opacity = '1';
+    }
+  };
+
+  const handleEventSortDragOver = (e, overIndex) => {
+    e.preventDefault();
+    setEventSortOverIndex(overIndex);
+  };
+
+  const handleEventSortDrop = (e, dropIndex) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (draggedEventIndex === null || draggedEventIndex === dropIndex) {
+      setEventSortOverIndex(null);
+      return;
+    }
+
+    const newEvents = Array.isArray(person.events) ? [...person.events] : [];
+    const draggedEvent = newEvents[draggedEventIndex];
+    if (!draggedEvent) {
+      setEventSortOverIndex(null);
+      return;
+    }
+
+    newEvents.splice(draggedEventIndex, 1);
+    newEvents.splice(dropIndex, 0, draggedEvent);
+
+    const updatedPerson = { ...person, events: newEvents };
+    setPerson(updatedPerson);
+    if (onChange) onChange(updatedPerson);
+
+    setDraggedEventIndex(null);
+    setEventSortOverIndex(null);
+  };
+
+  const handleSortEventsChronologically = () => {
+    if (!Array.isArray(person.events) || person.events.length === 0) {
+      showStatus('Inga händelser att sortera.', 'warning');
+      return;
+    }
+
+    const extractYearMonthDay = (dateStr) => {
+      if (!dateStr || typeof dateStr !== 'string') return { year: 9999, month: 0, day: 0 };
+      
+      // Försök extrahera ett år från strängen (fire tecken siffror)
+      const yearMatch = dateStr.match(/\b(\d{4})\b/);
+      const year = yearMatch ? parseInt(yearMatch[1], 10) : 9999;
+      
+      // Försök extrahera månad och dag från sorterade format
+      // Format: "1890-05-12", "5-12", "1890-05", etc.
+      const dateParts = dateStr.match(/\b(\d{1,2})[/-](\d{1,2})\b/);
+      let month = 0;
+      let day = 0;
+      if (dateParts) {
+        month = parseInt(dateParts[1], 10);
+        day = parseInt(dateParts[2], 10);
+      }
+      
+      return { year, month, day };
+    };
+
+    const sortedEvents = [...person.events].sort((a, b) => {
+      const aDate = extractYearMonthDay(a.date);
+      const bDate = extractYearMonthDay(b.date);
+      
+      if (aDate.year !== bDate.year) {
+        return aDate.year - bDate.year;
+      }
+      if (aDate.month !== bDate.month) {
+        return aDate.month - bDate.month;
+      }
+      return aDate.day - bDate.day;
+    });
+
+    const updatedPerson = { ...person, events: sortedEvents };
+    setPerson(updatedPerson);
+    if (onChange) onChange(updatedPerson);
+    showStatus('Händelserna har sorterats kronologiskt.', 'success');
+  };
+
+  const handleEventTypeChange = (nextType) => {
+    if (!nextType || nextType === newEvent.type) return;
+
+    if (linkedPersonsForEvent.length > 0) {
+      const confirmed = window.confirm('Om du byter händelsetyp kommer de kopplade vittnena/medverkande att raderas eftersom deras roller kanske inte längre stämmer. Vill du fortsätta?');
+      if (!confirmed) return;
+    }
+
+    const nextTypeConfig = EVENT_TYPES.find((eventType) => eventType.value === nextType);
+    const nextGedcomType = nextTypeConfig?.gedcomType || 'event';
+
+    setNewEvent((prev) => ({
+      ...prev,
+      type: nextType,
+      gedcomType: nextGedcomType,
+      linkedPersons: [],
+      cause: '',
+      customType: nextType === 'Egen händelse' ? (String(prev.customType || '').trim()) : ''
+    }));
+
+    resetWitnessDraft('existing');
+  };
+
   const handleSaveEvent = () => {
     const eventConfig = EVENT_TYPES.find((eventType) => eventType.value === newEvent.type);
     const resolvedGedcomType = eventConfig?.gedcomType || newEvent.gedcomType || 'event';
@@ -2251,13 +2508,25 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
         {!isDocked ? (
           <div className="modal-header h-16 bg-slate-700 border-b border-slate-600 flex items-center justify-between px-6 shrink-0">
             <div className="flex items-center gap-4 select-none">
-              <div className="w-10 h-10 rounded-full bg-slate-600 overflow-hidden border-2 border-slate-500 pointer-events-none">
+              <button
+                type="button"
+                onClick={openPrimaryProfileImage}
+                className="w-10 h-10 rounded-full bg-slate-600 overflow-hidden border-2 border-slate-500 hover:border-blue-400 transition-colors"
+                style={person?.color ? { borderColor: person.color, boxShadow: `0 0 0 1px ${person.color}55` } : undefined}
+                title={person.media?.length > 0 ? 'Öppna profilbild' : 'Lägg till profilbild'}
+                aria-label={person.media?.length > 0 ? 'Öppna profilbild' : 'Lägg till profilbild'}
+              >
                 {person.media?.length > 0 ? (
-                  <MediaImage url={person.media[0].url} alt="Profil" className="w-full h-full object-cover" />
+                  <MediaImage
+                    url={person.media[0].url || person.media[0].path}
+                    alt="Profil"
+                    className="w-full h-full object-cover"
+                    style={primaryAvatarStyle}
+                  />
                 ) : (
                   <User className="w-full h-full p-1 text-slate-400" />
                 )}
-              </div>
+              </button>
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-lg font-bold text-slate-200 leading-tight">
@@ -2269,6 +2538,17 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                       style={{ backgroundColor: person.color }}
                       title={`Grenfärg: ${person.color}`}
                     />
+                  )}
+                  {typeof onViewInFamilyTree === 'function' && person?.id && (
+                    <button
+                      type="button"
+                      onClick={() => onViewInFamilyTree(person.id)}
+                      className="inline-flex items-center justify-center w-8 h-8 rounded border border-slate-600 text-slate-300 hover:text-cyan-200 hover:border-cyan-500 hover:bg-cyan-900/30 transition-colors"
+                      title="Visa i släktträd"
+                      aria-label="Visa i släktträd"
+                    >
+                      <Network className="w-4 h-4" />
+                    </button>
                   )}
                   <button
                     type="button"
@@ -2377,13 +2657,25 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                   {/* Grunddata */}
                   <div className="grid grid-cols-12 gap-6">
                     <div className="col-span-2">
-                      <div className="aspect-[3/4] bg-slate-700 rounded-lg border border-slate-600 flex items-center justify-center relative overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={openPrimaryProfileImage}
+                        className="aspect-[3/4] w-full bg-slate-700 rounded-lg border border-slate-600 flex items-center justify-center relative overflow-hidden hover:border-blue-400 transition-colors"
+                        style={person?.color ? { borderColor: person.color, boxShadow: `0 0 0 1px ${person.color}55` } : undefined}
+                        title={person.media?.length > 0 ? 'Öppna profilbild' : 'Gå till Media för att lägga till bild'}
+                        aria-label={person.media?.length > 0 ? 'Öppna profilbild' : 'Gå till Media för att lägga till bild'}
+                      >
                         {person.media?.length > 0 ? (
-                          <MediaImage url={person.media[0].url} alt="Profil" className="w-full h-full object-cover" />
+                          <MediaImage
+                            url={person.media[0].url || person.media[0].path}
+                            alt="Profil"
+                            className="w-full h-full object-cover"
+                            style={primaryAvatarStyle}
+                          />
                         ) : (
                           <User size={40} className="text-slate-400" />
                         )}
-                      </div>
+                      </button>
                     </div>
                     <div className="col-span-10 grid grid-cols-2 gap-4 content-start">
                       <div>
@@ -2602,6 +2894,13 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                         >
                           <Plus size={14} /> Lägg till händelse
                         </button>
+                        <button
+                          onClick={handleSortEventsChronologically}
+                          title="Sortera kronologiskt"
+                          className="flex items-center gap-1 text-xs bg-slate-700 hover:bg-slate-600 text-slate-100 px-2.5 py-1 rounded transition-colors"
+                        >
+                          <ArrowUpDown size={13} />
+                        </button>
                       </div>
                     </div>
 
@@ -2631,13 +2930,39 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                             return (
                               <tr
                                 key={evt.id || idx}
+                                draggable={editingEventIndex === null}
+                                onDragStart={(e) => handleEventDragStart(e, idx)}
+                                onDragEnd={handleEventDragEnd}
+                                onDragOver={(e) => {
+                                  e.preventDefault();
+                                  handleEventSortDragOver(e, idx);
+                                  setDragOverEventIndex(idx);
+                                }}
+                                onDragLeave={() => {
+                                  setEventSortOverIndex(null);
+                                  setDragOverEventIndex(null);
+                                }}
+                                onDrop={(e) => {
+                                  const sourceData = e.dataTransfer.getData('application/json');
+                                  if (sourceData) {
+                                    try {
+                                      const payload = JSON.parse(sourceData);
+                                      if (payload.type === 'source') {
+                                        handleDropSourceOnEvent(e, evt.id, idx);
+                                        return;
+                                      }
+                                    } catch (err) {
+                                      // Inte käll-data, kolla om det är event-sortering
+                                    }
+                                  }
+                                  handleEventSortDrop(e, idx);
+                                }}
                                 onClick={() => {
                                   if (editingEventIndex === null) {
                                     setSelectedEventIndex(selectedEventIndex === idx ? null : idx);
                                   }
                                 }}
-                                className={`hover:bg-slate-800 transition-colors group cursor-pointer ${selectedEventIndex === idx && editingEventIndex === null ? 'bg-blue-900/30 border-l-4 border-blue-500' : ''
-                                  }`}
+                                className={`hover:bg-slate-800 transition-colors group cursor-move ${selectedEventIndex === idx && editingEventIndex === null ? 'bg-blue-900/30 border-l-4 border-blue-500' : ''} ${dragOverEventIndex === idx && draggedEventIndex === null ? 'bg-blue-900/60 ring-2 ring-inset ring-blue-500' : ''} ${eventSortOverIndex === idx && draggedEventIndex !== null ? 'border-t-2 border-emerald-500' : ''}`}
                               >
                                 <td className="p-2 text-slate-300 text-xs whitespace-nowrap">{age !== null ? `${age} år` : '-'}</td>
                                 <td className="p-2 font-medium text-slate-200 text-xs">{evt.type}</td>
@@ -2730,7 +3055,12 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                     </span>
                                   </div>
                                 </td>
-                                <td className="p-2 text-right flex gap-1 justify-end">
+                                <td className="p-2 text-right flex gap-1 justify-end items-center">
+                                  {dragOverEventIndex === idx && (
+                                    <span className="mr-2 inline-flex items-center rounded border border-blue-400/70 bg-blue-500/20 px-2 py-0.5 text-[10px] uppercase tracking-wide text-blue-100">
+                                      Släpp här för att koppla källa
+                                    </span>
+                                  )}
                                   <button onClick={(e) => { e.stopPropagation(); handleEditEvent(evt.id); }} className="text-slate-400 hover:text-slate-300 p-1 opacity-0 group-hover:opacity-100 transition-opacity" title="Redigera">
                                     <Edit3 size={12} />
                                   </button>
@@ -2783,7 +3113,12 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                               {/* Rund thumbnail */}
                               <div className="w-8 h-8 rounded-full bg-slate-600 flex-shrink-0 overflow-hidden border-2 border-slate-500">
                                 {profileImage ? (
-                                  <MediaImage url={profileImage} alt={parentName} className="w-full h-full object-cover" />
+                                  <MediaImage
+                                    url={profileImage}
+                                    alt={parentName}
+                                    className="w-full h-full object-cover"
+                                    style={getAvatarImageStyle(parentPerson?.media?.[0], parentId)}
+                                  />
                                 ) : (
                                   <User size={16} className="w-full h-full p-1.5 text-slate-400" />
                                 )}
@@ -2861,7 +3196,12 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                               <div className="flex items-center gap-3 flex-1">
                                 <div className="w-10 h-10 rounded-full bg-slate-600 flex-shrink-0 overflow-hidden border-2 border-slate-500">
                                   {partnerImage ? (
-                                    <MediaImage url={partnerImage} alt={partnerName} className="w-full h-full object-cover" />
+                                    <MediaImage
+                                      url={partnerImage}
+                                      alt={partnerName}
+                                      className="w-full h-full object-cover"
+                                      style={getAvatarImageStyle(partnerPerson?.media?.[0], partnerId)}
+                                    />
                                   ) : (
                                     <User size={20} className="w-full h-full p-2 text-slate-400" />
                                   )}
@@ -2945,7 +3285,12 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                       <div className="flex items-center gap-3 flex-1">
                                         <div className="w-8 h-8 rounded-full bg-slate-700 flex-shrink-0 overflow-hidden border-2 border-slate-500">
                                           {profileImage ? (
-                                            <MediaImage url={profileImage} alt={childName} className="w-full h-full object-cover" />
+                                            <MediaImage
+                                              url={profileImage}
+                                              alt={childName}
+                                              className="w-full h-full object-cover"
+                                              style={getAvatarImageStyle(childPerson?.media?.[0], childId)}
+                                            />
                                           ) : (
                                             <User size={16} className="w-full h-full p-1.5 text-slate-400" />
                                           )}
@@ -3030,7 +3375,12 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                   <div className="flex items-center gap-3 flex-1">
                                     <div className="w-8 h-8 rounded-full bg-slate-700 flex-shrink-0 overflow-hidden border-2 border-slate-500">
                                       {profileImage ? (
-                                        <MediaImage url={profileImage} alt={childName} className="w-full h-full object-cover" />
+                                        <MediaImage
+                                          url={profileImage}
+                                          alt={childName}
+                                          className="w-full h-full object-cover"
+                                          style={getAvatarImageStyle(childPerson?.media?.[0], childId)}
+                                        />
                                       ) : (
                                         <User size={16} className="w-full h-full p-1.5 text-slate-400" />
                                       )}
@@ -3197,7 +3547,12 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                       {/* Rund thumbnail */}
                                       <div className="w-12 h-12 rounded-full bg-slate-600 flex-shrink-0 overflow-hidden border-2 border-slate-500">
                                         {profileImage ? (
-                                          <MediaImage url={profileImage} alt={`${p.firstName} ${p.lastName}`} className="w-full h-full object-cover" />
+                                          <MediaImage
+                                            url={profileImage}
+                                            alt={`${p.firstName} ${p.lastName}`}
+                                            className="w-full h-full object-cover"
+                                            style={getAvatarImageStyle(p.media?.[0], p.id)}
+                                          />
                                         ) : (
                                           <User className="w-full h-full p-2 text-slate-400" />
                                         )}
@@ -4144,6 +4499,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                           key={mediaItem.id}
                           className="relative aspect-square bg-slate-900 rounded-lg border-2 border-slate-700 overflow-hidden cursor-pointer hover:border-blue-500 hover:shadow-lg transition-all group"
                           onDoubleClick={() => {
+                            setImageEditorContext('event');
                             setEditingImageIndex(idx);
                             setIsImageEditorOpen(true);
                           }}
@@ -4302,10 +4658,17 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
               <div className="space-y-3">
                 <div className="rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-2">
                   <div className="text-xs font-bold uppercase text-slate-400 mb-1">Händelsetyp</div>
-                  <div className="flex items-center gap-2 text-sm text-slate-100">
-                    <span>{selectedEventTypeConfig?.icon || '•'}</span>
-                    <span>{selectedEventTypeConfig?.label || newEvent.type || 'Okänd'}</span>
-                  </div>
+                  <select
+                    value={newEvent.type || ''}
+                    onChange={(e) => handleEventTypeChange(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-slate-200 focus:border-blue-500 focus:outline-none"
+                  >
+                    {EVENT_TYPES.map((eventType) => (
+                      <option key={eventType.value} value={eventType.value}>
+                        {eventType.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 {newEvent.type === 'Vigsel' && person.relations?.partners?.length > 0 && (
@@ -4735,13 +5098,17 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
 
       {/* --- IMAGE EDITOR MODAL --- */}
       {isImageEditorOpen && (() => {
-        const eventImages = selectedEventIndex !== null && person.events?.[selectedEventIndex]?.images
-          ? (Array.isArray(person.events[selectedEventIndex].images)
-            ? person.events[selectedEventIndex].images
-            : [])
-          : [];
+        const mediaObjects = imageEditorContext === 'person'
+          ? (Array.isArray(person.media) ? person.media : [])
+          : (() => {
+            const eventImages = selectedEventIndex !== null && person.events?.[selectedEventIndex]?.images
+              ? (Array.isArray(person.events[selectedEventIndex].images)
+                ? person.events[selectedEventIndex].images
+                : [])
+              : [];
+            return allMediaItems.filter(m => eventImages.includes(m.id));
+          })();
 
-        const mediaObjects = allMediaItems.filter(m => eventImages.includes(m.id));
         const currentImage = editingImageIndex !== null ? mediaObjects[editingImageIndex] : null;
         const prevImage = editingImageIndex !== null && editingImageIndex > 0 ? mediaObjects[editingImageIndex - 1] : null;
         const nextImage = editingImageIndex !== null && editingImageIndex < mediaObjects.length - 1 ? mediaObjects[editingImageIndex + 1] : null;
@@ -4752,8 +5119,9 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
             onClose={() => {
               setIsImageEditorOpen(false);
               setEditingImageIndex(null);
+              setImageEditorContext('event');
             }}
-            imageUrl={currentImage?.url}
+            imageUrl={currentImage?.url || currentImage?.path}
             imageName={currentImage?.name}
             onSave={() => {
               // Ingen sparning behövs här eftersom bilderna redan är kopplade

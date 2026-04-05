@@ -24,12 +24,25 @@ function buildPlaceString(place) {
   return parts.filter(Boolean).join(', ');
 }
 
-export default function EventEditor({ event, index, onEventChange, allPeople, allPlaces, onNavigateToPlace, onNavigateToSource, onEditNote }) {
+export default function EventEditor({ event, index, onEventChange, allPeople, allPlaces, onNavigateToPlace, onNavigateToSource, onEditNote, eventTypes = [] }) {
     const [resolvedPlaceName, setResolvedPlaceName] = useState('');
     const [selectedLinkedPersonId, setSelectedLinkedPersonId] = useState('');
+    const availableEventTypes = useMemo(() => {
+        if (Array.isArray(eventTypes) && eventTypes.length > 0) return eventTypes;
+        if (event?.type) {
+            return [{ value: event.type, label: event.type, gedcomType: event.gedcomType || (event.type === 'Egen händelse' ? 'custom' : 'event') }];
+        }
+        return [];
+    }, [eventTypes, event?.type, event?.gedcomType]);
     const resolvedGedcomType = event.gedcomType || (event.type === 'Egen händelse' ? 'custom' : 'event');
     const isAttributeEvent = resolvedGedcomType === 'attribute';
-    const isCustomEvent = resolvedGedcomType === 'custom';
+    const selectedEventTypeConfig = useMemo(() => availableEventTypes.find((item) => item.value === event.type) || null, [availableEventTypes, event.type]);
+
+    const gedcomTypeBadgeClass = useMemo(() => {
+        if (resolvedGedcomType === 'attribute') return 'bg-amber-900/30 text-amber-200 border-amber-700/60';
+        if (resolvedGedcomType === 'custom') return 'bg-violet-900/30 text-violet-200 border-violet-700/60';
+        return 'bg-blue-900/30 text-blue-200 border-blue-700/60';
+    }, [resolvedGedcomType]);
 
     const getAttributeValueLabel = (eventType) => {
         if (!eventType) return 'Värde / Beskrivning';
@@ -96,6 +109,34 @@ export default function EventEditor({ event, index, onEventChange, allPeople, al
 
     const handleDeleteNote = () => {
         handleFieldChange('description', '');
+    };
+
+    const handleEventTypeChange = (nextType) => {
+        if (!nextType || nextType === event.type) return;
+
+        const nextTypeConfig = availableEventTypes.find((item) => item.value === nextType) || null;
+        const hadLinkedPersons = Array.isArray(event.linkedPersons) && event.linkedPersons.length > 0;
+        if (hadLinkedPersons) {
+            const shouldContinue = window.confirm('Om du byter händelsetyp kommer de kopplade vittnena/medverkande att raderas eftersom deras roller kanske inte längre stämmer. Vill du fortsätta?');
+            if (!shouldContinue) return;
+        }
+
+        const nextGedcomType = nextTypeConfig?.gedcomType || 'event';
+        const nextEvent = {
+            ...event,
+            type: nextType,
+            gedcomType: nextGedcomType,
+            linkedPersons: [],
+            cause: undefined
+        };
+
+        if (nextGedcomType === 'custom') {
+            nextEvent.customType = String(event.customType || '').trim();
+        } else {
+            nextEvent.customType = undefined;
+        }
+
+        onEventChange(index, nextEvent);
     };
 
     const handleLinkedPersonSelect = (personId) => {
@@ -274,18 +315,10 @@ export default function EventEditor({ event, index, onEventChange, allPeople, al
         </td>
     );
 
-    const renderCustomTypeField = () => (
-        <td className="px-4 py-2">
-            <input type="text" className="w-full bg-transparent border-b border-blue-300 focus:border-blue-500 outline-none font-semibold" value={event.customType || ''} onChange={(e) => handleFieldChange('customType', e.target.value)} placeholder="Ange egen händelsetyp..." />
-        </td>
-    );
-
-
     const attributeLabel = getAttributeValueLabel(event.type);
     const attributePlaceholder = `Ange ${String(event.type || 'värde').toLowerCase()}...`;
 
     let content;
-    let typeDisplay = event.type;
 
     switch (event.type) {
         case 'Vigsel':
@@ -297,15 +330,8 @@ export default function EventEditor({ event, index, onEventChange, allPeople, al
         case 'Länk: Facebook':
             content = renderLinkField();
             break;
-        case 'Egen händelse':
-            typeDisplay = renderCustomTypeField();
-            content = renderStandardFields();
-            break;
         default:
-            if (isCustomEvent) {
-                typeDisplay = renderCustomTypeField();
-                content = renderStandardFields();
-            } else if (isAttributeEvent) {
+            if (isAttributeEvent) {
                 content = renderValueField(attributeLabel, attributePlaceholder);
             } else {
                 content = renderStandardFields();
@@ -315,7 +341,47 @@ export default function EventEditor({ event, index, onEventChange, allPeople, al
 
     return (
         <>
-            <td className="px-4 py-2 font-medium">{typeDisplay}</td>
+            <td className="px-4 py-2 font-medium align-top">
+                <div className="space-y-2 rounded-md border border-slate-700/80 bg-slate-900/60 px-2 py-2">
+                    <div className="flex items-center justify-between gap-2">
+                        <div className="inline-flex items-center gap-1.5 min-w-0">
+                            <span className="text-sm leading-none text-slate-300">{selectedEventTypeConfig?.icon || '•'}</span>
+                            <span className="text-xs font-semibold text-slate-200 truncate">
+                                {selectedEventTypeConfig?.label || event.type || 'Händelse'}
+                            </span>
+                        </div>
+                        <span className={`text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded border ${gedcomTypeBadgeClass}`}>
+                            {resolvedGedcomType}
+                        </span>
+                    </div>
+
+                    <div className="relative">
+                        <select
+                            value={event.type || ''}
+                            onChange={(e) => handleEventTypeChange(e.target.value)}
+                            className="w-full appearance-none bg-slate-950/80 border border-slate-700 rounded-md pl-2 pr-8 py-1.5 text-slate-100 text-sm focus:border-blue-500 focus:outline-none"
+                            title="Byt händelsetyp"
+                        >
+                            {availableEventTypes.map((eventType) => (
+                                <option key={eventType.value} value={eventType.value}>
+                                    {eventType.label}
+                                </option>
+                            ))}
+                        </select>
+                        <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">▾</span>
+                    </div>
+
+                    {resolvedGedcomType === 'custom' && (
+                        <input
+                            type="text"
+                            className="w-full bg-slate-950/80 border border-slate-700 rounded-md px-2 py-1.5 focus:border-blue-500 outline-none font-semibold text-slate-100"
+                            value={event.customType || ''}
+                            onChange={(e) => handleFieldChange('customType', e.target.value)}
+                            placeholder="Ange egen händelsetyp..."
+                        />
+                    )}
+                </div>
+            </td>
             {content}
         </>
     );

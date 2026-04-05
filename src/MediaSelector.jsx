@@ -11,6 +11,8 @@ import WindowFrame from './WindowFrame.jsx';
 import Editor from './MaybeEditor.jsx';
 import { MediaManager } from './MediaManager.jsx';
 import MediaImage from './components/MediaImage.jsx';
+import { getAvatarImageStyle } from './imageUtils.js';
+import { useApp } from './AppContext.jsx';
 
 /**
  * Återanvändbar komponent för att hantera media (bilder) för personer, källor, platser, etc.
@@ -38,6 +40,7 @@ export default function MediaSelector({
   allSources = [],
   allPlaces = []
 }) {
+  const { showUndoToast } = useApp();
   const [selectedImageIndex, setSelectedImageIndex] = useState(null);
   const [isMediaManagerOpen, setIsMediaManagerOpen] = useState(false);
   const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
@@ -181,14 +184,27 @@ export default function MediaSelector({
 
   // Ta bort bild
   const handleRemoveImage = (index) => {
-    if (confirm('Vill du ta bort denna bild?')) {
-      const newMedia = media.filter((_, i) => i !== index);
-      onMediaChange(newMedia);
-      if (selectedImageIndex === index) {
-        setSelectedImageIndex(null);
-      } else if (selectedImageIndex > index) {
-        setSelectedImageIndex(selectedImageIndex - 1);
-      }
+    if (!window.confirm('Är du säker på att du vill ta bort bilden?')) return;
+
+    const removedItem = media[index];
+    const newMedia = media.filter((_, i) => i !== index);
+    onMediaChange(newMedia);
+
+    if (selectedImageIndex === index) {
+      setSelectedImageIndex(null);
+    } else if (selectedImageIndex > index) {
+      setSelectedImageIndex(selectedImageIndex - 1);
+    }
+
+    if (typeof showUndoToast === 'function' && removedItem) {
+      showUndoToast(`"${removedItem.name || 'Bilden'}" togs bort. Ångra?`, () => {
+        const restoredMedia = [...newMedia];
+        restoredMedia.splice(index, 0, removedItem);
+        onMediaChange(restoredMedia);
+        if (selectedImageIndex !== null && selectedImageIndex >= index) {
+          setSelectedImageIndex(selectedImageIndex + 1);
+        }
+      });
     }
   };
 
@@ -487,6 +503,9 @@ export default function MediaSelector({
             {filteredMedia.map((item, idx) => {
               const originalIndex = media.findIndex(m => m.id === item.id);
               const isProfile = entityType === 'person' && originalIndex === 0;
+              const latestItem = Array.isArray(allMediaItems)
+                ? allMediaItems.find((entry) => String(entry?.id) === String(item?.id)) || item
+                : item;
               
               return (
                 <div
@@ -561,6 +580,9 @@ export default function MediaSelector({
             {filteredMedia.map((item, idx) => {
               const originalIndex = media.findIndex(m => m.id === item.id);
               const isProfile = entityType === 'person' && originalIndex === 0;
+              const latestItem = Array.isArray(allMediaItems)
+                ? allMediaItems.find((entry) => String(entry?.id) === String(item?.id)) || item
+                : item;
               
               return (
                 <div
@@ -1139,9 +1161,20 @@ export default function MediaSelector({
             const updatedMedia = [...media];
             updatedMedia[selectedImageIndex] = {
               ...updatedMedia[selectedImageIndex],
-              regions: newRegions
+              regions: newRegions,
+              faces: newRegions
             };
             onMediaChange(updatedMedia);
+
+            if (typeof onUpdateAllMedia === 'function') {
+              const selectedItemId = updatedMedia[selectedImageIndex]?.id;
+              const nextAllMedia = (allMediaItems || []).map((item) =>
+                String(item?.id) === String(selectedItemId)
+                  ? { ...item, regions: newRegions, faces: newRegions }
+                  : item
+              );
+              onUpdateAllMedia(nextAllMedia);
+            }
           }}
           people={allPeople}
           onOpenEditModal={onOpenEditModal}
@@ -1187,6 +1220,18 @@ export default function MediaSelector({
           >
             <Eye size={16} />
             <span>Visa bild</span>
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setEditingImageIndex(contextMenu.itemIndex);
+              setIsImageEditorOpen(true);
+              setContextMenu({ open: false, x: 0, y: 0, itemIndex: null });
+            }}
+            className="w-full px-4 py-2 text-left text-sm text-white hover:bg-slate-700 flex items-center gap-2"
+          >
+            <Edit2 size={16} />
+            <span>Redigera bild</span>
           </button>
           <button
             onClick={(e) => {
