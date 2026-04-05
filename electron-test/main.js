@@ -1051,6 +1051,17 @@ ipcMain.on('show-person-context-menu', (event, personId) => {
   menu.popup({ window: win });
 });
 
+ipcMain.on('show-text-context-menu', (event) => {
+  const menu = Menu.buildFromTemplate([
+    { label: 'Klipp ut', role: 'cut' },
+    { label: 'Kopiera', role: 'copy' },
+    { label: 'Klistra in', role: 'paste' },
+    { type: 'separator' },
+    { label: 'Markera allt', role: 'selectAll' }
+  ]);
+  menu.popup({ window: BrowserWindow.fromWebContents(event.sender) });
+});
+
 
 app.whenReady().then(() => {
   createApplicationMenu();

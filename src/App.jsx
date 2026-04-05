@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import { useApp } from './AppContext';
 import { syncRelations } from './syncRelations';
 import PersonList from './PersonList.jsx';
@@ -315,6 +314,24 @@ function App() {
       };
     }
   }, [handleSaveFile, handleSaveFileAs, handleExportGedcom, isElectron, handleNewFile, handleOpenFile]);
+
+  useEffect(() => {
+    const handleTextContextMenu = (e) => {
+      const target = e.target;
+      if (!target || !(target instanceof HTMLElement)) return;
+      const isInput = target.tagName === 'INPUT';
+      const isTextarea = target.tagName === 'TEXTAREA';
+      const isContentEditable = target.isContentEditable || target.closest('[contenteditable="true"]');
+      if (isInput || isTextarea || isContentEditable) {
+        e.stopPropagation();
+        if (window.electronAPI && window.electronAPI.showTextContextMenu) {
+          window.electronAPI.showTextContextMenu();
+        }
+      }
+    };
+    window.addEventListener('contextmenu', handleTextContextMenu, true);
+    return () => window.removeEventListener('contextmenu', handleTextContextMenu, true);
+  }, []);
 
   useEffect(() => {
     setAuditBackupDirState((dbData?.meta && dbData.meta.auditBackupDir) || '');
@@ -1031,7 +1048,7 @@ function App() {
           <Button onClick={handleForward} disabled={!canGoForward} variant="secondary" size="sm" className={!canGoForward ? 'opacity-50' : ''}>→</Button>
           <Button onClick={() => Promise.resolve(handleNewFile()).then(resetUiState)} variant="secondary" size="sm">Ny</Button>
           <Button onClick={handleOpenFile} variant="secondary" size="sm">Öppna fil...</Button>
-          <Button onClick={() => window.close()} variant="primary" size="sm">Stäng</Button>
+          <Button onClick={handleSaveFile} variant="primary" size="sm">Spara</Button>
           <Button onClick={() => window.close()} variant="secondary" size="sm">Stäng</Button>
           <Button onClick={() => setShowSettings(true)} variant="secondary" size="sm">Inställningar</Button>
           <Button onClick={() => setIsMergeModalOpen(true)} variant="secondary" size="sm">Slå ihop</Button>
@@ -1234,7 +1251,8 @@ function App() {
         </div>
 
 
-        <div className="flex-grow min-h-0">
+        <div className="flex-grow min-h-0 flex gap-3">
+          <div className="flex-1 min-w-0 flex flex-col">
           {activeTab === 'dashboard' && (
             <DashboardView
               dbData={dbData}
@@ -1248,128 +1266,37 @@ function App() {
           )}
 
           {/* Visa personregistret som fallback om activeTab är null/undefined eller 'people' */}
-          {(!activeTab || activeTab === 'people') && (() => {
-            const showDockedPeopleEditor = !!editingPerson && isPeopleEditorDocked;
-
-            return (
-              <div className={`w-full h-full min-h-0 ${showDockedPeopleEditor ? 'flex gap-3' : ''}`}>
-                <div className={`min-w-0 min-h-0 ${showDockedPeopleEditor ? 'flex-1 flex flex-col people-docked-scroll' : 'w-full flex flex-col'}`}>
-                  <div className={`tab-content w-full flex flex-col min-h-0 ${showDockedPeopleEditor ? '' : 'max-w-6xl mx-auto h-full'}`}>
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4 shrink-0">
-                      <div className="lg:col-span-2">
-                        <SuggestionsPanel allPeople={visiblePeople} onOpenPair={(pair) => { setMergeInitialPair(pair); setShowDuplicateMerge(true); }} />
-                      </div>
-                      <RelationshipPanel
-                        focusPair={focusPair || { primary: null, secondary: null }}
-                        allPeople={dbData?.people || visiblePeople}
-                        onClearFocus={handleClearFocus}
-                        onSwapFocus={handleSwapFocus}
-                        inline={true}
-                      />
-                    </div>
-
-                    <div className="flex-1 min-h-0">
-                      <PersonList
-                        people={visiblePeople}
-                        onOpenEditModal={handleOpenEditModal}
-                        onOpenRelationModal={handleViewInFamilyTree}
-                        onDeletePerson={handleDeletePerson}
-                        focusPair={focusPair}
-                        onSetFocusPair={handleSetFocusPair}
-                        bookmarks={bookmarks}
-                        onCreatePerson={handleCreateAndEditPerson}
-                      />
-                    </div>
+          {(!activeTab || activeTab === 'people') && (
+            <div className="w-full h-full min-h-0 flex flex-col people-docked-scroll">
+              <div className="tab-content w-full flex flex-col min-h-0">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4 shrink-0">
+                  <div className="lg:col-span-2">
+                    <SuggestionsPanel allPeople={visiblePeople} onOpenPair={(pair) => { setMergeInitialPair(pair); setShowDuplicateMerge(true); }} />
                   </div>
+                  <RelationshipPanel
+                    focusPair={focusPair || { primary: null, secondary: null }}
+                    allPeople={dbData?.people || visiblePeople}
+                    onClearFocus={handleClearFocus}
+                    onSwapFocus={handleSwapFocus}
+                    inline={true}
+                  />
                 </div>
 
-                {showDockedPeopleEditor && (
-                  <>
-                    <div
-                      className="w-1.5 bg-slate-700/70 hover:bg-blue-500 rounded cursor-col-resize transition-colors"
-                      onMouseDown={handleStartResizePeopleEditor}
-                      title="Dra för att ändra bredd"
-                    />
-                    <div
-                      className="shrink-0 h-full min-h-0 bg-slate-800 border border-slate-700 rounded-lg overflow-hidden shadow-2xl flex flex-col people-docked-panel"
-                      style={{ width: `${peopleEditorWidth}px` }}
-                    >
-                      <div className="h-11 shrink-0 bg-slate-900 border-b border-slate-700 px-2 flex items-center justify-between">
-                        <div className="text-sm font-bold text-slate-200 truncate pl-2">
-                          Redigera {editingPerson.firstName || ''} {editingPerson.lastName || ''}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => {
-                              handleTogglePeopleEditorDock(false);
-                            }}
-                            className="p-1.5 hover:bg-slate-800 rounded text-slate-400 hover:text-white"
-                            title="Frigör från dockning"
-                          >
-                            <PanelRight size={15} />
-                          </button>
-                          <button
-                            onClick={() => {
-                              handleTogglePeopleEditorDock(false);
-                            }}
-                            className="p-1.5 hover:bg-slate-800 rounded text-slate-400 hover:text-white"
-                            title="Minimera"
-                          >
-                            <Minus size={15} />
-                          </button>
-                          <button
-                            onClick={() => {
-                              handleTogglePeopleEditorDock(false);
-                            }}
-                            className="p-1.5 hover:bg-slate-800 rounded text-slate-400 hover:text-white"
-                            title="Maximera"
-                          >
-                            <Maximize2 size={15} />
-                          </button>
-                          <button
-                            onClick={handleCloseEditModalSafe}
-                            className="p-1.5 hover:bg-red-900/50 rounded text-slate-400 hover:text-red-400"
-                            title="Stäng"
-                          >
-                            <X size={15} />
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="flex-1 min-h-0 overflow-hidden">
-                        <EditPersonModal
-                          person={editingPerson}
-                          onClose={handleCloseEditModalSafe}
-                          onSave={patchedHandleSavePersonDetails}
-                          onChange={handleEditFormChange}
-                          allSources={dbData.sources}
-                          allPlaces={dbData.places || []}
-                          allPeople={visiblePeople}
-                          onDeleteEvent={handleDeleteEvent}
-                          onOpenSourceDrawer={handleToggleSourceDrawer}
-                          onNavigateToSource={handleNavigateToSource}
-                          onNavigateToPlace={handleNavigateToPlace}
-                          onTogglePlaceDrawer={handleTogglePlaceDrawer}
-                          onViewInFamilyTree={handleViewInFamilyTree}
-                          focusPair={focusPair}
-                          onSetFocusPair={handleSetFocusPair}
-                          activeSourcingEventId={sourcingEventInfo?.eventId}
-                          allMediaItems={dbData.media || []}
-                          onUpdateAllMedia={(updatedMedia) => {
-                            setDbData(prev => ({ ...prev, media: updatedMedia }));
-                            setIsDirty(true);
-                          }}
-                          setIsSourceDrawerOpen={openSourceDrawerForSelection}
-                          setIsPlaceDrawerOpen={openPlaceDrawerForSelection}
-                          isDocked={true}
-                        />
-                      </div>
-                    </div>
-                  </>
-                )}
+                <div className="flex-1 min-h-0">
+                  <PersonList
+                    people={visiblePeople}
+                    onOpenEditModal={handleOpenEditModal}
+                    onOpenRelationModal={handleViewInFamilyTree}
+                    onDeletePerson={handleDeletePerson}
+                    focusPair={focusPair}
+                    onSetFocusPair={handleSetFocusPair}
+                    bookmarks={bookmarks}
+                    onCreatePerson={handleCreateAndEditPerson}
+                  />
+                </div>
               </div>
-            );
-          })()}
+            </div>
+          )}
 
           {activeTab === 'orphanArchive' && (<OrphanArchiveView people={dbData.people || []} allSources={dbData.sources || []} onOpenPerson={handleOpenEditModal} onViewInFamilyTree={handleViewInFamilyTree} />)}
           {activeTab === 'audit' && ( <AuditPanel /> )}
@@ -1691,11 +1618,17 @@ function App() {
             )
           )}
 
-          {editingPerson && isPeopleEditorDocked && activeTab !== 'people' && activeTab !== 'familyTree' && createPortal(
-            <div className="fixed top-[120px] right-4 bottom-4 z-[8500] flex items-stretch gap-3 pointer-events-none">
-              <div className="pointer-events-auto w-1.5 bg-slate-700/70 hover:bg-blue-500 rounded cursor-col-resize transition-colors" onMouseDown={handleStartResizePeopleEditor} title="Dra för att ändra bredd" />
+          </div>
+
+          {editingPerson && isPeopleEditorDocked && activeTab !== 'familyTree' && (
+            <>
               <div
-                className="pointer-events-auto shrink-0 h-full min-h-0 bg-slate-800 border border-slate-700 rounded-lg overflow-hidden shadow-2xl flex flex-col people-docked-panel"
+                className="w-1.5 bg-slate-700/70 hover:bg-blue-500 rounded cursor-col-resize transition-colors"
+                onMouseDown={handleStartResizePeopleEditor}
+                title="Dra för att ändra bredd"
+              />
+              <div
+                className="shrink-0 h-full min-h-0 bg-slate-800 border border-slate-700 rounded-lg overflow-hidden shadow-2xl flex flex-col people-docked-panel"
                 style={{ width: `${peopleEditorWidth}px` }}
               >
                 <div className="h-11 shrink-0 bg-slate-900 border-b border-slate-700 px-2 flex items-center justify-between">
@@ -1703,16 +1636,38 @@ function App() {
                     Redigera {editingPerson.firstName || ''} {editingPerson.lastName || ''}
                   </div>
                   <div className="flex items-center gap-1">
-                    <button onClick={() => handleTogglePeopleEditorDock(false)} className="p-1.5 hover:bg-slate-800 rounded text-slate-400 hover:text-white" title="Frigör från dockning">
+                    <button
+                      onClick={() => {
+                        handleTogglePeopleEditorDock(false);
+                      }}
+                      className="p-1.5 hover:bg-slate-800 rounded text-slate-400 hover:text-white"
+                      title="Frigör från dockning"
+                    >
                       <PanelRight size={15} />
                     </button>
-                    <button onClick={() => handleTogglePeopleEditorDock(false)} className="p-1.5 hover:bg-slate-800 rounded text-slate-400 hover:text-white" title="Minimera">
+                    <button
+                      onClick={() => {
+                        handleTogglePeopleEditorDock(false);
+                      }}
+                      className="p-1.5 hover:bg-slate-800 rounded text-slate-400 hover:text-white"
+                      title="Minimera"
+                    >
                       <Minus size={15} />
                     </button>
-                    <button onClick={() => handleTogglePeopleEditorDock(false)} className="p-1.5 hover:bg-slate-800 rounded text-slate-400 hover:text-white" title="Maximera">
+                    <button
+                      onClick={() => {
+                        handleTogglePeopleEditorDock(false);
+                      }}
+                      className="p-1.5 hover:bg-slate-800 rounded text-slate-400 hover:text-white"
+                      title="Maximera"
+                    >
                       <Maximize2 size={15} />
                     </button>
-                    <button onClick={handleCloseEditModalSafe} className="p-1.5 hover:bg-red-900/50 rounded text-slate-400 hover:text-red-400" title="Stäng">
+                    <button
+                      onClick={handleCloseEditModalSafe}
+                      className="p-1.5 hover:bg-red-900/50 rounded text-slate-400 hover:text-red-400"
+                      title="Stäng"
+                    >
                       <X size={15} />
                     </button>
                   </div>
@@ -1747,8 +1702,7 @@ function App() {
                   />
                 </div>
               </div>
-            </div>,
-            document.body
+            </>
           )}
         </div>
       </div>

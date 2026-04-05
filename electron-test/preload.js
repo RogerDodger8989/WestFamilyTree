@@ -63,6 +63,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     emptyTrash: (olderThanDays) => ipcRenderer.invoke('empty-trash', olderThanDays),
     scanMediaFolder: () => ipcRenderer.invoke('scan-media-folder'),
     importImages: () => ipcRenderer.invoke('import-images'),
+    showTextContextMenu: () => ipcRenderer.send('show-text-context-menu'),
     // Add generic event listener for menu actions
     on: (channel, listener) => {
         ipcRenderer.on(channel, listener);

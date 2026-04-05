@@ -1203,7 +1203,6 @@ export default function useAppContext() {
         // Switch tabs without prompting about unsaved changes. User edits
         // are not forcefully discarded; the editingPerson state is cleared
         // when closing the edit modal explicitly.
-        if (editingPerson) handleCloseEditModal();
         try { pushHistory({ tab: tabName, editingPersonId: editingPerson?.id || null }); } catch (e) {}
         setActiveTab(tabName);
     };

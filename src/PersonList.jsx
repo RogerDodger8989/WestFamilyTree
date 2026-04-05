@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from './AppContext';
 import MediaImage from './components/MediaImage.jsx';
 import { getAvatarImageStyle } from './imageUtils.js';
-import { Search, LayoutGrid, List, X, Image as ImageIcon, BookOpen, AlertTriangle, ArrowUpDown, ChevronUp, ChevronDown, SlidersHorizontal, Plus, Trash2, Download, Save, Palette, Network } from 'lucide-react';
+import { Search, LayoutGrid, List, X, Image as ImageIcon, BookOpen, AlertTriangle, ArrowUpDown, ChevronUp, ChevronDown, SlidersHorizontal, Plus, Trash2, Download, Save, Palette, Network, Edit3 } from 'lucide-react';
 
 const FILTER_PRESET_STORAGE_KEY = 'westfamilytree_personlist_filter_presets_v1';
 const PERSON_LIST_COLUMNS_STORAGE_KEY = 'westfamilytree_personlist_columns_v1';
@@ -1290,9 +1290,10 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
           <button
             onClick={() => { forceHideHover(); onOpenEditModal(person.id); }}
             title="Redigera person"
-            className="px-2 py-0.5 text-xs bg-slate-700 border border-slate-600 text-slate-200 rounded hover:bg-slate-600"
+            aria-label="Redigera person"
+            className="inline-flex items-center justify-center px-2 py-0.5 text-xs bg-slate-700 border border-slate-600 text-slate-200 rounded hover:bg-slate-600"
           >
-            Redigera
+            <Edit3 className="w-3.5 h-3.5" />
           </button>
 
           <button
@@ -1308,9 +1309,10 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
           <button
             onClick={() => { forceHideHover(); onDeletePerson(person.id); }}
             title="Ta bort person"
-            className="px-2 py-0.5 text-xs border border-red-600 text-red-400 rounded hover:bg-red-900 font-semibold"
+            aria-label="Ta bort person"
+            className="inline-flex items-center justify-center px-2 py-0.5 text-xs border border-red-600 text-red-400 rounded hover:bg-red-900 font-semibold"
           >
-            Ta bort
+            <Trash2 className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
@@ -1413,9 +1415,10 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
           <button
             onClick={() => { forceHideHover(); onOpenEditModal(person.id); }}
             title="Redigera person"
-            className="px-2 py-0.5 text-xs bg-slate-700 border border-slate-600 text-slate-200 rounded hover:bg-slate-600"
+            aria-label="Redigera person"
+            className="inline-flex items-center justify-center px-2 py-0.5 text-xs bg-slate-700 border border-slate-600 text-slate-200 rounded hover:bg-slate-600"
           >
-            Redigera
+            <Edit3 className="w-3.5 h-3.5" />
           </button>
           <button
             type="button"
@@ -1430,9 +1433,10 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
           <button
             onClick={() => { forceHideHover(); onDeletePerson(person.id); }}
             title="Ta bort person"
-            className="px-2 py-0.5 text-xs border border-red-600 text-red-400 rounded hover:bg-red-900 font-semibold"
+            aria-label="Ta bort person"
+            className="inline-flex items-center justify-center px-2 py-0.5 text-xs border border-red-600 text-red-400 rounded hover:bg-red-900 font-semibold"
           >
-            Ta bort
+            <Trash2 className="w-3.5 h-3.5" />
           </button>
           <button
             type="button"
@@ -1739,9 +1743,11 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
                                   forceHideHover();
                                   onOpenEditModal(person.id);
                                 }}
-                                className="px-2 py-0.5 text-xs bg-slate-700 border border-slate-600 text-slate-200 rounded hover:bg-slate-600"
+                                title="Redigera person"
+                                aria-label="Redigera person"
+                                className="inline-flex items-center justify-center px-2 py-0.5 text-xs bg-slate-700 border border-slate-600 text-slate-200 rounded hover:bg-slate-600"
                               >
-                                Redigera
+                                <Edit3 className="w-3.5 h-3.5" />
                               </button>
                               <button
                                 type="button"
@@ -1763,9 +1769,11 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
                                   forceHideHover();
                                   onDeletePerson(person.id);
                                 }}
-                                className="px-2 py-0.5 text-xs border border-red-600 text-red-400 rounded hover:bg-red-900 font-semibold"
+                                title="Ta bort person"
+                                aria-label="Ta bort person"
+                                className="inline-flex items-center justify-center px-2 py-0.5 text-xs border border-red-600 text-red-400 rounded hover:bg-red-900 font-semibold"
                               >
-                                Ta bort
+                                <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </div>
                           </td>
