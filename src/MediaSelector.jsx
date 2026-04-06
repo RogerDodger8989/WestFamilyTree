@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
+import JSZip from 'jszip';
 import { 
   Image as ImageIcon, Plus, Trash2, Star, MoreHorizontal,
   Search, X, Grid, List, Eye, UploadCloud, Check, User, FileText, MapPin,
-  Edit2, Link as LinkIcon, Folder, FolderPlus, Layers, MoveRight,
+  Edit2, Link as LinkIcon, Folder, FolderPlus, Layers, MoveRight, Download,
   ChevronRight, ChevronDown
 } from 'lucide-react';
 import ImageViewer from './ImageViewer.jsx';
@@ -31,6 +32,8 @@ import { useApp } from './AppContext.jsx';
 export default function MediaSelector({
   media = [],
   onMediaChange,
+  mediaSortConfig = { sortBy: 'custom', imageSize: 0.62 },
+  onMediaSortChange = () => {},
   entityType = 'person',
   entityId = null,
   allPeople = [],
@@ -55,6 +58,9 @@ export default function MediaSelector({
   const fileInputRef = useRef(null);
   const dropZoneRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [selectedIndices, setSelectedIndices] = useState(new Set());
+  const imageSizeMultiplier = Number(mediaSortConfig?.imageSize ?? 0.62);
+  const sortBy = mediaSortConfig?.sortBy || 'custom';
   
   // Context menu state
   const [contextMenu, setContextMenu] = useState({ open: false, x: 0, y: 0, itemIndex: null });
@@ -138,6 +144,37 @@ export default function MediaSelector({
            (item.description || '').toLowerCase().includes(search);
   });
 
+  const sortedFilteredMedia = [...filteredMedia].sort((a, b) => {
+    if (sortBy === 'custom') return 0;
+
+    if (sortBy === 'name-asc') {
+      return String(a?.name || '').localeCompare(String(b?.name || ''), 'sv');
+    }
+    if (sortBy === 'name-desc') {
+      return String(b?.name || '').localeCompare(String(a?.name || ''), 'sv');
+    }
+
+    const dateA = new Date(a?.date || 0).getTime();
+    const dateB = new Date(b?.date || 0).getTime();
+    if (sortBy === 'date-asc') {
+      return dateA - dateB;
+    }
+    if (sortBy === 'date-desc') {
+      return dateB - dateA;
+    }
+
+    return 0;
+  });
+
+  const updateMediaSortConfig = (partial) => {
+    onMediaSortChange({
+      ...(mediaSortConfig || {}),
+      ...partial
+    });
+  };
+
+  const stripHtmlTags = (value = '') => String(value).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+
   // Hantera drag start
   const handleDragStart = (e, index) => {
     setDraggedIndex(index);
@@ -170,6 +207,7 @@ export default function MediaSelector({
     const [removed] = newMedia.splice(draggedIndex, 1);
     newMedia.splice(dropIndex, 0, removed);
     onMediaChange(newMedia);
+    clearSelectedIndices();
     
     setDraggedIndex(null);
     setDragOverIndex(null);
@@ -182,6 +220,235 @@ export default function MediaSelector({
     setDragOverIndex(null);
   };
 
+  const clearSelectedIndices = () => {
+    setSelectedIndices(new Set());
+  };
+
+  const toggleSelectedIndex = (index) => {
+    setSelectedIndices((currentSelectedIndices) => {
+      const nextSelectedIndices = new Set(currentSelectedIndices);
+      if (nextSelectedIndices.has(index)) {
+        nextSelectedIndices.delete(index);
+      } else {
+        nextSelectedIndices.add(index);
+      }
+      return nextSelectedIndices;
+    });
+  };
+
+  const getDownloadFileName = (item, index) => {
+    if (item?.name) {
+      return item.name;
+    }
+
+    const rawUrl = String(item?.url || '');
+    const fileNameFromUrl = rawUrl.split('/').pop()?.split('?')[0];
+    if (fileNameFromUrl) {
+      try {
+        return decodeURIComponent(fileNameFromUrl);
+      } catch (error) {
+        return fileNameFromUrl;
+      }
+    }
+
+    return `bild_${index + 1}.jpg`;
+  };
+
+  const getMimeTypeFromName = (fileName = '') => {
+    const extension = String(fileName).split('.').pop()?.toLowerCase() || '';
+    const mimeTypes = {
+      jpg: 'image/jpeg',
+      jpeg: 'image/jpeg',
+      png: 'image/png',
+      gif: 'image/gif',
+      webp: 'image/webp',
+      bmp: 'image/bmp',
+      tif: 'image/tiff',
+      tiff: 'image/tiff'
+    };
+
+    return mimeTypes[extension] || 'application/octet-stream';
+  };
+
+  const readMediaBlob = async (item) => {
+    const imageUrl = item?.url || '';
+
+    if (imageUrl.startsWith('media://')) {
+      if (!window.electronAPI || typeof window.electronAPI.readFile !== 'function') {
+        throw new Error('Electron API finns inte tillgänglig för media://-nedladdning');
+      }
+
+      let filePath = imageUrl.replace('media://', '');
+      try {
+        filePath = decodeURIComponent(filePath);
+      } catch (error) {
+        filePath = filePath.replace(/%2F/g, '/').replace(/%20/g, ' ');
+      }
+      filePath = filePath.replace(/%2F/g, '/');
+
+      const fileData = await window.electronAPI.readFile(filePath);
+      if (fileData && fileData.error) {
+        throw new Error(fileData.error);
+      }
+
+      let uint8Array = null;
+      if (fileData instanceof ArrayBuffer) {
+        uint8Array = new Uint8Array(fileData);
+      } else if (fileData instanceof Uint8Array) {
+        uint8Array = fileData;
+      } else if (Array.isArray(fileData)) {
+        uint8Array = new Uint8Array(fileData);
+      } else if (fileData?.data instanceof ArrayBuffer) {
+        uint8Array = new Uint8Array(fileData.data);
+      } else if (fileData?.data instanceof Uint8Array) {
+        uint8Array = fileData.data;
+      } else if (Array.isArray(fileData?.data)) {
+        uint8Array = new Uint8Array(fileData.data);
+      } else if (typeof fileData === 'string') {
+        const binaryString = atob(fileData);
+        uint8Array = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i += 1) {
+          uint8Array[i] = binaryString.charCodeAt(i);
+        }
+      } else if (fileData?.data) {
+        uint8Array = new Uint8Array(fileData.data);
+      } else if (fileData) {
+        uint8Array = new Uint8Array(fileData);
+      }
+
+      if (!uint8Array) {
+        throw new Error('Kunde inte läsa media-filen');
+      }
+
+      return new Blob([uint8Array], { type: getMimeTypeFromName(getDownloadFileName(item, 0)) });
+    }
+
+    const response = await fetch(imageUrl);
+    if (!response.ok) {
+      throw new Error(`Kunde inte hämta bilden (${response.status})`);
+    }
+
+    return await response.blob();
+  };
+
+  const handleDownload = async (indices, downloadAsZip = true) => {
+    try {
+      // Convert to array
+      const indexList = Array.isArray(indices) ? indices : Array.from(indices || []);
+      
+      // If no indices provided, download all media
+      const indicesToDownload = indexList.length > 0 ? indexList : Array.from(Array(media.length).keys());
+      
+      if (indicesToDownload.length === 0) {
+        return;
+      }
+
+      // Single image without explicit zip request - download directly
+      if (indicesToDownload.length === 1 && !downloadAsZip) {
+        const index = indicesToDownload[0];
+        const item = media[index];
+        
+        if (!item || !item.url) {
+          return;
+        }
+
+        const blob = await readMediaBlob(item);
+        const downloadUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = getDownloadFileName(item, index);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+        return;
+      }
+
+      // Multiple images: ALWAYS use Electron backend for zip creation (NO DIALOGS!)
+      // Extract file paths for media:// URLs
+      const filePaths = [];
+      const fileNames = [];
+      const fileNameMap = {};
+      
+      for (const index of indicesToDownload) {
+        const item = media[index];
+        if (!item || !item.url) {
+          continue;
+        }
+
+        const url = item.url;
+        if (url.startsWith('media://')) {
+          let filePath = url.replace('media://', '');
+          try {
+            filePath = decodeURIComponent(filePath);
+          } catch (error) {
+            filePath = filePath.replace(/%2F/g, '/').replace(/%20/g, ' ');
+          }
+          filePath = filePath.replace(/%2F/g, '/');
+          
+          let fileName = getDownloadFileName(item, index);
+          
+          // Handle duplicate file names by adding a counter
+          if (fileNameMap[fileName]) {
+            fileNameMap[fileName] += 1;
+            const nameParts = fileName.split('.');
+            const ext = nameParts.pop();
+            const baseName = nameParts.join('.');
+            fileName = `${baseName}_${fileNameMap[fileName]}.${ext}`;
+          } else {
+            fileNameMap[fileName] = 1;
+          }
+          
+          filePaths.push(filePath);
+          fileNames.push(fileName);
+        }
+      }
+
+      // Use Electron backend to create zip - this is the ONLY method for multiple files
+      if (!window.electronAPI || typeof window.electronAPI.createZipFromFiles !== 'function') {
+        throw new Error('Electron API är inte tillgänglig för zip-nedladdning. Starta om appen.');
+      }
+
+      const result = await window.electronAPI.createZipFromFiles(filePaths, fileNames);
+      if (!result || !result.success) {
+        throw new Error(result?.error || 'Okänt fel vid skapande av zip-fil');
+      }
+
+      console.log('✓ Zip-fil skapad och sparad: ' + result.path);
+    } catch (error) {
+      console.error('Fel vid nedladdning av bilder:', error);
+      alert('Kunde inte ladda ner bilder: ' + error.message);
+    }
+  };
+
+  const handleDeleteSelected = () => {
+    if (selectedIndices.size === 0) {
+      return;
+    }
+
+    const selectedCount = selectedIndices.size;
+    if (!window.confirm(`Är du säker på att du vill ta bort ${selectedCount} valda bilder?`)) {
+      return;
+    }
+
+    const indicesToRemove = new Set(selectedIndices);
+    const removedBeforeSelectedImage = selectedImageIndex === null
+      ? 0
+      : Array.from(indicesToRemove).filter((index) => index < selectedImageIndex).length;
+    const selectedImageWasRemoved = selectedImageIndex !== null && indicesToRemove.has(selectedImageIndex);
+
+    const newMedia = media.filter((_, index) => !indicesToRemove.has(index));
+    onMediaChange(newMedia);
+
+    if (selectedImageWasRemoved) {
+      setSelectedImageIndex(null);
+    } else if (selectedImageIndex !== null) {
+      setSelectedImageIndex(Math.max(0, selectedImageIndex - removedBeforeSelectedImage));
+    }
+
+    clearSelectedIndices();
+  };
+
   // Ta bort bild
   const handleRemoveImage = (index) => {
     if (!window.confirm('Är du säker på att du vill ta bort bilden?')) return;
@@ -189,6 +456,7 @@ export default function MediaSelector({
     const removedItem = media[index];
     const newMedia = media.filter((_, i) => i !== index);
     onMediaChange(newMedia);
+    clearSelectedIndices();
 
     if (selectedImageIndex === index) {
       setSelectedImageIndex(null);
@@ -213,9 +481,19 @@ export default function MediaSelector({
     if (index === 0) return; // Redan profilbild
     const newMedia = [...media];
     const [selected] = newMedia.splice(index, 1);
-    newMedia.unshift(selected);
+    const selectedWithoutProfileCrop = {
+      ...selected,
+      crop: null,
+      cropData: null,
+      croppedArea: null,
+      avatarCrop: null,
+      faces: [],
+      regions: []
+    };
+    newMedia.unshift(selectedWithoutProfileCrop);
     onMediaChange(newMedia);
     setSelectedImageIndex(0);
+    clearSelectedIndices();
   };
 
   // Hantera filuppladdning
@@ -319,6 +597,7 @@ export default function MediaSelector({
     if (newImages.length > 0) {
       // Uppdatera lokal media
       onMediaChange([...media, ...newImages]);
+      clearSelectedIndices();
       
       // Lägg till i global media-lista (dbData.media) så de syns i biblioteket
       // VIKTIGT: Uppdatera connections i global media också
@@ -427,17 +706,11 @@ export default function MediaSelector({
         <div className="flex items-center gap-2 flex-1">
           <button
             onClick={() => setIsMediaManagerOpen(true)}
-            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded flex items-center gap-2 transition-colors"
+            className="p-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
+            title="Välj från bibliotek"
+            aria-label="Välj från bibliotek"
           >
-            <ImageIcon size={16} />
-            Välj från bibliotek
-          </button>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-sm rounded flex items-center gap-2 transition-colors"
-          >
-            <UploadCloud size={16} />
-            Ladda upp
+            <ImageIcon size={14} />
           </button>
           <input
             ref={fileInputRef}
@@ -449,7 +722,7 @@ export default function MediaSelector({
           />
         </div>
         
-        {filteredMedia.length > 0 && (
+        {media.length > 0 && (
           <div className="flex items-center gap-2">
             <div className="relative">
               <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-slate-400" size={16} />
@@ -476,16 +749,46 @@ export default function MediaSelector({
             >
               <Grid size={16} />
             </button>
+            <select
+              value={sortBy}
+              onChange={(e) => updateMediaSortConfig({ sortBy: e.target.value })}
+              className="bg-slate-900 border border-slate-700 rounded text-xs text-slate-200 px-2 py-1.5"
+              title="Sortering"
+            >
+              <option value="custom">Sortering: Anpassad</option>
+              <option value="date-desc">Sortering: Datum (nyast)</option>
+              <option value="date-asc">Sortering: Datum (äldst)</option>
+              <option value="name-asc">Sortering: Namn (A-Ö)</option>
+              <option value="name-desc">Sortering: Namn (Ö-A)</option>
+            </select>
+            <button
+              onClick={() => handleDownload(null, true)}
+              className="p-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded transition-colors"
+              title="Ladda ner alla bilder som zip"
+              aria-label="Ladda ner alla"
+            >
+              <Download size={16} />
+            </button>
           </div>
         )}
       </div>
 
+      <div
+        ref={dropZoneRef}
+        onClick={() => fileInputRef.current?.click()}
+        className={`mb-3 border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${
+          isDragging ? 'border-blue-500 bg-blue-500/10 text-blue-300' : 'border-slate-600 text-slate-400 hover:border-slate-500'
+        }`}
+        title="Klistra in / Släpp bild / Ladda upp bild"
+      >
+        <p className="text-sm font-medium">Klistra in / Släpp bild / Ladda upp bild</p>
+      </div>
+
       {/* Media Grid/List */}
       <div 
-        ref={dropZoneRef}
         className={`flex-1 overflow-y-auto ${isDragging ? 'ring-2 ring-blue-500 bg-blue-500/10' : ''}`}
       >
-        {filteredMedia.length === 0 ? (
+        {media.length === 0 ? (
           <div 
             className={`h-full border-2 border-dashed rounded-lg flex items-center justify-center text-slate-400 ${
               isDragging ? 'border-blue-500 bg-blue-500/10' : 'border-slate-600'
@@ -494,15 +797,29 @@ export default function MediaSelector({
             <div className="text-center">
               <ImageIcon size={48} className="mx-auto mb-2 opacity-50" />
               <p className="text-sm">Inga bilder ännu</p>
-              <p className="text-xs mt-1">Klicka på "Välj från bibliotek" eller "Ladda upp"</p>
+              <p className="text-xs mt-1">Klicka på "Välj från bibliotek" eller använd rutan ovan</p>
               <p className="text-xs mt-1">Dra och släpp eller klistra in (Ctrl+V)</p>
             </div>
           </div>
+        ) : sortedFilteredMedia.length === 0 ? (
+          <div className="h-full border border-slate-700 rounded-lg flex items-center justify-center text-slate-400 p-8">
+            <div className="text-center">
+              <Search size={40} className="mx-auto mb-3 opacity-60" />
+              <p className="text-sm">Inga bilder matchar din sökning</p>
+              <p className="text-xs mt-1">Rensa sökningen för att visa alla bilder igen</p>
+            </div>
+          </div>
         ) : viewMode === 'grid' ? (
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3">
-            {filteredMedia.map((item, idx) => {
+          <div 
+            className="grid gap-3 p-4"
+            style={{
+              gridTemplateColumns: `repeat(auto-fill, minmax(${Math.max(60, 180 * imageSizeMultiplier)}px, 1fr))`
+            }}
+          >
+            {sortedFilteredMedia.map((item, idx) => {
               const originalIndex = media.findIndex(m => m.id === item.id);
               const isProfile = entityType === 'person' && originalIndex === 0;
+              const isSelected = selectedIndices.has(originalIndex);
               const latestItem = Array.isArray(allMediaItems)
                 ? allMediaItems.find((entry) => String(entry?.id) === String(item?.id)) || item
                 : item;
@@ -510,7 +827,7 @@ export default function MediaSelector({
               return (
                 <div
                   key={item.id || idx}
-                  draggable
+                  draggable={sortBy === 'custom'}
                   onDragStart={(e) => handleDragStart(e, originalIndex)}
                   onDragOver={(e) => handleDragOver(e, originalIndex)}
                   onDragLeave={handleDragLeave}
@@ -520,7 +837,7 @@ export default function MediaSelector({
                   className={`group relative rounded-lg border-2 overflow-hidden transition-all ${
                     dragOverIndex === originalIndex 
                       ? 'border-blue-500 ring-2 ring-blue-500/50 scale-105' 
-                      : selectedImageIndex === originalIndex
+                      : isSelected || selectedImageIndex === originalIndex
                       ? 'border-blue-500 ring-2 ring-blue-500/50'
                       : 'border-slate-700 hover:border-slate-600'
                   } ${draggedIndex === originalIndex ? 'opacity-50' : ''}`}
@@ -549,6 +866,16 @@ export default function MediaSelector({
                           <Star size={14} fill="currentColor" />
                         </div>
                       )}
+                      <div className="absolute top-2 right-2 z-20">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={() => toggleSelectedIndex(originalIndex)}
+                          className="h-5 w-5 cursor-pointer rounded border-slate-400 bg-slate-950/80 accent-blue-500 shadow-lg shadow-slate-950/40"
+                          aria-label={`Markera ${item.name || 'bild'}`}
+                        />
+                      </div>
                       <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <p className="text-white text-xs font-medium truncate">{item.name || 'Namnlös'}</p>
                         {item.date && (
@@ -577,9 +904,10 @@ export default function MediaSelector({
           </div>
         ) : (
           <div className="space-y-2">
-            {filteredMedia.map((item, idx) => {
+            {sortedFilteredMedia.map((item, idx) => {
               const originalIndex = media.findIndex(m => m.id === item.id);
               const isProfile = entityType === 'person' && originalIndex === 0;
+              const isSelected = selectedIndices.has(originalIndex);
               const latestItem = Array.isArray(allMediaItems)
                 ? allMediaItems.find((entry) => String(entry?.id) === String(item?.id)) || item
                 : item;
@@ -587,22 +915,27 @@ export default function MediaSelector({
               return (
                 <div
                   key={item.id || idx}
-                  draggable
+                  draggable={sortBy === 'custom'}
                   onDragStart={(e) => handleDragStart(e, originalIndex)}
                   onDragOver={(e) => handleDragOver(e, originalIndex)}
                   onDragLeave={handleDragLeave}
                   onDrop={(e) => handleDrop(e, originalIndex)}
                   onDragEnd={handleDragEnd}
-                  className={`group flex items-start gap-4 p-3 rounded-lg border-2 transition-all ${
+                  onContextMenu={(e) => handleContextMenu(e, originalIndex)}
+                  className={`group relative flex items-start gap-4 p-3 pr-12 rounded-lg border-2 transition-all ${
                     dragOverIndex === originalIndex 
                       ? 'border-blue-500 ring-2 ring-blue-500/50' 
-                      : selectedImageIndex === originalIndex
+                      : isSelected || selectedImageIndex === originalIndex
                       ? 'border-blue-500 bg-blue-500/10'
                       : 'border-slate-700 hover:border-slate-600 hover:bg-slate-800/50'
                   } ${draggedIndex === originalIndex ? 'opacity-50' : ''}`}
                 >
                   <div 
-                    className="w-16 h-16 bg-slate-800 rounded overflow-hidden flex-shrink-0 relative cursor-pointer"
+                    className="bg-slate-800 rounded overflow-hidden flex-shrink-0 relative cursor-pointer"
+                    style={{
+                      width: `${Math.max(44, Math.round(96 * imageSizeMultiplier))}px`,
+                      height: `${Math.max(44, Math.round(96 * imageSizeMultiplier))}px`
+                    }}
                     onClick={() => {
                       setSelectedImageIndex(originalIndex);
                       setIsImageViewerOpen(true);
@@ -624,6 +957,19 @@ export default function MediaSelector({
                         <Star size={10} fill="currentColor" />
                       </div>
                     )}
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1.5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                      <p className="text-white text-[11px] font-medium truncate">{item.name || 'Namnlös'}</p>
+                    </div>
+                  </div>
+                  <div className="absolute top-3 right-3 z-20">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={() => toggleSelectedIndex(originalIndex)}
+                      className="h-5 w-5 cursor-pointer rounded border-slate-400 bg-slate-950/80 accent-blue-500 shadow-lg shadow-slate-950/40"
+                      aria-label={`Markera ${item.name || 'bild'}`}
+                    />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
@@ -643,14 +989,30 @@ export default function MediaSelector({
                     {item.date && (
                       <p className="text-xs text-slate-400">{item.date}</p>
                     )}
-                    {item.description && (
-                      <p className="text-xs text-slate-500 mt-1 truncate">{item.description}</p>
-                    )}
+                    <p
+                      className="text-xs text-slate-500 mt-1 truncate"
+                      title={Array.isArray(item.tags) && item.tags.length > 0 ? item.tags.join(', ') : 'Inga nyckelord'}
+                    >
+                      Nyckelord: {Array.isArray(item.tags) && item.tags.length > 0 ? item.tags.join(', ') : 'Inga nyckelord'}
+                    </p>
+                    <p
+                      className="text-xs text-slate-500 mt-1 truncate"
+                      title={item.description || 'Ingen beskrivning'}
+                    >
+                      Beskrivning: {item.description || 'Ingen beskrivning'}
+                    </p>
+                    <p
+                      className="text-xs text-slate-500 mt-1 truncate"
+                      title={stripHtmlTags(item.note) || 'Inga notiser'}
+                    >
+                      Notis: {stripHtmlTags(item.note) || 'Inga notiser'}
+                    </p>
                     
                     {/* Förhandsvisning av noteringar till höger om bilden (list-vy) */}
                     {item.note && (
                       <div 
                         className="mt-3 p-2 bg-slate-900 border border-slate-700 rounded cursor-pointer hover:border-slate-600 transition-colors"
+                        title={stripHtmlTags(item.note)}
                         onClick={(e) => {
                           e.stopPropagation();
                           setEditingNoteIndex(originalIndex);
@@ -683,6 +1045,34 @@ export default function MediaSelector({
           </div>
         )}
       </div>
+
+      {selectedIndices.size > 0 && (
+        <div className="fixed bottom-4 left-1/2 z-[9999] w-[min(92vw,720px)] -translate-x-1/2 rounded-2xl border border-slate-700 bg-slate-950/95 px-4 py-3 shadow-2xl shadow-black/40 backdrop-blur">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-sm text-slate-200">
+              <span className="font-semibold">{selectedIndices.size}</span> valda bilder
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleDeleteSelected}
+                className="inline-flex items-center gap-2 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm font-medium text-red-200 hover:bg-red-500/20"
+              >
+                <Trash2 size={16} />
+                Radera
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDownload(Array.from(selectedIndices))}
+                className="inline-flex items-center gap-2 rounded-lg border border-blue-500/40 bg-blue-500/10 px-3 py-2 text-sm font-medium text-blue-100 hover:bg-blue-500/20"
+              >
+                <Download size={16} />
+                Ladda ner
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MediaManager som modal för att välja bilder */}
       {isMediaManagerOpen && (
@@ -1194,6 +1584,16 @@ export default function MediaSelector({
               note: noteContent
             };
             onMediaChange(updatedMedia);
+
+            if (typeof onUpdateAllMedia === 'function') {
+              const updatedItemId = updatedMedia[editingNoteIndex]?.id;
+              const nextAllMedia = (allMediaItems || []).map((item) =>
+                String(item?.id) === String(updatedItemId)
+                  ? { ...item, note: noteContent }
+                  : item
+              );
+              onUpdateAllMedia(nextAllMedia);
+            }
           }}
           onClose={() => setEditingNoteIndex(null)}
         />
@@ -1219,7 +1619,7 @@ export default function MediaSelector({
             className="w-full px-4 py-2 text-left text-sm text-white hover:bg-slate-700 flex items-center gap-2"
           >
             <Eye size={16} />
-            <span>Visa bild</span>
+            <span>Öppna</span>
           </button>
           <button
             onClick={(e) => {
@@ -1231,7 +1631,7 @@ export default function MediaSelector({
             className="w-full px-4 py-2 text-left text-sm text-white hover:bg-slate-700 flex items-center gap-2"
           >
             <Edit2 size={16} />
-            <span>Redigera bild</span>
+            <span>Redigera</span>
           </button>
           <button
             onClick={(e) => {
@@ -1242,7 +1642,7 @@ export default function MediaSelector({
             className="w-full px-4 py-2 text-left text-sm text-white hover:bg-slate-700 flex items-center gap-2"
           >
             <Edit2 size={16} />
-            <span>Redigera notiser</span>
+            <span>Notiser</span>
           </button>
           <button
             onClick={(e) => {
@@ -1257,20 +1657,39 @@ export default function MediaSelector({
             <LinkIcon size={16} />
             <span>Kopplingar</span>
           </button>
-          {entityType === 'person' && contextMenu.itemIndex !== 0 && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDownload([contextMenu.itemIndex], false);
+              setContextMenu({ open: false, x: 0, y: 0, itemIndex: null });
+            }}
+            className="w-full px-4 py-2 text-left text-sm text-white hover:bg-slate-700 flex items-center gap-2"
+          >
+            <Download size={16} />
+            <span>Ladda ner</span>
+          </button>
+          {entityType === 'person' && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
+                if (contextMenu.itemIndex === 0) {
+                  setContextMenu({ open: false, x: 0, y: 0, itemIndex: null });
+                  return;
+                }
                 handleSetAsProfile(contextMenu.itemIndex);
                 setContextMenu({ open: false, x: 0, y: 0, itemIndex: null });
               }}
-              className="w-full px-4 py-2 text-left text-sm text-white hover:bg-slate-700 flex items-center gap-2"
+              className={`w-full px-4 py-2 text-left text-sm flex items-center gap-2 ${
+                contextMenu.itemIndex === 0
+                  ? 'text-slate-500 cursor-not-allowed'
+                  : 'text-white hover:bg-slate-700'
+              }`}
+              disabled={contextMenu.itemIndex === 0}
             >
               <Star size={16} />
-              <span>Sätt som profilbild</span>
+              <span>Gör till profilbild</span>
             </button>
           )}
-          <div className="border-t border-slate-700 my-1"></div>
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -1417,9 +1836,9 @@ export default function MediaSelector({
 
       {/* IMAGE EDITOR MODAL */}
       {isImageEditorOpen && editingImageIndex !== null && (() => {
-        const currentEditingImage = filteredMedia[editingImageIndex];
-        const prevEditingImage = editingImageIndex > 0 ? filteredMedia[editingImageIndex - 1] : null;
-        const nextEditingImage = editingImageIndex < filteredMedia.length - 1 ? filteredMedia[editingImageIndex + 1] : null;
+        const currentEditingImage = media[editingImageIndex];
+        const prevEditingImage = editingImageIndex > 0 ? media[editingImageIndex - 1] : null;
+        const nextEditingImage = editingImageIndex < media.length - 1 ? media[editingImageIndex + 1] : null;
 
         const handlePrevEditing = () => {
           if (editingImageIndex > 0) {
@@ -1428,7 +1847,7 @@ export default function MediaSelector({
         };
 
         const handleNextEditing = () => {
-          if (editingImageIndex < filteredMedia.length - 1) {
+          if (editingImageIndex < media.length - 1) {
             setEditingImageIndex(editingImageIndex + 1);
           }
         };
@@ -1451,6 +1870,10 @@ export default function MediaSelector({
                 name: `${currentEditingImage.name?.replace(/\.[^/.]+$/, '') || 'bild'}_redigerad.jpg`
               };
               onMediaChange([...media, newImage]);
+
+              if (typeof onUpdateAllMedia === 'function') {
+                onUpdateAllMedia([...(allMediaItems || []), newImage]);
+              }
             } else {
               // Overwrite original
               const originalIndex = media.findIndex(m => m.id === currentEditingImage.id);
@@ -1458,6 +1881,16 @@ export default function MediaSelector({
                 const updatedMedia = [...media];
                 updatedMedia[originalIndex] = { ...updatedMedia[originalIndex], url: newImageUrl };
                 onMediaChange(updatedMedia);
+
+                if (typeof onUpdateAllMedia === 'function') {
+                  const updatedItemId = updatedMedia[originalIndex]?.id;
+                  const nextAllMedia = (allMediaItems || []).map((item) =>
+                    String(item?.id) === String(updatedItemId)
+                      ? { ...item, url: newImageUrl }
+                      : item
+                  );
+                  onUpdateAllMedia(nextAllMedia);
+                }
               }
             }
 

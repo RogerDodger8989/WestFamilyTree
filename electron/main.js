@@ -1362,3 +1362,65 @@ ipcMain.handle('save-as-database', async (event, data) => {
     return null;
   }
 });
+
+// IPC handler for creating a zip file from multiple files without dialogs
+ipcMain.handle('create-zip-from-files', async (event, filePaths, fileNames) => {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const AdmZip = require('adm-zip');
+    const os = require('os');
+    
+    // Validate inputs
+    if (!Array.isArray(filePaths) || !Array.isArray(fileNames)) {
+      return { success: false, error: 'Ogiltiga ingångar: filPaths och fileNames måste vara arrayer' };
+    }
+    
+    if (filePaths.length !== fileNames.length) {
+      return { success: false, error: 'Antalet filer matchar inte antalet namn' };
+    }
+    
+    // Create zip file in memory
+    const zip = new AdmZip();
+    
+    for (let i = 0; i < filePaths.length; i++) {
+      const filePath = filePaths[i];
+      const fileName = fileNames[i];
+      
+      try {
+        // Read file and add to zip
+        if (fs.existsSync(filePath)) {
+          const fileData = fs.readFileSync(filePath);
+          zip.addFile(fileName, fileData);
+        } else {
+          console.warn(`Filen existerar inte: ${filePath}`);
+        }
+      } catch (error) {
+        console.error(`Fel vid läsning av fil ${filePath}:`, error);
+      }
+    }
+    
+    // Get Downloads folder path
+    const downloadsPath = path.join(os.homedir(), 'Downloads');
+    
+    // Create unique zip filename
+    const timestamp = Date.now();
+    const zipFileName = `bilder_${timestamp}.zip`;
+    const zipPath = path.join(downloadsPath, zipFileName);
+    
+    // Write zip file to Downloads
+    zip.writeZip(zipPath);
+    
+    return { 
+      success: true, 
+      path: zipPath,
+      message: `Zip-fil skapad och sparad till Downloads: ${zipFileName}`
+    };
+  } catch (error) {
+    console.error('Fel vid skapande av zip-fil:', error);
+    return { 
+      success: false, 
+      error: error.message || 'Okänt fel vid skapande av zip-fil'
+    };
+  }
+});

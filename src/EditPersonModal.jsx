@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import JSZip from 'jszip';
 import {
   X, User, Users, Image as ImageIcon, FileText,
   Activity, Tag, Plus, Trash2, Calendar, MapPin,
@@ -1150,6 +1151,15 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
     return parts.length > 0 ? parts.join(', ') : place.name || place.ortnamn || '';
   };
 
+  const getMeaningfulNoteText = (rawNote) => {
+    const raw = String(rawNote || '');
+    return raw
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
   const handleMouseDown = (e) => {
     // Bara drag från header
     if (e.target.closest('.modal-header')) {
@@ -1287,6 +1297,24 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
 
   // Exponera personRaw som person för kompatibilitet
   const person = personRaw;
+
+  // Media sort configuration - initialiseras från person.mediaSortConfig
+  const [mediaSortConfig, setMediaSortConfigState] = useState(() => {
+    return person?.mediaSortConfig || { sortBy: 'custom', imageSize: 0.62 };
+  });
+
+  // Uppdatera mediaSortConfig när person ändras
+  useEffect(() => {
+    setMediaSortConfigState(person?.mediaSortConfig || { sortBy: 'custom', imageSize: 0.62 });
+  }, [person?.id]); // Bara när ID ändras
+
+  // Wrapper för att uppdatera mediaSortConfig och spara i person
+  const handleMediaSortChange = useCallback((newConfig) => {
+    setMediaSortConfigState(newConfig);
+    const updatedPerson = { ...person, mediaSortConfig: newConfig };
+    setPerson(updatedPerson);
+    if (onChange) onChange(updatedPerson);
+  }, [person, setPerson, onChange]);
 
   useEffect(() => {
     if (!Array.isArray(person.events) || person.events.length < 2) return;
@@ -2145,8 +2173,8 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
       return;
     }
 
-    let successCount = 0;
-    const failed = [];
+    const zip = new JSZip();
+    const nameCounts = new Map();
 
     for (let index = 0; index < mediaList.length; index += 1) {
       const mediaItem = mediaList[index];
@@ -2154,32 +2182,41 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
 
       try {
         const blob = await resolveMediaToBlob(imageUrl);
-        const blobUrl = URL.createObjectURL(blob);
         const extension = inferImageExtension(imageUrl, blob.type);
         const baseName = sanitizeFilename(
           mediaItem?.name || mediaItem?.title || `${person.firstName || 'person'}_${person.lastName || 'bild'}_${index + 1}`,
           `bild_${index + 1}`
         );
 
-        const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = `${baseName}.${extension}`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(blobUrl);
-        successCount += 1;
+        const extensionWithDot = extension ? `.${extension}` : '';
+        const initialFileName = `${baseName}${extensionWithDot}`;
+        const count = nameCounts.get(initialFileName) || 0;
+        nameCounts.set(initialFileName, count + 1);
+
+        const uniqueFileName = count === 0
+          ? initialFileName
+          : `${baseName}_${count + 1}${extensionWithDot}`;
+
+        zip.file(uniqueFileName, await blob.arrayBuffer());
       } catch (error) {
-        failed.push(mediaItem?.name || mediaItem?.title || `Bild ${index + 1}`);
+        console.error('Kunde inte lägga till bild i zip:', error);
       }
     }
 
-    if (failed.length > 0) {
-      alert(`Laddade ner ${successCount} bilder. Kunde inte ladda ner: ${failed.join(', ')}`);
-      return;
-    }
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    const personName = sanitizeFilename(
+      `${person.firstName || 'person'}_${person.lastName || 'bilder'}`,
+      'person_bilder'
+    );
 
-    alert(`Laddade ner ${successCount} bilder.`);
+    const zipUrl = URL.createObjectURL(zipBlob);
+    const link = document.createElement('a');
+    link.href = zipUrl;
+    link.download = `${personName}.zip`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(zipUrl);
   };
 
   // Event handling
@@ -2982,13 +3019,14 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all relative ${activeTab === tab.id
+                    title={tab.label}
+                    aria-label={tab.label}
+                    className={`inline-flex items-center justify-center px-3 py-2 text-sm font-medium transition-all relative ${activeTab === tab.id
                       ? 'bg-slate-900 text-blue-400 border-b-2 border-blue-500'
                       : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 border-b-2 border-transparent'
                       }`}
                   >
                     <tab.icon size={16} />
-                    <span>{tab.label}</span>
                   </button>
                 ))}
               </nav>
@@ -3008,13 +3046,14 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all relative ${activeTab === tab.id
+                  title={tab.label}
+                  aria-label={tab.label}
+                  className={`inline-flex items-center justify-center px-3 py-2 text-sm font-medium transition-all relative ${activeTab === tab.id
                     ? 'bg-slate-900 text-blue-400 border-b-2 border-blue-500'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 border-b-2 border-transparent'
                     }`}
                 >
                   <tab.icon size={16} />
-                  <span>{tab.label}</span>
                 </button>
               ))}
             </nav>
@@ -3056,7 +3095,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                         const { birthYear, deathYear, lifeSpan } = getLifeInfo(person);
                         return (
                           <div className="mt-2 text-center leading-tight">
-                            <div className="text-sm font-bold text-slate-200">
+                            <div className="text-[11px] font-bold text-slate-200 whitespace-nowrap">
                               {birthYear || '????'} - {deathYear || '????'}
                             </div>
                             <div className="text-xs text-slate-400">
@@ -3385,9 +3424,8 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                     </span>
                                   ) : (
                                     /* För andra händelser: visa noteringar (trunkerat till 15 tecken, strip HTML, klickbar) */
-                                    evt.notes ? (() => {
-                                      // Ta bort HTML-taggar för att visa ren text
-                                      const textContent = evt.notes.replace(/<[^>]*>/g, '').trim();
+                                    getMeaningfulNoteText(evt.notes) ? (() => {
+                                      const textContent = getMeaningfulNoteText(evt.notes);
                                       const displayText = textContent.length > 15 ? `${textContent.substring(0, 15)}...` : textContent;
                                       return (
                                         <span
@@ -3421,14 +3459,14 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                       <LinkIcon size={10} /> {evt.sources?.length || 0}
                                     </span>
                                     <span
-                                      className={`flex items-center gap-0.5 cursor-pointer hover:text-blue-600 ${evt.notes ? 'text-slate-200' : ''}`}
+                                      className={`flex items-center gap-0.5 cursor-pointer hover:text-blue-600 ${getMeaningfulNoteText(evt.notes) ? 'text-slate-200' : ''}`}
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         handleEditEvent(evt.id);
                                       }}
-                                      title={evt.notes || 'Noteringar'}
+                                      title={getMeaningfulNoteText(evt.notes) || 'Noteringar'}
                                     >
-                                      <FileText size={10} /> {evt.notes ? 1 : 0}
+                                      <FileText size={10} /> {getMeaningfulNoteText(evt.notes) ? 1 : 0}
                                     </span>
                                     <span
                                       className={`flex items-center gap-0.5 cursor-pointer hover:text-blue-600 ${(Array.isArray(evt.images) ? evt.images.length : (evt.images || 0)) > 0 ? 'text-slate-200' : ''}`}
@@ -4074,7 +4112,26 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
               {/* FLIK: MEDIA */}
               {activeTab === 'media' && (
                 <div className="animate-in fade-in duration-300 h-full">
-                  <div className="flex justify-end mb-3">
+                  <div className="flex justify-end items-center gap-3 mb-3">
+                    <div className="flex items-center gap-2 rounded border border-slate-700 bg-slate-900 px-3 py-1.5">
+                      <span className="text-xs text-slate-400 whitespace-nowrap">Storlek</span>
+                      <input
+                        type="range"
+                        min="0.2"
+                        max="2"
+                        step="0.01"
+                        value={Number(mediaSortConfig?.imageSize ?? 0.62)}
+                        onChange={(e) => handleMediaSortChange({
+                          ...(mediaSortConfig || {}),
+                          imageSize: Number(e.target.value)
+                        })}
+                        className="w-36 accent-blue-500"
+                        aria-label="Justera storlek på tumnaglar"
+                      />
+                      <span className="text-xs text-slate-400 tabular-nums w-10 text-right">
+                        {Math.round(Number(mediaSortConfig?.imageSize ?? 0.62) * 100)}%
+                      </span>
+                    </div>
                     <button
                       onClick={handleDownloadPersonImages}
                       className="text-xs bg-slate-700 hover:bg-slate-600 text-slate-100 px-3 py-1.5 rounded flex items-center gap-1 transition-colors"
@@ -4092,6 +4149,8 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                         onChange(updatedPerson);
                       }
                     }}
+                    mediaSortConfig={mediaSortConfig}
+                    onMediaSortChange={handleMediaSortChange}
                     entityType="person"
                     entityId={person.id}
                     allPeople={allPeople}
@@ -4718,11 +4777,11 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                   <LinkIcon size={12} /> {person.events[selectedEventIndex].sources?.length || 0}
                 </span>
                 <span
-                  className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${person.events[selectedEventIndex].notes ? 'text-slate-200' : ''} ${eventDetailView === 'notes' ? 'text-blue-400' : ''}`}
+                  className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${getMeaningfulNoteText(person.events[selectedEventIndex].notes) ? 'text-slate-200' : ''} ${eventDetailView === 'notes' ? 'text-blue-400' : ''}`}
                   onClick={() => setEventDetailView('notes')}
-                  title={person.events[selectedEventIndex].notes || ''}
+                  title={getMeaningfulNoteText(person.events[selectedEventIndex].notes) || ''}
                 >
-                  <FileText size={12} /> {person.events[selectedEventIndex].notes ? 1 : 0}
+                  <FileText size={12} /> {getMeaningfulNoteText(person.events[selectedEventIndex].notes) ? 1 : 0}
                 </span>
                 <span
                   className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${(Array.isArray(person.events[selectedEventIndex].images) ? person.events[selectedEventIndex].images.length : (person.events[selectedEventIndex].images || 0)) > 0 ? 'text-slate-200' : ''} ${eventDetailView === 'images' ? 'text-blue-400' : ''}`}

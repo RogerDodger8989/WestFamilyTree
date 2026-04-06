@@ -133,6 +133,7 @@ function App() {
   const [personToCenter, setPersonToCenter] = useState(null);
   const [isOAIHarvesterOpen, setIsOAIHarvesterOpen] = useState(false);
   const [isGedcomExportModalOpen, setIsGedcomExportModalOpen] = useState(false);
+  const [mediaFolderPath, setMediaFolderPathState] = useState((dbData?.meta && dbData.meta.mediaFolderPath) || '');
 
   const [isPeopleEditorDocked, setIsPeopleEditorDocked] = useState(() => {
     try {
@@ -1034,7 +1035,10 @@ function App() {
 
   const handleExportZip = async () => { try { if (window.electronAPI) showStatus('Export påbörjad... (inte implementerad i denna build)'); else showStatus('Export ej tillgänglig i webbläsarläge.'); } catch (err) { showStatus('Export misslyckades.'); } };
   const handleImportZip = async () => { try { showStatus('Import inte implementerad i denna version.'); } catch (err) { showStatus('Import misslyckades.'); } };
+  
   const chooseAuditBackupDir = async () => { try { const apiAvailable = !!window.electronAPI && typeof window.electronAPI.openFileDialog === 'function'; const altAvailable = !!window.electron && typeof window.electron.openFileDialog === 'function'; if (!apiAvailable && !altAvailable) { showStatus('Fil-dialog inte tillgänglig.'); return; } const res = apiAvailable ? await window.electronAPI.openFileDialog({ properties: ['openDirectory'] }) : await window.electron.openFileDialog({ properties: ['openDirectory'] }); if (!res) return; const filePaths = Array.isArray(res) ? res : res.filePaths || []; if (res.canceled) return; if (!filePaths || filePaths.length === 0) return; const chosen = filePaths[0]; setAuditBackupDirState(chosen); showStatus(`Vald backup-mapp: ${chosen}`); } catch (err) { showStatus('Fel vid val av mapp.'); } };
+  
+  const chooseMediaFolderPath = async () => { try { const apiAvailable = !!window.electronAPI && typeof window.electronAPI.openFileDialog === 'function'; const altAvailable = !!window.electron && typeof window.electron.openFileDialog === 'function'; if (!apiAvailable && !altAvailable) { showStatus('Fil-dialog inte tillgänglig.'); return; } const res = apiAvailable ? await window.electronAPI.openFileDialog({ properties: ['openDirectory'] }) : await window.electron.openFileDialog({ properties: ['openDirectory'] }); if (!res) return; const filePaths = Array.isArray(res) ? res : res.filePaths || []; if (res.canceled) return; if (!filePaths || filePaths.length === 0) return; const chosen = filePaths[0]; setMediaFolderPathState(chosen); showStatus(`Vald media-mapp: ${chosen}`); } catch (err) { showStatus('Fel vid val av mapp.'); } };
 
   return ( 
     <div className="h-screen flex flex-col" style={{ overflow: 'hidden' }}>
@@ -1093,7 +1097,15 @@ function App() {
           initialWidth={800}
           initialHeight={600}
           onClose={() => {
-            setAuditBackupDir(auditBackupDir);
+            // Save both settings to dbData
+            setDbData(prev => ({
+              ...prev,
+              meta: {
+                ...prev?.meta,
+                auditBackupDir,
+                mediaFolderPath
+              }
+            }));
             setShowSettings(false);
             showStatus('Inställningar sparade.');
           }}
@@ -1113,6 +1125,21 @@ function App() {
                 <Button onClick={chooseAuditBackupDir} variant="secondary" size="sm">Välj...</Button>
                 <Button onClick={() => setAuditBackupDirState('')} variant="danger" size="sm">Rensa</Button>
               </div>
+            </div>
+            <div className="text-slate-400 mb-6">
+              <div className="mb-2">Standardmapp för bilder:</div>
+              <div className="flex items-center gap-2">
+                <input 
+                  type="text" 
+                  value={mediaFolderPath} 
+                  onChange={(e) => setMediaFolderPathState(e.target.value)} 
+                  placeholder="Sökväg till standardmapp för bilder eller lämna tomt för standard (media/)" 
+                  className="flex-1 border rounded px-2 py-1 bg-slate-800 text-slate-200" 
+                />
+                <Button onClick={chooseMediaFolderPath} variant="secondary" size="sm">Välj...</Button>
+                <Button onClick={() => setMediaFolderPathState('')} variant="danger" size="sm">Rensa</Button>
+              </div>
+              <p className="text-xs text-slate-500 mt-1">Detta värde sparas i dbData.meta.mediaFolderPath och används för uppladdade/importerade bilder.</p>
             </div>
             <div className="flex flex-col gap-2 mt-8">
               <div className="flex gap-2 justify-end">
