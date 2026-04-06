@@ -11,6 +11,47 @@ export function syncRelations(person, allPeople) {
   // Helper to get display name
   const getName = p => `${p.firstName || ''} ${p.lastName || ''}`.trim();
 
+  // Helper: kolla om ancestorId är förfader till descendantId
+  const isAncestor = (peopleList, ancestorId, descendantId) => {
+    if (!ancestorId || !descendantId || ancestorId === descendantId) return false;
+
+    const visited = new Set();
+    const queue = [descendantId];
+
+    while (queue.length > 0) {
+      const currentId = queue.shift();
+      if (!currentId || visited.has(currentId)) continue;
+      visited.add(currentId);
+
+      const current = peopleList.find(p => p.id === currentId);
+      if (!current) continue;
+
+      const parentIds = (current.relations?.parents || [])
+        .map(r => (typeof r === 'object' ? r.id : r))
+        .filter(Boolean);
+
+      if (parentIds.includes(ancestorId)) return true;
+      parentIds.forEach(pid => queue.push(pid));
+    }
+
+    return false;
+  };
+
+  const isInvalidPartnerRelation = (peopleList, personAId, personBId) => {
+    if (!personAId || !personBId || personAId === personBId) return true;
+
+    const personA = peopleList.find(p => p.id === personAId);
+    if (!personA) return true;
+
+    const parentIds = (personA.relations?.parents || []).map(r => (typeof r === 'object' ? r.id : r));
+    const childIds = (personA.relations?.children || []).map(r => (typeof r === 'object' ? r.id : r));
+
+    if (parentIds.includes(personBId) || childIds.includes(personBId)) return true;
+    if (isAncestor(peopleList, personAId, personBId) || isAncestor(peopleList, personBId, personAId)) return true;
+
+    return false;
+  };
+
   // Clone allPeople to avoid mutating original
   let updatedPeople = allPeople.map(p => ({ ...p, relations: { ...p.relations } }));
 
@@ -21,13 +62,17 @@ export function syncRelations(person, allPeople) {
     rels.partners = (rels.partners || []).filter(r => r.id !== person.id);
     rels.parents = (rels.parents || []).filter(r => r.id !== person.id);
     rels.children = (rels.children || []).filter(r => r.id !== person.id);
+    rels.siblings = (rels.siblings || []).filter(r => r.id !== person.id);
     return { ...p, relations: rels };
   });
 
   // Add/update this person in each partner's partners-list, always sync type
   (person.relations.partners || []).forEach(partner => {
+    const partnerId = typeof partner === 'object' ? partner.id : partner;
+    if (isInvalidPartnerRelation(updatedPeople, person.id, partnerId)) return;
+
     updatedPeople = updatedPeople.map(p => {
-      if (p.id !== partner.id) return p;
+      if (p.id !== partnerId) return p;
       const rels = { ...p.relations };
       rels.partners = rels.partners || [];
       // Remove any old entry for this person
@@ -62,6 +107,36 @@ export function syncRelations(person, allPeople) {
       }
       return { ...p, relations: rels };
     });
+  });
+
+  // Add/update this person to each sibling's siblings-list (bidirectional)
+  (person.relations.siblings || []).forEach(sibling => {
+    updatedPeople = updatedPeople.map(p => {
+      if (p.id !== sibling.id) return p;
+      const rels = { ...p.relations };
+      rels.siblings = rels.siblings || [];
+      // Remove any old entry for this person
+      rels.siblings = rels.siblings.filter(r => r.id !== person.id);
+      // Add with correct type
+      rels.siblings.push({ id: person.id, name: getName(person), type: sibling.type });
+      return { ...p, relations: rels };
+    });
+  });
+
+  // Sanera partners globalt: ta bort ogiltiga partnerkopplingar
+  updatedPeople = updatedPeople.map(p => {
+    const rels = { ...p.relations };
+    const seenPartnerIds = new Set();
+
+    rels.partners = (rels.partners || []).filter(partner => {
+      const partnerId = typeof partner === 'object' ? partner.id : partner;
+      if (!partnerId || seenPartnerIds.has(partnerId)) return false;
+      if (isInvalidPartnerRelation(updatedPeople, p.id, partnerId)) return false;
+      seenPartnerIds.add(partnerId);
+      return true;
+    });
+
+    return { ...p, relations: rels };
   });
 
   // Update this person in the list

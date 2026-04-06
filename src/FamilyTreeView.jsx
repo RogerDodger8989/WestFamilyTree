@@ -263,12 +263,22 @@ function calculateVerticalLayout(db, focusId) {
   // --------------------------------------------------------------------------
 
   const siblingIds = new Set();
+  
+  // A. INFERRED SYSKON från föräldrar-barn relationer
   parents.forEach(parent => {
     const children = db.parent_child.filter(pc => pc.parent_id === parent.id).map(pc => pc.child_id);
     children.forEach(id => {
       if (id !== focusId) siblingIds.add(id);
     });
   });
+
+  // B. EXPLICIT SYSKON från relations.siblings array (direkt definierade syskon)
+  if (focusPerson.relations && focusPerson.relations.siblings) {
+    focusPerson.relations.siblings.forEach(sib => {
+      const sibId = typeof sib === 'object' ? sib.id : sib;
+      if (sibId && sibId !== focusId) siblingIds.add(sibId);
+    });
+  }
 
   const siblings = Array.from(siblingIds).map(id => db.persons.find(p => p.id === id));
   siblings.sort((a, b) => a.birthYear - b.birthYear);
@@ -584,6 +594,7 @@ const buildMockDB = (allPeople) => {
       gender: displayPerson.gender,
       birthYear: displayPerson.birthYear,
       img: displayPerson.img,
+      relations: p.relations || { parents: [], partners: [], children: [], siblings: [] },
     };
   });
 

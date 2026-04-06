@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import {
   X, User, Users, Image as ImageIcon, FileText,
   Activity, Tag, Plus, Trash2, Calendar, MapPin,
+  Heart, GitFork,
   Link as LinkIcon, Camera, Edit3, AlertCircle, Check,
   Copy, Star,
   ChevronDown, ChevronUp, MoreHorizontal, Search, Globe, HelpCircle, Network,
@@ -625,6 +626,44 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
     const selected = allPeople.find(p => p.id === personId);
     if (!selected) return;
 
+    const relationLabels = {
+      parent: 'förälder',
+      child: 'barn',
+      partner: 'partner',
+      sibling: 'syskon'
+    };
+
+    // Regel: en person får bara ha en relationstyp till samma person
+    const existingRelation = getRelationshipType(person.id, personId);
+    if (existingRelation) {
+      const personName = `${selected.firstName || ''} ${selected.lastName || ''}`.trim() || 'personen';
+      window.alert(`Ogiltig relation: ${personName} är redan kopplad som ${relationLabels[existingRelation] || existingRelation}. En person kan bara ha en relationstyp till samma person.`);
+      return;
+    }
+
+    // Regel: partner får aldrig vara förfader/ättling
+    if (relationTypeToAdd === 'partners' && (isAncestor(person.id, personId) || isAncestor(personId, person.id))) {
+      window.alert('Ogiltig relation: Förfäder och ättlingar kan inte vara partners.');
+      return;
+    }
+
+    // Regel: undvik släkt-cykler för parent/child
+    if (relationTypeToAdd === 'parents' && isAncestor(person.id, personId)) {
+      window.alert('Ogiltig relation: En ättling kan inte sättas som förälder.');
+      return;
+    }
+
+    if (relationTypeToAdd === 'children' && isAncestor(personId, person.id)) {
+      window.alert('Ogiltig relation: En förfader kan inte sättas som barn.');
+      return;
+    }
+
+    // Regel: syskon får inte vara i förfader/ättling-led
+    if (relationTypeToAdd === 'siblings' && (isAncestor(person.id, personId) || isAncestor(personId, person.id))) {
+      window.alert('Ogiltig relation: Förfäder och ättlingar kan inte vara syskon.');
+      return;
+    }
+
     // Spara partnerId innan vi rensar state
     const partnerIdToSync = selectedPartnerId;
 
@@ -636,12 +675,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
         rels[relationTypeToAdd].push({ id: selected.id, name: `${selected.firstName} ${selected.lastName}` });
       }
 
-      // Automatisk partner-relation: Säkerställ att alla föräldrar till samma barn är partners
-      if (relationTypeToAdd === 'children') {
-        // När man lägger till ett barn: säkerställ att alla föräldrar till detta barn är partners
-        const updatedRels = ensureParentsArePartnersLocal(personId, prev.id, rels);
-        return { ...prev, relations: updatedRels };
-      } else if (relationTypeToAdd === 'parents') {
+      if (relationTypeToAdd === 'parents') {
         // När man lägger till en förälder på ett barn, lägg bara till föräldern
         // Partner-relationer mellan föräldrarna skapas automatiskt när man sparar (i App.jsx)
         // Här ska vi bara lägga till föräldern, inget mer
@@ -674,6 +708,26 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
             const updatedPeople = ensureParentsArePartners(prevData.people, currentPersonId);
             return { ...prevData, people: updatedPeople };
           });
+        }
+      }, 0);
+    } else if (relationTypeToAdd === 'siblings') {
+      const currentPersonId = person.id;
+      setTimeout(() => {
+        if (dbData && dbData.people) {
+          let updatedPeople = JSON.parse(JSON.stringify(dbData.people));
+          updatedPeople = updatedPeople.map(p => {
+            if (p.id === personId) {
+              const rels = { ...p.relations };
+              rels.siblings = rels.siblings || [];
+              if (!rels.siblings.some(r => (typeof r === 'object' ? r.id : r) === currentPersonId)) {
+                const currentPerson = dbData.people.find(pp => pp.id === currentPersonId);
+                rels.siblings.push({ id: currentPersonId, name: currentPerson ? `${currentPerson.firstName || ''} ${currentPerson.lastName || ''}`.trim() : 'Okänd' });
+              }
+              return { ...p, relations: rels };
+            }
+            return p;
+          });
+          setDbData(prevData => ({ ...prevData, people: updatedPeople }));
         }
       }, 0);
     }
@@ -815,7 +869,6 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
       }
     }
   }, [initialPerson]);
-  console.log(`[syncChildRelations] Klar!`);
 
 
   // Synka relationer när man lägger till ett barn utan partner (bara en förälder)
@@ -953,6 +1006,32 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
     return null;
   };
 
+  // Helper: Kolla om ancestorId är förfader till descendantId
+  const isAncestor = (ancestorId, descendantId) => {
+    if (!ancestorId || !descendantId || ancestorId === descendantId) return false;
+
+    const visited = new Set();
+    const queue = [descendantId];
+
+    while (queue.length > 0) {
+      const currentId = queue.shift();
+      if (!currentId || visited.has(currentId)) continue;
+      visited.add(currentId);
+
+      const currentPerson = allPeople.find(p => p.id === currentId);
+      if (!currentPerson) continue;
+
+      const parentIds = (currentPerson.relations?.parents || [])
+        .map(p => (typeof p === 'object' ? p.id : p))
+        .filter(Boolean);
+
+      if (parentIds.includes(ancestorId)) return true;
+      parentIds.forEach(pid => queue.push(pid));
+    }
+
+    return false;
+  };
+
   // Helper: Beräkna ålder vid ett visst datum
   const calculateAgeAtEvent = (birthDate, eventDate) => {
     if (!birthDate || !eventDate) return null;
@@ -1056,7 +1135,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
       deathPlace: '',
       tags: [],
       events: [],
-      relations: { parents: [], partners: [], children: [] },
+      relations: { parents: [], partners: [], children: [], siblings: [] },
       research: {
         tasks: [],
         notes: '',
@@ -1121,7 +1200,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
         ...normalizeAdditionalNames(initialPerson),
         media: Array.isArray(initialPerson.media) ? initialPerson.media : [],
         tags: Array.isArray(initialPerson.tags) ? initialPerson.tags : [],
-        relations: initialPerson.relations || { parents: [], partners: [], children: [] }
+        relations: initialPerson.relations || { parents: [], partners: [], children: [], siblings: [] }
       }));
 
       setPersonRaw(updatedPerson);
@@ -3251,32 +3330,30 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
 
               {/* FLIK: RELATIONER */}
               {activeTab === 'relations' && (
-                <div className="space-y-8 animate-in fade-in duration-300">
+                <div className="space-y-6 animate-in fade-in duration-300">
+                  
                   {/* Föräldrar */}
-                  <div className="bg-slate-800 p-4 rounded-lg border border-slate-700">
-                    <div className="flex justify-between mb-2">
-                      <h4 className="text-sm font-bold text-slate-200 uppercase">Föräldrar</h4>
-                      <button onClick={() => openRelationModal('parents')} className="text-blue-600 hover:text-blue-800 text-xs flex items-center gap-1"><Plus size={12} /> Lägg till</button>
+                  <div className="bg-slate-800 p-4 rounded-lg border-l-4 border-l-purple-500 border border-slate-700">
+                    <div className="flex justify-between items-center mb-3">
+                      <div className="flex items-center gap-2">
+                        <Users size={18} className="text-purple-400" />
+                        <h4 className="text-sm font-bold text-slate-100 uppercase tracking-wide">Föräldrar</h4>
+                      </div>
+                      <button onClick={() => openRelationModal('parents')} className="bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold px-2 py-1 rounded flex items-center gap-1 transition-colors"><Plus size={12} /> Lägg till</button>
                     </div>
                     {person.relations?.parents?.length > 0 ? (
                       person.relations.parents.map((p, idx) => {
-                        // Hämta parent ID (kan vara sträng eller objekt med id)
                         const parentId = typeof p === 'string' ? p : (p?.id || p);
-                        // Hitta den faktiska personen från allPeople
                         const parentPerson = allPeople.find(pp => pp.id === parentId);
-                        // Använd personens namn om den finns, annars använd p.name eller ID
                         const parentName = parentPerson
                           ? `${parentPerson.firstName || ''} ${parentPerson.lastName || ''}`.trim()
                           : (typeof p === 'object' && p.name ? p.name : parentId || 'Okänd');
-                        // Hämta relationstyp (kan finnas i p.type)
                         const relationType = (typeof p === 'object' && p.type) ? p.type : RELATION_TYPES.parent[0];
-                        // Hämta profilbild om den finns
                         const profileImage = parentPerson?.media && parentPerson.media.length > 0 ? parentPerson.media[0].url : null;
 
                         return (
                           <div key={parentId || idx} className="flex items-center justify-between bg-slate-700 p-2 rounded mb-2 border border-slate-600">
                             <div className="flex items-center gap-3 flex-1">
-                              {/* Rund thumbnail */}
                               <div className="w-8 h-8 rounded-full bg-slate-600 flex-shrink-0 overflow-hidden border-2 border-slate-500">
                                 {profileImage ? (
                                   <MediaImage
@@ -3305,11 +3382,9 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                     const rels = { ...prev.relations };
                                     rels.parents = rels.parents.map((rel, i) => {
                                       if (i === idx) {
-                                        // Om rel är en sträng, konvertera till objekt
                                         if (typeof rel === 'string') {
                                           return { id: rel, name: parentName, type: newType };
                                         }
-                                        // Annars uppdatera typen
                                         return { ...rel, type: newType };
                                       }
                                       return rel;
@@ -3331,11 +3406,14 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                     )}
                   </div>
 
-                  {/* Partners med barn under varje partner */}
-                  <div className="bg-slate-800 p-4 rounded-lg border border-slate-700">
-                    <div className="flex justify-between mb-4">
-                      <h4 className="text-sm font-bold text-slate-200 uppercase">Familjer</h4>
-                      <button onClick={() => openRelationModal('partners')} className="text-blue-600 hover:text-blue-800 text-xs flex items-center gap-1"><Plus size={12} /> Lägg till partner</button>
+                  {/* Partners */}
+                  <div className="bg-slate-800 p-4 rounded-lg border-l-4 border-l-red-500 border border-slate-700">
+                    <div className="flex justify-between items-center mb-3">
+                      <div className="flex items-center gap-2">
+                        <Heart size={18} className="text-red-400" />
+                        <h4 className="text-sm font-bold text-slate-100 uppercase tracking-wide">Partners</h4>
+                      </div>
+                      <button onClick={() => openRelationModal('partners')} className="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-2 py-1 rounded flex items-center gap-1 transition-colors"><Plus size={12} /> Lägg till</button>
                     </div>
                     {person.relations?.partners?.length > 0 ? (
                       person.relations.partners.map((p, partnerIdx) => {
@@ -3507,93 +3585,136 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                     ) : (
                       <p className="text-xs text-slate-400">Ingen partner tillagd</p>
                     )}
-
-                    {/* Barn som inte är kopplade till någon partner */}
-                    {(() => {
-                      // Hitta alla barn som INTE har någon partner som förälder (bara fokus-personen)
-                      const unlinkedChildren = (person.relations?.children || []).filter(c => {
-                        const childId = typeof c === 'string' ? c : (c?.id || c);
-                        const childPerson = allPeople.find(pp => pp.id === childId);
-                        if (!childPerson) return false;
-                        const childParents = (childPerson.relations?.parents || []).map(par => typeof par === 'object' ? par.id : par);
-                        // Om barnet bara har fokus-personen som förälder (eller inga föräldrar alls)
-                        return childParents.length <= 1 && childParents.includes(person.id);
-                      });
-
-                      if (unlinkedChildren.length > 0) {
-                        return (
-                          <div className="bg-slate-700 rounded-lg border border-slate-600 p-3 mt-4">
-                            <div className="flex justify-between mb-3">
-                              <h5 className="text-xs font-semibold text-slate-300 uppercase">Barn (ej kopplade till partner)</h5>
-                              <button onClick={() => openRelationModal('children')} className="text-blue-600 hover:text-blue-800 text-xs flex items-center gap-1"><Plus size={10} /> Lägg till</button>
-                            </div>
-                            {unlinkedChildren.map((c, idx) => {
-                              const childId = typeof c === 'string' ? c : (c?.id || c);
-                              const childPerson = allPeople.find(pp => pp.id === childId);
-                              const childName = childPerson
-                                ? `${childPerson.firstName || ''} ${childPerson.lastName || ''}`.trim()
-                                : (typeof c === 'object' && c.name ? c.name : childId || 'Okänd');
-                              const relationType = (typeof c === 'object' && c.type) ? c.type : RELATION_TYPES.child[0];
-                              const profileImage = childPerson?.media && childPerson.media.length > 0 ? childPerson.media[0].url : null;
-
-                              return (
-                                <div key={childId || idx} className="flex items-center justify-between bg-slate-800 p-2 rounded mb-2 border border-slate-600">
-                                  <div className="flex items-center gap-3 flex-1">
-                                    <div className="w-8 h-8 rounded-full bg-slate-700 flex-shrink-0 overflow-hidden border-2 border-slate-500">
-                                      {profileImage ? (
-                                        <MediaImage
-                                          url={profileImage}
-                                          alt={childName}
-                                          className="w-full h-full object-cover"
-                                          style={getAvatarImageStyle(childPerson?.media?.[0], childId)}
-                                        />
-                                      ) : (
-                                        <User size={16} className="w-full h-full p-1.5 text-slate-400" />
-                                      )}
-                                    </div>
-                                    <span
-                                      className="text-slate-200 font-medium cursor-pointer hover:text-blue-400"
-                                      onClick={() => childPerson && onOpenEditModal && onOpenEditModal(childId)}
-                                    >
-                                      {childName}
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <select
-                                      value={relationType}
-                                      onChange={e => {
-                                        const newType = e.target.value;
-                                        setPerson(prev => {
-                                          const rels = { ...prev.relations };
-                                          rels.children = rels.children.map((rel, i) => {
-                                            const relId = typeof rel === 'string' ? rel : (rel?.id || rel);
-                                            if (relId === childId) {
-                                              if (typeof rel === 'string') {
-                                                return { id: rel, name: childName, type: newType };
-                                              }
-                                              return { ...rel, type: newType };
-                                            }
-                                            return rel;
-                                          });
-                                          return { ...prev, relations: rels };
-                                        });
-                                      }}
-                                      className="bg-slate-900 border border-slate-600 text-xs rounded px-2 py-1 text-slate-200"
-                                    >
-                                      {RELATION_TYPES.child.map(r => <option key={r} value={r}>{r}</option>)}
-                                    </select>
-                                    <button onClick={() => removeRelation('children', childId)} className="text-red-600 hover:text-red-800 text-xs"><Trash2 size={14} /></button>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        );
-                      }
-                      return null;
-                    })()}
                   </div>
 
+                  {/* Barn */}
+                  <div className="bg-slate-800 p-4 rounded-lg border-l-4 border-l-green-500 border border-slate-700">
+                    <div className="flex justify-between items-center mb-3">
+                      <div className="flex items-center gap-2">
+                        <User size={18} className="text-green-400" />
+                        <h4 className="text-sm font-bold text-slate-100 uppercase tracking-wide">Barn</h4>
+                      </div>
+                      <button
+                        onClick={() => openRelationModal('children')}
+                        className="bg-green-600 hover:bg-green-700 text-white text-xs font-semibold px-2 py-1 rounded flex items-center gap-1 transition-colors"
+                      >
+                        <Plus size={12} /> Lägg till
+                      </button>
+                    </div>
+                    {(person.relations?.children || []).length > 0 ? (
+                      (person.relations.children || []).map((c, idx) => {
+                        const childId = typeof c === 'string' ? c : (c?.id || c);
+                        const childPerson = allPeople.find(pp => pp.id === childId);
+                        const childName = childPerson
+                          ? `${childPerson.firstName || ''} ${childPerson.lastName || ''}`.trim()
+                          : (typeof c === 'object' && c.name ? c.name : childId || 'Okänd');
+                        const relationType = (typeof c === 'object' && c.type) ? c.type : RELATION_TYPES.child[0];
+                        const profileImage = childPerson?.media && childPerson.media.length > 0 ? childPerson.media[0].url : null;
+
+                        return (
+                          <div key={childId || idx} className="flex items-center justify-between bg-slate-700 p-2 rounded mb-2 border border-slate-600">
+                            <div className="flex items-center gap-3 flex-1">
+                              <div className="w-8 h-8 rounded-full bg-slate-600 flex-shrink-0 overflow-hidden border-2 border-slate-500">
+                                {profileImage ? (
+                                  <MediaImage
+                                    url={profileImage}
+                                    alt={childName}
+                                    className="w-full h-full object-cover"
+                                    style={getAvatarImageStyle(childPerson?.media?.[0], childId)}
+                                  />
+                                ) : (
+                                  <User size={16} className="w-full h-full p-1.5 text-slate-400" />
+                                )}
+                              </div>
+                              <span
+                                className="text-slate-200 font-medium cursor-pointer hover:text-blue-400"
+                                onClick={() => childPerson && onOpenEditModal && onOpenEditModal(childId)}
+                              >
+                                {childName}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <select
+                                value={relationType}
+                                onChange={e => {
+                                  const newType = e.target.value;
+                                  setPerson(prev => {
+                                    const rels = { ...prev.relations };
+                                    rels.children = rels.children.map((rel, i) => {
+                                      const relId = typeof rel === 'string' ? rel : (rel?.id || rel);
+                                      if (relId === childId) {
+                                        if (typeof rel === 'string') {
+                                          return { id: rel, name: childName, type: newType };
+                                        }
+                                        return { ...rel, type: newType };
+                                      }
+                                      return rel;
+                                    });
+                                    return { ...prev, relations: rels };
+                                  });
+                                }}
+                                className="bg-slate-900 border border-slate-600 text-xs rounded px-2 py-1 text-slate-200"
+                              >
+                                {RELATION_TYPES.child.map(r => <option key={r} value={r}>{r}</option>)}
+                              </select>
+                              <button onClick={() => removeRelation('children', childId)} className="text-red-600 hover:text-red-800 text-xs"><Trash2 size={14} /></button>
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <p className="text-xs text-slate-400">Inga barn tillagda</p>
+                    )}
+                  </div>
+
+                  {/* Syskon */}
+                  <div className="bg-slate-800 p-4 rounded-lg border-l-4 border-l-amber-500 border border-slate-700">
+                    <div className="flex justify-between items-center mb-3">
+                      <div className="flex items-center gap-2">
+                        <GitFork size={18} className="text-amber-400" />
+                        <h4 className="text-sm font-bold text-slate-100 uppercase tracking-wide">Syskon</h4>
+                      </div>
+                      <button onClick={() => openRelationModal('siblings')} className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold px-2 py-1 rounded flex items-center gap-1 transition-colors"><Plus size={12} /> Lägg till syskon</button>
+                    </div>
+                    {person.relations?.siblings?.length > 0 ? (
+                      person.relations.siblings.map((s, idx) => {
+                        const siblingId = typeof s === 'string' ? s : (s?.id || s);
+                        const siblingPerson = allPeople.find(pp => pp.id === siblingId);
+                        const siblingName = siblingPerson
+                          ? `${siblingPerson.firstName || ''} ${siblingPerson.lastName || ''}`.trim()
+                          : (typeof s === 'object' && s.name ? s.name : siblingId || 'Okänd');
+                        const profileImage = siblingPerson?.media && siblingPerson.media.length > 0 ? siblingPerson.media[0].url : null;
+
+                        return (
+                          <div key={siblingId || idx} className="flex items-center justify-between bg-slate-700 p-2 rounded mb-2 border border-slate-600">
+                            <div className="flex items-center gap-3 flex-1">
+                              <div className="w-8 h-8 rounded-full bg-slate-600 flex-shrink-0 overflow-hidden border-2 border-slate-500">
+                                {profileImage ? (
+                                  <MediaImage
+                                    url={profileImage}
+                                    alt={siblingName}
+                                    className="w-full h-full object-cover"
+                                    style={getAvatarImageStyle(siblingPerson?.media?.[0], siblingId)}
+                                  />
+                                ) : (
+                                  <User size={16} className="w-full h-full p-1.5 text-slate-400" />
+                                )}
+                              </div>
+                              <span
+                                className="text-slate-200 font-medium cursor-pointer hover:text-blue-400"
+                                onClick={() => siblingPerson && onOpenEditModal && onOpenEditModal(siblingId)}
+                              >
+                                {siblingName}
+                              </span>
+                            </div>
+                            <button onClick={() => removeRelation('siblings', siblingId)} className="text-red-600 hover:text-red-800 text-xs"><Trash2 size={14} /></button>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <p className="text-xs text-slate-400">Ingen syskon tillagd</p>
+                    )}
+                  </div>
 
                   {/* Relation Picker Modal */}
                   {relationModalOpen && (() => {
