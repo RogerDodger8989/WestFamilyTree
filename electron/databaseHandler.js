@@ -51,6 +51,32 @@ export async function saveDatabaseData(dbPath, data) {
       });
     }
 
+    // 1c. Migration: lägg till saknade kolumner i äldre relations-tabeller
+    const relationColumns = await new Promise((resolve, reject) => {
+      db.all(`PRAGMA table_info(relations)`, (err, rows) => err ? reject(err) : resolve(rows || []));
+    });
+    const relationColumnNames = new Set(relationColumns.map(col => col.name));
+    const requiredRelationColumns = [
+      { name: 'fromPersonId', type: 'TEXT' },
+      { name: 'toPersonId', type: 'TEXT' },
+      { name: 'startDate', type: 'TEXT' },
+      { name: 'endDate', type: 'TEXT' },
+      { name: 'certainty', type: 'TEXT' },
+      { name: 'note', type: 'TEXT' },
+      { name: 'sourceIds', type: 'TEXT' },
+      { name: 'reason', type: 'TEXT' },
+      { name: 'createdAt', type: 'TEXT' },
+      { name: 'modifiedAt', type: 'TEXT' },
+      { name: '_archived', type: 'BOOLEAN' }
+    ];
+
+    for (const col of requiredRelationColumns) {
+      if (relationColumnNames.has(col.name)) continue;
+      await new Promise((resolve, reject) => {
+        db.run(`ALTER TABLE relations ADD COLUMN ${col.name} ${col.type}`, err => err ? reject(err) : resolve());
+      });
+    }
+
     // 2. Transaktion start & Rensa existerande tabeller
     await new Promise((resolve, reject) => db.run('BEGIN TRANSACTION', err => err ? reject(err) : resolve()));
 

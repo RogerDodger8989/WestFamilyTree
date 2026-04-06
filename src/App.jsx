@@ -28,7 +28,7 @@ import OAIArchiveHarvesterModal from './OAIArchiveHarvesterModal.jsx';
 import AuditMergesSettingsModal from './AuditMergesSettingsModal.jsx';
 import Button from './Button.jsx'; 
 import MediaImage from './components/MediaImage.jsx';
-import { User, Settings, PanelRight, Minus, Maximize2, X } from 'lucide-react'; 
+import { User, Settings, PanelRight, Minus, Maximize2, X, Network, Star } from 'lucide-react'; 
 import { buildRelationsFromPeople, ensureAllRelations, ensureParentsArePartners } from './relationUtils.js';
 
 function App() {
@@ -1636,6 +1636,20 @@ function App() {
                     Redigera {editingPerson.firstName || ''} {editingPerson.lastName || ''}
                   </div>
                   <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleViewInFamilyTree(editingPerson.id)}
+                      className="p-1.5 hover:bg-slate-800 rounded text-slate-400 hover:text-white"
+                      title="Visa i släktträd"
+                    >
+                      <Network size={15} />
+                    </button>
+                    <button
+                      onClick={() => handleToggleBookmark(editingPerson.id)}
+                      className={`p-1.5 hover:bg-slate-800 rounded ${bookmarks.includes(editingPerson.id) ? 'text-yellow-300 hover:text-yellow-200' : 'text-slate-400 hover:text-white'}`}
+                      title={bookmarks.includes(editingPerson.id) ? 'Ta bort bokmärke' : 'Lägg till bokmärke'}
+                    >
+                      <Star size={15} className={bookmarks.includes(editingPerson.id) ? 'fill-current' : ''} />
+                    </button>
                     <button
                       onClick={() => {
                         handleTogglePeopleEditorDock(false);

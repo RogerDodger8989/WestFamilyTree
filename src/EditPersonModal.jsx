@@ -8,7 +8,7 @@ import {
   Copy, Star,
   ChevronDown, ChevronUp, MoreHorizontal, Search, Globe, HelpCircle, Network,
   ClipboardList, BookOpen, Clock,
-  Sparkles, DownloadCloud, ArrowUpDown
+  Sparkles, DownloadCloud
 } from 'lucide-react';
 import WindowFrame from './WindowFrame.jsx';
 import PlacePicker from './PlacePicker.jsx';
@@ -21,13 +21,15 @@ import { getAvatarImageStyle } from './imageUtils.js';
 import { useApp } from './AppContext';
 import { calculateRelationship, getAncestryPath } from './relationshipUtils';
 import { ensureParentsArePartners } from './relationUtils.js';
+import { syncRelations } from './syncRelations.js';
 
 // --- KONSTANTER ---
 
 const RELATION_TYPES = {
   parent: ['Biologisk', 'Adoptiv', 'Fosterförälder', 'Styvförälder'],
   partner: ['Gift', 'Sambo', 'Förlovad', 'Skild', 'Okänd'],
-  child: ['Biologiskt', 'Adoptivbarn', 'Fosterbarn', 'Styvbarn']
+  child: ['Biologiskt', 'Adoptivbarn', 'Fosterbarn', 'Styvbarn'],
+  sibling: ['Helsyskon', 'Halvsyskon', 'Styvsyskon', 'Adoptivsyskon']
 };
 
 const PRIORITY_LEVELS = [
@@ -513,6 +515,8 @@ const SecondParentSelector = ({ isOpen, onClose, candidates, onSelect, onSelectO
 // --- HUVUDKOMPONENT ---
 
 export default function EditPersonModal({ person: initialPerson, allPlaces, onSave, onClose, onChange, onOpenSourceDrawer, allSources, allPeople, onOpenEditModal, allMediaItems = [], onUpdateAllMedia = () => { }, isDocked = false, onNavigateToPlace, onViewInFamilyTree, isCollapsed = false, onToggleCollapse }) {
+  const { getAllTags, setDbData, dbData, bookmarks = [], handleToggleBookmark, showStatus = () => { }, showUndoToast } = useApp();
+
   const extractNicknameFromQuotedName = (nameText) => {
     const text = String(nameText || '');
     const match = text.match(/"([^"]+)"/);
@@ -926,11 +930,42 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
 
   // Remove relation
   const removeRelation = (type, id) => {
+    const relationEntry = (person.relations?.[type] || []).find(r => (typeof r === 'object' ? r.id : r) === id);
+    const relatedPerson = allPeople.find(p => p.id === id);
+    const relationLabelMap = {
+      parents: 'förälder',
+      partners: 'partner',
+      children: 'barn',
+      siblings: 'syskon'
+    };
+    const relationLabel = relationLabelMap[type] || 'relation';
+    const relatedName = relatedPerson
+      ? `${relatedPerson.firstName || ''} ${relatedPerson.lastName || ''}`.trim()
+      : (typeof relationEntry === 'object' && relationEntry?.name) ? relationEntry.name : id || 'okänd person';
+
+    if (!window.confirm(`Är du säker på att du vill ta bort ${relationLabel}-relationen till ${relatedName}?`)) {
+      return;
+    }
+
+    const originalPerson = typeof structuredClone === 'function'
+      ? structuredClone(person)
+      : JSON.parse(JSON.stringify(person));
+    const originalDbData = typeof structuredClone === 'function'
+      ? structuredClone(dbData)
+      : JSON.parse(JSON.stringify(dbData));
+
     setPerson(prev => {
       const rels = { ...prev.relations };
-      rels[type] = rels[type].filter(r => r.id !== id);
+      rels[type] = (rels[type] || []).filter(r => (typeof r === 'object' ? r.id : r) !== id);
       return { ...prev, relations: rels };
     });
+
+    if (typeof showUndoToast === 'function') {
+      showUndoToast(`Relationen till ${relatedName} har raderats. Ångra?`, () => {
+        setPerson(originalPerson);
+        setDbData(originalDbData);
+      });
+    }
   };
   const [activeTab, setActiveTab] = useState('info');
   const [selectedMediaIndex, setSelectedMediaIndex] = useState(null);
@@ -941,6 +976,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
   const modalRef = useRef(null);
   const firstNameInputRef = useRef(null);
   const focusedPersonIdRef = useRef(null);
+  const relationSyncInitializedRef = useRef(false);
 
   // Helper: Få födelse- och dödsdata från events
   const getLifeInfo = (personData) => {
@@ -1045,9 +1081,41 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
   };
 
   // Helper: Sortera events efter datum
+  const extractYearMonthDay = (dateStr) => {
+    if (!dateStr || typeof dateStr !== 'string') return { year: 9999, month: 0, day: 0 };
+
+    const yearMatch = dateStr.match(/\b(\d{4})\b/);
+    const year = yearMatch ? parseInt(yearMatch[1], 10) : 9999;
+
+    const dateParts = dateStr.match(/\b(\d{1,2})[/-](\d{1,2})\b/);
+    let month = 0;
+    let day = 0;
+    if (dateParts) {
+      month = parseInt(dateParts[1], 10);
+      day = parseInt(dateParts[2], 10);
+    }
+
+    return { year, month, day };
+  };
+
+  const getChronologicallySortedEvents = (events) => {
+    const source = Array.isArray(events) ? events : [];
+    return [...source].sort((a, b) => {
+      const aDate = extractYearMonthDay(a?.date);
+      const bDate = extractYearMonthDay(b?.date);
+
+      if (aDate.year !== bDate.year) {
+        return aDate.year - bDate.year;
+      }
+      if (aDate.month !== bDate.month) {
+        return aDate.month - bDate.month;
+      }
+      return aDate.day - bDate.day;
+    });
+  };
+
   const sortedEvents = () => {
-    if (!person.events) return [];
-    return person.events || [];
+    return getChronologicallySortedEvents(person.events);
   };
 
   // Helper: Bygg platshierarki från placeId eller placeData
@@ -1221,6 +1289,36 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
   const person = personRaw;
 
   useEffect(() => {
+    if (!Array.isArray(person.events) || person.events.length < 2) return;
+
+    const sorted = getChronologicallySortedEvents(person.events);
+    const orderIsUnchanged = person.events.every((eventItem, index) => eventItem === sorted[index]);
+
+    if (orderIsUnchanged) return;
+
+    const updatedPerson = { ...person, events: sorted };
+    setPerson(updatedPerson);
+    if (onChange) onChange(updatedPerson);
+  }, [person.events]);
+
+  // Synka alltid relationsändringar till alla berörda personer i dbData
+  useEffect(() => {
+    if (!person?.id) return;
+
+    // Undvik onödig första körning direkt vid initial modal-laddning
+    if (!relationSyncInitializedRef.current) {
+      relationSyncInitializedRef.current = true;
+      return;
+    }
+
+    setDbData(prevData => {
+      if (!prevData?.people) return prevData;
+      const updatedPeople = syncRelations(person, prevData.people);
+      return { ...prevData, people: updatedPeople };
+    });
+  }, [person?.relations, person?.id, setDbData]);
+
+  useEffect(() => {
     if (!person?.id || !Array.isArray(person.media) || person.media.length === 0 || !Array.isArray(allMediaItems) || allMediaItems.length === 0) {
       return;
     }
@@ -1390,6 +1488,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
   const eventTypeMenuRef = useRef(null);
   const eventTypeButtonRef = useRef(null);
   const eventTypeSearchInputRef = useRef(null);
+  const eventDateInputRef = useRef(null);
   const [eventTypeSearch, setEventTypeSearch] = useState('');
   const [eventTypeActiveIndex, setEventTypeActiveIndex] = useState(-1);
   const [newEvent, setNewEvent] = useState({
@@ -1432,8 +1531,6 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
   const [imageEditorContext, setImageEditorContext] = useState('event');
   const [isRefCopied, setIsRefCopied] = useState(false);
   const refCopyTimeoutRef = useRef(null);
-  
-  const { getAllTags, setDbData, dbData, bookmarks = [], handleToggleBookmark, showStatus = () => { } } = useApp();
 
   // State för noteringar-fliken
   const [noteSearch, setNoteSearch] = useState('');
@@ -2361,51 +2458,6 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
     setEventSortOverIndex(null);
   };
 
-  const handleSortEventsChronologically = () => {
-    if (!Array.isArray(person.events) || person.events.length === 0) {
-      showStatus('Inga händelser att sortera.', 'warning');
-      return;
-    }
-
-    const extractYearMonthDay = (dateStr) => {
-      if (!dateStr || typeof dateStr !== 'string') return { year: 9999, month: 0, day: 0 };
-      
-      // Försök extrahera ett år från strängen (fire tecken siffror)
-      const yearMatch = dateStr.match(/\b(\d{4})\b/);
-      const year = yearMatch ? parseInt(yearMatch[1], 10) : 9999;
-      
-      // Försök extrahera månad och dag från sorterade format
-      // Format: "1890-05-12", "5-12", "1890-05", etc.
-      const dateParts = dateStr.match(/\b(\d{1,2})[/-](\d{1,2})\b/);
-      let month = 0;
-      let day = 0;
-      if (dateParts) {
-        month = parseInt(dateParts[1], 10);
-        day = parseInt(dateParts[2], 10);
-      }
-      
-      return { year, month, day };
-    };
-
-    const sortedEvents = [...person.events].sort((a, b) => {
-      const aDate = extractYearMonthDay(a.date);
-      const bDate = extractYearMonthDay(b.date);
-      
-      if (aDate.year !== bDate.year) {
-        return aDate.year - bDate.year;
-      }
-      if (aDate.month !== bDate.month) {
-        return aDate.month - bDate.month;
-      }
-      return aDate.day - bDate.day;
-    });
-
-    const updatedPerson = { ...person, events: sortedEvents };
-    setPerson(updatedPerson);
-    if (onChange) onChange(updatedPerson);
-    showStatus('Händelserna har sorterats kronologiskt.', 'success');
-  };
-
   const handleEventTypeChange = (nextType) => {
     if (!nextType || nextType === newEvent.type) return;
 
@@ -2488,6 +2540,13 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
       notes: '',
       linkedPersons: []
     });
+  };
+
+  const handleEventModalInputKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSaveEvent();
+    }
   };
 
   const handleDeleteEvent = (index) => {
@@ -2735,6 +2794,20 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
   }, [isEventTypeMenuOpen, eventTypeOptions.length]);
 
   useEffect(() => {
+    if (!isEventModalOpen) return;
+
+    const focusTimer = window.setTimeout(() => {
+      if (eventDateInputRef.current) {
+        eventDateInputRef.current.focus();
+      }
+    }, 10);
+
+    return () => {
+      window.clearTimeout(focusTimer);
+    };
+  }, [isEventModalOpen, editingEventIndex]);
+
+  useEffect(() => {
     if (!isEventTypeMenuOpen) return;
     const next = getNextSelectableEventTypeIndex(0, 1);
     setEventTypeActiveIndex(next);
@@ -2920,6 +2993,19 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                           <User size={40} className="text-slate-400" />
                         )}
                       </button>
+                      {isDocked && (() => {
+                        const { birthYear, deathYear, lifeSpan } = getLifeInfo(person);
+                        return (
+                          <div className="mt-2 text-center leading-tight">
+                            <div className="text-sm font-bold text-slate-200">
+                              {birthYear || '????'} - {deathYear || '????'}
+                            </div>
+                            <div className="text-xs text-slate-400">
+                              {lifeSpan !== null ? `${lifeSpan} år` : '? år'}
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                     <div className="col-span-10 grid grid-cols-2 gap-4 content-start">
                       <div>
@@ -3138,13 +3224,6 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                         >
                           <Plus size={14} /> Lägg till händelse
                         </button>
-                        <button
-                          onClick={handleSortEventsChronologically}
-                          title="Sortera kronologiskt"
-                          className="flex items-center gap-1 text-xs bg-slate-700 hover:bg-slate-600 text-slate-100 px-2.5 py-1 rounded transition-colors"
-                        >
-                          <ArrowUpDown size={13} />
-                        </button>
                       </div>
                     </div>
 
@@ -3205,6 +3284,9 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                   if (editingEventIndex === null) {
                                     setSelectedEventIndex(selectedEventIndex === idx ? null : idx);
                                   }
+                                }}
+                                onDoubleClick={() => {
+                                  handleEditEvent(evt.id);
                                 }}
                                 onContextMenu={(e) => handleEventContextMenu(e, idx, evt.id)}
                                 className={`hover:bg-slate-800 transition-colors group cursor-move ${selectedEventIndex === idx && editingEventIndex === null ? 'bg-blue-900/30 border-l-4 border-blue-500' : ''} ${dragOverEventIndex === idx && draggedEventIndex === null ? 'bg-blue-900/60 ring-2 ring-inset ring-blue-500' : ''} ${eventSortOverIndex === idx && draggedEventIndex !== null ? 'border-t-2 border-emerald-500' : ''}`}
@@ -3683,6 +3765,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                         const siblingName = siblingPerson
                           ? `${siblingPerson.firstName || ''} ${siblingPerson.lastName || ''}`.trim()
                           : (typeof s === 'object' && s.name ? s.name : siblingId || 'Okänd');
+                        const relationType = (typeof s === 'object' && s.type) ? s.type : RELATION_TYPES.sibling[0];
                         const profileImage = siblingPerson?.media && siblingPerson.media.length > 0 ? siblingPerson.media[0].url : null;
 
                         return (
@@ -3707,7 +3790,32 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                 {siblingName}
                               </span>
                             </div>
-                            <button onClick={() => removeRelation('siblings', siblingId)} className="text-red-600 hover:text-red-800 text-xs"><Trash2 size={14} /></button>
+                            <div className="flex items-center gap-2">
+                              <select
+                                value={relationType}
+                                onChange={e => {
+                                  const newType = e.target.value;
+                                  setPerson(prev => {
+                                    const rels = { ...prev.relations };
+                                    rels.siblings = rels.siblings.map((rel, i) => {
+                                      const relId = typeof rel === 'string' ? rel : (rel?.id || rel);
+                                      if (relId === siblingId) {
+                                        if (typeof rel === 'string') {
+                                          return { id: rel, name: siblingName, type: newType };
+                                        }
+                                        return { ...rel, type: newType };
+                                      }
+                                      return rel;
+                                    });
+                                    return { ...prev, relations: rels };
+                                  });
+                                }}
+                                className="bg-slate-900 border border-slate-600 text-xs rounded px-2 py-1 text-slate-200"
+                              >
+                                {RELATION_TYPES.sibling.map(r => <option key={r} value={r}>{r}</option>)}
+                              </select>
+                              <button onClick={() => removeRelation('siblings', siblingId)} className="text-red-600 hover:text-red-800 text-xs"><Trash2 size={14} /></button>
+                            </div>
                           </div>
                         );
                       })
@@ -4981,6 +5089,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                       type="text"
                       value={newEvent.customType || ''}
                       onChange={(e) => setNewEvent({ ...newEvent, customType: e.target.value })}
+                      onKeyDown={handleEventModalInputKeyDown}
                       className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-slate-200 focus:border-blue-500 focus:outline-none"
                       placeholder="t.ex. Kontraktsskrivning, Flytt till gård..."
                     />
@@ -4997,6 +5106,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                         const nextValue = e.target.value;
                         setNewEvent({ ...newEvent, description: nextValue, value: nextValue });
                       }}
+                      onKeyDown={handleEventModalInputKeyDown}
                       className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-slate-200 focus:border-blue-500 focus:outline-none"
                       placeholder={`Ange ${newEvent.type?.toLowerCase() || 'värde'}...`}
                     />
@@ -5009,10 +5119,12 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                     <div className="relative">
                       <Calendar size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
                       <input
+                        ref={eventDateInputRef}
                         type="text"
                         placeholder="t.ex. 21 nov 1980, från 1950, ca 1920"
                         value={newEvent.date}
                         onChange={(e) => setNewEvent({ ...newEvent, date: e.target.value })}
+                        onKeyDown={handleEventModalInputKeyDown}
                         className="w-full bg-slate-900 border border-slate-600 rounded pl-9 p-2 text-slate-200 focus:border-blue-500 focus:outline-none"
                         onBlur={(e) => setNewEvent({ ...newEvent, date: parseAndFormatDate(e.target.value) })}
                       />
