@@ -514,7 +514,7 @@ const SecondParentSelector = ({ isOpen, onClose, candidates, onSelect, onSelectO
 
 // --- HUVUDKOMPONENT ---
 
-export default function EditPersonModal({ person: initialPerson, allPlaces, onSave, onClose, onChange, onOpenSourceDrawer, allSources, allPeople, onOpenEditModal, allMediaItems = [], onUpdateAllMedia = () => { }, isDocked = false, onNavigateToPlace, onViewInFamilyTree, isCollapsed = false, onToggleCollapse }) {
+export default function EditPersonModal({ person: initialPerson, allPlaces, onSave, onClose, onChange, onOpenSourceDrawer, allSources, allPeople, onOpenEditModal, allMediaItems = [], onUpdateAllMedia = () => { }, isDocked = false, onNavigateToPlace, onTogglePlaceDrawer, onViewInFamilyTree, isCollapsed = false, onToggleCollapse }) {
   const { getAllTags, setDbData, dbData, bookmarks = [], handleToggleBookmark, showStatus = () => { }, showUndoToast } = useApp();
 
   const extractNicknameFromQuotedName = (nameText) => {
@@ -2352,6 +2352,65 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
     }
   };
 
+  const openWitnessEditorForEvent = (eventId) => {
+    const actualIndex = person.events.findIndex((eventItem) => eventItem.id === eventId);
+    if (actualIndex === -1) {
+      console.error('[EditPersonModal] Kunde inte hitta händelse med id för vittnesredigering:', eventId);
+      return;
+    }
+
+    const existingEvent = person.events[actualIndex] || {};
+    const eventConfig = EVENT_TYPES.find((eventType) => eventType.value === existingEvent.type);
+    const resolvedGedcomType = eventConfig?.gedcomType || existingEvent.gedcomType || 'event';
+
+    setEditingEventIndex(actualIndex);
+    setNewEvent({
+      ...existingEvent,
+      gedcomType: resolvedGedcomType,
+      customType: resolvedGedcomType === 'custom' ? (existingEvent.customType || '') : existingEvent.customType,
+      description: existingEvent.description ?? existingEvent.value ?? '',
+      value: existingEvent.value ?? existingEvent.description ?? '',
+      linkedPersons: Array.isArray(existingEvent.linkedPersons) ? existingEvent.linkedPersons : []
+    });
+
+    setEventModalOpen(false);
+
+    const firstWitness = Array.isArray(existingEvent.linkedPersons) ? existingEvent.linkedPersons[0] : null;
+    window.setTimeout(() => {
+      if (firstWitness && (typeof firstWitness === 'string' || typeof firstWitness === 'number')) {
+        const personId = String(firstWitness);
+        const personMatch = sortedPeopleForWitnesses.find((candidate) => String(candidate.id) === personId);
+        setSelectedWitnessId(null);
+        setWitnessMode('existing');
+        setWitnessSearch('');
+        setWitnessDraft({
+          id: null,
+          personId,
+          name: personMatch ? formatWitnessPersonName(personMatch) : '',
+          role: getWitnessRolesForEventType(existingEvent.type)[0] || 'Vittne',
+          note: ''
+        });
+      } else if (firstWitness && typeof firstWitness === 'object') {
+        const personId = String(firstWitness.personId || firstWitness.linkedPersonId || firstWitness.targetId || '').trim();
+        const mode = personId ? 'existing' : 'free';
+        setSelectedWitnessId(firstWitness.id || null);
+        setWitnessMode(mode);
+        setWitnessSearch('');
+        setWitnessDraft({
+          id: firstWitness.id || null,
+          personId,
+          name: String(firstWitness.name || firstWitness.personName || '').trim(),
+          role: String(firstWitness.role || (getWitnessRolesForEventType(existingEvent.type)[0] || 'Vittne')).trim() || (getWitnessRolesForEventType(existingEvent.type)[0] || 'Vittne'),
+          note: String(firstWitness.note || '').trim()
+        });
+      } else {
+        resetWitnessDraft('existing');
+      }
+
+      setWitnessModalOpen(true);
+    }, 0);
+  };
+
   const handleDropSourceOnEvent = (evt, eventId, eventDisplayIndex) => {
     evt.preventDefault();
     evt.stopPropagation();
@@ -3242,6 +3301,10 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                         </thead>
                         <tbody className="divide-y divide-gray-200">
                           {sortedEvents().map((evt, idx) => {
+                            const actualIndex = Array.isArray(person.events)
+                              ? person.events.findIndex((eventItem) => eventItem?.id === evt?.id)
+                              : -1;
+                            const canDragEvent = editingEventIndex === null && !String(evt?.date || '').trim();
                             const age = calculateAgeAtEvent(person.events?.find(e => e.type === 'Födelse')?.date, evt.date);
                             const witnessCount = getEventWitnessCount(evt);
                             let partnerName = '';
@@ -3253,13 +3316,17 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                             return (
                               <tr
                                 key={evt.id || idx}
-                                draggable={editingEventIndex === null}
-                                onDragStart={(e) => handleEventDragStart(e, idx)}
+                                draggable={canDragEvent}
+                                onDragStart={(e) => {
+                                  if (!canDragEvent || actualIndex === -1) return;
+                                  handleEventDragStart(e, actualIndex);
+                                }}
                                 onDragEnd={handleEventDragEnd}
                                 onDragOver={(e) => {
                                   e.preventDefault();
-                                  handleEventSortDragOver(e, idx);
-                                  setDragOverEventIndex(idx);
+                                  if (!canDragEvent || actualIndex === -1) return;
+                                  handleEventSortDragOver(e, actualIndex);
+                                  setDragOverEventIndex(actualIndex);
                                 }}
                                 onDragLeave={() => {
                                   setEventSortOverIndex(null);
@@ -3271,25 +3338,27 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                     try {
                                       const payload = JSON.parse(sourceData);
                                       if (payload.type === 'source') {
-                                        handleDropSourceOnEvent(e, evt.id, idx);
+                                        handleDropSourceOnEvent(e, evt.id, actualIndex === -1 ? idx : actualIndex);
                                         return;
                                       }
                                     } catch (err) {
                                       // Inte käll-data, kolla om det är event-sortering
                                     }
                                   }
-                                  handleEventSortDrop(e, idx);
+                                  if (!canDragEvent || actualIndex === -1) return;
+                                  handleEventSortDrop(e, actualIndex);
                                 }}
                                 onClick={() => {
-                                  if (editingEventIndex === null) {
-                                    setSelectedEventIndex(selectedEventIndex === idx ? null : idx);
+                                  if (editingEventIndex === null && actualIndex !== -1) {
+                                    setSelectedEventIndex(selectedEventIndex === actualIndex ? null : actualIndex);
+                                    setEventDetailView('sources');
                                   }
                                 }}
                                 onDoubleClick={() => {
                                   handleEditEvent(evt.id);
                                 }}
-                                onContextMenu={(e) => handleEventContextMenu(e, idx, evt.id)}
-                                className={`hover:bg-slate-800 transition-colors group cursor-move ${selectedEventIndex === idx && editingEventIndex === null ? 'bg-blue-900/30 border-l-4 border-blue-500' : ''} ${dragOverEventIndex === idx && draggedEventIndex === null ? 'bg-blue-900/60 ring-2 ring-inset ring-blue-500' : ''} ${eventSortOverIndex === idx && draggedEventIndex !== null ? 'border-t-2 border-emerald-500' : ''}`}
+                                onContextMenu={(e) => handleEventContextMenu(e, actualIndex === -1 ? idx : actualIndex, evt.id)}
+                                className={`hover:bg-slate-800 transition-colors group ${canDragEvent ? 'cursor-move' : 'cursor-default'} ${selectedEventIndex === actualIndex && editingEventIndex === null ? 'bg-blue-900/30 border-l-4 border-blue-500' : ''} ${dragOverEventIndex === actualIndex && draggedEventIndex === null ? 'bg-blue-900/60 ring-2 ring-inset ring-blue-500' : ''} ${eventSortOverIndex === actualIndex && draggedEventIndex !== null ? 'border-t-2 border-emerald-500' : ''}`}
                               >
                                 <td className="p-2 text-slate-300 text-xs whitespace-nowrap">{age !== null ? `${age} år` : '-'}</td>
                                 <td className="p-2 font-medium text-slate-200 text-xs">{evt.type}</td>
@@ -3299,7 +3368,9 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                   title={getPlaceHierarchy(evt)}
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    if (evt.placeId && onNavigateToPlace) {
+                                    if (evt.placeId && typeof onTogglePlaceDrawer === 'function') {
+                                      onTogglePlaceDrawer(evt.placeId);
+                                    } else if (evt.placeId && onNavigateToPlace) {
                                       onNavigateToPlace(evt.placeId);
                                     }
                                   }}
@@ -3341,8 +3412,9 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                       className={`flex items-center gap-0.5 cursor-pointer hover:text-blue-600 ${evt.sources?.length > 0 ? 'text-slate-200' : ''}`}
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        setSelectedEventIndex(idx);
-                                        setEventDetailView('sources');
+                                        if (typeof onOpenSourceDrawer === 'function') {
+                                          onOpenSourceDrawer(person.id, evt.id);
+                                        }
                                       }}
                                       title="Källor"
                                     >
@@ -3352,8 +3424,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                       className={`flex items-center gap-0.5 cursor-pointer hover:text-blue-600 ${evt.notes ? 'text-slate-200' : ''}`}
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        setSelectedEventIndex(idx);
-                                        setEventDetailView('notes');
+                                        handleEditEvent(evt.id);
                                       }}
                                       title={evt.notes || 'Noteringar'}
                                     >
@@ -3363,8 +3434,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                       className={`flex items-center gap-0.5 cursor-pointer hover:text-blue-600 ${(Array.isArray(evt.images) ? evt.images.length : (evt.images || 0)) > 0 ? 'text-slate-200' : ''}`}
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        setSelectedEventIndex(idx);
-                                        setEventDetailView('images');
+                                        handleEditEvent(evt.id);
                                       }}
                                       title="Bilder"
                                     >
@@ -3374,7 +3444,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                       className={`flex items-center gap-0.5 cursor-pointer hover:text-blue-600 ${witnessCount > 0 ? 'text-slate-200' : 'text-slate-500'}`}
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        handleEditEvent(evt.id, true);
+                                        openWitnessEditorForEvent(evt.id);
                                       }}
                                       title="Dopvittnen / medverkande"
                                     >
@@ -3391,7 +3461,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                   <button onClick={(e) => { e.stopPropagation(); handleEditEvent(evt.id); }} className="text-slate-400 hover:text-slate-300 p-1 opacity-0 group-hover:opacity-100 transition-opacity" title="Redigera">
                                     <Edit3 size={12} />
                                   </button>
-                                  <button onClick={(e) => { e.stopPropagation(); handleDeleteEvent(idx); }} className="text-slate-400 hover:text-red-600 p-1 opacity-0 group-hover:opacity-100 transition-opacity" title="Ta bort">
+                                  <button onClick={(e) => { e.stopPropagation(); if (actualIndex !== -1) handleDeleteEvent(actualIndex); }} className="text-slate-400 hover:text-red-600 p-1 opacity-0 group-hover:opacity-100 transition-opacity" title="Ta bort">
                                     <Trash2 size={12} />
                                   </button>
                                 </td>
@@ -5316,12 +5386,15 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
         </WindowFrame>
       )}
 
-      {isEventModalOpen && isWitnessModalOpen && (
+      {isWitnessModalOpen && (
         <WindowFrame
           title={`Vittnen till [${newEvent.type || 'Händelse'}] ${newEvent.date || ''} ${newEvent.place || ''}`.trim()}
           icon={Users}
           initialWidth={1040}
           initialHeight={740}
+          initialX={40}
+          initialY={40}
+          ignoreSavedPosition={true}
           onClose={() => setWitnessModalOpen(false)}
         >
           <div className="flex flex-col h-full bg-slate-900">
@@ -5639,7 +5712,9 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
               <button
                 onClick={() => {
                   const evt = person.events[eventContextMenu.eventIndex];
-                  if (evt?.placeId && onNavigateToPlace) {
+                  if (evt?.placeId && typeof onTogglePlaceDrawer === 'function') {
+                    onTogglePlaceDrawer(evt.placeId);
+                  } else if (evt?.placeId && onNavigateToPlace) {
                     onNavigateToPlace(evt.placeId);
                   }
                   setEventContextMenu({ isOpen: false, x: 0, y: 0, eventIndex: null, eventId: null });

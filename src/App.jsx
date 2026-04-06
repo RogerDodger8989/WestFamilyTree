@@ -1731,6 +1731,9 @@ function App() {
           onClose={forceCloseSourceModal}
           initialWidth={1100}
           initialHeight={700}
+          initialX={30}
+          initialY={40}
+          ignoreSavedPosition={true}
           zIndex={9999}
         >
           <SourceCatalog
@@ -1765,6 +1768,9 @@ function App() {
           onClose={() => handleTogglePlaceDrawer(placeCatalogState?.selectedPlaceId)}
           initialWidth={1100}
           initialHeight={700}
+          initialX={30}
+          initialY={40}
+          ignoreSavedPosition={true}
           zIndex={9998}
         >
           <PlaceCatalog

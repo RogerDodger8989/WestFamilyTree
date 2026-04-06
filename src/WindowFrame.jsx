@@ -30,7 +30,7 @@ const LibraryButton = ({ lib, isActive, onClick }) => {
 
 // --- HUVUDKOMPONENT: WindowFrame ---
 
-export function WindowFrame({ windowId, children, title, icon: Icon = Layers, initialWidth = 1000, initialHeight = 700, onClose, zIndex = null, isActive = true, onActivate, showDockButton = false, onToggleDock, isDocked = false }) {
+export function WindowFrame({ windowId, children, title, icon: Icon = Layers, initialWidth = 1000, initialHeight = 700, initialX = 100, initialY = 50, ignoreSavedPosition = false, onClose, zIndex = null, isActive = true, onActivate, showDockButton = false, onToggleDock, isDocked = false }) {
   
   // Generera unikt ID för detta WindowFrame om inget windowId ges
   const internalIdRef = useRef(windowId || `wf-${Date.now()}-${Math.random()}`);
@@ -39,18 +39,22 @@ export function WindowFrame({ windowId, children, title, icon: Icon = Layers, in
   // Fönsterhanteringslogik (Local Storage, drag, resize, maximize/minimize)
   const localStorageKey = `windowState:${title.replace(/\s/g, '')}`; 
   const getInitialState = () => {
-    try {
-      const savedState = JSON.parse(localStorage.getItem(localStorageKey));
-      if (savedState) {
-        return {
-          x: savedState.x || 100, y: savedState.y || 50,
-          width: Math.max(600, savedState.width || initialWidth),
-          height: Math.max(400, savedState.height || initialHeight),
-          isMaximized: false, isMinimized: false
-        };
-      }
-    } catch (e) { /* Ignorera fel vid läsning av localStorage */ }
-    return { x: 100, y: 50, width: initialWidth, height: initialHeight, isMaximized: false, isMinimized: false };
+    if (!ignoreSavedPosition) {
+      try {
+        const savedState = JSON.parse(localStorage.getItem(localStorageKey));
+        if (savedState) {
+          return {
+            x: savedState.x || initialX,
+            y: savedState.y || initialY,
+            width: Math.max(600, savedState.width || initialWidth),
+            height: Math.max(400, savedState.height || initialHeight),
+            isMaximized: false,
+            isMinimized: false
+          };
+        }
+      } catch (e) { /* Ignorera fel vid läsning av localStorage */ }
+    }
+    return { x: initialX, y: initialY, width: initialWidth, height: initialHeight, isMaximized: false, isMinimized: false };
   };
 
   const [winState, setWinState] = useState(getInitialState);
