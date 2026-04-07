@@ -687,6 +687,7 @@ export function MediaManager({ allPeople = [], allSources = [], onOpenEditModal 
   
   // Data State - Use media from database, fallback to INITIAL_MEDIA for demo
   const [mediaItems, setMediaItems] = useState(initialMedia.length > 0 ? initialMedia : INITIAL_MEDIA);
+  const mediaItemsRef = useRef(mediaItems);
   
   // Synka mediaItems med initialMedia prop när den ändras
   useEffect(() => {
@@ -733,6 +734,10 @@ export function MediaManager({ allPeople = [], allSources = [], onOpenEditModal 
     
     setMediaItems(parsedMedia);
   }, [initialMedia]);
+
+  useEffect(() => {
+    mediaItemsRef.current = mediaItems;
+  }, [mediaItems]);
   
   
   // Get all available places (after mediaItems is defined)
@@ -743,11 +748,11 @@ export function MediaManager({ allPeople = [], allSources = [], onOpenEditModal 
   
   // Helper to update media and notify parent
   const updateMedia = (newMediaOrUpdater) => {
-    setMediaItems(prev => {
-      const newMedia = typeof newMediaOrUpdater === 'function' ? newMediaOrUpdater(prev) : newMediaOrUpdater;
-      onUpdateMedia(newMedia);
-      return newMedia;
-    });
+    const base = mediaItemsRef.current;
+    const newMedia = typeof newMediaOrUpdater === 'function' ? newMediaOrUpdater(base) : newMediaOrUpdater;
+    mediaItemsRef.current = newMedia;
+    setMediaItems(newMedia);
+    onUpdateMedia(newMedia);
   };
   
   // Context Menu Handlers
@@ -1088,38 +1093,14 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
   // Läs alltid fresh data från mediaItems - använd selectedImage bara för att hitta ID
   const displayImage = selectedImage ? (mediaItems.find(m => m.id === selectedImage.id) || selectedImage) : null;
   
-  // Debug: logga när displayImage ändras
-  useEffect(() => {
-    if (displayImage) {
-      console.log('[MediaManager] displayImage uppdaterad:', {
-        id: displayImage.id,
-        name: displayImage.name,
-        connections: displayImage.connections,
-        connectionsType: typeof displayImage.connections,
-        peopleCount: displayImage.connections?.people?.length || 0,
-        people: displayImage.connections?.people
-      });
-    }
-  }, [displayImage?.id, displayImage?.connections]);
-  
   // Säkerställ att displayImage.connections alltid har people, places, och sources arrays
   const safeDisplayImage = displayImage ? (() => {
-    console.log('[MediaManager] 🔧 Skapar safeDisplayImage från displayImage:', {
-      id: displayImage.id,
-      name: displayImage.name,
-      connections: displayImage.connections,
-      connectionsType: typeof displayImage.connections
-    });
-    
     // Parse connections om det är en sträng (JSON)
     let connections = displayImage.connections;
     if (typeof connections === 'string') {
-      console.log('[MediaManager] Parsar connections från sträng:', connections);
       try {
         connections = JSON.parse(connections);
-        console.log('[MediaManager] ✅ Parsad connections:', connections);
       } catch (e) {
-        console.error('[MediaManager] ❌ Error parsing connections:', e, connections);
         connections = {};
       }
     }
@@ -1131,34 +1112,11 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
       sources: Array.isArray(connections?.sources) ? connections.sources : [],
       ...(connections || {})
     };
-    
-    console.log('[MediaManager] ✅ safeConnections skapad:', {
-      people: safeConnections.people,
-      peopleType: typeof safeConnections.people,
-      peopleIsArray: Array.isArray(safeConnections.people),
-      peopleLength: safeConnections.people.length,
-      peopleContent: safeConnections.people.map((p, idx) => ({
-        index: idx,
-        p,
-        pType: typeof p,
-        pId: typeof p === 'object' ? p.id : p,
-        pName: typeof p === 'object' ? p.name : p
-      }))
-    });
-    
-    const result = {
+
+    return {
       ...displayImage,
       connections: safeConnections
     };
-    
-    console.log('[MediaManager] ✅ safeDisplayImage skapad:', {
-      id: result.id,
-      name: result.name,
-      connections: result.connections,
-      peopleCount: result.connections.people.length
-    });
-    
-    return result;
   })() : null;
 
   const selectedMediaItems = useMemo(() => {
@@ -1493,22 +1451,8 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
   };
 
   const handleImageClick = (item, e) => {
-      console.log('[MediaManager] 🖱️ handleImageClick anropad:', {
-        itemId: item.id,
-        itemName: item.name,
-        itemConnections: item.connections,
-        itemConnectionsType: typeof item.connections,
-        itemPeople: item.connections?.people,
-        itemPeopleType: typeof item.connections?.people,
-        itemPeopleIsArray: Array.isArray(item.connections?.people),
-        itemPeopleLength: Array.isArray(item.connections?.people) ? item.connections?.people.length : 'ej array',
-        onSelectMediaExists: !!onSelectMedia,
-        selectedMediaIds: selectedMediaIds
-      });
-      
       // Om onSelectMedia finns, använd select mode för MediaSelector
       if (onSelectMedia) {
-        console.log('[MediaManager] onSelectMedia mode - hoppar över normal hantering');
         const isCurrentlySelected = selectedMediaIds.includes(item.id);
         if (isCurrentlySelected) {
           // Ta bort från valda
@@ -1521,10 +1465,8 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
         }
         return;
       }
-      
-      console.log('[MediaManager] Normal MediaManager-funktionalitet - sätter selectedImage');
+
       // Normal MediaManager-funktionalitet
-      console.log('🖱️ Image clicked:', { itemId: item.id, itemName: item.name, mediaItemsCount: mediaItems.length });
       let newSelected = new Set(selectedIds);
       if (e.ctrlKey || e.metaKey) {
           if (newSelected.has(item.id)) newSelected.delete(item.id);
@@ -2931,19 +2873,6 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                         const people = safeDisplayImage?.connections?.people;
                         const isArray = Array.isArray(people);
                         const hasPeople = isArray && people.length > 0;
-                        
-                        console.log('[MediaManager] Renderar personer-sektion:', {
-                          safeDisplayImageExists: !!safeDisplayImage,
-                          imageId: safeDisplayImage?.id,
-                          imageName: safeDisplayImage?.name,
-                          connections: safeDisplayImage?.connections,
-                          people: people,
-                          peopleType: typeof people,
-                          isArray: isArray,
-                          hasPeople: hasPeople,
-                          peopleLength: isArray ? people.length : 'ej array',
-                          peopleContent: isArray ? people : 'ej array'
-                        });
                         
                         if (!safeDisplayImage) {
                           return <div className="text-xs text-muted italic py-2">Ingen bild vald</div>;

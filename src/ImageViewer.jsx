@@ -24,8 +24,30 @@ import {
   Contrast,
   Save,
   Move,
-  ScanFace
+  ScanFace,
+  FolderOpen,
+  Plus
 } from 'lucide-react';
+
+function splitDateTime(input) {
+  const raw = String(input || '').trim();
+  if (!raw) return { date: '', time: '' };
+
+  const normalized = raw.replace(/\//g, '-').replace(/\./g, '-').replace(/:/g, '-');
+  const dateMatch = normalized.match(/(\d{4})-(\d{2})-(\d{2})/);
+  const timeMatch = raw.match(/(\d{2}):(\d{2})(?::(\d{2}))?/);
+
+  const date = dateMatch ? `${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}` : '';
+  const time = timeMatch ? `${timeMatch[1]}:${timeMatch[2]}:${timeMatch[3] || '00'}` : '';
+  return { date, time };
+}
+
+function mergeDateTime(dateValue, timeValue) {
+  const date = String(dateValue || '').trim();
+  if (!date) return '';
+  const time = String(timeValue || '').trim();
+  return time ? `${date} ${time}` : date;
+}
 
 function getLifeRange(person) {
   const getDate = (type) => {
@@ -238,7 +260,9 @@ const RegionComponent = React.memo(function RegionComponent({
     <div
       ref={containerRef}
       className={`absolute border-2 group transition-colors ${
-        isHighlighted ? 'border-success bg-success/20 shadow-[0_0_0_2px_rgba(16,185,129,0.4)]' : 'border-success hover:bg-success/20'
+        isHighlighted
+          ? 'border-success bg-success/30 shadow-[0_0_0_3px_rgba(16,185,129,0.65)] animate-pulse'
+          : 'border-success hover:bg-success/20'
       }`}
       style={{
         left: `${region.x}%`,
@@ -336,6 +360,8 @@ export default function ImageViewer({
   const [personSearchTerm, setPersonSearchTerm] = useState('');
   const [metaTitle, setMetaTitle] = useState('');
   const [metaDescription, setMetaDescription] = useState('');
+  const [metaDate, setMetaDate] = useState('');
+  const [metaTime, setMetaTime] = useState('');
 
   // Högerpanelens tab-system
   const [activeTab, setActiveTab] = useState('info'); // 'info', 'metadata', 'labels'
@@ -350,6 +376,9 @@ export default function ImageViewer({
 
   const appContext = useApp();
   const appShowStatus = appContext?.showStatus;
+  const appShowUndoToast = appContext?.showUndoToast;
+  const renameGlobalTag = appContext?.renameGlobalTag;
+  const deleteGlobalTag = appContext?.deleteGlobalTag;
 
   const [saveStatus, setSaveStatus] = useState('');
   const saveStatusTimeoutRef = useRef(null);
@@ -357,6 +386,7 @@ export default function ImageViewer({
   const objectUrlsRef = useRef([]);
   const imgRef = useRef(null);
   const viewerContainerRef = useRef(null);
+  const initialSnapshotRef = useRef(null);
 
   const samePersonId = useCallback((a, b) => String(a ?? '') === String(b ?? ''), []);
 
@@ -380,6 +410,39 @@ export default function ImageViewer({
       flipV
     );
   }, [hasPixelChanges, rotation, fineRotation, brightness, contrastLevel, flipH, flipV]);
+
+  const hasUnsavedChanges = useMemo(() => {
+    const initial = initialSnapshotRef.current;
+    if (!initial) return false;
+
+    const current = {
+      title: String(metaTitle || ''),
+      description: String(metaDescription || ''),
+      date: String(metaDate || ''),
+      time: String(metaTime || ''),
+      tags: Array.from(new Set((Array.isArray(imageTags) ? imageTags : []).map((tag) => String(tag).trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'sv')),
+      regions: JSON.stringify((localRegions || []).map((region) => ({
+        personId: String(region.personId || ''),
+        label: String(region.label || ''),
+        x: Number(region.x),
+        y: Number(region.y),
+        w: Number(region.w),
+        h: Number(region.h)
+      }))),
+      photographer: String(photographer || '')
+    };
+
+    return (
+      hasDestructiveChanges ||
+      current.title !== initial.title ||
+      current.description !== initial.description ||
+      current.date !== initial.date ||
+      current.time !== initial.time ||
+      current.photographer !== initial.photographer ||
+      JSON.stringify(current.tags) !== JSON.stringify(initial.tags) ||
+      current.regions !== initial.regions
+    );
+  }, [metaTitle, metaDescription, metaDate, metaTime, imageTags, localRegions, photographer, hasDestructiveChanges]);
 
   const getPersonDisplayName = useCallback((person) => {
     if (!person) return '';
@@ -506,13 +569,35 @@ export default function ImageViewer({
     setMetaDescription(String(imageMeta?.description || imageMeta?.note || ''));
     setPhotographer(String(imageMeta?.photographer || imageMeta?.creator || imageMeta?.artist || ''));
 
+    const parsedDateTime = splitDateTime(imageMeta?.date || imageMeta?.datetime || '');
+    setMetaDate(parsedDateTime.date);
+    setMetaTime(parsedDateTime.time);
+
     const incomingTags = Array.isArray(imageMeta?.tags)
       ? imageMeta.tags
       : typeof imageMeta?.tags === 'string'
         ? imageMeta.tags.split(',').map((tag) => tag.trim()).filter(Boolean)
         : [];
-    setImageTags(Array.from(new Set(incomingTags.map((tag) => String(tag).trim()).filter(Boolean))));
-  }, [isOpen, imageMeta?.id, imageMeta?.name, imageMeta?.description, imageMeta?.note, imageMeta?.photographer, imageMeta?.creator, imageMeta?.artist, imageMeta?.tags, imageTitle]);
+    const normalizedTags = Array.from(new Set(incomingTags.map((tag) => String(tag).trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'sv'));
+    setImageTags(normalizedTags);
+
+    initialSnapshotRef.current = {
+      title: String(imageMeta?.name || imageTitle || ''),
+      description: String(imageMeta?.description || imageMeta?.note || ''),
+      date: parsedDateTime.date,
+      time: parsedDateTime.time,
+      tags: normalizedTags,
+      photographer: String(imageMeta?.photographer || imageMeta?.creator || imageMeta?.artist || ''),
+      regions: JSON.stringify((Array.isArray(regions) ? regions : []).map((region) => ({
+        personId: String(region.personId || ''),
+        label: String(region.label || ''),
+        x: Number(region.x),
+        y: Number(region.y),
+        w: Number(region.w),
+        h: Number(region.h)
+      })))
+    };
+  }, [isOpen, imageMeta?.id, imageMeta?.name, imageMeta?.description, imageMeta?.note, imageMeta?.photographer, imageMeta?.creator, imageMeta?.artist, imageMeta?.tags, imageMeta?.date, imageMeta?.datetime, imageTitle, regions]);
 
   useEffect(() => {
     return () => {
@@ -543,14 +628,35 @@ export default function ImageViewer({
 
         if (!metaDescription && nextExifData.metadata?.description) {
           setMetaDescription(String(nextExifData.metadata.description));
+          if (initialSnapshotRef.current) {
+            initialSnapshotRef.current.description = String(nextExifData.metadata.description);
+          }
         }
 
         if (!metaTitle && (nextExifData.metadata?.title || nextExifData.metadata?.document_name)) {
-          setMetaTitle(String(nextExifData.metadata?.title || nextExifData.metadata?.document_name || ''));
+          const nextTitle = String(nextExifData.metadata?.title || nextExifData.metadata?.document_name || '');
+          setMetaTitle(nextTitle);
+          if (initialSnapshotRef.current) {
+            initialSnapshotRef.current.title = nextTitle;
+          }
         }
 
         if (!photographer && (nextExifData.metadata?.artist || nextExifData.metadata?.creator || nextExifData.metadata?.photographer)) {
-          setPhotographer(String(nextExifData.metadata?.artist || nextExifData.metadata?.creator || nextExifData.metadata?.photographer || ''));
+          const nextPhotographer = String(nextExifData.metadata?.artist || nextExifData.metadata?.creator || nextExifData.metadata?.photographer || '');
+          setPhotographer(nextPhotographer);
+          if (initialSnapshotRef.current) {
+            initialSnapshotRef.current.photographer = nextPhotographer;
+          }
+        }
+
+        if (!metaDate && (nextExifData.metadata?.date_taken || nextExifData.metadata?.date || nextExifData.metadata?.datetime)) {
+          const parsed = splitDateTime(nextExifData.metadata?.date_taken || nextExifData.metadata?.date || nextExifData.metadata?.datetime || '');
+          setMetaDate(parsed.date);
+          setMetaTime((current) => current || parsed.time);
+          if (initialSnapshotRef.current) {
+            initialSnapshotRef.current.date = parsed.date;
+            initialSnapshotRef.current.time = initialSnapshotRef.current.time || parsed.time;
+          }
         }
       } catch (exifError) {
         console.warn('[ImageViewer] EXIF read failed:', exifError);
@@ -562,7 +668,7 @@ export default function ImageViewer({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, resolvedFilePath, localRegions, metaDescription, metaTitle, photographer]);
+  }, [isOpen, resolvedFilePath, localRegions, metaDescription, metaTitle, photographer, metaDate]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -575,15 +681,15 @@ export default function ImageViewer({
     if (!isOpen) return;
     const handleKey = (e) => {
       if (e.key === 'ArrowLeft' && hasPrev && onPrev) {
-        e.preventDefault();
+        if (e.cancelable) e.preventDefault();
         onPrev();
       }
       if (e.key === 'ArrowRight' && hasNext && onNext) {
-        e.preventDefault();
+        if (e.cancelable) e.preventDefault();
         onNext();
       }
       if (e.key === 'Escape') {
-        e.preventDefault();
+        if (e.cancelable) e.preventDefault();
         if (showSaveDialog) {
           setShowSaveDialog(false);
         } else {
@@ -596,7 +702,7 @@ export default function ImageViewer({
   }, [isOpen, hasPrev, hasNext, onPrev, onNext, onClose, showSaveDialog]);
 
   const handleZoom = (e) => {
-    e.preventDefault();
+    if (e.cancelable) e.preventDefault();
     const zoomFactor = Math.exp(-e.deltaY * 0.002);
     setZoomLevel((currentZoom) => Math.min(Math.max(0.1, currentZoom * zoomFactor), 8));
   };
@@ -820,6 +926,46 @@ export default function ImageViewer({
     return items;
   }, [tagStats, imageTags, showAllLabels, labelSearchTerm]);
 
+  const labelSuggestions = useMemo(() => {
+    const query = labelSearchTerm.trim();
+    if (!query) {
+      return filteredLabels.slice(0, 40).map((label) => ({
+        id: label.id,
+        name: label.name,
+        isNew: false,
+        applied: label.applied,
+        count: label.count
+      }));
+    }
+
+    const lowered = query.toLowerCase();
+    const matches = filteredLabels
+      .filter((label) => String(label.name || '').toLowerCase().includes(lowered))
+      .slice(0, 40)
+      .map((label) => ({
+        id: label.id,
+        name: label.name,
+        isNew: false,
+        applied: label.applied,
+        count: label.count
+      }));
+
+    const exists = (Array.isArray(tagStats) ? tagStats : [])
+      .some((stat) => String(stat?.name || '').trim().toLowerCase() === lowered);
+
+    if (!exists) {
+      matches.unshift({
+        id: `new_${query}`,
+        name: query,
+        isNew: true,
+        applied: false,
+        count: 0
+      });
+    }
+
+    return matches;
+  }, [filteredLabels, labelSearchTerm, tagStats]);
+
   const cameraInfo = useMemo(() => {
     const camera = exifData?.camera || {};
     return {
@@ -894,12 +1040,13 @@ export default function ImageViewer({
       name: metaTitle,
       description: metaDescription,
       note: metaDescription,
+      date: mergeDateTime(metaDate, metaTime),
       tags: imageTags,
       photographer,
       creator: photographer,
       ...patch
     });
-  }, [onSaveImageMeta, metaTitle, metaDescription, imageTags, photographer]);
+  }, [onSaveImageMeta, metaTitle, metaDescription, metaDate, metaTime, imageTags, photographer]);
 
   const toggleImageTag = useCallback((tagName, checked) => {
     const normalizedTag = String(tagName || '').trim();
@@ -913,6 +1060,23 @@ export default function ImageViewer({
       return next;
     });
   }, [saveMetaPatch]);
+
+  const handleCreateAndApplyLabel = useCallback((inputValue) => {
+    const newLabel = String(inputValue || '').trim();
+    if (!newLabel) return;
+    toggleImageTag(newLabel, true);
+    setLabelSearchTerm('');
+  }, [toggleImageTag]);
+
+  const handleOpenItemInFolder = useCallback(() => {
+    if (!resolvedFilePath || !window.electronAPI?.showItemInFolder) return;
+    window.electronAPI.showItemInFolder(resolvedFilePath);
+  }, [resolvedFilePath]);
+
+  const handleOpenDirectory = useCallback(() => {
+    if (!fileInfo.dirPath || !window.electronAPI?.openFolder) return;
+    window.electronAPI.openFolder(fileInfo.dirPath);
+  }, [fileInfo.dirPath]);
 
   const handlePhotographerPicked = useCallback((personId) => {
     const selectedPerson = people.find((person) => samePersonId(person.id, personId));
@@ -933,11 +1097,18 @@ export default function ImageViewer({
     const newName = String(renameLabelValue || '').trim();
     if (!newName || newName === oldName) return;
 
-    console.log(`Ska döpa om '${oldName}' till '${newName}'`);
+    if (typeof renameGlobalTag === 'function') {
+      const result = await renameGlobalTag(oldName, newName);
+      if (result?.success) {
+        appShowStatus?.(`Bytte namn på etiketten '${oldName}' till '${newName}'.`, 'success');
+      } else {
+        appShowStatus?.(result?.error || 'Kunde inte byta namn på etikett.', 'error');
+      }
+    }
 
     setRenameLabelTarget(null);
     setRenameLabelValue('');
-  }, [renameLabelTarget, renameLabelValue]);
+  }, [renameLabelTarget, renameLabelValue, renameGlobalTag, appShowStatus]);
 
   const handleLogDeleteLabel = useCallback(async (label) => {
     if (!label) return;
@@ -948,8 +1119,42 @@ export default function ImageViewer({
     const confirmed = window.confirm(`Vill du verkligen ta bort etiketten '${labelName}' från ${count} bilder?`);
     if (!confirmed) return;
 
-    console.log(`Ska radera '${labelName}' från ${count} bilder`);
-  }, []);
+    if (typeof deleteGlobalTag === 'function') {
+      const result = await deleteGlobalTag(labelName);
+      if (result?.success) {
+        appShowStatus?.(`Raderade etiketten '${labelName}'.`, 'success');
+      } else {
+        appShowStatus?.(result?.error || 'Kunde inte radera etikett.', 'error');
+      }
+    }
+  }, [deleteGlobalTag, appShowStatus]);
+
+  const handleMoveLabelInHierarchy = useCallback(async (draggedNode, targetNode) => {
+    if (!draggedNode || !targetNode || !draggedNode.fullName || !targetNode.fullName) return;
+    if (draggedNode.fullName === targetNode.fullName) return;
+    if (targetNode.fullName.startsWith(`${draggedNode.fullName}/`)) return;
+
+    const leafName = String(draggedNode.fullName).split('/').pop();
+    const oldName = String(draggedNode.fullName);
+    const newName = `${targetNode.fullName}/${leafName}`;
+    const affectedCount = Number(draggedNode.count || 0);
+    const confirmed = window.confirm(`Vill du flytta etiketten och uppdatera ${affectedCount} bilder?`);
+    if (!confirmed) return;
+    if (typeof renameGlobalTag !== 'function') return;
+
+    const result = await renameGlobalTag(oldName, newName);
+    if (!result?.success) {
+      appShowStatus?.(result?.error || 'Kunde inte flytta etiketten.', 'error');
+      return;
+    }
+
+    appShowStatus?.(`Flyttade etiketten '${oldName}' till '${newName}'.`, 'success');
+    if (typeof appShowUndoToast === 'function') {
+      appShowUndoToast('Etikett flyttad. Ångra?', async () => {
+        await renameGlobalTag(newName, oldName);
+      });
+    }
+  }, [renameGlobalTag, appShowStatus, appShowUndoToast]);
 
   const filteredPeople = useMemo(() => {
     const query = personSearchTerm.trim().toLowerCase();
@@ -1080,7 +1285,7 @@ export default function ImageViewer({
           photographer: photographer || '',
           title: metaTitle,
           description: metaDescription,
-          date: imageMeta?.date || ''
+          date: mergeDateTime(metaDate, metaTime)
         }, true);
       } else if (typeof electron.writeExifKeywords === 'function') {
         await electron.writeExifKeywords(pathToWrite, mergedKeywords, true, photographer || '');
@@ -1145,6 +1350,7 @@ export default function ImageViewer({
         name: saveMode === 'copy' ? savedName : metaTitle,
         description: metaDescription,
         note: metaDescription,
+        date: mergeDateTime(metaDate, metaTime),
         tags: imageTags,
         photographer,
         creator: photographer
@@ -1187,6 +1393,7 @@ export default function ImageViewer({
       name: metaTitle,
       description: metaDescription,
       note: metaDescription,
+      date: mergeDateTime(metaDate, metaTime),
       tags: imageTags,
       photographer,
       creator: photographer
@@ -1376,6 +1583,10 @@ export default function ImageViewer({
                     onDragStart={(e) => e.preventDefault()}
                   />
 
+                  {showFaceBoxes && hoveredRegionIndex !== null && (
+                    <div className="absolute inset-0 bg-black/35 pointer-events-none" />
+                  )}
+
                   {showFaceBoxes &&
                     localRegions.map((region, idx) => (
                       <RegionComponent
@@ -1450,27 +1661,59 @@ export default function ImageViewer({
                     {/* Filnamn */}
                     <div>
                       <label className="block text-[10px] uppercase tracking-wide text-secondary mb-1">Filnamn</label>
-                      <div className="w-full bg-background border border-subtle rounded px-2 py-1.5 text-xs text-primary truncate">
-                        {fileInfo.fileName}
+                      <div className="w-full bg-background border border-subtle rounded px-2 py-1.5 text-xs text-primary truncate flex items-center justify-between gap-2">
+                        <span className="truncate">{fileInfo.fileName}</span>
+                        <button
+                          type="button"
+                          onClick={handleOpenItemInFolder}
+                          className="inline-flex items-center justify-center w-5 h-5 rounded border border-subtle text-primary hover:text-accent hover:border-strong shrink-0"
+                          title="Visa fil i utforskaren"
+                        >
+                          <FolderOpen size={11} />
+                        </button>
                       </div>
                     </div>
 
                     {/* Katalog/Sökväg */}
                     <div>
                       <label className="block text-[10px] uppercase tracking-wide text-secondary mb-1">Katalog</label>
-                      <div className="w-full bg-background border border-subtle rounded px-2 py-1.5 text-xs text-primary break-all max-h-12 overflow-y-auto">
+                      <button
+                        type="button"
+                        onClick={handleOpenDirectory}
+                        className="w-full text-left bg-background border border-subtle rounded px-2 py-1.5 text-xs text-primary break-all max-h-12 overflow-y-auto hover:border-strong"
+                        title="Öppna mapp"
+                      >
                         {fileInfo.dirPath}
-                      </div>
+                      </button>
                     </div>
 
                     {/* Datum */}
                     <div>
-                      <label className="block text-[10px] uppercase tracking-wide text-secondary mb-1">Datum</label>
-                      <input
-                        type="text"
-                        placeholder="YYYY-MM-DD"
-                        className="w-full bg-background border border-subtle rounded px-2 py-1.5 text-xs text-primary focus:outline-none focus:border-strong"
-                      />
+                      <label className="block text-[10px] uppercase tracking-wide text-secondary mb-1">Datum & Tid</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="text"
+                          value={metaDate}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            setMetaDate(value);
+                            saveMetaPatch({ date: mergeDateTime(value, metaTime) });
+                          }}
+                          placeholder="YYYY-MM-DD"
+                          className="w-full bg-background border border-subtle rounded px-2 py-1.5 text-xs text-primary focus:outline-none focus:border-strong"
+                        />
+                        <input
+                          type="text"
+                          value={metaTime}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            setMetaTime(value);
+                            saveMetaPatch({ date: mergeDateTime(metaDate, value) });
+                          }}
+                          placeholder="HH:MM:SS"
+                          className="w-full bg-background border border-subtle rounded px-2 py-1.5 text-xs text-primary focus:outline-none focus:border-strong"
+                        />
+                      </div>
                     </div>
 
                     {/* Fotograf / Ägare */}
@@ -1581,7 +1824,7 @@ export default function ImageViewer({
                           <li
                             key={`${tagRegion.personId || 'unknown'}_${tagRegion.index}`}
                             className={`pb-2 border-b border-subtle rounded transition-colors ${
-                              hoveredRegionIndex === tagRegion.index ? 'bg-success/20 border-success' : ''
+                              hoveredRegionIndex === tagRegion.index ? 'bg-success/30 border-success shadow-[0_0_0_1px_rgba(16,185,129,0.45)]' : ''
                             }`}
                             onMouseEnter={() => setHoveredRegionIndex(tagRegion.index)}
                             onMouseLeave={() => setHoveredRegionIndex(null)}
@@ -1655,21 +1898,27 @@ export default function ImageViewer({
                 {activeTab === 'metadata' && (
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-[10px] uppercase tracking-wide text-secondary mb-1">Titel</label>
+                      <label className="block text-[10px] uppercase tracking-wide text-secondary mb-1">Rubrik</label>
                       <input
                         type="text"
                         value={metaTitle}
-                        onChange={(e) => setMetaTitle(e.target.value)}
+                        onChange={(e) => {
+                          setMetaTitle(e.target.value);
+                          saveMetaPatch({ name: e.target.value });
+                        }}
                         className="w-full bg-background border border-subtle rounded px-2 py-1.5 text-xs text-primary focus:outline-none focus:border-strong"
-                        placeholder="Ange titel..."
+                        placeholder="Ange rubrik..."
                       />
                     </div>
 
                     <div>
-                      <label className="block text-[10px] uppercase tracking-wide text-secondary mb-1">Beskrivning / Rubrik</label>
+                      <label className="block text-[10px] uppercase tracking-wide text-secondary mb-1">Beskrivning</label>
                       <textarea
                         value={metaDescription}
-                        onChange={(e) => setMetaDescription(e.target.value)}
+                        onChange={(e) => {
+                          setMetaDescription(e.target.value);
+                          saveMetaPatch({ description: e.target.value, note: e.target.value });
+                        }}
                         className="w-full h-32 bg-background border border-subtle rounded px-2 py-1.5 text-xs text-primary resize-none focus:outline-none focus:border-strong"
                         placeholder="Skriv beskrivning..."
                       />
@@ -1727,13 +1976,26 @@ export default function ImageViewer({
                   <div className="space-y-3">
                     {/* Sökfält för etiketter */}
                     <div>
-                      <label className="block text-[10px] uppercase tracking-wide text-secondary mb-1">Sök etikett</label>
+                      <label className="block text-[10px] uppercase tracking-wide text-secondary mb-1">Sök/skapa etikett</label>
                       <div className="relative">
                         <Search size={13} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted" />
                         <input
                           type="text"
                           value={labelSearchTerm}
                           onChange={(e) => setLabelSearchTerm(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key !== 'Enter') return;
+                            e.preventDefault();
+                            const firstSuggestion = labelSuggestions[0];
+                            if (firstSuggestion?.isNew) {
+                              handleCreateAndApplyLabel(firstSuggestion.name);
+                              return;
+                            }
+                            if (firstSuggestion?.name) {
+                              toggleImageTag(firstSuggestion.name, true);
+                              setLabelSearchTerm('');
+                            }
+                          }}
                           placeholder="Namn på etikett..."
                           className="w-full bg-background border border-subtle rounded pl-7 pr-2 py-1.5 text-xs text-primary focus:outline-none focus:border-strong"
                         />
@@ -1753,26 +2015,39 @@ export default function ImageViewer({
 
                     {/* Lista över etiketter */}
                     <div className="space-y-1.5 max-h-64 overflow-y-auto custom-scrollbar border border-subtle rounded p-2 bg-surface-2">
-                      {filteredLabels.map(label => (
-                        <label
-                          key={label.id}
-                          className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-surface-3 cursor-pointer group"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={label.applied}
-                            onChange={(e) => {
-                              toggleImageTag(label.name, e.target.checked);
-                            }}
-                            className="w-4 h-4 rounded border-subtle accent-accent"
-                          />
-                          <span className="flex-1 text-xs text-primary">{label.name}</span>
-                          <span className="text-[10px] text-muted bg-subtle rounded px-1.5 py-0.5 group-hover:bg-background">
-                            {label.count}
-                          </span>
-                        </label>
+                      {labelSuggestions.map((label) => (
+                        label.isNew ? (
+                          <button
+                            key={label.id}
+                            type="button"
+                            onClick={() => handleCreateAndApplyLabel(label.name)}
+                            className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded hover:bg-surface-3 cursor-pointer group"
+                          >
+                            <Plus size={12} className="text-accent" />
+                            <span className="flex-1 text-xs text-primary">+ {label.name}</span>
+                            <span className="text-[10px] text-accent bg-accent-soft rounded px-1.5 py-0.5">Ny</span>
+                          </button>
+                        ) : (
+                          <label
+                            key={label.id}
+                            className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-surface-3 cursor-pointer group"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={label.applied}
+                              onChange={(e) => {
+                                toggleImageTag(label.name, e.target.checked);
+                              }}
+                              className="w-4 h-4 rounded border-subtle accent-accent"
+                            />
+                            <span className="flex-1 text-xs text-primary">{label.name}</span>
+                            <span className="text-[10px] text-muted bg-subtle rounded px-1.5 py-0.5 group-hover:bg-background">
+                              {label.count}
+                            </span>
+                          </label>
+                        )
                       ))}
-                      {filteredLabels.length === 0 && (
+                      {labelSuggestions.length === 0 && (
                         <p className="text-xs text-muted text-center py-4">Inga etiketter hittades</p>
                       )}
                     </div>
@@ -1780,7 +2055,7 @@ export default function ImageViewer({
                     {/* Redigera Etiketter knapp */}
                     <button
                       type="button"
-                      onClick={() => console.log('Öppna redigera etiketter')}
+                      onClick={() => setIsEditLabelsModalOpen(true)}
                       className="w-full py-2 px-3 rounded border border-subtle text-primary hover:text-accent hover:border-strong text-xs font-medium transition-colors"
                     >
                       ⚙️ Redigera Etiketter
@@ -1804,13 +2079,23 @@ export default function ImageViewer({
               <Button onClick={onNext} disabled={!hasNext} variant="secondary" size="sm">
                 ▶
               </Button>
-              <Button onClick={onClose} variant="danger" size="sm">
-                Stäng
+              <Button onClick={onClose} variant="danger" size="sm" title="Avbryt / Stäng">
+                <X size={14} />
               </Button>
-              <Button onClick={handleSaveClick} variant="primary" size="sm" disabled={isSaving}>
-                <Save size={14} />
-                Spara
-              </Button>
+              <div className="relative">
+                {hasUnsavedChanges && (
+                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-warning animate-pulse" />
+                )}
+                <Button
+                  onClick={handleSaveClick}
+                  variant="primary"
+                  size="sm"
+                  disabled={isSaving}
+                  title={hasUnsavedChanges ? 'Spara osparade ändringar' : 'Spara'}
+                >
+                  <Save size={14} className={hasUnsavedChanges ? 'animate-pulse text-warning' : ''} />
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -1858,6 +2143,7 @@ export default function ImageViewer({
                         depth={0}
                         onRename={handleOpenRenameLabel}
                         onDelete={handleLogDeleteLabel}
+                        onMoveLabel={handleMoveLabelInHierarchy}
                       />
                     ))
                   )}
@@ -1901,12 +2187,37 @@ export default function ImageViewer({
   );
 }
 
-function LabelTreeRow({ node, depth, onRename, onDelete }) {
+function LabelTreeRow({ node, depth, onRename, onDelete, onMoveLabel }) {
   return (
     <div className="space-y-1">
       <div
         className="flex items-center gap-2 rounded border border-subtle bg-background px-2 py-1.5"
         style={{ marginLeft: `${depth * 14}px` }}
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.setData('application/json', JSON.stringify({
+            id: node.id,
+            name: node.name,
+            fullName: node.fullName,
+            count: node.count
+          }));
+          e.dataTransfer.effectAllowed = 'move';
+        }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          try {
+            const raw = e.dataTransfer.getData('application/json');
+            if (!raw) return;
+            const dragged = JSON.parse(raw);
+            onMoveLabel?.(dragged, node);
+          } catch (error) {
+            console.warn('[ImageViewer] label drop failed', error);
+          }
+        }}
       >
         <div className="flex-1 min-w-0">
           <div className="text-sm text-primary truncate">{node.name}</div>
@@ -1922,7 +2233,14 @@ function LabelTreeRow({ node, depth, onRename, onDelete }) {
       {Array.isArray(node.children) && node.children.length > 0 && (
         <div className="space-y-1">
           {node.children.map((child) => (
-            <LabelTreeRow key={child.id} node={child} depth={depth + 1} onRename={onRename} onDelete={onDelete} />
+            <LabelTreeRow
+              key={child.id}
+              node={child}
+              depth={depth + 1}
+              onRename={onRename}
+              onDelete={onDelete}
+              onMoveLabel={onMoveLabel}
+            />
           ))}
         </div>
       )}

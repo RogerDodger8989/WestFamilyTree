@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   readDir: (dirPath) => ipcRenderer.invoke('read-dir', dirPath),
   openFolder: (folderPath) => ipcRenderer.send('open-folder', folderPath),
+  showItemInFolder: (filePath) => ipcRenderer.send('show-item-in-folder', filePath),
   openFileDialog: (options) => ipcRenderer.invoke('open-file-dialog', options),
   openDatabaseDialog: () => ipcRenderer.invoke('open-database-dialog'),
   openDatabase: (filePath) => ipcRenderer.invoke('open-database', filePath),

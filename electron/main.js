@@ -5,7 +5,7 @@ console.log('IPC-handlers for last-opened-file are active!');
 // Inställnings-store för senaste fil
 const { loadSettings, saveSettings } = require('./settingsStore');
 
-const { ipcMain, app, BrowserWindow, Menu, protocol } = require('electron');
+const { ipcMain, app, BrowserWindow, Menu, protocol, shell } = require('electron');
 // IPC handler for saving the entire database (people, sources, places, meta)
 ipcMain.handle('save-database', async (event, fileHandle, data) => {
   // DEBUG: Logga vad som sparas (allra först)
@@ -838,6 +838,11 @@ const openFolder = require('./open-folder');
 // IPC för att öppna mapp från renderer
 ipcMain.on('open-folder', (event, folderPath) => {
   openFolder(folderPath);
+});
+
+ipcMain.on('show-item-in-folder', (event, filePath) => {
+  if (!filePath) return;
+  shell.showItemInFolder(filePath);
 });
 
 function createWindow() {
