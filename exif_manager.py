@@ -496,106 +496,180 @@ class ExifManager:
                         safe[ifd_name][str(tag)] = "<binary>"
         return safe
     
+    def _normalize_metadata_date(self, value) -> str:
+        """Normaliserar datum till ExifTool-format."""
+        raw = str(value or '').strip()
+        if not raw:
+            return ''
+
+        if re.match(r'^\d{4}-\d{2}-\d{2}$', raw):
+            return raw.replace('-', ':') + ' 12:00:00'
+
+        match = re.match(r'^(\d{4})-(\d{2})-(\d{2})(.*)$', raw)
+        if match:
+            date_part = f'{match.group(1)}:{match.group(2)}:{match.group(3)}'
+            tail = (match.group(4) or '').strip()
+            if not tail:
+                return f'{date_part} 12:00:00'
+            tail = tail.lstrip('Tt ').strip()
+            return f'{date_part} {tail}'.strip()
+
+        return raw
+
     def write_keywords(self, image_path: str, keywords: List[str], backup: bool = True, photographer: str = "") -> bool:
+        """Bakåtkompatibel wrapper för keywords/photographer."""
+        return self.write_metadata(
+            image_path,
+            {
+                'keywords': keywords,
+                'photographer': photographer,
+                'title': '',
+                'description': '',
+                'date': ''
+            },
+            backup
+        )
+
+    def write_metadata(self, image_path: str, metadata: Dict, backup: bool = True) -> bool:
         """
-        Skriver keywords till bild via exiftool eller piexif fallback
-        
-        Args:
-            image_path: Sökväg till bildfil
-            keywords: Lista med keywords
-            backup: Om backup ska skapas (rekommenderat)
+        Skriver metadata till bild via exiftool eller piexif fallback.
+
+        Supported keys:
+            keywords, photographer, title, description, date
         """
         try:
             if backup:
                 self._create_backup(image_path)
-            
-            # Försök med exiftool först (bättre XMP support)
+
             if self._has_exiftool():
-                return self._write_keywords_exiftool(image_path, keywords, photographer)
-            else:
-                print(f"exiftool not found, using piexif fallback...")
-                return self._write_keywords_piexif(image_path, keywords, photographer)
-            
+                return self._write_metadata_exiftool(image_path, metadata)
+
+            print('exiftool not found, using piexif fallback...')
+            return self._write_metadata_piexif(image_path, metadata)
+
         except Exception as e:
-            print(f"Error writing keywords to {image_path}: {e}")
+            print(f'Error writing metadata to {image_path}: {e}')
             return False
-    
-    def _write_keywords_exiftool(self, image_path: str, keywords: List[str], photographer: str = "") -> bool:
-        """Write keywords using exiftool (better XMP support)"""
+
+    def _write_metadata_exiftool(self, image_path: str, metadata: Dict) -> bool:
+        """Write metadata using exiftool (better XMP support)."""
         try:
+            metadata = metadata or {}
+            keywords_present = isinstance(metadata, dict) and 'keywords' in metadata
+            keywords = metadata.get('keywords', []) if isinstance(metadata, dict) else []
+            if isinstance(keywords, str):
+                keywords = [part.strip() for part in keywords.split(',')]
+
             normalized_keywords = []
             seen = set()
             for keyword in keywords or []:
-                value = str(keyword).strip()
+                value = str(keyword).strip() if keyword else ''
                 if value and value not in seen:
                     seen.add(value)
                     normalized_keywords.append(value)
 
+            photographer_value = str((metadata or {}).get('photographer', '')).strip()
+            title_value = str((metadata or {}).get('title', '')).strip()
+            description_value = str((metadata or {}).get('description', '')).strip()
+            date_value = self._normalize_metadata_date((metadata or {}).get('date', ''))
+
             cmd = ['exiftool', '-overwrite_original']
 
-            # Rensa befintliga fält innan skrivning
-            cmd.extend([
-                '-XMP:Subject=',
-                '-IPTC:Keywords=',
-                '-XMP-lr:HierarchicalSubject='
-            ])
+            if normalized_keywords:
+                if keywords_present:
+                    cmd.extend([
+                    '-XMP-dc:Subject=',
+                    '-IPTC:Keywords=',
+                    '-XMP-lr:HierarchicalSubject='
+                ])
+                for keyword in normalized_keywords:
+                    cmd.append(f'-XMP-dc:Subject+={keyword}')
+                    cmd.append(f'-IPTC:Keywords+={keyword}')
+                    cmd.append(f'-XMP-lr:HierarchicalSubject+={keyword}')
 
-            for keyword in normalized_keywords:
-                cmd.append(f'-XMP:Subject+={keyword}')
-                cmd.append(f'-IPTC:Keywords+={keyword}')
-                cmd.append(f'-XMP-lr:HierarchicalSubject+={keyword}')
-
-            photographer_value = str(photographer or '').strip()
             if photographer_value:
                 cmd.extend([
-                    '-XMP:Creator=',
+                    '-XMP-dc:Creator=',
                     '-IPTC:By-line=',
-                    f'-XMP:Creator={photographer_value}',
+                    f'-XMP-dc:Creator={photographer_value}',
                     f'-IPTC:By-line={photographer_value}'
                 ])
 
+            if title_value:
+                cmd.extend([
+                    '-XMP-dc:Title=',
+                    f'-XMP-dc:Title={title_value}'
+                ])
+
+            if description_value:
+                cmd.extend([
+                    '-XMP-dc:Description=',
+                    '-IPTC:Caption-Abstract=',
+                    f'-XMP-dc:Description={description_value}',
+                    f'-IPTC:Caption-Abstract={description_value}'
+                ])
+
+            if date_value:
+                cmd.extend([
+                    '-EXIF:DateTimeOriginal=',
+                    '-XMP-photoshop:DateCreated=',
+                    f'-EXIF:DateTimeOriginal={date_value}',
+                    f'-XMP-photoshop:DateCreated={date_value}'
+                ])
+
             cmd.append(image_path)
-            
+
             result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.returncode != 0:
+                print(f'exiftool metadata write failed: {result.stderr or result.stdout}')
             return result.returncode == 0
-            
+
         except Exception as e:
-            print(f"exiftool keywords write failed: {e}")
+            print(f'exiftool metadata write failed: {e}')
             return False
-    
-    def _write_keywords_piexif(self, image_path: str, keywords: List[str], photographer: str = "") -> bool:
-        """Write keywords using piexif (fallback)"""
+
+    def _write_metadata_piexif(self, image_path: str, metadata: Dict) -> bool:
+        """Write metadata using piexif (fallback)."""
         try:
-            # Läs befintlig EXIF
             exif_dict = piexif.load(image_path)
-            
-            # IPTC är bäst för keywords, men piexif har begränsat IPTC-stöd
-            # Vi använder UserComment som fallback
-            keywords_str = ", ".join(keywords)
-            
-            # Lägg till i UserComment (XMP-style)
-            xmp_keywords = '<dc:subject><rdf:Bag>' + ''.join([f'<rdf:li>{k}</rdf:li>' for k in keywords]) + '</rdf:Bag></dc:subject>'
-            
-            if "Exif" not in exif_dict:
-                exif_dict["Exif"] = {}
 
-            if "0th" not in exif_dict:
-                exif_dict["0th"] = {}
-            
-            exif_dict["Exif"][piexif.ExifIFD.UserComment] = xmp_keywords.encode('utf-8')
+            metadata = metadata or {}
+            keywords_present = isinstance(metadata, dict) and 'keywords' in metadata
+            keywords = metadata.get('keywords', []) if isinstance(metadata, dict) else []
+            if isinstance(keywords, str):
+                keywords = [part.strip() for part in keywords.split(',') if part.strip()]
+            normalized_keywords = [str(keyword).strip() for keyword in keywords if str(keyword).strip()]
 
-            photographer_value = str(photographer or '').strip()
+            title_value = str((metadata or {}).get('title', '')).strip()
+            description_value = str((metadata or {}).get('description', '')).strip()
+            photographer_value = str((metadata or {}).get('photographer', '')).strip()
+            date_value = self._normalize_metadata_date((metadata or {}).get('date', ''))
+
+            if 'Exif' not in exif_dict:
+                exif_dict['Exif'] = {}
+            if '0th' not in exif_dict:
+                exif_dict['0th'] = {}
+
+            if normalized_keywords:
+                if keywords_present:
+                    xmp_keywords = '<dc:subject><rdf:Bag>' + ''.join([f'<rdf:li>{k}</rdf:li>' for k in normalized_keywords]) + '</rdf:Bag></dc:subject>'
+                exif_dict['Exif'][piexif.ExifIFD.UserComment] = xmp_keywords.encode('utf-8')
+
             if photographer_value:
-                exif_dict["0th"][piexif.ImageIFD.Artist] = photographer_value.encode('utf-8')
-            
-            # Skriv tillbaka
+                exif_dict['0th'][piexif.ImageIFD.Artist] = photographer_value.encode('utf-8')
+            if title_value:
+                exif_dict['0th'][piexif.ImageIFD.DocumentName] = title_value.encode('utf-8')
+            if description_value:
+                exif_dict['0th'][piexif.ImageIFD.ImageDescription] = description_value.encode('utf-8')
+            if date_value:
+                exif_dict['Exif'][piexif.ExifIFD.DateTimeOriginal] = date_value.encode('utf-8')
+
             exif_bytes = piexif.dump(exif_dict)
             piexif.insert(exif_bytes, image_path)
-            
             return True
-            
+
         except Exception as e:
-            print(f"piexif keywords write failed: {e}")
+            print(f'piexif metadata write failed: {e}')
             return False
     
     def write_face_tags(self, image_path: str, face_tags: List[Dict], backup: bool = True) -> bool:

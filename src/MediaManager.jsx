@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ImageViewer from './ImageViewer.jsx';
 import LinkPersonModal from './LinkPersonModal.jsx';
 import TrashModal from './TrashModal.jsx';
@@ -1161,6 +1161,45 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
     return result;
   })() : null;
 
+  const selectedMediaItems = useMemo(() => {
+    if (!(selectedIds instanceof Set) || selectedIds.size === 0) return [];
+    return mediaItems.filter((item) => selectedIds.has(item.id));
+  }, [mediaItems, selectedIds]);
+
+  const isMultiEdit = selectedMediaItems.length > 1;
+
+  const visibleTagEntries = useMemo(() => {
+    if (isMultiEdit) {
+      const counter = new Map();
+      selectedMediaItems.forEach((item) => {
+        const uniqueTags = new Set(
+          (Array.isArray(item?.tags) ? item.tags : [])
+            .map((tag) => String(tag || '').trim())
+            .filter(Boolean)
+        );
+
+        uniqueTags.forEach((tag) => {
+          counter.set(tag, (counter.get(tag) || 0) + 1);
+        });
+      });
+
+      return Array.from(counter.entries())
+        .map(([name, count]) => ({
+          name,
+          count,
+          partial: count < selectedMediaItems.length
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name, 'sv'));
+    }
+
+    const singleTags = Array.isArray(safeDisplayImage?.tags) ? safeDisplayImage.tags : [];
+    return singleTags.map((tag) => ({
+      name: String(tag || '').trim(),
+      count: 1,
+      partial: false
+    })).filter((entry) => entry.name);
+  }, [isMultiEdit, safeDisplayImage?.tags, selectedMediaItems]);
+
   // Uppdatera transcription och description när bilden ändras
   useEffect(() => {
     if (safeDisplayImage) {
@@ -1549,15 +1588,35 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
   };
 
   const handleSelectAll = () => {
-    if (selectedIds.size === sortedMedia.length) { setSelectedIds(new Set()); setIsSelectMode(false); }
-    else { setSelectedIds(new Set(sortedMedia.map(m => m.id))); setIsSelectMode(true); }
+    setSelectedIds(new Set(sortedMedia.map(m => m.id)));
+    setIsSelectMode(sortedMedia.length > 0);
   };
 
-  const handleToggleSelect = (itemId) => {
+  const handleToggleSelect = (itemId, e) => {
     const newSelected = new Set(selectedIds);
-    if (newSelected.has(itemId)) newSelected.delete(itemId);
-    else newSelected.add(itemId);
+
+    if (e?.shiftKey && lastSelectedId) {
+      const ids = sortedMedia.map((m) => m.id);
+      const lastIdx = ids.indexOf(lastSelectedId);
+      const currIdx = ids.indexOf(itemId);
+      if (lastIdx !== -1 && currIdx !== -1) {
+        const start = Math.min(lastIdx, currIdx);
+        const end = Math.max(lastIdx, currIdx);
+        ids.slice(start, end + 1).forEach((id) => newSelected.add(id));
+      } else if (newSelected.has(itemId)) {
+        newSelected.delete(itemId);
+      } else {
+        newSelected.add(itemId);
+      }
+    } else if (newSelected.has(itemId)) {
+      newSelected.delete(itemId);
+    } else {
+      newSelected.add(itemId);
+      setLastSelectedId(itemId);
+    }
+
     setSelectedIds(newSelected);
+    setIsSelectMode(newSelected.size > 0);
   };
 
   const handleBatchDelete = async () => {
@@ -1686,20 +1745,41 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
       updateMedia(mediaItems.map(m => ids.includes(m.id) ? { ...m, libraryId: targetLibId } : m));
   };
 
-  const handleBatchEditSave = ({ date, tags, description, transcription }) => {
+    const handleBatchEditSave = async ({ date, tags, description, transcription }) => {
       const tagArray = tags ? tags.split(',').map(t => t.trim()).filter(t => t) : [];
       const selectedCount = selectedIds.size;
+      const selectedMediaItems = mediaItems.filter(m => selectedIds.has(m.id));
+      const updatedMediaItems = selectedMediaItems.map((item) => {
+        const updated = { ...item };
+        if (date) updated.date = date;
+        if (tagArray.length > 0) updated.tags = [...new Set([...(item.tags || []), ...tagArray])];
+        if (description !== undefined && description !== '') updated.description = description;
+        if (transcription !== undefined && transcription !== '') updated.transcription = transcription;
+        return updated;
+      });
+
       updateMedia(mediaItems.map(m => {
-          if (selectedIds.has(m.id)) {
-              const updated = { ...m };
-              if (date) updated.date = date;
-              if (tagArray.length > 0) updated.tags = [...new Set([...(m.tags || []), ...tagArray])];
-              if (description !== undefined && description !== '') updated.description = description;
-              if (transcription !== undefined && transcription !== '') updated.transcription = transcription;
-              return updated;
-          }
-          return m;
+        const updatedItem = updatedMediaItems.find(item => item.id === m.id);
+        return updatedItem || m;
       }));
+
+      if (window.electronAPI && typeof window.electronAPI.writeExifMetadata === 'function') {
+        await Promise.all(updatedMediaItems.map(async (item) => {
+          const filePath = item.filePath || item.path || '';
+          if (!filePath) return null;
+          try {
+            return await window.electronAPI.writeExifMetadata(filePath, {
+              keywords: Array.isArray(item.tags) ? item.tags : [],
+              date: item.date || '',
+              description: item.description || ''
+            }, true);
+          } catch (error) {
+            console.warn('[MediaManager] Kunde inte skriva EXIF för', filePath, error);
+            return null;
+          }
+        }));
+      }
+
       setIsBatchEditOpen(false);
       setSelectedIds(new Set());
       setIsSelectMode(false);
@@ -2402,7 +2482,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
       {/* MITTEN: Galleri */}
       <div className="flex-1 flex flex-col bg-background min-w-0 relative">
       
-      <div className="h-14 border-b border-subtle flex items-center justify-between px-4 bg-surface-2">
+      <div className="min-h-14 border-b border-subtle flex flex-wrap items-center justify-between gap-2 px-4 py-2 bg-surface-2">
           <div className="flex items-center gap-2">
             <button
               onClick={async () => {
@@ -2493,18 +2573,25 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                   }
                 }
               }}
-              className="px-3 py-1.5 bg-surface-2 hover:bg-slate-600 text-primary text-xs rounded transition-colors flex items-center gap-1.5"
+              className="px-3 py-1.5 bg-surface-2 border border-subtle hover:bg-surface text-primary text-xs rounded transition-colors flex items-center gap-1.5"
               title="Skanna media-mappen för nya bilder"
             >
               <RefreshCw size={14} /> Uppdatera
             </button>
           </div>
           <div className="flex gap-2 items-center">
-              <button onClick={() => { setIsSelectMode(!isSelectMode); setSelectedIds(new Set()); setSelectedImage(null); }} className={`px-3 py-1.5 rounded text-sm border transition-colors ${isSelectMode ? 'bg-accent border-accent text-on-accent' : 'border-subtle text-secondary hover:border-strong hover:text-primary'}`}>
-                  {isSelectMode ? 'Klar' : 'Välj'}
+              <button
+                onClick={() => {
+                  setSelectedIds(new Set());
+                  setSelectedImage(null);
+                  setIsSelectMode(false);
+                }}
+                className="px-3 py-1.5 rounded text-sm border border-subtle bg-surface-2 hover:bg-surface text-primary whitespace-nowrap transition-colors"
+              >
+                  Avmarkera alla
               </button>
-              <button onClick={handleSelectAll} className="text-xs text-muted hover:text-primary px-2">
-                  {selectedIds.size === sortedMedia.length ? 'Avmarkera alla' : 'Markera alla'}
+              <button onClick={handleSelectAll} className="px-3 py-1.5 rounded text-sm border border-subtle bg-surface-2 hover:bg-surface text-primary whitespace-nowrap transition-colors">
+                  Markera alla
               </button>
           </div>
           <div className="flex gap-2 items-center flex-wrap">
@@ -2585,9 +2672,26 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
 
       <div 
           className="flex-1 overflow-y-auto p-4 custom-scrollbar relative"
-          onDragOver={(e) => {e.preventDefault(); setIsDraggingFile(true);}}
+          onDragOver={(e) => {
+            e.preventDefault();
+            const internalData = e.dataTransfer.getData('application/json');
+            if (!internalData) setIsDraggingFile(true);
+          }}
           onDragLeave={(e) => {e.preventDefault(); setIsDraggingFile(false);}}
-          onDrop={(e) => {e.preventDefault(); setIsDraggingFile(false); if(e.dataTransfer.files.length > 0) handleFiles(e.dataTransfer.files);}}
+          onDrop={(e) => {
+            e.preventDefault();
+            setIsDraggingFile(false);
+
+            const internalData = e.dataTransfer.getData('application/json');
+            if (internalData) {
+              // Intern drag används endast för att flytta till bibliotek i sidopanelen.
+              return;
+            }
+
+            if (e.dataTransfer.files.length > 0) {
+              handleFiles(e.dataTransfer.files);
+            }
+          }}
       >
           {isDraggingFile && (
               <div className="absolute inset-0 z-50 flex items-center justify-center bg-blue-900/20 backdrop-blur-sm border-2 border-accent border-dashed m-4 rounded-xl pointer-events-none">
@@ -2609,7 +2713,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                   onContextMenu={(e) => handleContextMenu(e, item.id)}
                   draggable
                   onDragStart={(e) => handleItemDragStart(e, item.id)}
-                  className={`group relative aspect-square rounded-lg border-2 overflow-hidden cursor-pointer transition-all ${(onSelectMedia && selectedMediaIds.includes(item.id)) ? 'border-green-500 ring-2 ring-green-500/50' : selectedIds.has(item.id) ? 'border-accent ring-2 ring-blue-500/30' : (selectedImage?.id === item.id ? 'border-accent' : 'border-subtle hover:border-strong')}`}
+                    className={`group relative aspect-square rounded-lg border-2 overflow-hidden cursor-pointer transition-all ${(onSelectMedia && selectedMediaIds.includes(item.id)) ? 'border-green-500 ring-2 ring-green-500/50' : selectedIds.has(item.id) ? 'border-accent bg-accent-soft ring-2 ring-accent/50' : (selectedImage?.id === item.id ? 'border-accent' : 'border-subtle hover:border-strong')}`}
               >
                   <img src={item.url} alt={item.name} className="w-full h-full object-cover" onContextMenu={(e) => handleContextMenu(e, item.id)} /> 
                   {(onSelectMedia && selectedMediaIds.includes(item.id)) && (
@@ -2619,14 +2723,18 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                           </div>
                       </div>
                   )}
-                  {(isSelectMode || selectedIds.has(item.id)) && !onSelectMedia && (
-                      <div className="absolute top-2 right-2 z-20" onClick={(e) => { e.stopPropagation(); handleToggleSelect(item.id); }}>
-                          {selectedIds.has(item.id) 
-                              ? <div className="bg-accent rounded text-on-accent shadow-lg"><CheckSquare size={24} fill="currentColor" className="text-on-accent" /></div>
-                              : <div className="bg-black/40 rounded hover:bg-black/70 shadow-lg"><Square size={24} className="text-on-accent"/></div>
-                          }
-                      </div>
-                  )}
+                    {!onSelectMedia && (
+                      <button
+                      type="button"
+                      className="absolute top-2 right-2 z-20 rounded bg-background/95 border border-strong p-0.5 shadow-lg"
+                      onClick={(e) => { e.stopPropagation(); handleToggleSelect(item.id, e); }}
+                      title={selectedIds.has(item.id) ? 'Avmarkera' : 'Markera'}
+                      >
+                      {selectedIds.has(item.id)
+                        ? <CheckSquare size={22} className="text-accent" />
+                        : <Square size={22} className="text-muted" />}
+                      </button>
+                    )}
                   {item.connections.people.length === 0 && item.connections.places.length === 0 && item.connections.sources.length === 0 && (
                       <div className="absolute top-2 left-2 bg-yellow-600 text-on-accent p-1 rounded-full shadow-md" title="Okopplad">
                       <AlertCircle size={10}/>
@@ -2647,10 +2755,17 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                     onContextMenu={(e) => handleContextMenu(e, item.id)}
                       draggable 
                       onDragStart={(e) => handleItemDragStart(e, item.id)} 
-                      className={`flex items-center gap-4 p-2 rounded border cursor-pointer ${selectedIds.has(item.id) ? 'bg-accent-soft border-accent' : (selectedImage?.id === item.id ? 'bg-surface border-accent' : 'bg-surface-2 border-subtle hover:bg-surface')}`}>
-                      <div className="w-8 flex justify-center">
-                          {(isSelectMode || selectedIds.has(item.id)) && (selectedIds.has(item.id) ? <CheckSquare size={18} className="text-blue-500"/> : <Square size={18} className="text-muted"/>)}
-                      </div>
+                      className={`flex items-center gap-4 p-2 rounded border cursor-pointer ${selectedIds.has(item.id) ? 'bg-accent-soft border-accent ring-1 ring-accent/40' : (selectedImage?.id === item.id ? 'bg-surface border-accent' : 'bg-surface-2 border-subtle hover:bg-surface')}`}>
+                      <button
+                        type="button"
+                        className="w-8 flex justify-center"
+                        onClick={(e) => { e.stopPropagation(); handleToggleSelect(item.id, e); }}
+                        title={selectedIds.has(item.id) ? 'Avmarkera' : 'Markera'}
+                      >
+                        {selectedIds.has(item.id)
+                          ? <CheckSquare size={18} className="text-accent"/>
+                          : <Square size={18} className="text-muted"/>}
+                      </button>
                       <div className="w-10 h-10 bg-background rounded overflow-hidden shrink-0 border border-subtle">
                           <img src={item.url} className="w-full h-full object-cover pointer-events-none"/>
                       </div>
@@ -2666,16 +2781,16 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
           )}
       </div>
 
-      {selectedIds.size > 0 && (
-          <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-surface border border-subtle text-on-accent px-2 py-1.5 rounded-full shadow-2xl flex gap-2 items-center z-50">
+        {selectedIds.size > 0 && (
+          <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-background border border-strong text-primary px-2 py-1.5 rounded-full shadow-2xl flex gap-2 items-center z-50">
               <span className="text-xs font-bold text-secondary px-2 border-r border-subtle">{selectedIds.size} valda</span>
-              <button onClick={() => setIsBatchEditOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs hover:bg-surface-2 rounded-full transition-colors">
+            <button onClick={() => setIsBatchEditOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-primary hover:bg-surface rounded-full transition-colors">
                   <Edit2 size={14}/> Redigera
               </button>
-              <button onClick={() => setIsMoveModalOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs hover:bg-surface-2 rounded-full transition-colors">
+            <button onClick={() => setIsMoveModalOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-primary hover:bg-surface rounded-full transition-colors">
                   <MoveRight size={14}/> Flytta
               </button>
-              <button onClick={handleBatchDelete} className="flex items-center gap-1.5 px-3 py-1.5 text-xs hover:bg-red-900/50 text-red-400 hover:text-red-300 rounded-full transition-colors">
+            <button onClick={handleBatchDelete} className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-danger hover:bg-danger-soft rounded-full transition-colors">
                   <Trash2 size={14}/> Radera
               </button>
           </div>
@@ -3227,20 +3342,26 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                   <label className="text-[10px] font-bold text-muted uppercase mb-2 block">Taggar</label>
                   
                   {/* Visade taggar */}
-                  {Array.isArray(safeDisplayImage?.tags) && safeDisplayImage.tags.length > 0 && (
+                  {visibleTagEntries.length > 0 && (
                       <div className="flex flex-wrap gap-2 mb-2">
-                          {safeDisplayImage.tags.map((tag, idx) => (
+                      {visibleTagEntries.map((entry, idx) => (
                               <span 
                                   key={idx} 
                                   className="bg-green-600/20 border border-green-500/50 text-green-300 text-xs px-2 py-1 rounded-full flex items-center gap-1.5 group hover:bg-green-600/30 transition-colors"
+                          title={isMultiEdit ? `${entry.count}/${selectedMediaItems.length} markerade bilder har denna tagg` : entry.name}
                               >
-                                  <span>{tag}</span>
+                          <span>{entry.partial ? `*${entry.name}` : entry.name}</span>
                                   <button 
                                       onClick={(e) => {
                                           e.stopPropagation();
                                           updateMedia(prev => prev.map(item => {
-                                              if (item.id !== safeDisplayImage?.id) return item;
-                                              const newTags = Array.isArray(item.tags) ? item.tags.filter(t => t !== tag) : [];
+                                const shouldUpdate = isMultiEdit
+                                ? selectedIds.has(item.id)
+                                : item.id === safeDisplayImage?.id;
+                                if (!shouldUpdate) return item;
+                                const newTags = Array.isArray(item.tags)
+                                ? item.tags.filter(t => String(t) !== entry.name)
+                                : [];
                                               return { ...item, tags: newTags };
                                           }));
                                       }}
@@ -3316,6 +3437,9 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                   </div>
                   
                   <p className="text-[10px] text-muted">Tryck Enter eller "," för att lägga till tagg</p>
+                  {isMultiEdit && (
+                    <p className="text-[10px] text-muted">* före tagg betyder att den bara finns på vissa av de markerade bilderna.</p>
+                  )}
               </div>
 
               {/* EXIF & METADATA SEKTION */}
@@ -3745,7 +3869,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
       {/* Context Menu */}
       {contextMenuOpen && (
         <div 
-          className="fixed bg-surface border border-subtle rounded-lg shadow-2xl py-1 z-[10000]"
+          className="fixed bg-background border border-strong rounded-lg shadow-2xl py-1 z-[10000]"
           style={{ 
             left: `${contextMenuPos.x}px`, 
             top: `${contextMenuPos.y}px` 
@@ -3753,28 +3877,28 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
         >
           <button
             onClick={() => performAction('tag')}
-            className="w-full px-4 py-2 text-left text-sm text-on-accent hover:bg-surface-2 flex items-center gap-2"
+            className="w-full px-4 py-2 text-left text-sm text-primary hover:bg-surface flex items-center gap-2"
           >
             <ScanFace size={16} />
             Tagga
           </button>
           <button
             onClick={() => performAction('edit')}
-            className="w-full px-4 py-2 text-left text-sm text-on-accent hover:bg-surface-2 flex items-center gap-2"
+            className="w-full px-4 py-2 text-left text-sm text-primary hover:bg-surface flex items-center gap-2"
           >
             <Edit2 size={16} />
             Redigera bild
           </button>
           <button
             onClick={() => performAction('rotate')}
-            className="w-full px-4 py-2 text-left text-sm text-on-accent hover:bg-surface-2 flex items-center gap-2"
+            className="w-full px-4 py-2 text-left text-sm text-primary hover:bg-surface flex items-center gap-2"
           >
             <RotateCw size={16} />
             Rotera
           </button>
           <button
             onClick={() => performAction('delete')}
-            className="w-full px-4 py-2 text-left text-sm text-on-accent hover:bg-surface-2 flex items-center gap-2"
+            className="w-full px-4 py-2 text-left text-sm text-danger hover:bg-danger-soft flex items-center gap-2"
           >
             <Trash2 size={16} />
             Ta bort

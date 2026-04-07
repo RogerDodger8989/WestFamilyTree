@@ -796,14 +796,18 @@ export default function ImageViewer({
     return { fileName, dirPath };
   }, [resolvedFilePath]);
 
-  // Filtrera etiketter baserat på aktuell bilds taggar
+  const tagStats = useMemo(() => {
+    if (typeof appContext?.getTagStats !== 'function') return [];
+    return appContext.getTagStats() || [];
+  }, [appContext?.getTagStats]);
+
+  // Filtrera etiketter baserat på aktuell databasstatistik och bildens taggar
   const filteredLabels = useMemo(() => {
-    const baseTags = Array.isArray(imageTags) ? imageTags : [];
-    let items = baseTags.map((tag, index) => ({
-      id: `${tag}_${index}`,
-      name: tag,
-      count: 1,
-      applied: true
+    let items = (Array.isArray(tagStats) ? tagStats : []).map((stat) => ({
+      id: String(stat?.id || stat?.name || ''),
+      name: String(stat?.name || '').trim(),
+      count: Number(stat?.count || 0),
+      applied: Array.isArray(imageTags) && imageTags.includes(String(stat?.name || '').trim())
     }));
 
     if (!showAllLabels) {
@@ -814,7 +818,7 @@ export default function ImageViewer({
       items = items.filter((label) => label.name.toLowerCase().includes(query));
     }
     return items;
-  }, [imageTags, showAllLabels, labelSearchTerm]);
+  }, [tagStats, imageTags, showAllLabels, labelSearchTerm]);
 
   const cameraInfo = useMemo(() => {
     const camera = exifData?.camera || {};
@@ -1073,7 +1077,10 @@ export default function ImageViewer({
       if (typeof electron.writeExifMetadata === 'function') {
         await electron.writeExifMetadata(pathToWrite, {
           keywords: mergedKeywords,
-          photographer: photographer || ''
+          photographer: photographer || '',
+          title: metaTitle,
+          description: metaDescription,
+          date: imageMeta?.date || ''
         }, true);
       } else if (typeof electron.writeExifKeywords === 'function') {
         await electron.writeExifKeywords(pathToWrite, mergedKeywords, true, photographer || '');

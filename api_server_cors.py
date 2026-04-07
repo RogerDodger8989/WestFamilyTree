@@ -613,24 +613,37 @@ def write_keywords():
 @app.route('/exif/write_metadata', methods=['POST'])
 def write_metadata():
     """
-    Skriv metadata till en bild (keywords + photographer)
+    Skriv metadata till en bild.
     Body: {
         "image_path": "/path/to/image.jpg",
-        "keywords": ["keyword1", "keyword2"],
-        "photographer": "Namn",
+        "metadata": {
+            "keywords": ["keyword1", "keyword2"],
+            "photographer": "Namn",
+            "title": "Titel",
+            "description": "Beskrivning",
+            "date": "2024-01-31"
+        },
         "backup": true
     }
     """
     data = request.get_json()
     image_path = data.get('image_path')
-    keywords = data.get('keywords', [])
-    photographer = data.get('photographer', '')
+    metadata = data.get('metadata')
     backup = data.get('backup', True)
 
     if not image_path:
         return jsonify({'error': 'image_path required'}), 400
 
-    success = exif_manager.write_keywords(image_path, keywords, backup, photographer)
+    if not isinstance(metadata, dict):
+        metadata = {
+            'keywords': data.get('keywords', []),
+            'photographer': data.get('photographer', ''),
+            'title': data.get('title', ''),
+            'description': data.get('description', ''),
+            'date': data.get('date', '')
+        }
+
+    success = exif_manager.write_metadata(image_path, metadata, backup)
     return jsonify({'success': success})
 
 

@@ -1683,7 +1683,7 @@ export default function MediaSelector({
       {/* Context Menu */}
       {contextMenu.open && contextMenu.itemIndex !== null && (
         <div
-          className="fixed z-[10000] bg-surface border border-subtle rounded-lg shadow-2xl py-1 min-w-[180px]"
+          className="fixed z-[10000] bg-background border border-strong rounded-lg shadow-2xl py-1 min-w-[180px]"
           style={{
             left: `${contextMenu.x}px`,
             top: `${contextMenu.y}px`
@@ -1697,7 +1697,7 @@ export default function MediaSelector({
               setSelectedImageIndex(contextMenu.itemIndex);
               setContextMenu({ open: false, x: 0, y: 0, itemIndex: null });
             }}
-            className="w-full px-4 py-2 text-left text-sm text-on-accent hover:bg-surface-2 flex items-center gap-2"
+            className="w-full px-4 py-2 text-left text-sm text-primary hover:bg-surface flex items-center gap-2"
           >
             <Eye size={16} />
             <span>Öppna</span>
@@ -1709,7 +1709,7 @@ export default function MediaSelector({
               setIsImageViewerOpen(true);
               setContextMenu({ open: false, x: 0, y: 0, itemIndex: null });
             }}
-            className="w-full px-4 py-2 text-left text-sm text-on-accent hover:bg-surface-2 flex items-center gap-2"
+            className="w-full px-4 py-2 text-left text-sm text-primary hover:bg-surface flex items-center gap-2"
           >
             <Edit2 size={16} />
             <span>Redigera</span>
@@ -1720,7 +1720,7 @@ export default function MediaSelector({
               setEditingNoteIndex(contextMenu.itemIndex);
               setContextMenu({ open: false, x: 0, y: 0, itemIndex: null });
             }}
-            className="w-full px-4 py-2 text-left text-sm text-on-accent hover:bg-surface-2 flex items-center gap-2"
+            className="w-full px-4 py-2 text-left text-sm text-primary hover:bg-surface flex items-center gap-2"
           >
             <Edit2 size={16} />
             <span>Notiser</span>
@@ -1731,8 +1731,8 @@ export default function MediaSelector({
               setShowConnectionsIndex(showConnectionsIndex === contextMenu.itemIndex ? null : contextMenu.itemIndex);
               setContextMenu({ open: false, x: 0, y: 0, itemIndex: null });
             }}
-            className={`w-full px-4 py-2 text-left text-sm text-on-accent hover:bg-surface-2 flex items-center gap-2 ${
-              showConnectionsIndex === contextMenu.itemIndex ? 'bg-purple-900/50' : ''
+            className={`w-full px-4 py-2 text-left text-sm text-primary hover:bg-surface flex items-center gap-2 ${
+              showConnectionsIndex === contextMenu.itemIndex ? 'bg-accent-soft' : ''
             }`}
           >
             <LinkIcon size={16} />
@@ -1744,7 +1744,7 @@ export default function MediaSelector({
               handleDownload([contextMenu.itemIndex], false);
               setContextMenu({ open: false, x: 0, y: 0, itemIndex: null });
             }}
-            className="w-full px-4 py-2 text-left text-sm text-on-accent hover:bg-surface-2 flex items-center gap-2"
+            className="w-full px-4 py-2 text-left text-sm text-primary hover:bg-surface flex items-center gap-2"
           >
             <Download size={16} />
             <span>Ladda ner</span>
@@ -1763,7 +1763,7 @@ export default function MediaSelector({
               className={`w-full px-4 py-2 text-left text-sm flex items-center gap-2 ${
                 contextMenu.itemIndex === 0
                   ? 'text-muted cursor-not-allowed'
-                  : 'text-on-accent hover:bg-surface-2'
+                  : 'text-primary hover:bg-surface'
               }`}
               disabled={contextMenu.itemIndex === 0}
             >
@@ -1777,7 +1777,7 @@ export default function MediaSelector({
               handleRemoveImage(contextMenu.itemIndex);
               setContextMenu({ open: false, x: 0, y: 0, itemIndex: null });
             }}
-            className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-red-900/30 flex items-center gap-2"
+            className="w-full px-4 py-2 text-left text-sm text-danger hover:bg-danger-soft flex items-center gap-2"
           >
             <Trash2 size={16} />
             <span>Ta bort</span>

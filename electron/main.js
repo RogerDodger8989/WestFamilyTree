@@ -1141,16 +1141,15 @@ ipcMain.handle('write-exif-keywords', async (event, filePath, keywords, backup =
 ipcMain.handle('write-exif-metadata', async (event, filePath, metadata = {}, backup = true) => {
   try {
     const fullPath = forceImageRoot(filePath);
-    const keywords = Array.isArray(metadata?.keywords) ? metadata.keywords : [];
-    const photographer = typeof metadata?.photographer === 'string' ? metadata.photographer : '';
+    const payload = metadata && typeof metadata === 'object' ? metadata : {};
 
-    console.log('[write-exif-metadata] Writing to:', fullPath, 'Keywords:', keywords.length, 'Photographer:', photographer);
+    console.log('[write-exif-metadata] Writing to:', fullPath, 'Metadata keys:', Object.keys(payload || {}));
 
     const fetch = require('node-fetch');
     const response = await fetch('http://localhost:5005/exif/write_metadata', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image_path: fullPath, keywords, photographer, backup })
+      body: JSON.stringify({ image_path: fullPath, metadata: payload, backup })
     });
 
     const data = await response.json();
