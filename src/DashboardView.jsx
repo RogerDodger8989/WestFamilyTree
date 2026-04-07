@@ -40,10 +40,10 @@ function mapEventTypeLabel(type) {
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-slate-800 border border-slate-600 p-3 rounded-lg shadow-xl">
-        <p className="text-slate-400 text-xs font-bold uppercase mb-1">{label}</p>
-        <p className="text-blue-400 font-bold text-lg leading-none">
-          {payload[0].value} <span className="text-sm font-medium text-slate-300">{payload[0].value === 1 ? 'person' : 'personer'}</span>
+      <div className="bg-surface border border-subtle p-3 rounded-lg shadow-xl">
+        <p className="text-muted text-xs font-bold uppercase mb-1">{label}</p>
+        <p className="text-accent font-bold text-lg leading-none">
+          {payload[0].value} <span className="text-sm font-medium text-secondary">{payload[0].value === 1 ? 'person' : 'personer'}</span>
         </p>
       </div>
     );
@@ -259,9 +259,9 @@ export default function DashboardView({ dbData, handleOpenEditModal, handleTabCh
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="space-y-6 flex flex-col">
           {/* Widget: Fortsätt där du slutade */}
-          <section className="card bg-slate-800 border border-slate-700 rounded-xl p-5 flex-1">
+          <section className="card bg-surface border border-subtle rounded-xl p-5 flex-1">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-xl font-bold text-slate-100">Fortsätt där du slutade</h2>
+              <h2 className="text-xl font-bold text-primary">Fortsätt där du slutade</h2>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -273,26 +273,26 @@ export default function DashboardView({ dbData, handleOpenEditModal, handleTabCh
                   <Dices className="w-3.5 h-3.5" />
                   Slumpa person
                 </button>
-                <span className="text-xs text-slate-400">Senaste 5</span>
+                <span className="text-xs text-muted">Senaste 5</span>
               </div>
             </div>
 
             {recentPeople.length === 0 ? (
-              <p className="text-slate-400 text-sm">
+              <p className="text-muted text-sm">
                 Inga redigeringar hittades i audit-loggen ännu.
               </p>
             ) : (
               <ul className="space-y-2">
                 {recentPeople.map(({ person, timestamp, type }) => (
-                  <li key={person.id} className="flex items-center justify-between gap-3 p-3 rounded-lg bg-slate-900 border border-slate-700">
+                  <li key={person.id} className="flex items-center justify-between gap-3 p-3 rounded-lg bg-background border border-subtle">
                     <button
                       type="button"
                       onClick={() => handleOpenEditModal(person.id)}
-                      className="text-left text-blue-300 hover:text-blue-200 hover:underline"
+                      className="text-left text-accent hover:text-accent hover:underline"
                     >
                       {getPersonDisplayName(person)}
                     </button>
-                    <div className="text-xs text-slate-400 whitespace-nowrap">
+                    <div className="text-xs text-muted whitespace-nowrap">
                       <span className="uppercase mr-2">{type === 'edit' ? 'Ändrad' : 'Skapad'}</span>
                       <span>{formatAuditTime(timestamp)}</span>
                     </div>
@@ -303,9 +303,9 @@ export default function DashboardView({ dbData, handleOpenEditModal, handleTabCh
           </section>
 
           {/* Widget: Att-göra (To-Do) */}
-          <section className="card bg-slate-800 border border-slate-700 rounded-xl p-5 flex-1 flex flex-col">
+          <section className="card bg-surface border border-subtle rounded-xl p-5 flex-1 flex flex-col">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-xl font-bold text-slate-100">Att-göra</h2>
+              <h2 className="text-xl font-bold text-primary">Att-göra</h2>
             </div>
             
             <form onSubmit={handleAddTodo} className="mb-4 flex flex-col gap-2">
@@ -315,16 +315,16 @@ export default function DashboardView({ dbData, handleOpenEditModal, handleTabCh
                   value={newTodoText}
                   onChange={e => setNewTodoText(e.target.value)}
                   placeholder="Lägg till uppgift..."
-                  className="flex-1 bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
+                  className="flex-1 bg-background border border-subtle rounded px-3 py-1.5 text-sm text-primary focus:outline-none focus:border-accent"
                 />
-                <button type="submit" disabled={!newTodoText.trim()} className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded p-1.5 transition-colors">
+                <button type="submit" disabled={!newTodoText.trim()} className="bg-accent hover:bg-accent disabled:opacity-50 text-white rounded p-1.5 transition-colors">
                   <Plus size={18} />
                 </button>
               </div>
               <select
                 value={todoPersonId}
                 onChange={e => setTodoPersonId(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-300 focus:outline-none focus:border-blue-500 appearance-none"
+                className="w-full bg-background border border-subtle rounded px-2 py-1 text-xs text-secondary focus:outline-none focus:border-accent appearance-none"
               >
                 <option value="">-- Koppla till person (valfritt) --</option>
                 {people.slice().sort((a, b) => (a.firstName||'').localeCompare(b.firstName||'')).map(p => (
@@ -335,24 +335,24 @@ export default function DashboardView({ dbData, handleOpenEditModal, handleTabCh
             
             <ul className="space-y-2 flex-1 overflow-y-auto max-h-[250px] custom-scrollbar">
               {todos.length === 0 ? (
-                <p className="text-slate-400 text-sm text-center py-4">Inga uppgifter på listan.</p>
+                <p className="text-muted text-sm text-center py-4">Inga uppgifter på listan.</p>
               ) : (
                 todos.map(todo => (
                   <li key={todo.id} className="flex items-start gap-2 group">
                     <button 
                       onClick={() => onUpdateTodos(todos.map(t => t.id === todo.id ? { ...t, isCompleted: !t.isCompleted } : t))}
-                      className={`mt-0.5 flex-shrink-0 transition-colors ${todo.isCompleted ? 'text-green-500' : 'text-slate-400 hover:text-slate-300'}`}
+                      className={`mt-0.5 flex-shrink-0 transition-colors ${todo.isCompleted ? 'text-success' : 'text-muted hover:text-secondary'}`}
                     >
                       {todo.isCompleted ? <CheckSquare size={16} /> : <Square size={16} />}
                     </button>
                     <div className="flex-1 flex flex-col">
-                      <span className={`text-sm ${todo.isCompleted ? 'text-slate-500 line-through' : 'text-slate-200'}`}>
+                      <span className={`text-sm ${todo.isCompleted ? 'text-muted line-through' : 'text-primary'}`}>
                         {todo.text}
                       </span>
                       {todo.linkedPersonId && peopleById.get(todo.linkedPersonId) && (
                         <button
                           onClick={() => handleOpenEditModal(todo.linkedPersonId)}
-                          className={`text-left text-xs flex items-center gap-1 mt-0.5 w-fit transition-colors ${todo.isCompleted ? 'text-slate-500 hover:text-slate-400' : 'text-blue-400 hover:text-blue-300'}`}
+                          className={`text-left text-xs flex items-center gap-1 mt-0.5 w-fit transition-colors ${todo.isCompleted ? 'text-muted hover:text-muted' : 'text-accent hover:text-accent'}`}
                         >
                           <User size={10} />
                           {getPersonDisplayName(peopleById.get(todo.linkedPersonId))}
@@ -361,7 +361,7 @@ export default function DashboardView({ dbData, handleOpenEditModal, handleTabCh
                     </div>
                     <button 
                       onClick={() => onUpdateTodos(todos.filter(t => t.id !== todo.id))}
-                      className="text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="text-muted hover:text-danger opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                       <Trash2 size={14} />
                     </button>
@@ -374,14 +374,14 @@ export default function DashboardView({ dbData, handleOpenEditModal, handleTabCh
 
         <div className="lg:col-span-2">
           {/* Widget: På denna dag */}
-          <section className="card bg-slate-800 border border-slate-700 rounded-xl p-5 h-full">
+          <section className="card bg-surface border border-subtle rounded-xl p-5 h-full">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-xl font-bold text-slate-100">På denna dag ({todayLabel})</h2>
-              <span className="text-xs text-slate-400">Kronologisk tidslinje</span>
+              <h2 className="text-xl font-bold text-primary">På denna dag ({todayLabel})</h2>
+              <span className="text-xs text-muted">Kronologisk tidslinje</span>
             </div>
 
             {onThisDayItems.length === 0 ? (
-              <p className="text-slate-400 text-sm">
+              <p className="text-muted text-sm">
                 Inga historiska händelser hittades för detta datum.
               </p>
             ) : (
@@ -391,15 +391,15 @@ export default function DashboardView({ dbData, handleOpenEditModal, handleTabCh
                     const personName = getPersonDisplayName(item.person);
                     const eventLabel = mapEventTypeLabel(item.event?.type);
                     return (
-                      <li key={item.id} className="p-3 rounded-lg bg-slate-900 border border-slate-700">
-                        <div className="text-sm text-slate-300">
-                          <span className="text-blue-300 font-semibold mr-2">{item.year ?? 'Okänt år'}</span>
-                          <span className="text-slate-400 mr-1">-</span>
-                          <span className="text-slate-300 mr-1">{eventLabel}:</span>
+                      <li key={item.id} className="p-3 rounded-lg bg-background border border-subtle">
+                        <div className="text-sm text-secondary">
+                          <span className="text-accent font-semibold mr-2">{item.year ?? 'Okänt år'}</span>
+                          <span className="text-muted mr-1">-</span>
+                          <span className="text-secondary mr-1">{eventLabel}:</span>
                           <button
                             type="button"
                             onClick={() => handleOpenEditModal(item.person.id)}
-                            className="text-left text-blue-300 hover:text-blue-200 hover:underline"
+                            className="text-left text-accent hover:text-accent hover:underline"
                           >
                             {personName}
                           </button>
@@ -412,23 +412,23 @@ export default function DashboardView({ dbData, handleOpenEditModal, handleTabCh
                   const thumbSrc = getMediaThumbSrc(item.media);
 
                   return (
-                    <li key={item.id} className="p-3 rounded-lg bg-slate-900 border border-slate-700 flex items-center gap-3">
+                    <li key={item.id} className="p-3 rounded-lg bg-background border border-subtle flex items-center gap-3">
                       {thumbSrc ? (
                         <img
                           src={thumbSrc}
                           alt={mediaTitle}
-                          className="w-12 h-12 object-cover rounded border border-slate-700 bg-slate-800"
+                          className="w-12 h-12 object-cover rounded border border-subtle bg-surface"
                           loading="lazy"
                         />
                       ) : (
-                        <div className="w-12 h-12 rounded border border-slate-700 bg-slate-800 flex items-center justify-center text-xs text-slate-500">
+                        <div className="w-12 h-12 rounded border border-subtle bg-surface flex items-center justify-center text-xs text-muted">
                           IMG
                         </div>
                       )}
-                      <div className="text-sm text-slate-300 min-w-0">
+                      <div className="text-sm text-secondary min-w-0">
                         <div className="truncate">
-                          <span className="text-blue-300 font-semibold mr-2">{item.year ?? 'Okänt år'}</span>
-                          <span className="text-slate-400 mr-1">-</span>
+                          <span className="text-accent font-semibold mr-2">{item.year ?? 'Okänt år'}</span>
+                          <span className="text-muted mr-1">-</span>
                           <span>{mediaTitle}</span>
                         </div>
                       </div>
@@ -444,10 +444,10 @@ export default function DashboardView({ dbData, handleOpenEditModal, handleTabCh
       {/* NY RAD: Statistik */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
         {/* Födelsemånader graf */}
-        <section className="card bg-slate-800 border border-slate-700 rounded-xl p-5 lg:col-span-2">
+        <section className="card bg-surface border border-subtle rounded-xl p-5 lg:col-span-2">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-slate-100">Födda per månad</h2>
-            <span className="text-xs text-slate-400">Släktens födelsemånader</span>
+            <h2 className="text-xl font-bold text-primary">Födda per månad</h2>
+            <span className="text-xs text-muted">Släktens födelsemånader</span>
           </div>
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
@@ -466,22 +466,22 @@ export default function DashboardView({ dbData, handleOpenEditModal, handleTabCh
         </section>
 
         {/* Vanligaste namnen */}
-        <section className="card bg-slate-800 border border-slate-700 rounded-xl p-5 flex flex-col">
+        <section className="card bg-surface border border-subtle rounded-xl p-5 flex flex-col">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-slate-100">Vanligaste namnen</h2>
-            <span className="text-xs text-slate-400">Topp 5</span>
+            <h2 className="text-xl font-bold text-primary">Vanligaste namnen</h2>
+            <span className="text-xs text-muted">Topp 5</span>
           </div>
           <ul className="space-y-4 flex-1">
             {stats.topNames.map((item, idx) => (
-              <li key={item.name} className="flex items-center justify-between p-2 rounded-lg bg-slate-900 border border-slate-700">
+              <li key={item.name} className="flex items-center justify-between p-2 rounded-lg bg-background border border-subtle">
                 <div className="flex items-center gap-3">
-                  <span className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-800 border border-slate-600 text-xs font-bold text-slate-300">{idx + 1}</span>
-                  <span className="text-slate-200 capitalize">{item.name.toLowerCase()}</span>
+                  <span className="flex items-center justify-center w-6 h-6 rounded-full bg-surface border border-subtle text-xs font-bold text-secondary">{idx + 1}</span>
+                  <span className="text-primary capitalize">{item.name.toLowerCase()}</span>
                 </div>
-                <span className="text-blue-400 text-sm font-bold">{item.count}</span>
+                <span className="text-accent text-sm font-bold">{item.count}</span>
               </li>
             ))}
-            {stats.topNames.length === 0 && <p className="text-slate-400 text-sm">Inte tillräckligt med data ännu.</p>}
+            {stats.topNames.length === 0 && <p className="text-muted text-sm">Inte tillräckligt med data ännu.</p>}
           </ul>
         </section>
       </div>

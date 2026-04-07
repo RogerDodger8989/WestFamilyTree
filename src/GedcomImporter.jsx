@@ -525,10 +525,10 @@ const GedcomImporter = (props) => {
 
   if (!data) {
     return (
-      <div className="p-10 border-2 border-dashed text-center rounded-lg bg-slate-800 border-slate-600 m-4">
+      <div className="p-10 border-2 border-dashed text-center rounded-lg bg-surface-2 border-subtle m-4">
         <h2 className="text-xl font-bold mb-4">Ladda upp GEDCOM</h2>
-        <input type="file" accept=".ged" onChange={handleFileUpload} className="block w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
-        {loading && <p className="mt-2 text-blue-600">Bearbetar...</p>}
+        <input type="file" accept=".ged" onChange={handleFileUpload} className="block w-full text-sm text-muted file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-accent-soft file:text-accent hover:file:bg-accent-soft/80" />
+        {loading && <p className="mt-2 text-accent">Bearbetar...</p>}
       </div>
     );
   }
@@ -538,27 +538,27 @@ const GedcomImporter = (props) => {
       <div className="flex justify-between items-center mb-4 border-b pb-4">
          <div>
             <h2 className="text-2xl font-bold">Import-granskning</h2>
-            <div className="text-sm text-slate-400 flex gap-4">
+            <div className="text-sm text-muted flex gap-4">
                 <span>👤 {data.individuals.length} Personer</span>
                 <span>🌍 {data.places.length} Platser</span>
                 <span>📚 {data.sources.length} Källor</span>
             </div>
          </div>
          <div className="flex gap-3">
-             <button onClick={() => setData(null)} className="px-4 py-2 border border-slate-600 rounded text-slate-300 hover:bg-slate-700">Ny fil</button>
-             <button onClick={handleSave} className="px-6 py-2 bg-green-600 text-white font-bold rounded shadow hover:bg-green-700 flex items-center gap-2">
+             <button onClick={() => setData(null)} className="px-4 py-2 border border-subtle rounded text-secondary hover:bg-surface">Ny fil</button>
+             <button onClick={handleSave} className="px-6 py-2 bg-success text-on-accent font-bold rounded shadow hover:bg-success/90 flex items-center gap-2">
                <span>Importera Allt</span>
              </button>
          </div>
       </div>
       <div className="flex gap-4 flex-1 overflow-hidden">
-        <div className="w-1/3 bg-slate-800 shadow rounded p-4 overflow-y-auto">
-          <h3 className="font-bold border-b pb-2 sticky top-0 bg-slate-800 text-slate-200">Personer</h3>
+        <div className="w-1/3 bg-surface-2 shadow rounded p-4 overflow-y-auto">
+          <h3 className="font-bold border-b border-subtle pb-2 sticky top-0 bg-surface-2 text-primary">Personer</h3>
           <ul className="mt-2">
             {data.individuals.slice(0, 50).map(indi => (
-              <li key={indi.id} className="py-2 border-b hover:bg-slate-700 text-sm border-slate-700">
-                <div className="font-semibold text-slate-200">{indi.name}</div>
-                <div className="flex justify-between text-xs text-slate-400">
+              <li key={indi.id} className="py-2 border-b hover:bg-surface text-sm border-subtle">
+                <div className="font-semibold text-primary">{indi.name}</div>
+                <div className="flex justify-between text-xs text-muted">
                     <span>{indi.gender === 'K' ? 'Kvinna' : 'Man'}</span>
                     <span>Ref: {indi.refNumber}</span>
                 </div>
@@ -566,7 +566,7 @@ const GedcomImporter = (props) => {
             ))}
           </ul>
         </div>
-        <div className="w-2/3 bg-slate-900 p-4 text-center text-slate-400">
+        <div className="w-2/3 bg-background p-4 text-center text-muted">
             Förhandsgranskning av platser och källor döljs här.
         </div>
       </div>

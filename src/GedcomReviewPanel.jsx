@@ -378,26 +378,26 @@ export default function GedcomReviewPanel({ onClose }) {
           <button onClick={() => { if (window.electronAPI && window.electronAPI.openAuditBackupFolder) window.electronAPI.openAuditBackupFolder(); } }>Öppna audit‑mapp</button>
         </div>
       </div>
-      <div style={{ maxHeight: '60vh', overflow: 'auto', border: '1px solid #ddd', padding: 8 }}>
+      <div className="max-h-[60vh] overflow-auto border border-subtle p-2">
         {sources.map(s => (
-          <div key={s.id} style={{ padding: 8, borderBottom: '1px solid #eee' }}>
+          <div key={s.id} className="p-2 border-b border-subtle">
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
               <div style={{ flex: 1 }}>
                 <div><strong>Title</strong></div>
                 <input value={(edits[s.id] && edits[s.id].title) || ''} onChange={e => updateEdit(s.id, 'title', e.target.value)} style={{ width: '100%' }} />
-                <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>{friendlyTitle(s)}</div>
+                <div className="text-xs text-muted mt-1">{friendlyTitle(s)}</div>
                 <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 12, color: '#666' }}><strong>Page</strong></div>
+                    <div className="text-xs text-muted"><strong>Page</strong></div>
                     <input value={(edits[s.id] && edits[s.id].page) || ''} onChange={e => updateEdit(s.id, 'page', e.target.value)} style={{ width: '100%' }} />
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 12, color: '#666' }}><strong>Date</strong></div>
+                    <div className="text-xs text-muted"><strong>Date</strong></div>
                     <input value={(edits[s.id] && edits[s.id].date) || ''} onChange={e => updateEdit(s.id, 'date', e.target.value)} style={{ width: '100%' }} />
                   </div>
                 </div>
                 <div style={{ marginTop: 8 }}>
-                  <div style={{ fontSize: 12, color: '#666' }}><strong>Note</strong></div>
+                  <div className="text-xs text-muted"><strong>Note</strong></div>
                   <textarea value={(edits[s.id] && edits[s.id].note) || ''} onChange={e => updateEdit(s.id, 'note', e.target.value)} style={{ width: '100%', minHeight: 80 }} />
                 </div>
               </div>
@@ -410,7 +410,7 @@ export default function GedcomReviewPanel({ onClose }) {
                 {s.images && s.images.length > 0 && (
                   <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     {s.images.slice(0,6).map((im, i) => (
-                      <div key={i} style={{ width: 120, height: 90, border: '1px solid #475569', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#1e293b' }}>
+                      <div key={i} className="border border-subtle bg-surface-2" style={{ width: 120, height: 90, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <div style={{ fontSize: 11, padding: 6, textAlign: 'center' }}>{String(im).split(/[\\/]/).pop()}</div>
                       </div>
                     ))}
@@ -425,8 +425,8 @@ export default function GedcomReviewPanel({ onClose }) {
         <button onClick={onClose}>Stäng</button>
       </div>
       {rawModal.open && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ width: '80%', maxHeight: '80%', overflow: 'auto', background: '#1e293b', color: '#e2e8f0', padding: 12 }}>
+        <div className="fixed inset-0 bg-background/40 flex items-center justify-center">
+          <div className="bg-surface-2 text-secondary p-3" style={{ width: '80%', maxHeight: '80%', overflow: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h4>{rawModal.title}</h4>
               <button onClick={() => setRawModal({ open: false, content: null, title: '' })}>Stäng</button>
@@ -438,16 +438,16 @@ export default function GedcomReviewPanel({ onClose }) {
       {auditResults && (
         <div style={{ marginTop: 8 }}>
           <h4>Audit‑resultat från {auditResults.file}</h4>
-          <div style={{ maxHeight: 240, overflow: 'auto', border: '1px solid #ddd', padding: 8 }}>
+          <div className="max-h-60 overflow-auto border border-subtle p-2">
             <div><strong>Människor (upp till 50):</strong></div>
-            {auditResults.peopleMatches.length === 0 && <div className="text-sm text-slate-400">Inga personer matchade.</div>}
+            {auditResults.peopleMatches.length === 0 && <div className="text-sm text-muted">Inga personer matchade.</div>}
             {auditResults.peopleMatches.map((p, i) => (
-              <div key={i} style={{ padding: 6, borderBottom: '1px solid #eee' }}>{(p.firstName||'') + ' ' + (p.lastName||'')} · xref: {p.xref || p.pointer || ''}</div>
+              <div key={i} className="p-1.5 border-b border-subtle">{(p.firstName||'') + ' ' + (p.lastName||'')} · xref: {p.xref || p.pointer || ''}</div>
             ))}
             <div style={{ marginTop: 8 }}><strong>Källor (upp till 50):</strong></div>
-            {auditResults.sourceMatches.length === 0 && <div className="text-sm text-slate-400">Inga källor matchade.</div>}
+            {auditResults.sourceMatches.length === 0 && <div className="text-sm text-muted">Inga källor matchade.</div>}
             {auditResults.sourceMatches.map((ss, i) => (
-              <div key={i} style={{ padding: 6, borderBottom: '1px solid #eee' }}>{(ss.title||ss.archive||'(utan titel)')} · id: {ss.id || ss.xref || ''}</div>
+              <div key={i} className="p-1.5 border-b border-subtle">{(ss.title||ss.archive||'(utan titel)')} · id: {ss.id || ss.xref || ''}</div>
             ))}
           </div>
         </div>

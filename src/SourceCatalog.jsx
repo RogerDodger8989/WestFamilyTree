@@ -76,7 +76,7 @@ function buildSimpleTree(sources) {
 
 function TrustDropdown({ value, onChange }) {
   return (
-    <select className="border border-slate-600 rounded px-2 py-1 text-sm bg-slate-900 text-slate-200 focus:border-blue-500 focus:outline-none" value={value || 0} onChange={e => onChange(Number(e.target.value))}>
+    <select className="border border-subtle rounded px-2 py-1 text-sm bg-background text-primary focus:border-accent focus:outline-none" value={value || 0} onChange={e => onChange(Number(e.target.value))}>
       <option value={0}>☆ Ingen info</option>
       <option value={1}>★ Opålitlig</option>
       <option value={2}>★★ Tvivelaktig</option>
@@ -463,7 +463,7 @@ export default function SourceCatalog({
   const renderTreeNodes = (node, pathPrefix) => {
       if (Array.isArray(node)) {
           return (
-            <div className="ml-5 border-l-2 border-slate-700 pl-1">
+            <div className="ml-5 border-l-2 border-subtle pl-1">
               {node.map(src => {
                 const isLinked = alreadyLinkedIds.includes(src.id);
                 return (
@@ -483,7 +483,7 @@ export default function SourceCatalog({
                       onDoubleClick={() => { if (isDrawerMode && onLinkSource) onLinkSource(src.id); }}
                       className={`
                         cursor-pointer text-xs py-1 px-2 rounded truncate transition-colors duration-200 flex justify-between items-center group
-                        ${selectedSourceId === src.id ? 'bg-blue-600 text-blue-100 font-medium border-l-2 border-blue-400 shadow-sm' : 'text-slate-400 hover:bg-slate-700'}
+                        ${selectedSourceId === src.id ? 'bg-accent text-on-accent font-medium border-l-2 border-accent shadow-sm' : 'text-muted hover:bg-surface-2'}
                         ${isLinked ? 'bg-green-900 text-green-200 border-l-2 border-green-500' : ''}
                       `}
                       title={`${src.label} (Dubbelklicka för att koppla)`}
@@ -497,21 +497,21 @@ export default function SourceCatalog({
                                                         variant={src.aid ? "success" : "ghost"}
                                                         size="xs"
                                                         title={src.aid ? "Öppna AID" : "Ingen AID"}
-                                                        className={src.aid ? "" : "opacity-50 border border-slate-600"}
+                                                        className={src.aid ? "" : "opacity-50 border border-subtle"}
                                                     >AD</Button>
                                                     <Button
                                                         onClick={(e) => { e.stopPropagation(); src.bildid && window.open(`https://sok.riksarkivet.se/bildvisning/${src.bildid}`, '_blank'); }}
                                                         variant={src.bildid ? "success" : "ghost"}
                                                         size="xs"
                                                         title={src.bildid ? "Öppna RA" : "Ingen RA-länk"}
-                                                        className={src.bildid ? "" : "opacity-50 border border-slate-600"}
+                                                        className={src.bildid ? "" : "opacity-50 border border-subtle"}
                                                     >RA</Button>
                                                     <Button
                                                         onClick={(e) => { e.stopPropagation(); src.nad && window.open(`https://sok.riksarkivet.se/?postid=ArkisRef%20${src.nad}`, '_blank'); }}
                                                         variant={src.nad ? "success" : "ghost"}
                                                         size="xs"
                                                         title={src.nad ? "Öppna NAD" : "Ingen NAD-länk"}
-                                                        className={src.nad ? "" : "opacity-50 border border-slate-600"}
+                                                        className={src.nad ? "" : "opacity-50 border border-subtle"}
                                                     >NAD</Button>
                                             </div>
                       {isLinked && <span className="text-green-400 font-bold ml-1 text-xs">✓</span>}
@@ -526,8 +526,8 @@ export default function SourceCatalog({
           const isExpanded = expanded[currentPath];
           return (
             <div key={key} className="mb-1 ml-2">
-               <div className="flex items-center cursor-pointer hover:bg-slate-700 py-1 px-1 rounded font-semibold text-slate-100 text-sm transition-colors" onClick={() => handleToggle(currentPath)}>
-                <span className="w-4 text-center text-xs text-slate-500 mr-1">{isExpanded ? '▼' : '▶'}</span>{key}
+               <div className="flex items-center cursor-pointer hover:bg-surface-2 py-1 px-1 rounded font-semibold text-primary text-sm transition-colors" onClick={() => handleToggle(currentPath)}>
+                <span className="w-4 text-center text-xs text-muted mr-1">{isExpanded ? '▼' : '▶'}</span>{key}
               </div>
               {isExpanded && renderTreeNodes(node[key], currentPath)}
             </div>
@@ -553,11 +553,11 @@ export default function SourceCatalog({
   }, [selectedSourceId, sources, onDeleteSource]);
 
   return (
-    <div className="flex w-full h-full bg-slate-800 overflow-hidden">
-      <aside className="w-80 border-r border-slate-700 bg-slate-800 flex flex-col h-full shrink-0">
-        <div className="p-2 border-b border-slate-700 bg-slate-900 space-y-2 shrink-0">
-          <input type="text" placeholder="Sök..." className="w-full px-2 py-1 text-sm border border-slate-600 rounded bg-slate-900 text-slate-200 placeholder-slate-500 focus:border-blue-500 focus:outline-none shadow-sm" value={searchTerm || ''} onChange={handleSearch} />
-          <select className="w-full px-2 py-1 text-xs border border-slate-600 rounded bg-slate-900 text-slate-200 focus:border-blue-500 focus:outline-none" value={sortOrder} onChange={handleSortChange}>
+    <div className="flex w-full h-full bg-surface overflow-hidden">
+      <aside className="w-80 border-r border-subtle bg-surface flex flex-col h-full shrink-0">
+        <div className="p-2 border-b border-subtle bg-background space-y-2 shrink-0">
+          <input type="text" placeholder="Sök..." className="w-full px-2 py-1 text-sm border border-subtle rounded bg-background text-primary placeholder-slate-500 focus:border-accent focus:outline-none shadow-sm" value={searchTerm || ''} onChange={handleSearch} />
+          <select className="w-full px-2 py-1 text-xs border border-subtle rounded bg-background text-primary focus:border-accent focus:outline-none" value={sortOrder} onChange={handleSortChange}>
             <option value="name_asc">Namn (A-Ö)</option>
             <option value="name_desc">Namn (Ö-A)</option>
             <option value="date_desc">Senast ändrad (Nyast)</option>
@@ -567,14 +567,14 @@ export default function SourceCatalog({
         <div className="flex-1 overflow-y-auto p-2 relative" ref={listContainerRef}>
             {Object.keys(tree).sort().map(arkiv => (
                 <div key={arkiv} className="mb-1">
-                    <div className="flex items-center cursor-pointer hover:bg-slate-700 py-1 px-1 rounded font-bold text-blue-300 transition-colors" onClick={() => handleToggle(arkiv)}>
-                        <span className="w-4 text-center text-xs text-slate-500 mr-1">{expanded[arkiv] ? '▼' : '▶'}</span>{arkiv}
+                    <div className="flex items-center cursor-pointer hover:bg-surface-2 py-1 px-1 rounded font-bold text-accent transition-colors" onClick={() => handleToggle(arkiv)}>
+                        <span className="w-4 text-center text-xs text-muted mr-1">{expanded[arkiv] ? '▼' : '▶'}</span>{arkiv}
                     </div>
                     {expanded[arkiv] && renderTreeNodes(tree[arkiv], arkiv)}
                 </div>
             ))}
             {Object.keys(tree).length === 0 && (
-                <div className="flex flex-col items-center justify-center h-full text-slate-500 text-sm mt-10">
+                <div className="flex flex-col items-center justify-center h-full text-muted text-sm mt-10">
                     <p>Inga kilder hittades.</p>
                     {onAddSource && <Button onClick={onAddSource} variant="primary" size="sm">Skapa ny källa</Button>}
                 </div>
@@ -582,7 +582,7 @@ export default function SourceCatalog({
         </div>
       </aside>
 
-      <main className="flex-1 h-full bg-slate-800 flex flex-col">
+      <main className="flex-1 h-full bg-surface flex flex-col">
         {selectedSource ? (
           <div className="flex-1 flex flex-col h-full overflow-hidden">
             
@@ -590,8 +590,8 @@ export default function SourceCatalog({
             <div className="p-6 pb-0 shrink-0">
                 <div className="flex justify-between items-start mb-4">
                     <div>
-                        <h2 className="text-xl font-bold text-white">Redigera Källa</h2>
-                        <div className="text-xs text-slate-400">ID: {selectedSource.id}</div>
+                        <h2 className="text-xl font-bold text-on-accent">Redigera Källa</h2>
+                        <div className="text-xs text-muted">ID: {selectedSource.id}</div>
                     </div>
                     <div className="flex gap-2">
                         {onAddSource && <Button onClick={onAddSource} variant="primary" size="sm">Ny källa</Button>}
@@ -601,18 +601,18 @@ export default function SourceCatalog({
                 </div>
 
                 {/* SNABB-IMPORT (Oförändrad) */}
-                <div className="mb-4 p-3 bg-slate-800 border border-slate-700 rounded">
-                    <label className="block text-xs font-bold text-blue-300 uppercase mb-1">Snabb-import (AD/RA)</label>
+                <div className="mb-4 p-3 bg-surface border border-subtle rounded">
+                    <label className="block text-xs font-bold text-accent uppercase mb-1">Snabb-import (AD/RA)</label>
                     <div className="flex gap-2">
-                        <textarea className="flex-1 border border-slate-600 rounded p-1 text-xs h-8 resize-none focus:h-16 transition-all bg-slate-900 text-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Klistra in källtext..." value={importString} onChange={(e) => setImportString(e.target.value)} />
+                        <textarea className="flex-1 border border-subtle rounded p-1 text-xs h-8 resize-none focus:h-16 transition-all bg-background text-primary focus:ring-2 focus:ring-accent focus:border-accent" placeholder="Klistra in källtext..." value={importString} onChange={(e) => setImportString(e.target.value)} />
                         <Button onClick={parseSourceString} disabled={!importString} variant="primary" size="sm">Tolka</Button>
                     </div>
                 </div>
 
                 {/* FLIKAR (Oförändrad) */}
-                <div className="flex border-b mt-4 bg-slate-900 rounded-t-lg shadow-sm">
+                <div className="flex border-b mt-4 bg-background rounded-t-lg shadow-sm">
                     <button
-                        className={`relative px-5 py-2 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors duration-150 focus:outline-none ${activeRightTab === 'info' ? 'border-blue-500 text-blue-300 bg-slate-800 shadow -mb-px' : 'border-transparent text-slate-400 hover:text-blue-400 hover:bg-slate-700'}`}
+                        className={`relative px-5 py-2 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors duration-150 focus:outline-none ${activeRightTab === 'info' ? 'border-accent text-accent bg-surface shadow -mb-px' : 'border-transparent text-muted hover:text-accent hover:bg-surface-2'}`}
                         onClick={() => setActiveRightTab('info')}
                         title="Källinformation"
                     >
@@ -621,7 +621,7 @@ export default function SourceCatalog({
                         {activeRightTab === 'info' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2 h-2 bg-blue-500 rounded-full" />}
                     </button>
                     <button
-                        className={`relative px-5 py-2 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors duration-150 focus:outline-none ${activeRightTab === 'images' ? 'border-blue-500 text-blue-300 bg-slate-800 shadow -mb-px' : 'border-transparent text-slate-400 hover:text-blue-400 hover:bg-slate-700'}`}
+                        className={`relative px-5 py-2 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors duration-150 focus:outline-none ${activeRightTab === 'images' ? 'border-accent text-accent bg-surface shadow -mb-px' : 'border-transparent text-muted hover:text-accent hover:bg-surface-2'}`}
                         onClick={() => setActiveRightTab('images')}
                         title="Bilder"
                     >
@@ -631,7 +631,7 @@ export default function SourceCatalog({
                         {activeRightTab === 'images' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2 h-2 bg-blue-500 rounded-full" />}
                     </button>
                     <button
-                        className={`relative px-5 py-2 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors duration-150 focus:outline-none ${activeRightTab === 'notes' ? 'border-blue-500 text-blue-300 bg-slate-800 shadow -mb-px' : 'border-transparent text-slate-400 hover:text-blue-400 hover:bg-slate-700'}`}
+                        className={`relative px-5 py-2 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors duration-150 focus:outline-none ${activeRightTab === 'notes' ? 'border-accent text-accent bg-surface shadow -mb-px' : 'border-transparent text-muted hover:text-accent hover:bg-surface-2'}`}
                         onClick={() => setActiveRightTab('notes')}
                         title="Noteringar"
                     >
@@ -641,7 +641,7 @@ export default function SourceCatalog({
                         {activeRightTab === 'notes' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2 h-2 bg-blue-500 rounded-full" />}
                     </button>
                     <button
-                        className={`relative px-5 py-2 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors duration-150 focus:outline-none ${activeRightTab === 'connections' ? 'border-blue-500 text-blue-300 bg-slate-800 shadow -mb-px' : 'border-transparent text-slate-400 hover:text-blue-400 hover:bg-slate-700'}`}
+                        className={`relative px-5 py-2 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors duration-150 focus:outline-none ${activeRightTab === 'connections' ? 'border-accent text-accent bg-surface shadow -mb-px' : 'border-transparent text-muted hover:text-accent hover:bg-surface-2'}`}
                         onClick={() => setActiveRightTab('connections')}
                         title="Kopplingar"
                     >
@@ -659,30 +659,30 @@ export default function SourceCatalog({
                     <div>
                         {/* ... (Källdetaljer oförändrade) ... */}
                         <div className="grid grid-cols-2 gap-4 mb-4">
-                            <div><label className="block text-xs font-bold text-slate-300 uppercase">Arkiv (Top)</label><input className="w-full border border-slate-600 rounded px-2 py-1 bg-slate-900 text-slate-200 focus:border-blue-500 focus:outline-none" value={selectedSource.archiveTop || ''} onChange={e => handleSave({ archiveTop: e.target.value })} /></div>
+                            <div><label className="block text-xs font-bold text-secondary uppercase">Arkiv (Top)</label><input className="w-full border border-subtle rounded px-2 py-1 bg-background text-primary focus:border-accent focus:outline-none" value={selectedSource.archiveTop || ''} onChange={e => handleSave({ archiveTop: e.target.value })} /></div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-300 uppercase">Titel / Ort</label>
-                                <input className="w-full border border-slate-600 rounded px-2 py-1 font-semibold bg-slate-900 text-slate-200 focus:border-blue-500 focus:outline-none" list="places-datalist" value={selectedSource.title || ''} onChange={e => handleSave({ title: e.target.value })} />
+                                <label className="block text-xs font-bold text-secondary uppercase">Titel / Ort</label>
+                                <input className="w-full border border-subtle rounded px-2 py-1 font-semibold bg-background text-primary focus:border-accent focus:outline-none" list="places-datalist" value={selectedSource.title || ''} onChange={e => handleSave({ title: e.target.value })} />
                                 <datalist id="places-datalist">{places.map(p => (<option key={p.id} value={p.name} />))}</datalist>
                             </div>
                         </div>
                         <div className="grid grid-cols-4 gap-4 mb-6">
-                            <div><label className="block text-xs font-bold text-slate-300 uppercase">Volym</label><input className="w-full border border-slate-600 rounded px-2 py-1 bg-slate-900 text-slate-200 focus:border-blue-500 focus:outline-none" value={selectedSource.volume || ''} onChange={e => handleSave({ volume: e.target.value })} /></div>
-                            <div><label className="block text-xs font-bold text-slate-300 uppercase">År</label><input className="w-full border border-slate-600 rounded px-2 py-1 bg-slate-900 text-slate-200 focus:border-blue-500 focus:outline-none" value={selectedSource.date || ''} onChange={e => handleSave({ date: e.target.value })} /></div>
-                            <div><label className="block text-xs font-bold text-slate-300 uppercase">Bild</label><input className="w-full border border-slate-600 rounded px-2 py-1 bg-slate-900 text-slate-200 focus:border-blue-500 focus:outline-none" value={selectedSource.imagePage || ''} onChange={e => handleSave({ imagePage: e.target.value })} /></div>
-                            <div><label className="block text-xs font-bold text-slate-300 uppercase">Sida/Källdetalj</label><input className="w-full border border-slate-600 rounded px-2 py-1 bg-slate-900 text-slate-200 focus:border-blue-500 focus:outline-none" value={selectedSource.page || ''} onChange={e => handleSave({ page: e.target.value })} /></div>
+                            <div><label className="block text-xs font-bold text-secondary uppercase">Volym</label><input className="w-full border border-subtle rounded px-2 py-1 bg-background text-primary focus:border-accent focus:outline-none" value={selectedSource.volume || ''} onChange={e => handleSave({ volume: e.target.value })} /></div>
+                            <div><label className="block text-xs font-bold text-secondary uppercase">År</label><input className="w-full border border-subtle rounded px-2 py-1 bg-background text-primary focus:border-accent focus:outline-none" value={selectedSource.date || ''} onChange={e => handleSave({ date: e.target.value })} /></div>
+                            <div><label className="block text-xs font-bold text-secondary uppercase">Bild</label><input className="w-full border border-subtle rounded px-2 py-1 bg-background text-primary focus:border-accent focus:outline-none" value={selectedSource.imagePage || ''} onChange={e => handleSave({ imagePage: e.target.value })} /></div>
+                            <div><label className="block text-xs font-bold text-secondary uppercase">Sida/Källdetalj</label><input className="w-full border border-subtle rounded px-2 py-1 bg-background text-primary focus:border-accent focus:outline-none" value={selectedSource.page || ''} onChange={e => handleSave({ page: e.target.value })} /></div>
                         </div>
-                        <div className="grid grid-cols-3 gap-4 mb-6 bg-slate-900 p-3 rounded border border-slate-700">
-                            <div className="flex items-end gap-1"><div className="flex-1"><label className="block text-xs font-bold text-slate-300 uppercase">AID (AD)</label><input className="w-full border border-slate-600 rounded px-2 py-1 font-mono text-xs bg-slate-900 text-slate-200 focus:border-blue-500 focus:outline-none" value={selectedSource.aid || ''} onChange={e => handleSave({ aid: e.target.value })} /></div>{selectedSource.aid && (<Button onClick={() => window.open(`http://www.arkivdigital.se/aid/show/${selectedSource.aid}`, '_blank')} variant="success" size="xs">AD</Button>)}</div>
-                            <div className="flex items-end gap-1"><div className="flex-1"><label className="block text-xs font-bold text-slate-300 uppercase">BildID (RA)</label><input className="w-full border border-slate-600 rounded px-2 py-1 font-mono text-xs bg-slate-900 text-slate-200 focus:border-blue-500 focus:outline-none" value={selectedSource.bildid || ''} onChange={e => handleSave({ bildid: e.target.value })} /></div>{selectedSource.bildid && (<Button onClick={() => window.open(`https://sok.riksarkivet.se/bildvisning/${selectedSource.bildid}`, '_blank')} variant="success" size="xs">RA</Button>)}</div>
-                            <div className="flex items-end gap-1"><div className="flex-1"><label className="block text-xs font-bold text-slate-300 uppercase">NAD</label><input className="w-full border border-slate-600 rounded px-2 py-1 font-mono text-xs bg-slate-900 text-slate-200 focus:border-blue-500 focus:outline-none" value={selectedSource.nad || ''} onChange={e => handleSave({ nad: e.target.value })} /></div>{selectedSource.nad && (<Button onClick={() => window.open(`https://sok.riksarkivet.se/?postid=ArkisRef%20${selectedSource.nad}`, '_blank')} variant="success" size="xs">NAD</Button>)}</div>
+                        <div className="grid grid-cols-3 gap-4 mb-6 bg-background p-3 rounded border border-subtle">
+                            <div className="flex items-end gap-1"><div className="flex-1"><label className="block text-xs font-bold text-secondary uppercase">AID (AD)</label><input className="w-full border border-subtle rounded px-2 py-1 font-mono text-xs bg-background text-primary focus:border-accent focus:outline-none" value={selectedSource.aid || ''} onChange={e => handleSave({ aid: e.target.value })} /></div>{selectedSource.aid && (<Button onClick={() => window.open(`http://www.arkivdigital.se/aid/show/${selectedSource.aid}`, '_blank')} variant="success" size="xs">AD</Button>)}</div>
+                            <div className="flex items-end gap-1"><div className="flex-1"><label className="block text-xs font-bold text-secondary uppercase">BildID (RA)</label><input className="w-full border border-subtle rounded px-2 py-1 font-mono text-xs bg-background text-primary focus:border-accent focus:outline-none" value={selectedSource.bildid || ''} onChange={e => handleSave({ bildid: e.target.value })} /></div>{selectedSource.bildid && (<Button onClick={() => window.open(`https://sok.riksarkivet.se/bildvisning/${selectedSource.bildid}`, '_blank')} variant="success" size="xs">RA</Button>)}</div>
+                            <div className="flex items-end gap-1"><div className="flex-1"><label className="block text-xs font-bold text-secondary uppercase">NAD</label><input className="w-full border border-subtle rounded px-2 py-1 font-mono text-xs bg-background text-primary focus:border-accent focus:outline-none" value={selectedSource.nad || ''} onChange={e => handleSave({ nad: e.target.value })} /></div>{selectedSource.nad && (<Button onClick={() => window.open(`https://sok.riksarkivet.se/?postid=ArkisRef%20${selectedSource.nad}`, '_blank')} variant="success" size="xs">NAD</Button>)}</div>
                         </div>
                         <div className="mt-4 mb-6 space-y-4">
-                           <div className="flex items-center gap-2"><label className="text-xs font-bold text-slate-300 uppercase">Trovärdighet:</label><TrustDropdown value={selectedSource.trust} onChange={v => handleSave({ trust: v })} /></div>
+                           <div className="flex items-center gap-2"><label className="text-xs font-bold text-secondary uppercase">Trovärdighet:</label><TrustDropdown value={selectedSource.trust} onChange={v => handleSave({ trust: v })} /></div>
                            
                            {/* TAG-SEKTION (samma som MediaManager) */}
                            <div className="space-y-2">
-                               <label className="text-[10px] font-bold text-slate-500 uppercase mb-2 block">Taggar</label>
+                               <label className="text-[10px] font-bold text-muted uppercase mb-2 block">Taggar</label>
                                
                                {/* Visade taggar */}
                                {(() => {
@@ -725,7 +725,7 @@ export default function SourceCatalog({
                                        ref={tagInputRef}
                                        type="text"
                                        placeholder="Skriv eller välj tagg..."
-                                       className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500"
+                                       className="w-full bg-background border border-subtle rounded px-2 py-1.5 text-sm text-on-accent focus:outline-none focus:border-accent"
                                        value={tagInput}
                                        onChange={(e) => {
                                            setTagInput(e.target.value);
@@ -759,7 +759,7 @@ export default function SourceCatalog({
                                    
                                    {/* Autocomplete dropdown */}
                                    {tagSuggestions.length > 0 && tagInput && (
-                                       <div className="absolute z-50 w-full mt-1 bg-slate-800 border border-slate-600 rounded shadow-lg max-h-40 overflow-y-auto">
+                                       <div className="absolute z-50 w-full mt-1 bg-surface border border-subtle rounded shadow-lg max-h-40 overflow-y-auto">
                                            {tagSuggestions.map((suggestion, idx) => (
                                                <button
                                                    key={idx}
@@ -769,9 +769,9 @@ export default function SourceCatalog({
                                                        setTagInput('');
                                                        setTagSuggestions([]);
                                                    }}
-                                                   className="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 transition-colors flex items-center gap-2"
+                                                   className="w-full text-left px-3 py-2 text-sm text-primary hover:bg-surface-2 transition-colors flex items-center gap-2"
                                                >
-                                                   <Tag size={12} className="text-slate-500" />
+                                                   <Tag size={12} className="text-muted" />
                                                    <span>{suggestion}</span>
                                                </button>
                                            ))}
@@ -779,7 +779,7 @@ export default function SourceCatalog({
                                    )}
                                </div>
                                
-                               <p className="text-[10px] text-slate-500">Tryck Enter eller "," för att lägga till tagg</p>
+                               <p className="text-[10px] text-muted">Tryck Enter eller "," för att lägga till tagg</p>
                            </div>
                         </div>
                     </div>
@@ -801,7 +801,7 @@ export default function SourceCatalog({
                 {activeRightTab === 'notes' && (
                     <div className="max-w-3xl mx-auto">
                         <div className="flex justify-between items-center mb-4">
-                            <h3 className="font-bold text-slate-200">Anteckningar</h3>
+                            <h3 className="font-bold text-primary">Anteckningar</h3>
                             <Button 
                                 onClick={() => {
                                     const newNote = { id: `note_${Date.now()}`, text: '', created: new Date().toISOString() };
@@ -817,8 +817,8 @@ export default function SourceCatalog({
                         
                         <div className="space-y-4">
                             {currentNotes.map((note, idx) => (
-                                <div key={note.id || idx} className="border border-slate-700 rounded bg-slate-900 shadow-sm p-3">
-                                    <div className="flex justify-between text-xs text-slate-400 mb-1">
+                                <div key={note.id || idx} className="border border-subtle rounded bg-background shadow-sm p-3">
+                                    <div className="flex justify-between text-xs text-muted mb-1">
                                         <span>{note.created ? new Date(note.created).toLocaleDateString() : 'Importerad'}</span>
                                         <Button 
                                             onClick={() => {
@@ -844,7 +844,7 @@ export default function SourceCatalog({
                                     />
                                 </div>
                             ))}
-                            {currentNotes.length === 0 && <div className="text-center text-slate-400 italic py-10">Inga anteckningar än.</div>}
+                            {currentNotes.length === 0 && <div className="text-center text-muted italic py-10">Inga anteckningar än.</div>}
                         </div>
                     </div>
                 )}
@@ -853,7 +853,7 @@ export default function SourceCatalog({
                 {activeRightTab === 'connections' && (
                     <div className="max-w-4xl mx-auto">
                         <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-lg font-bold text-slate-200">Kopplade Människor & Händelser</h3>
+                            <h3 className="text-lg font-bold text-primary">Kopplade Människor & Händelser</h3>
                             {onOpenLinkPersonModal && (
                                 <Button onClick={() => onOpenLinkPersonModal(null)} variant="primary" size="sm">
                                     <span>+</span> Koppla person
@@ -861,14 +861,14 @@ export default function SourceCatalog({
                             )}
                         </div>
                         {linkedData.length === 0 ? (
-                            <p className="text-slate-400 text-sm italic text-center py-4">Inga personer är kopplade till denna källa än.</p>
+                            <p className="text-muted text-sm italic text-center py-4">Inga personer är kopplade till denna källa än.</p>
                         ) : (
                             <div className="space-y-6">
                                 {linkedData.map((item, index) => (
-                                    <div key={index} className="bg-slate-900 border border-slate-700 rounded-md overflow-hidden">
-                                        <div className="flex items-center p-3 bg-slate-800 border-b border-slate-700 hover:bg-slate-700 transition-colors">
+                                    <div key={index} className="bg-background border border-subtle rounded-md overflow-hidden">
+                                        <div className="flex items-center p-3 bg-surface border-b border-subtle hover:bg-surface-2 transition-colors">
                                             {/* Rund thumbnail till vänster */}
-                                            <div className="w-10 h-10 rounded-full bg-slate-600 flex-shrink-0 overflow-hidden border-2 border-slate-500 mr-3">
+                                            <div className="w-10 h-10 rounded-full bg-surface flex-shrink-0 overflow-hidden border-2 border-strong mr-3">
                                                 {item.person.media && item.person.media.length > 0 ? (
                                                     <MediaImage 
                                                         url={item.person.media[0].url || item.person.media[0].path}
@@ -877,26 +877,26 @@ export default function SourceCatalog({
                                                         style={getAvatarImageStyle(item.person.media[0], item.person.id)}
                                                     />
                                                 ) : (
-                                                    <User className="w-full h-full p-2 text-slate-400" />
+                                                    <User className="w-full h-full p-2 text-muted" />
                                                 )}
                                             </div>
                                             
                                             {item.isLinkedToImageRegion && (
                                                 <span className="text-green-600 mr-2" title="Personen är taggad i en bild från denna källa">🖼️</span>
                                             )}
-                                            <div className="w-12 text-xs font-mono text-slate-500">#{item.person.refNumber}</div>
-                                            <div className="flex-1 font-bold text-blue-400 cursor-pointer hover:underline" onClick={() => onOpenEditModal && onOpenEditModal(item.person.id)}>
+                                            <div className="w-12 text-xs font-mono text-muted">#{item.person.refNumber}</div>
+                                            <div className="flex-1 font-bold text-accent cursor-pointer hover:underline" onClick={() => onOpenEditModal && onOpenEditModal(item.person.id)}>
                                                 {item.person.firstName} {item.person.lastName}
-                                                <span className="font-normal text-slate-400 ml-2 text-xs">{getLifeSpan(item.person)}</span>
+                                                <span className="font-normal text-muted ml-2 text-xs">{getLifeSpan(item.person)}</span>
                                             </div>
-                                            <div className="w-48 text-sm font-medium px-2 bg-slate-700 rounded py-0.5 mr-4 flex flex-wrap gap-2 justify-end">
+                                            <div className="w-48 text-sm font-medium px-2 bg-surface-2 rounded py-0.5 mr-4 flex flex-wrap gap-2 justify-end">
                                                 {item.events.map(ev => (
                                                     <span key={ev.id || ev.type} className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-200 text-green-900 rounded text-xs font-semibold">
                                                         {translateEvent(ev.type)}
                                                         {onUnlinkSourceFromEvent && (
                                                             <button
                                                                 onClick={() => { if(confirm(`Ta bort koppling?`)) onUnlinkSourceFromEvent(item.person.id, ev.id, selectedSource.id); }}
-                                                                className="ml-1 text-green-900 hover:text-white hover:bg-green-600 rounded-full w-4 h-4 flex items-center justify-center transition-colors"
+                                                                className="ml-1 text-green-900 hover:text-on-accent hover:bg-green-600 rounded-full w-4 h-4 flex items-center justify-center transition-colors"
                                                                 title={`Ta bort koppling till ${translateEvent(ev.type)}`}
                                                                 style={{ lineHeight: 1, fontSize: '13px', padding: 0, border: 'none', background: 'none', cursor: 'pointer' }}
                                                             >
@@ -908,16 +908,16 @@ export default function SourceCatalog({
                                             </div>
                                         </div>
                                         {item.family && item.family.length > 0 && (
-                                            <div className="bg-slate-900 p-2 pl-12 border-t border-dashed border-slate-700">
-                                                <div className="text-xs font-bold text-slate-400 uppercase mb-2">Relaterade familjemedlemmar (Tips)</div>
+                                            <div className="bg-background p-2 pl-12 border-t border-dashed border-subtle">
+                                                <div className="text-xs font-bold text-muted uppercase mb-2">Relaterade familjemedlemmar (Tips)</div>
                                                 <div className="grid grid-cols-1 gap-1">
                                                     {item.family.map((fam, fIndex) => (
-                                                        <div key={fIndex} className="flex items-center justify-between group hover:bg-slate-800 p-1 rounded">
-                                                            <div className="flex items-center gap-2"><span className="text-xs font-bold text-slate-400 w-16 text-right">{fam.role}:</span><span className="text-slate-300 cursor-pointer hover:text-blue-400" onClick={() => onOpenEditModal && onOpenEditModal(fam.person.id)}>{fam.person.firstName} {fam.person.lastName}</span><span className="text-xs text-slate-500">{getLifeSpan(fam.person)}</span></div>
+                                                        <div key={fIndex} className="flex items-center justify-between group hover:bg-surface p-1 rounded">
+                                                            <div className="flex items-center gap-2"><span className="text-xs font-bold text-muted w-16 text-right">{fam.role}:</span><span className="text-secondary cursor-pointer hover:text-accent" onClick={() => onOpenEditModal && onOpenEditModal(fam.person.id)}>{fam.person.firstName} {fam.person.lastName}</span><span className="text-xs text-muted">{getLifeSpan(fam.person)}</span></div>
                                                             {onOpenLinkPersonModal && (
                                                                 <button
                                                                     onClick={() => onOpenLinkPersonModal(fam.person.id)}
-                                                                    className="opacity-0 group-hover:opacity-100 bg-blue-600 text-blue-100 px-2 py-0.5 rounded text-xs font-semibold hover:bg-blue-500 transition-opacity"
+                                                                    className="opacity-0 group-hover:opacity-100 bg-accent text-on-accent px-2 py-0.5 rounded text-xs font-semibold hover:bg-accent transition-opacity"
                                                                 >
                                                                     Koppla
                                                                 </button>
@@ -937,7 +937,7 @@ export default function SourceCatalog({
             </div>
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center h-full text-slate-500">
+          <div className="flex flex-col items-center justify-center h-full text-muted">
             <p className="mb-2">← Välj en källa i listan</p>
             {onAddSource && <Button onClick={onAddSource} variant="primary" size="md">Skapa ny källa</Button>}
           </div>

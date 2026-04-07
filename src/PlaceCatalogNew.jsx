@@ -145,8 +145,8 @@ const TreeNode = ({
     <div>
       <div 
         data-place-id={node.id}
-        className={`flex items-center py-1 px-2 cursor-pointer select-none hover:bg-slate-700 transition-colors ${
-          isSelected ? 'bg-blue-600 border-l-4 border-blue-400' : ''
+        className={`flex items-center py-1 px-2 cursor-pointer select-none hover:bg-surface-2 transition-colors ${
+          isSelected ? 'bg-accent border-l-4 border-accent' : ''
         }`}
         style={{ paddingLeft: `${level * 20 + 8}px` }}
         onClick={() => onSelect(node)}
@@ -154,7 +154,7 @@ const TreeNode = ({
         onContextMenu={(e) => onContextMenu(e, node)}
       >
         <div 
-          className="mr-1 text-slate-500 hover:text-slate-300 transition-colors"
+          className="mr-1 text-muted hover:text-secondary transition-colors"
           onClick={(e) => {
             e.stopPropagation();
             if (hasChildren) toggleExpand(node.id);
@@ -175,7 +175,7 @@ const TreeNode = ({
           type={node.type}
           className="mr-2 text-base"
         />
-        <span className="text-sm text-slate-200">
+        <span className="text-sm text-primary">
           {highlightText(formatPlaceName(node))}
         </span>
       </div>
@@ -232,16 +232,16 @@ const ContextMenu = ({ x, y, node, onClose, onAction }) => {
   return (
     <div
       ref={menuRef}
-      className="fixed bg-slate-800 border border-slate-700 rounded shadow-lg py-1 z-50"
+      className="fixed bg-surface border border-subtle rounded shadow-lg py-1 z-50"
       style={{ top: y, left: x }}
     >
       {menuItems.map((item, idx) => 
         item.action === 'separator' ? (
-          <div key={idx} className="border-t border-slate-700 my-1" />
+          <div key={idx} className="border-t border-subtle my-1" />
         ) : (
           <button
             key={idx}
-            className="w-full text-left px-4 py-2 text-sm hover:bg-slate-700 flex items-center gap-2 text-slate-200 transition-colors"
+            className="w-full text-left px-4 py-2 text-sm hover:bg-surface-2 flex items-center gap-2 text-primary transition-colors"
             onClick={() => {
               onAction(item.action, node);
               onClose();
@@ -1060,17 +1060,17 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
   displayTree = sortTree(displayTree);
 
   return (
-    <div className="flex flex-col h-full bg-slate-900 overflow-hidden">
+    <div className="flex flex-col h-full bg-background overflow-hidden">
       {/* Toolbar */}
-      <div className="bg-slate-800 border-b border-slate-700 px-4 py-2 flex items-center gap-2 shadow-sm">
+      <div className="bg-surface border-b border-subtle px-4 py-2 flex items-center gap-2 shadow-sm">
         <button 
-          className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-500 font-medium"
+          className="px-3 py-1 bg-accent text-on-accent text-sm rounded hover:bg-accent font-medium"
           onClick={() => setCreatingParent(selectedNode || tree[0])}
         >
           ➕ Ny
         </button>
         <button 
-          className="px-3 py-1 bg-slate-700 text-slate-300 text-sm rounded hover:bg-slate-600 font-medium"
+          className="px-3 py-1 bg-surface-2 text-secondary text-sm rounded hover:bg-surface font-medium"
           onClick={() => editingPlace ? setEditingPlace(null) : (selectedNode && setEditingPlace(selectedNode))}
           disabled={!selectedNode}
         >
@@ -1091,13 +1091,13 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
           placeholder="Sök plats..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="border border-slate-700 bg-slate-900 text-white rounded px-3 py-1 text-sm w-64 focus:border-blue-500 focus:outline-none"
+          className="border border-subtle bg-background text-on-accent rounded px-3 py-1 text-sm w-64 focus:border-accent focus:outline-none"
         />
         
         <select
           value={sortOrder}
           onChange={(e) => setSortOrder(e.target.value)}
-          className="border border-slate-700 bg-slate-900 text-white rounded px-3 py-1 text-sm focus:border-blue-500 focus:outline-none"
+          className="border border-subtle bg-background text-on-accent rounded px-3 py-1 text-sm focus:border-accent focus:outline-none"
         >
           <option value="name-asc">Namn (A-Ö)</option>
           <option value="name-desc">Namn (Ö-A)</option>
@@ -1111,7 +1111,7 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
           📥 Importera
         </button>
         <button 
-          className="px-3 py-1 bg-blue-600 text-blue-100 text-sm rounded hover:bg-blue-500 font-medium"
+          className="px-3 py-1 bg-accent text-on-accent text-sm rounded hover:bg-accent font-medium"
           onClick={() => selectedNode && exportPlace(selectedNode)}
           disabled={!selectedNode}
         >
@@ -1130,17 +1130,17 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left: Tree View */}
-        <div className="w-1/3 min-w-[300px] border-r border-slate-700 flex flex-col bg-slate-850">
-          <div className="p-2 bg-slate-800 border-b border-slate-700 text-xs font-bold uppercase text-slate-300">
+        <div className="w-1/3 min-w-[300px] border-r border-subtle flex flex-col bg-surface">
+          <div className="p-2 bg-surface border-b border-subtle text-xs font-bold uppercase text-secondary">
             Platsstruktur
           </div>
           <div className="flex-1 overflow-y-auto py-2">
             {loading ? (
-              <div className="text-center text-slate-500 mt-8">Laddar platser...</div>
+              <div className="text-center text-muted mt-8">Laddar platser...</div>
             ) : error ? (
               <div className="text-center text-red-500 mt-8">Fel: {error}</div>
             ) : displayTree.length === 0 ? (
-              <div className="text-center text-slate-500 mt-8">Inga platser funna</div>
+              <div className="text-center text-muted mt-8">Inga platser funna</div>
             ) : (
               displayTree.map(node => (
                 <TreeNode 
@@ -1158,7 +1158,7 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
               ))
             )}
           </div>
-          <div className="h-64 border-t border-slate-700 bg-slate-900">
+          <div className="h-64 border-t border-subtle bg-background">
             {mapPlaces.length > 0 ? (
               <MapContainer
                 center={selectedCoordinates || mapPlaces[0].coordinates || DEFAULT_MAP_CENTER}
@@ -1194,7 +1194,7 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
                 ))}
               </MapContainer>
             ) : (
-              <div className="h-full flex items-center justify-center text-xs text-slate-400 px-3 text-center">
+              <div className="h-full flex items-center justify-center text-xs text-muted px-3 text-center">
                 Inga platser med giltiga koordinater att visa på kartan.
               </div>
             )}
@@ -1202,23 +1202,23 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
         </div>
 
         {/* Right: Details Panel */}
-        <div className="flex-1 bg-slate-800 flex flex-col overflow-hidden">
+        <div className="flex-1 bg-surface flex flex-col overflow-hidden">
           {selectedNode ? (
             <div className="flex-1 flex flex-col overflow-hidden">
               <div className="p-6 pb-0">
                 <div className="flex items-start justify-between">
                   <div>
-                    <h1 className="text-2xl font-semibold text-white mb-1">{selectedNode.name}</h1>
-                    <p className="text-slate-400 italic">
+                    <h1 className="text-2xl font-semibold text-on-accent mb-1">{selectedNode.name}</h1>
+                    <p className="text-muted italic">
                       {PLACE_TYPE_LABELS[selectedNode.type] || 'Platsinformation saknas'}
                     </p>
                   </div>
                 </div>
 
                 {/* Tabbar */}
-                <div className="flex border-b mt-4 bg-slate-900 rounded-t-lg shadow-sm">
+                <div className="flex border-b mt-4 bg-background rounded-t-lg shadow-sm">
                   <button
-                    className={`relative px-5 py-2 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors duration-150 focus:outline-none ${activeRightTab === 'info' ? 'border-blue-500 text-blue-300 bg-slate-800 shadow -mb-px' : 'border-transparent text-slate-400 hover:text-blue-400 hover:bg-slate-700'}`}
+                    className={`relative px-5 py-2 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors duration-150 focus:outline-none ${activeRightTab === 'info' ? 'border-accent text-accent bg-surface shadow -mb-px' : 'border-transparent text-muted hover:text-accent hover:bg-surface-2'}`}
                     onClick={() => setActiveRightTab('info')}
                     title="Information"
                   >
@@ -1227,7 +1227,7 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
                     {activeRightTab === 'info' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2 h-2 bg-blue-500 rounded-full" />}
                   </button>
                   <button
-                    className={`relative px-5 py-2 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors duration-150 focus:outline-none ${activeRightTab === 'riksarkivet' ? 'border-blue-500 text-blue-300 bg-slate-800 shadow -mb-px' : 'border-transparent text-slate-400 hover:text-blue-400 hover:bg-slate-700'}`}
+                    className={`relative px-5 py-2 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors duration-150 focus:outline-none ${activeRightTab === 'riksarkivet' ? 'border-accent text-accent bg-surface shadow -mb-px' : 'border-transparent text-muted hover:text-accent hover:bg-surface-2'}`}
                     onClick={() => setActiveRightTab('riksarkivet')}
                     title="Riksarkivet"
                   >
@@ -1236,7 +1236,7 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
                     {activeRightTab === 'riksarkivet' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2 h-2 bg-blue-500 rounded-full" />}
                   </button>
                   <button
-                    className={`relative px-5 py-2 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors duration-150 focus:outline-none ${activeRightTab === 'images' ? 'border-blue-500 text-blue-300 bg-slate-800 shadow -mb-px' : 'border-transparent text-slate-400 hover:text-blue-400 hover:bg-slate-700'}`}
+                    className={`relative px-5 py-2 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors duration-150 focus:outline-none ${activeRightTab === 'images' ? 'border-accent text-accent bg-surface shadow -mb-px' : 'border-transparent text-muted hover:text-accent hover:bg-surface-2'}`}
                     onClick={() => setActiveRightTab('images')}
                     title="Bilder"
                   >
@@ -1245,7 +1245,7 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
                     {activeRightTab === 'images' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2 h-2 bg-blue-500 rounded-full" />}
                   </button>
                   <button
-                    className={`relative px-5 py-2 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors duration-150 focus:outline-none ${activeRightTab === 'notes' ? 'border-blue-500 text-blue-300 bg-slate-800 shadow -mb-px' : 'border-transparent text-slate-400 hover:text-blue-400 hover:bg-slate-700'}`}
+                    className={`relative px-5 py-2 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors duration-150 focus:outline-none ${activeRightTab === 'notes' ? 'border-accent text-accent bg-surface shadow -mb-px' : 'border-transparent text-muted hover:text-accent hover:bg-surface-2'}`}
                     onClick={() => setActiveRightTab('notes')}
                     title="Noteringar"
                   >
@@ -1254,7 +1254,7 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
                     {activeRightTab === 'notes' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2 h-2 bg-blue-500 rounded-full" />}
                   </button>
                   <button
-                    className={`relative px-5 py-2 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors duration-150 focus:outline-none ${activeRightTab === 'connections' ? 'border-blue-500 text-blue-300 bg-slate-800 shadow -mb-px' : 'border-transparent text-slate-400 hover:text-blue-400 hover:bg-slate-700'}`}
+                    className={`relative px-5 py-2 text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors duration-150 focus:outline-none ${activeRightTab === 'connections' ? 'border-accent text-accent bg-surface shadow -mb-px' : 'border-transparent text-muted hover:text-accent hover:bg-surface-2'}`}
                     onClick={() => setActiveRightTab('connections')}
                     title="Kopplingar"
                   >
@@ -1274,26 +1274,26 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
                 )}
                 {activeRightTab === 'riksarkivet' && (
                   <div className="max-w-3xl mx-auto">
-                    <h3 className="text-lg font-bold text-slate-200 mb-3">Riksarkivet</h3>
+                    <h3 className="text-lg font-bold text-primary mb-3">Riksarkivet</h3>
                     {riksarkivetLoading && <div>Laddar från Riksarkivet...</div>}
                     {riksarkivetError && (
                       <div className="text-red-400">
                         {riksarkivetError}
-                        <div className="text-slate-400 mt-2 text-sm">
+                        <div className="text-muted mt-2 text-sm">
                           Riksarkivets Sök-API verkar vara otillgängligt just nu.<br />
                           Detta är ett problem hos Riksarkivet, inte i din app.<br />
-                          Försök igen senare. Om felet kvarstår, kontrollera <a href="https://sok.riksarkivet.se/" target="_blank" rel="noopener noreferrer" className="underline text-blue-400">Riksarkivets webbsida</a> för driftstatus.
+                          Försök igen senare. Om felet kvarstår, kontrollera <a href="https://sok.riksarkivet.se/" target="_blank" rel="noopener noreferrer" className="underline text-accent">Riksarkivets webbsida</a> för driftstatus.
                         </div>
                       </div>
                     )}
                     {riksarkivetResults && riksarkivetResults.length > 0 ? (
                       <ul className="space-y-2">
                         {riksarkivetResults.map((rec, i) => (
-                          <li key={i} className="border-b border-slate-700 pb-2">
+                          <li key={i} className="border-b border-subtle pb-2">
                             <div className="font-semibold">{rec.title}</div>
                             {rec.description && <div className="text-sm mb-1">{rec.description}</div>}
                             {rec.identifier && (
-                              <a href={rec.identifier} target="_blank" rel="noopener noreferrer" className="text-blue-400 underline">Visa arkivpost</a>
+                              <a href={rec.identifier} target="_blank" rel="noopener noreferrer" className="text-accent underline">Visa arkivpost</a>
                             )}
                           </li>
                         ))}
@@ -1305,8 +1305,8 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
                 )}
                 {activeRightTab === 'images' && (
                   <div className="max-w-3xl mx-auto">
-                    <h3 className="text-lg font-bold text-slate-200 mb-3">Bilder</h3>
-                    <div className="text-sm text-slate-400 italic bg-slate-900 border border-slate-700 rounded p-4">
+                    <h3 className="text-lg font-bold text-primary mb-3">Bilder</h3>
+                    <div className="text-sm text-muted italic bg-background border border-subtle rounded p-4">
                       Inga bilder är kopplade till denna plats ännu.
                     </div>
                   </div>
@@ -1314,9 +1314,9 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
                 {activeRightTab === 'notes' && (
                   <div className="max-w-3xl mx-auto space-y-3">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-bold text-slate-200">Noteringar</h3>
+                      <h3 className="text-lg font-bold text-primary">Noteringar</h3>
                       <button
-                        className="px-3 py-1 bg-blue-600 text-blue-100 rounded hover:bg-blue-500 font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="px-3 py-1 bg-accent text-on-accent rounded hover:bg-accent font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                         onClick={handleSaveNote}
                         disabled={isSavingNote}
                       >
@@ -1333,18 +1333,18 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
                 {activeRightTab === 'connections' && (
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-bold text-slate-300 uppercase">Kopplade Personer</h3>
-                      <span className="text-xs text-slate-400">{linkedPeople.length} {linkedPeople.length === 1 ? 'person' : 'personer'}</span>
+                      <h3 className="text-sm font-bold text-secondary uppercase">Kopplade Personer</h3>
+                      <span className="text-xs text-muted">{linkedPeople.length} {linkedPeople.length === 1 ? 'person' : 'personer'}</span>
                     </div>
-                    <div className="bg-slate-900 rounded-md border border-slate-700 overflow-hidden">
+                    <div className="bg-background rounded-md border border-subtle overflow-hidden">
                       {linkedPeople.length > 0 ? (
                         linkedPeople.map((link) => {
                           const person = link.person || allPeople.find(p => p.id === link.personId);
                           if (!person) {
                             // Fallback om personen inte hittas
                             return (
-                              <div key={`${link.personId}-${link.eventId}`} className="flex items-center justify-between bg-slate-900 p-2 rounded border border-slate-700 text-xs">
-                                <div><span className="text-slate-200 font-medium block">Okänd person</span></div>
+                              <div key={`${link.personId}-${link.eventId}`} className="flex items-center justify-between bg-background p-2 rounded border border-subtle text-xs">
+                                <div><span className="text-primary font-medium block">Okänd person</span></div>
                               </div>
                             );
                           }
@@ -1369,7 +1369,7 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
                           return (
                             <div 
                               key={`${link.personId}-${link.eventId}`} 
-                              className="flex items-start gap-2 bg-slate-900 p-2 rounded border border-slate-700 text-xs cursor-pointer hover:bg-slate-800 transition-colors"
+                              className="flex items-start gap-2 bg-background p-2 rounded border border-subtle text-xs cursor-pointer hover:bg-surface transition-colors"
                               onClick={() => {
                                 if (onOpenEditModal) {
                                   onOpenEditModal(link.personId);
@@ -1377,7 +1377,7 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
                               }}
                             >
                               {/* Rund thumbnail (samma som MediaManager) */}
-                              <div className="w-10 h-10 rounded-full bg-slate-600 flex-shrink-0 overflow-hidden border-2 border-slate-500">
+                              <div className="w-10 h-10 rounded-full bg-surface flex-shrink-0 overflow-hidden border-2 border-strong">
                                 {profileImage ? (
                                   <MediaImage 
                                     url={profileImage}
@@ -1386,40 +1386,40 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
                                     style={getAvatarImageStyle(primaryMedia, person.id)}
                                   />
                                 ) : (
-                                  <User className="w-full h-full p-2 text-slate-400" />
+                                  <User className="w-full h-full p-2 text-muted" />
                                 )}
                               </div>
                               
                               {/* Personinfo */}
                               <div className="flex-1 min-w-0">
                                 {/* Namn */}
-                                <div className="text-slate-200 font-medium mb-0.5">
+                                <div className="text-primary font-medium mb-0.5">
                                   {person.firstName} {person.lastName}
                                 </div>
                                 
                                 {/* Eventtyp och datum */}
-                                <div className="text-[10px] text-slate-500 mb-0.5">
+                                <div className="text-[10px] text-muted mb-0.5">
                                   {link.eventType}
                                   {link.eventDate && ` (${link.eventDate})`}
                                 </div>
                                 
                                 {/* Födelsedatum och plats */}
                                 {(birthDate || birthPlace) && (
-                                  <div className="text-[10px] text-slate-400 mb-0.5">
+                                  <div className="text-[10px] text-muted mb-0.5">
                                     * {birthDate || '????-??-??'} {birthPlace && ` ${birthPlace}`} ({sexLabel})
                                   </div>
                                 )}
                                 
                                 {/* Dödsdatum och plats */}
                                 {(deathDate || deathPlace) && (
-                                  <div className="text-[10px] text-slate-400">
+                                  <div className="text-[10px] text-muted">
                                     + {deathDate || '????-??-??'} {deathPlace && ` ${deathPlace}`} ({sexLabel})
                                   </div>
                                 )}
                                 
                                 {/* Om inga datum finns */}
                                 {!birthDate && !deathDate && (
-                                  <div className="text-[10px] text-slate-500 italic">
+                                  <div className="text-[10px] text-muted italic">
                                     Inga datum registrerade
                                   </div>
                                 )}
@@ -1428,7 +1428,7 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
                           );
                         })
                       ) : (
-                        <div className="p-4 text-sm text-slate-400 italic">
+                        <div className="p-4 text-sm text-muted italic">
                           Inga personer kopplade till denna plats.
                         </div>
                       )}
@@ -1438,7 +1438,7 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
               </div>
             </div>
           ) : (
-            <div className="flex items-center justify-center h-full text-slate-500">
+            <div className="flex items-center justify-center h-full text-muted">
               Välj en plats i listan till vänster för att se detaljer.
             </div>
           )}
@@ -1447,14 +1447,14 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
 
       {/* Footer: Picker actions or Breadcrumbs */}
       {onPick ? (
-        <div className="h-10 bg-slate-800 border-t border-slate-700 flex items-center justify-end gap-2 px-3">
-          <button className="px-3 py-1 bg-slate-700 text-slate-100 rounded hover:bg-slate-600 font-medium" onClick={() => onClose && onClose()}>Avbryt</button>
-          <button className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-500 font-medium disabled:opacity-50" disabled={!selectedNode} onClick={() => selectedNode && onPick(selectedNode)}>OK</button>
+        <div className="h-10 bg-surface border-t border-subtle flex items-center justify-end gap-2 px-3">
+          <button className="px-3 py-1 bg-surface-2 text-primary rounded hover:bg-surface font-medium" onClick={() => onClose && onClose()}>Avbryt</button>
+          <button className="px-3 py-1 bg-accent text-on-accent rounded hover:bg-accent font-medium disabled:opacity-50" disabled={!selectedNode} onClick={() => selectedNode && onPick(selectedNode)}>OK</button>
         </div>
       ) : isDrawerMode && onLinkPlace ? (
-        <div className="h-10 bg-slate-800 border-t border-slate-700 flex items-center justify-end gap-2 px-3">
+        <div className="h-10 bg-surface border-t border-subtle flex items-center justify-end gap-2 px-3">
           <button 
-            className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-500 font-medium disabled:opacity-50 disabled:bg-green-900" 
+            className="px-3 py-1 bg-green-600 text-on-accent rounded hover:bg-green-500 font-medium disabled:opacity-50 disabled:bg-green-900" 
             disabled={!selectedNode} 
             onClick={() => selectedNode && onLinkPlace(selectedNode)}
           >
@@ -1462,7 +1462,7 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
           </button>
         </div>
       ) : (
-        <div className="h-8 bg-slate-900 text-slate-300 flex items-center px-4 text-xs border-t border-slate-700">
+        <div className="h-8 bg-background text-secondary flex items-center px-4 text-xs border-t border-subtle">
           {breadcrumbs.length > 0 ? (
             <span>{breadcrumbs.join(' › ')}</span>
           ) : (

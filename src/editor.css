@@ -1,8 +1,8 @@
 .rsw-editor {
-  border: 1px solid #475569; /* slate-600 */
+  border: 1px solid var(--color-border);
   border-radius: 4px;
-  background: #0f172a; /* slate-900 */
-  color: #e2e8f0; /* slate-200 */
+  background: var(--color-background);
+  color: var(--color-text-primary);
 }
 
 /* Nuclear CSS override for tui-image-editor - force everything to expand */
@@ -47,17 +47,17 @@
   padding: 8px;
   min-height: 120px;
   outline: none;
-  background: #0f172a !important; /* slate-900 */
-  color: #e2e8f0 !important; /* slate-200 */
+  background: var(--color-background) !important;
+  color: var(--color-text-primary) !important;
 }
 
 .rsw-ce ul,
 .rsw-ce ol {
-  color: #e2e8f0; /* slate-200 */
+  color: var(--color-text-primary);
 }
 
 .rsw-ce li {
-  color: #e2e8f0; /* slate-200 */
+  color: var(--color-text-primary);
 }
 
 /* Fix for lists when using global resets */
@@ -70,14 +70,14 @@
   display: flex;
   gap: 6px;
   padding: 6px;
-  border-bottom: 1px solid #334155; /* slate-700 */
-  background: #1e293b; /* slate-800 */
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
 }
 
 .rsw-toolbar button {
-  background: #475569 !important; /* slate-600 */
-  color: #e2e8f0 !important; /* slate-200 */
-  border: 1px solid #334155 !important; /* slate-700 */
+  background: var(--color-surface-2) !important;
+  color: var(--color-text-primary) !important;
+  border: 1px solid var(--color-border) !important;
   padding: 4px 8px;
   cursor: pointer;
 }
@@ -92,29 +92,30 @@
 }
 
 .rsw-toolbar button:hover {
-  background: #64748b !important; /* slate-500 */
-  border-color: #475569 !important; /* slate-600 */
+  background: var(--color-accent-soft) !important;
+  border-color: var(--color-accent) !important;
 }
 
 .rsw-toolbar button:active,
 .rsw-toolbar button[aria-pressed="true"] {
-  background: #334155 !important; /* slate-700 */
+  background: var(--color-accent) !important;
+  color: var(--color-on-accent) !important;
 }
 
 .rsw-toolbar select {
-  background: #475569 !important; /* slate-600 */
-  color: #e2e8f0 !important; /* slate-200 */
-  border: 1px solid #334155 !important; /* slate-700 */
+  background: var(--color-surface-2) !important;
+  color: var(--color-text-primary) !important;
+  border: 1px solid var(--color-border) !important;
   padding: 4px 8px;
   cursor: pointer;
 }
 
 .rsw-toolbar select:hover {
-  background: #64748b !important; /* slate-500 */
+  background: var(--color-accent-soft) !important;
 }
 
 /* Dropdown menu styling */
 .rsw-toolbar select option {
-  background: #1e293b; /* slate-800 */
-  color: #e2e8f0; /* slate-200 */
+  background: var(--color-surface);
+  color: var(--color-text-primary);
 }

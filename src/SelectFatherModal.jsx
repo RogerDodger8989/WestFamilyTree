@@ -103,10 +103,10 @@ export default function SelectFatherModal({ mother, allPeople, getPersonRelation
       onKeyDown={handleKeyDown}
     >
       <div 
-        className="bg-slate-800 border border-slate-700 rounded-xl p-6 max-w-lg w-full mx-4 shadow-2xl"
+        className="bg-surface border border-subtle rounded-xl p-6 max-w-lg w-full mx-4 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-xl font-bold mb-4 text-slate-200">
+        <h3 className="text-xl font-bold mb-4 text-primary">
           Välj förälder med {mother?.firstName} {mother?.lastName}
         </h3>
         
@@ -116,7 +116,7 @@ export default function SelectFatherModal({ mother, allPeople, getPersonRelation
             placeholder="Sök på namn eller REF..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full p-3 bg-slate-700 border border-slate-600 rounded-lg text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full p-3 bg-surface-2 border border-subtle rounded-lg text-primary placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-accent"
             autoFocus
           />
         </div>
@@ -124,7 +124,7 @@ export default function SelectFatherModal({ mother, allPeople, getPersonRelation
         {/* Visa partners först om de finns */}
         {partners.length > 0 && !searchTerm.trim() && (
           <div className="mb-4">
-            <div className="text-sm text-slate-400 mb-2">Partners:</div>
+            <div className="text-sm text-secondary mb-2">Partners:</div>
             <div className="space-y-2">
               {partners.map(person => {
                 const profileImage = person.media?.[0]?.url;
@@ -136,10 +136,10 @@ export default function SelectFatherModal({ mother, allPeople, getPersonRelation
                   <div
                     key={person.id}
                     onClick={() => handleSelectPerson(person.id)}
-                    className="p-3 bg-slate-700/50 hover:bg-slate-700 border border-slate-600 rounded-lg cursor-pointer transition-colors flex items-center gap-3"
+                    className="p-3 bg-surface-2 hover:bg-surface border border-subtle rounded-lg cursor-pointer transition-colors flex items-center gap-3"
                   >
                     {/* Rund thumbnail */}
-                    <div className="w-12 h-12 rounded-full bg-slate-600 flex-shrink-0 overflow-hidden border-2 border-slate-500">
+                    <div className="w-12 h-12 rounded-full bg-surface flex-shrink-0 overflow-hidden border-2 border-strong">
                       {profileImage ? (
                         <MediaImage 
                           url={profileImage}
@@ -148,7 +148,7 @@ export default function SelectFatherModal({ mother, allPeople, getPersonRelation
                           style={getAvatarImageStyle(person.media?.[0], person.id)}
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-slate-400 text-xs">
+                        <div className="w-full h-full flex items-center justify-center text-secondary text-xs">
                           {person.firstName?.[0] || '?'}
                         </div>
                       )}
@@ -156,16 +156,16 @@ export default function SelectFatherModal({ mother, allPeople, getPersonRelation
                     
                     {/* Personinfo */}
                     <div className="flex-grow min-w-0">
-                      <div className="font-semibold text-slate-200">
+                      <div className="font-semibold text-primary">
                         {person.firstName} {person.lastName}
                       </div>
                       {lifeSpanStr && (
-                        <div className="text-sm text-slate-400">
+                        <div className="text-sm text-secondary">
                           {lifeSpanStr}
                         </div>
                       )}
                       {person.refNumber && (
-                        <div className="text-xs text-slate-500">
+                        <div className="text-xs text-muted">
                           REF: {person.refNumber}
                         </div>
                       )}
@@ -191,9 +191,9 @@ export default function SelectFatherModal({ mother, allPeople, getPersonRelation
 
         {/* Lista med personer */}
         {searchTerm.trim() && (
-          <div className="max-h-64 overflow-y-auto border border-slate-700 rounded-lg">
+          <div className="max-h-64 overflow-y-auto border border-subtle rounded-lg">
             {filteredPeople.length > 0 ? (
-              <ul className="divide-y divide-slate-700">
+              <ul className="divide-y divide-subtle">
                 {filteredPeople.map(person => {
                   const profileImage = person.media?.[0]?.url;
                   const lifeSpan = person.events?.find(e => e.type === 'Födelse')?.date || '';
@@ -205,10 +205,10 @@ export default function SelectFatherModal({ mother, allPeople, getPersonRelation
                     <li
                       key={person.id}
                       onClick={() => handleSelectPerson(person.id)}
-                      className={`p-3 hover:bg-slate-700 cursor-pointer transition-colors flex items-center gap-3 ${isPartner ? 'bg-slate-700/30 border-l-2 border-green-500' : ''}`}
+                      className={`p-3 hover:bg-surface cursor-pointer transition-colors flex items-center gap-3 ${isPartner ? 'bg-surface-2 border-l-2 border-green-500' : ''}`}
                     >
                       {/* Rund thumbnail */}
-                      <div className="w-12 h-12 rounded-full bg-slate-600 flex-shrink-0 overflow-hidden border-2 border-slate-500">
+                      <div className="w-12 h-12 rounded-full bg-surface flex-shrink-0 overflow-hidden border-2 border-strong">
                         {profileImage ? (
                           <MediaImage 
                             url={profileImage}
@@ -217,7 +217,7 @@ export default function SelectFatherModal({ mother, allPeople, getPersonRelation
                             style={getAvatarImageStyle(person.media?.[0], person.id)}
                           />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center text-slate-400 text-xs">
+                          <div className="w-full h-full flex items-center justify-center text-secondary text-xs">
                             {person.firstName?.[0] || '?'}
                           </div>
                         )}
@@ -225,16 +225,16 @@ export default function SelectFatherModal({ mother, allPeople, getPersonRelation
                       
                       {/* Personinfo */}
                       <div className="flex-grow min-w-0">
-                        <div className="font-semibold text-slate-200">
+                        <div className="font-semibold text-primary">
                           {person.firstName} {person.lastName}
                         </div>
                         {lifeSpanStr && (
-                          <div className="text-sm text-slate-400">
+                          <div className="text-sm text-secondary">
                             {lifeSpanStr}
                           </div>
                         )}
                         {person.refNumber && (
-                          <div className="text-xs text-slate-500">
+                          <div className="text-xs text-muted">
                             REF: {person.refNumber}
                           </div>
                         )}
@@ -247,7 +247,7 @@ export default function SelectFatherModal({ mother, allPeople, getPersonRelation
                 })}
               </ul>
             ) : (
-              <div className="p-4 text-center text-slate-400">
+              <div className="p-4 text-center text-secondary">
                 Inga personer hittades
               </div>
             )}
@@ -255,7 +255,7 @@ export default function SelectFatherModal({ mother, allPeople, getPersonRelation
         )}
 
         {!searchTerm.trim() && partners.length === 0 && (
-          <div className="p-4 text-center text-slate-400 text-sm">
+          <div className="p-4 text-center text-secondary text-sm">
             Skriv för att söka efter personer eller klicka på "Skapa ny" för att skapa en placeholder person
           </div>
         )}
@@ -263,7 +263,7 @@ export default function SelectFatherModal({ mother, allPeople, getPersonRelation
         <div className="mt-4 flex justify-end gap-2">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg transition-colors"
+            className="px-4 py-2 bg-surface-2 hover:bg-surface text-primary rounded-lg transition-colors"
           >
             Avbryt
           </button>

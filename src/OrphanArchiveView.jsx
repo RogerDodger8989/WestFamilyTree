@@ -80,32 +80,32 @@ export default function OrphanArchiveView({ people = [], allSources = [], onOpen
   return (
     <div className="flex h-full">
       {/* Sidebar filters */}
-      <aside className="w-80 border-r border-slate-700 bg-slate-800 p-3 overflow-y-auto">
-        <h2 className="font-bold text-lg mb-3 text-slate-200">Orphan-arkivet</h2>
+      <aside className="w-80 border-r border-subtle bg-surface p-3 overflow-y-auto">
+        <h2 className="font-bold text-lg mb-3 text-primary">Orphan-arkivet</h2>
         <div className="mb-3">
-          <label className="text-xs text-slate-400">Sök namn</label>
-          <input aria-label="Sök namn" className="w-full p-2 border border-slate-600 bg-slate-900 text-slate-200 rounded mt-1" value={filterName} onChange={e => setFilterName(e.target.value)} placeholder="Förnamn eller efternamn" />
+          <label className="text-xs text-muted">Sök namn</label>
+          <input aria-label="Sök namn" className="w-full p-2 border border-subtle bg-background text-primary rounded mt-1" value={filterName} onChange={e => setFilterName(e.target.value)} placeholder="Förnamn eller efternamn" />
         </div>
         <div className="mb-3">
-          <label className="text-xs text-slate-400">Filtrera år</label>
-          <input aria-label="Filtrera år" className="w-full p-2 border border-slate-600 bg-slate-900 text-slate-200 rounded mt-1" value={filterYear} onChange={e => setFilterYear(e.target.value)} placeholder="t.ex. 1880" />
+          <label className="text-xs text-muted">Filtrera år</label>
+          <input aria-label="Filtrera år" className="w-full p-2 border border-subtle bg-background text-primary rounded mt-1" value={filterYear} onChange={e => setFilterYear(e.target.value)} placeholder="t.ex. 1880" />
         </div>
         <div className="flex items-center gap-2 mb-3">
-          <label className="text-sm text-slate-200 flex items-center gap-2" title="Visa bara personer utan relationer eller händelser">
+          <label className="text-sm text-primary flex items-center gap-2" title="Visa bara personer utan relationer eller händelser">
             <input aria-label="Endast utan relationer/händelser" type="checkbox" checked={showOnlyOrphans} onChange={e => setShowOnlyOrphans(e.target.checked)} className="w-4 h-4" />
             <span className="text-xs">Endast utan relationer/händelser</span>
           </label>
         </div>
         <div className="flex items-center gap-2 mb-3">
-          <label className="text-sm text-slate-200 flex items-center gap-2" title="Visa endast personer som är markerade som arkiverade">
+          <label className="text-sm text-primary flex items-center gap-2" title="Visa endast personer som är markerade som arkiverade">
             <input aria-label="Visa endast arkiverade" type="checkbox" checked={showOnlyArchived} onChange={e => setShowOnlyArchived(e.target.checked)} className="w-4 h-4" />
             <span className="ml-2 text-xs">Visa endast arkiverade</span>
           </label>
         </div>
-        <div className="text-xs text-slate-500 mb-2">Visar {candidates.length} personer</div>
+        <div className="text-xs text-muted mb-2">Visar {candidates.length} personer</div>
         <div className="flex gap-2">
-          <button className="px-2 py-1 bg-slate-700 rounded text-xs text-slate-200 hover:bg-slate-600" onClick={selectAll} title="Markera alla">Markera alla</button>
-          <button className="px-2 py-1 bg-slate-700 rounded text-xs text-slate-200 hover:bg-slate-600" onClick={clearSelection} title="Rensa markering">Rensa</button>
+          <button className="px-2 py-1 bg-surface-2 rounded text-xs text-primary hover:bg-surface" onClick={selectAll} title="Markera alla">Markera alla</button>
+          <button className="px-2 py-1 bg-surface-2 rounded text-xs text-primary hover:bg-surface" onClick={clearSelection} title="Rensa markering">Rensa</button>
         </div>
       </aside>
 
@@ -116,24 +116,24 @@ export default function OrphanArchiveView({ people = [], allSources = [], onOpen
             <button className="px-3 py-1 bg-green-600 text-white rounded text-sm" title="Återställ valda" onClick={() => setConfirmState({ type: 'mass-restore', ids: Array.from(selectedIds) })} disabled={selectedIds.size === 0}>Återställ valda</button>
             <button className="px-3 py-1 bg-red-700 text-white rounded text-sm" title="Radera valda permanent" onClick={() => setConfirmState({ type: 'mass-delete', ids: Array.from(selectedIds) })} disabled={selectedIds.size === 0}>Radera valda</button>
           </div>
-          <div className="text-xs text-slate-400">Valda: {selectedIds.size}</div>
+          <div className="text-xs text-secondary">Valda: {selectedIds.size}</div>
         </div>
 
         {candidates.length === 0 ? (
-          <div className="text-slate-500">Inga matchande personer.</div>
+          <div className="text-muted">Inga matchande personer.</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {candidates.map(p => {
               const relCount = (getPersonRelations && getPersonRelations(p.id) || []).filter(r => !r._archived).length;
               const isSelected = selectedIds.has(p.id);
               return (
-                <div key={p.id} tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter') onOpenPerson(p.id); if (e.key === 'Delete') setConfirmState({ type: 'delete', ids: [p.id] }); }} className={`p-3 bg-slate-900 border border-slate-700 rounded flex items-start justify-between hover:bg-slate-800 transition-colors ${isSelected ? 'ring-2 ring-blue-500' : ''}`}>
+                <div key={p.id} tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter') onOpenPerson(p.id); if (e.key === 'Delete') setConfirmState({ type: 'delete', ids: [p.id] }); }} className={`p-3 bg-background border border-subtle rounded flex items-start justify-between hover:bg-surface transition-colors ${isSelected ? 'ring-2 ring-blue-500' : ''}`}>
                   <div className="flex items-start gap-3">
                     <input aria-label={`Välj ${p.firstName} ${p.lastName}`} type="checkbox" checked={isSelected} onChange={() => toggleSelect(p.id)} className="mt-1 w-4 h-4" />
                     <div>
-                      <div className="font-semibold text-slate-200">{p.firstName} {p.lastName} <span className="text-xs text-slate-500">({p.id})</span></div>
-                      {p.archiveReason && <div className="text-xs text-slate-400">Orsak: {p.archiveReason}</div>}
-                      <div className="text-xs text-slate-400">Händelser: {(p.events || []).length} · Relationer: {relCount}</div>
+                      <div className="font-semibold text-primary">{p.firstName} {p.lastName} <span className="text-xs text-muted">({p.id})</span></div>
+                      {p.archiveReason && <div className="text-xs text-secondary">Orsak: {p.archiveReason}</div>}
+                      <div className="text-xs text-secondary">Händelser: {(p.events || []).length} · Relationer: {relCount}</div>
                     </div>
                   </div>
                   <div className="mt-1 flex flex-col items-end gap-2">
@@ -142,8 +142,8 @@ export default function OrphanArchiveView({ people = [], allSources = [], onOpen
                       <button className="px-3 py-1 bg-red-700 text-white rounded text-sm" title={`Radera ${p.firstName} ${p.lastName} permanent`} onClick={() => setConfirmState({ type: 'delete', ids: [p.id] })}>Radera</button>
                     </div>
                     <div className="flex gap-2">
-                      <button className="px-3 py-1 border border-slate-600 bg-slate-800 text-slate-200 rounded text-sm hover:bg-slate-700" title="Redigera personen" onClick={() => onOpenPerson(p.id)}>Redigera</button>
-                      <button className="px-3 py-1 border border-slate-600 bg-slate-800 text-slate-200 rounded text-sm hover:bg-slate-700" title="Visa personen i släktträdet" onClick={() => onViewInFamilyTree(p.id)}>Visa i träd</button>
+                      <button className="px-3 py-1 border border-subtle bg-surface text-primary rounded text-sm hover:bg-surface-2" title="Redigera personen" onClick={() => onOpenPerson(p.id)}>Redigera</button>
+                      <button className="px-3 py-1 border border-subtle bg-surface text-primary rounded text-sm hover:bg-surface-2" title="Visa personen i släktträdet" onClick={() => onViewInFamilyTree(p.id)}>Visa i träd</button>
                     </div>
                   </div>
                 </div>
@@ -156,17 +156,17 @@ export default function OrphanArchiveView({ people = [], allSources = [], onOpen
         {confirmState && (
           <div className="fixed inset-0 z-50 flex items-center justify-center">
             <div className="absolute inset-0 bg-black opacity-30" onClick={() => setConfirmState(null)}></div>
-            <div className="bg-slate-800 rounded shadow-lg p-6 z-10 w-96 border border-slate-700" role="dialog" aria-modal="true">
+            <div className="bg-surface rounded shadow-lg p-6 z-10 w-96 border border-subtle" role="dialog" aria-modal="true">
               <div className="font-semibold mb-2">Bekräfta åtgärd</div>
-              <div className="text-sm text-slate-300 mb-4">
+              <div className="text-sm text-secondary mb-4">
                 {confirmState.type === 'delete' && `Radera personen permanent? Detta kan ångras med ångra-knappen.`}
                 {confirmState.type === 'mass-delete' && `Radera ${confirmState.ids.length} personer permanent? Detta kan ångras med ångra-knappen.`}
                 {confirmState.type === 'restore' && `Återställ personen till datasetet?`}
                 {confirmState.type === 'mass-restore' && `Återställ ${confirmState.ids.length} personer till datasetet?`}
               </div>
               <div className="flex justify-end gap-2">
-                <button className="px-3 py-1 border border-slate-600 bg-slate-700 text-slate-200 rounded hover:bg-slate-600" onClick={() => setConfirmState(null)}>Avbryt</button>
-                <button className="px-3 py-1 bg-blue-600 rounded text-white hover:bg-blue-700" onClick={() => { setConfirmState(null); if (confirmState.type === 'restore') doRestore(confirmState.ids); if (confirmState.type === 'mass-restore') doRestore(confirmState.ids); if (confirmState.type === 'delete') doDelete(confirmState.ids); if (confirmState.type === 'mass-delete') doDelete(confirmState.ids); }}>Bekräfta</button>
+                <button className="px-3 py-1 border border-subtle bg-surface-2 text-primary rounded hover:bg-surface" onClick={() => setConfirmState(null)}>Avbryt</button>
+                <button className="px-3 py-1 bg-accent rounded text-on-accent hover:bg-accent" onClick={() => { setConfirmState(null); if (confirmState.type === 'restore') doRestore(confirmState.ids); if (confirmState.type === 'mass-restore') doRestore(confirmState.ids); if (confirmState.type === 'delete') doDelete(confirmState.ids); if (confirmState.type === 'mass-delete') doDelete(confirmState.ids); }}>Bekräfta</button>
               </div>
             </div>
           </div>

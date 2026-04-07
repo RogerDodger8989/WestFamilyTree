@@ -183,11 +183,11 @@ export default function ImageGallery({ source, onEditSource, people, onOpenEditM
       />
 
       {/* VÄNSTER: BILDLISTA (Oförändrad) */}
-      <div className={`flex-1 border-2 border-dashed rounded-lg overflow-y-auto p-4 transition-colors relative min-h-[300px] ${isDragging ? 'border-blue-500 bg-blue-900' : 'border-slate-600 bg-slate-800'}`}
+        <div className={`flex-1 border-2 border-dashed rounded-lg overflow-y-auto p-4 transition-colors relative min-h-[300px] ${isDragging ? 'border-strong bg-accent-soft' : 'border-subtle bg-surface-2'}`}
           onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}
       >
-          {images.length === 0 && !uploading && (<div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 pointer-events-none"><p className="text-lg font-semibold">Dra och släpp bilder här</p><p className="text-sm">eller klistra in (Ctrl+V)</p></div>)}
-          {uploading && (<div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 z-10"><p className="text-blue-400 font-bold animate-pulse">Sparar bilder...</p></div>)}
+          {images.length === 0 && !uploading && (<div className="absolute inset-0 flex flex-col items-center justify-center text-muted pointer-events-none"><p className="text-lg font-semibold">Dra och släpp bilder här</p><p className="text-sm">eller klistra in (Ctrl+V)</p></div>)}
+          {uploading && (<div className="absolute inset-0 flex items-center justify-center bg-background/80 z-10"><p className="text-accent font-bold animate-pulse">Sparar bilder...</p></div>)}
           <div className="flex flex-col gap-3">
             {images.map((img, idx) => {
               // Hämta kopplade personer för denna bild
@@ -206,32 +206,32 @@ export default function ImageGallery({ source, onEditSource, people, onOpenEditM
               }).filter(Boolean) : [];
               return (
                 <div key={idx} className="flex items-center gap-2">
-                  <div onClick={() => setSelectedImageIndex(idx)} onDoubleClick={openInternalViewer} className={`cursor-pointer rounded border-2 overflow-hidden relative group bg-slate-900 shadow-sm aspect-square w-32 h-32 flex-shrink-0 flex items-center justify-center ${selectedImageIndex === idx ? 'border-blue-600 ring-2 ring-blue-600' : 'border-transparent hover:border-slate-600'}`}>
+                  <div onClick={() => setSelectedImageIndex(idx)} onDoubleClick={openInternalViewer} className={`cursor-pointer rounded border-2 overflow-hidden relative group bg-background shadow-sm aspect-square w-32 h-32 flex-shrink-0 flex items-center justify-center ${selectedImageIndex === idx ? 'border-strong ring-2 ring-accent' : 'border-transparent hover:border-subtle'}`}>
                     {previews[img.src] ? (
                       <img src={previews[img.src]} alt={typeof img.title === 'string' ? img.title : ''} className="w-full h-full object-cover" />
                     ) : (
-                      <div className="text-slate-400 text-xs p-2 text-center break-all">
+                      <div className="text-muted text-xs p-2 text-center break-all">
                         <span className="text-2xl block mb-1">🖼️</span>{typeof img.src === 'string' ? img.src.split('/').pop() : ''}
                       </div>
                     )}
-                    <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] p-1 truncate text-center">{typeof img.title === 'string' ? img.title : 'Namnlös'}</div>
+                    <div className="absolute bottom-0 left-0 right-0 bg-background/60 text-primary text-[10px] p-1 truncate text-center">{typeof img.title === 'string' ? img.title : 'Namnlös'}</div>
                   </div>
                   {/* Kopplade personer till höger */}
                   <div className="flex flex-wrap gap-1 items-center min-h-[2rem]">
                     {linkedPeople.length > 0 ? linkedPeople.map(person => (
-                      <span key={person.id} className="bg-green-600 hover:bg-green-700 text-white text-xs rounded-full px-3 py-0.5 font-semibold shadow flex items-center" title={`REF: ${person.refNumber} ${person.firstName} ${person.lastName} ${person.life}`}
+                      <span key={person.id} className="bg-success hover:bg-success/90 text-primary text-xs rounded-full px-3 py-0.5 font-semibold shadow flex items-center" title={`REF: ${person.refNumber} ${person.firstName} ${person.lastName} ${person.life}`}
                         style={{pointerEvents:'none'}}>
                         REF: {person.refNumber} {person.firstName} {person.lastName} {person.life}
                       </span>
-                    )) : <span className="text-slate-400 text-xs italic">Ingen person taggad</span>}
+                    )) : <span className="text-muted text-xs italic">Ingen person taggad</span>}
                   </div>
                 </div>
               );
             })}
-            <label className="cursor-pointer border-2 border-dashed border-slate-600 rounded flex flex-col items-center justify-center aspect-square w-32 h-32 hover:bg-slate-700 hover:border-blue-400 transition-colors bg-slate-800 mt-2">
-              <span className="text-3xl text-slate-300 mb-1">+</span>
-              <span className="text-xs text-slate-400 font-medium">+ lägg till</span>
-              <span className="text-xs text-slate-400 mt-1">ctrl+v</span>
+            <label className="cursor-pointer border-2 border-dashed border-subtle rounded flex flex-col items-center justify-center aspect-square w-32 h-32 hover:bg-surface hover:border-strong transition-colors bg-surface-2 mt-2">
+              <span className="text-3xl text-secondary mb-1">+</span>
+              <span className="text-xs text-muted font-medium">+ lägg till</span>
+              <span className="text-xs text-muted mt-1">ctrl+v</span>
               <input type="file" multiple accept="image/*" className="hidden" onChange={(e) => handleFileUpload(e.target.files)} />
             </label>
           </div>
@@ -239,29 +239,29 @@ export default function ImageGallery({ source, onEditSource, people, onOpenEditM
 
       {/* HÖGER: METADATA (Oförändrad) */}
       {selectedImg ? (
-          <div className="w-1/3 bg-slate-800 border-l border-slate-700 pl-4 flex flex-col gap-3 overflow-y-auto">
-              <h3 className="font-bold text-slate-300 text-sm border-b border-slate-700 pb-2">Bildinformation</h3>
-              <div><label className="block text-xs font-bold text-slate-300 uppercase mb-1">Titel</label><input className="w-full border border-slate-600 rounded px-2 py-1 text-sm bg-slate-900 text-slate-200" value={selectedImg.title || ''} onChange={(e) => handleImageUpdate('title', e.target.value)} /></div>
+          <div className="w-1/3 bg-surface-2 border-l border-subtle pl-4 flex flex-col gap-3 overflow-y-auto">
+              <h3 className="font-bold text-secondary text-sm border-b border-subtle pb-2">Bildinformation</h3>
+              <div><label className="block text-xs font-bold text-secondary uppercase mb-1">Titel</label><input className="w-full border border-subtle rounded px-2 py-1 text-sm bg-background text-primary" value={selectedImg.title || ''} onChange={(e) => handleImageUpdate('title', e.target.value)} /></div>
               <div>
-                  <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Datum</label>
-                  <input className="w-full border border-slate-600 rounded px-2 py-1 text-sm bg-slate-900 text-slate-200" placeholder="ÅÅÅÅ-MM-DD" value={selectedImg.date || ''} 
+                  <label className="block text-xs font-bold text-secondary uppercase mb-1">Datum</label>
+                  <input className="w-full border border-subtle rounded px-2 py-1 text-sm bg-background text-primary" placeholder="ÅÅÅÅ-MM-DD" value={selectedImg.date || ''} 
                     onChange={(e) => handleImageUpdate('date', e.target.value)}
                     onBlur={handleDateBlur} 
                   />
               </div>
-              <div><label className="block text-xs font-bold text-slate-300 uppercase mb-1">Taggar</label><TagInput value={selectedImg.tags || ''} onChange={(newValue) => handleImageUpdate('tags', newValue)} placeholder="Semester, Bröllop..." /></div>
-              <div className="flex-1 min-h-[100px]"><label className="block text-xs font-bold text-slate-400 uppercase mb-1">Notering</label><textarea className="w-full border rounded px-2 py-1 text-sm h-full resize-none bg-slate-900 border-slate-700 text-slate-200 focus:bg-slate-800" value={selectedImg.note || ''} onChange={(e) => handleImageUpdate('note', e.target.value)} /></div>
+              <div><label className="block text-xs font-bold text-secondary uppercase mb-1">Taggar</label><TagInput value={selectedImg.tags || ''} onChange={(newValue) => handleImageUpdate('tags', newValue)} placeholder="Semester, Bröllop..." /></div>
+              <div className="flex-1 min-h-[100px]"><label className="block text-xs font-bold text-muted uppercase mb-1">Notering</label><textarea className="w-full border rounded px-2 py-1 text-sm h-full resize-none bg-background border-subtle text-primary focus:bg-surface" value={selectedImg.note || ''} onChange={(e) => handleImageUpdate('note', e.target.value)} /></div>
               {/* Visa taggade personer */}
               {Array.isArray(selectedImg.regions) && selectedImg.regions.length > 0 && (
                 <div className="mt-2">
-                  <div className="text-xs font-bold text-slate-300 uppercase mb-1">Taggade personer</div>
+                  <div className="text-xs font-bold text-secondary uppercase mb-1">Taggade personer</div>
                   <ul className="space-y-1">
                     {selectedImg.regions.map((region, idx) => {
                       const person = people?.find(p => p.id === region.personId);
                       return person ? (
-                        <li key={region.personId + '-' + idx} className="text-sm text-slate-300 flex items-center gap-2">
+                        <li key={region.personId + '-' + idx} className="text-sm text-secondary flex items-center gap-2">
                           <span className="font-semibold">{person.firstName} {person.lastName}</span>
-                          <span className="text-xs text-slate-400">(REF: {person.refNumber})</span>
+                          <span className="text-xs text-muted">(REF: {person.refNumber})</span>
                         </li>
                       ) : null;
                     })}
@@ -273,7 +273,7 @@ export default function ImageGallery({ source, onEditSource, people, onOpenEditM
                   <Button onClick={handleDeleteImage} variant="ghost_danger" size="sm" className="w-full">Ta bort bild</Button>
               </div>
           </div>
-      ) : (<div className="w-1/3 flex items-center justify-center text-slate-400 text-xs italic border-l border-slate-700 bg-slate-800">Välj en bild för att redigera detaljer</div>)}
+      ) : (<div className="w-1/3 flex items-center justify-center text-muted text-xs italic border-l border-subtle bg-surface-2">Välj en bild för att redigera detaljer</div>)}
     </div>
   );
 }

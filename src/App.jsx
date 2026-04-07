@@ -31,6 +31,24 @@ import MediaImage from './components/MediaImage.jsx';
 import { User, Settings, PanelRight, Minus, Maximize2, X, Network, Star } from 'lucide-react'; 
 import { buildRelationsFromPeople, ensureAllRelations, ensureParentsArePartners } from './relationUtils.js';
 
+const THEME_STORAGE_KEY = 'westFamilyTreeTheme';
+const THEME_OPTIONS = ['dark', 'light', 'green', 'rust'];
+
+const normalizeTheme = (value) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  return THEME_OPTIONS.includes(normalized) ? normalized : 'dark';
+};
+
+const getStoredTheme = () => {
+  try {
+    return normalizeTheme(localStorage.getItem(THEME_STORAGE_KEY));
+  } catch {
+    return 'dark';
+  }
+};
+
+const getInitialTheme = (metaTheme) => normalizeTheme(metaTheme || getStoredTheme());
+
 function App() {
     // Reset all UI state after new database
     // Visa bekräftelsedialog för ny databas
@@ -134,6 +152,7 @@ function App() {
   const [isOAIHarvesterOpen, setIsOAIHarvesterOpen] = useState(false);
   const [isGedcomExportModalOpen, setIsGedcomExportModalOpen] = useState(false);
   const [mediaFolderPath, setMediaFolderPathState] = useState((dbData?.meta && dbData.meta.mediaFolderPath) || '');
+  const [theme, setTheme] = useState(() => getInitialTheme(dbData?.meta?.theme));
 
   const [isPeopleEditorDocked, setIsPeopleEditorDocked] = useState(() => {
     try {
@@ -240,6 +259,24 @@ function App() {
   }, [editingPerson, isPeopleEditorDocked]);
 
   useEffect(() => {
+    const nextTheme = normalizeTheme(dbData?.meta?.theme);
+    setTheme((currentTheme) => (currentTheme === nextTheme ? currentTheme : nextTheme));
+  }, [dbData?.meta?.theme]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.remove('theme-dark', 'theme-light', 'theme-green', 'theme-rust');
+    root.classList.add(`theme-${theme}`);
+    root.dataset.theme = theme;
+
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, theme);
+    } catch (err) {
+      console.error('Kunde inte spara tema:', err);
+    }
+  }, [theme]);
+
+  useEffect(() => {
     const handleResize = () => {
       setPeopleEditorWidth((prev) => clampPeopleEditorWidth(prev));
     };
@@ -254,6 +291,18 @@ function App() {
   const handleGedcomExportChoice = async (version) => {
     setIsGedcomExportModalOpen(false);
     await handleExportGedcom(version);
+  };
+
+  const handleThemeChange = (nextTheme) => {
+    const normalizedTheme = normalizeTheme(nextTheme);
+    setTheme(normalizedTheme);
+    setDbData(prev => ({
+      ...(prev || {}),
+      meta: {
+        ...(prev?.meta || {}),
+        theme: normalizedTheme,
+      }
+    }));
   };
 
   // Listen for Electron menu actions and trigger save handlers
@@ -467,7 +516,7 @@ function App() {
       if (e.target.closest('.modal-content') || 
           e.target.closest('[role="dialog"]') || 
           e.target.closest('button') ||
-          e.target.closest('.bg-slate-800') ||
+          e.target.closest('.bg-surface') ||
           e.target.closest('.fixed.inset-0')) return; // Ignorera klick inuti sidebar eller fixed container
       // I familyTree-vyn: Kollapsa istället för att stänga
       if (editingPerson && activeTab === 'familyTree') {
@@ -1060,17 +1109,17 @@ function App() {
           <Button onClick={() => setIsGedcomImporterOpen(true)} variant="secondary" size="sm">GEDCOM import</Button>
           <Button onClick={() => setIsGedcomExportModalOpen(true)} variant="secondary" size="sm">GEDCOM export</Button>
         </div>
-        <div className="text-xs text-slate-400"><span>{fileHandle ? `Öppen fil: ${fileHandle.name}` : 'Ny namnlös databas'}</span></div>
+        <div className="text-xs text-secondary"><span>{fileHandle ? `Öppen fil: ${fileHandle.name}` : 'Ny namnlös databas'}</span></div>
       </div>
 
       {isGedcomExportModalOpen && (
         <div className="modal" style={{ display: 'block' }} onClick={() => setIsGedcomExportModalOpen(false)}>
-          <div className="modal-content card bg-slate-800 border border-slate-700 p-5 max-w-md" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content card bg-surface border border-subtle p-5 max-w-md" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-3">
-              <h3 className="text-lg font-bold text-slate-200">Exportera GEDCOM</h3>
-              <button onClick={() => setIsGedcomExportModalOpen(false)} className="text-slate-400 hover:text-slate-300 text-2xl">&times;</button>
+              <h3 className="text-lg font-bold text-primary">Exportera GEDCOM</h3>
+              <button onClick={() => setIsGedcomExportModalOpen(false)} className="text-secondary hover:text-primary text-2xl">&times;</button>
             </div>
-            <p className="text-sm text-slate-300 mb-4">
+            <p className="text-sm text-primary mb-4">
               Välj vilket format du vill exportera till.
             </p>
             <div className="flex flex-col gap-2">
@@ -1103,7 +1152,8 @@ function App() {
               meta: {
                 ...prev?.meta,
                 auditBackupDir,
-                mediaFolderPath
+                mediaFolderPath,
+                theme
               }
             }));
             setShowSettings(false);
@@ -1112,7 +1162,7 @@ function App() {
           zIndex={10000}
         >
           <div className="p-6 overflow-y-auto custom-scrollbar h-full">
-            <div className="text-slate-400 mb-4">
+            <div className="text-secondary mb-4">
               <div className="mb-2">Audit-backup-mapp (valfritt):</div>
               <div className="flex items-center gap-2">
                 <input 
@@ -1120,13 +1170,13 @@ function App() {
                   value={auditBackupDir} 
                   onChange={(e) => setAuditBackupDirState(e.target.value)} 
                   placeholder="Sökväg till mapp eller lämna tomt för standard" 
-                  className="flex-1 border rounded px-2 py-1 bg-slate-800 text-slate-200" 
+                  className="flex-1 border rounded px-2 py-1 bg-surface text-primary" 
                 />
                 <Button onClick={chooseAuditBackupDir} variant="secondary" size="sm">Välj...</Button>
                 <Button onClick={() => setAuditBackupDirState('')} variant="danger" size="sm">Rensa</Button>
               </div>
             </div>
-            <div className="text-slate-400 mb-6">
+            <div className="text-secondary mb-6">
               <div className="mb-2">Standardmapp för bilder:</div>
               <div className="flex items-center gap-2">
                 <input 
@@ -1134,12 +1184,28 @@ function App() {
                   value={mediaFolderPath} 
                   onChange={(e) => setMediaFolderPathState(e.target.value)} 
                   placeholder="Sökväg till standardmapp för bilder eller lämna tomt för standard (media/)" 
-                  className="flex-1 border rounded px-2 py-1 bg-slate-800 text-slate-200" 
+                  className="flex-1 border rounded px-2 py-1 bg-surface text-primary" 
                 />
                 <Button onClick={chooseMediaFolderPath} variant="secondary" size="sm">Välj...</Button>
                 <Button onClick={() => setMediaFolderPathState('')} variant="danger" size="sm">Rensa</Button>
               </div>
-              <p className="text-xs text-slate-500 mt-1">Detta värde sparas i dbData.meta.mediaFolderPath och används för uppladdade/importerade bilder.</p>
+              <p className="text-xs text-muted mt-1">Detta värde sparas i dbData.meta.mediaFolderPath och används för uppladdade/importerade bilder.</p>
+            </div>
+            <div className="text-secondary mb-6">
+              <div className="mb-2">Tema:</div>
+              <div className="flex items-center gap-2">
+                <select
+                  value={theme}
+                  onChange={(e) => handleThemeChange(e.target.value)}
+                  className="ui-select flex-1 px-3 py-2"
+                >
+                  <option value="dark">Dark</option>
+                  <option value="light">Light</option>
+                  <option value="green">Green</option>
+                  <option value="rust">Rust</option>
+                </select>
+              </div>
+              <p className="text-xs text-muted mt-1">Temat sparas i dbData.meta.theme och localStorage.</p>
             </div>
             <div className="flex flex-col gap-2 mt-8">
               <div className="flex gap-2 justify-end">
@@ -1149,7 +1215,7 @@ function App() {
                 <Button onClick={() => { setShowSettings(false); setShowAuditMergesSettings(true); }} variant="secondary" size="sm">Audit & Merges</Button>
               </div>
               {showRelationSettings && (
-                <div className="mt-4 p-4 border border-slate-700 rounded bg-slate-900">
+                <div className="mt-4 p-4 border border-subtle rounded bg-background">
                   <RelationSettings inline={true} onClose={() => setShowRelationSettings(false)} />
                 </div>
               )}
@@ -1176,12 +1242,12 @@ function App() {
       {/* NY MODAL: Koppla Person */}
       <LinkPersonModal isOpen={linkPersonModal.isOpen} onClose={() => setLinkPersonModal({ isOpen: false, preSelectedPersonId: null })} people={visiblePeople} onLink={handleLinkSourceToPerson} initialPersonId={linkPersonModal.preSelectedPersonId} zIndex={isSourceDrawerOpen ? 10100 : 5100} />
 
-      {isHistoryOpen && (<div className="modal" style={{display: 'block'}} onClick={handleShowHistory}><div className="modal-content card bg-slate-800 border border-slate-700 p-4 max-w-md" onClick={(e) => e.stopPropagation()}><div className="flex justify-between items-center mb-4"><h3 className="text-lg font-bold text-slate-200">Historik</h3><button onClick={handleShowHistory} className="text-slate-400 hover:text-slate-300 text-2xl">&times;</button></div><div className="text-sm text-slate-300 max-h-64 overflow-y-auto"><ul className="space-y-2">{historyState.past.map((h, idx) => (<li key={idx} onClick={() => applyHistoryEntry(h)} className="p-2 border border-slate-700 rounded hover:bg-slate-700 cursor-pointer"><div className="font-semibold">Flik: <b>{h.tab}</b></div></li>))}</ul></div></div></div>)}
+      {isHistoryOpen && (<div className="modal" style={{display: 'block'}} onClick={handleShowHistory}><div className="modal-content card bg-surface border border-subtle p-4 max-w-md" onClick={(e) => e.stopPropagation()}><div className="flex justify-between items-center mb-4"><h3 className="text-lg font-bold text-primary">Historik</h3><button onClick={handleShowHistory} className="text-secondary hover:text-primary text-2xl">&times;</button></div><div className="text-sm text-primary max-h-64 overflow-y-auto"><ul className="space-y-2">{historyState.past.map((h, idx) => (<li key={idx} onClick={() => applyHistoryEntry(h)} className="p-2 border border-subtle rounded hover:bg-surface-2 cursor-pointer"><div className="font-semibold">Flik: <b>{h.tab}</b></div></li>))}</ul></div></div></div>)}
 
-      <div className="status-bar shrink-0"><span>{isDirty ? 'Redo med osparade ändringar' : 'Redo'}</span>{isDirty && <span className="text-amber-600 font-bold">● Osparade ändringar</span>}</div>
+      <div className="status-bar shrink-0"><span>{isDirty ? 'Redo med osparade ändringar' : 'Redo'}</span>{isDirty && <span className="text-warning font-bold">● Osparade ändringar</span>}</div>
 
-      <div id="app" className="flex-grow p-6 flex flex-col bg-slate-900 overflow-hidden min-h-0">
-        <div className="w-full mb-4 border-b border-slate-700 bg-slate-900 shrink-0">
+      <div id="app" className="flex-grow p-6 flex flex-col bg-background overflow-hidden min-h-0">
+        <div className="w-full mb-4 border-b border-subtle bg-background shrink-0">
           <nav className="-mb-px flex space-x-2 md:space-x-4 lg:space-x-8">
             {/* Tab config: (Oförändrad) */}
             {[
@@ -1261,16 +1327,16 @@ function App() {
                 key={tab.value}
                 onClick={() => onLocalTabChange(tab.value)}
                 className={`whitespace-nowrap py-2 px-2 md:px-3 border-b-2 font-medium text-sm tab-btn flex items-center gap-1 relative transition-colors duration-150
-                  ${activeTab === tab.value ? 'border-blue-500 text-white bg-slate-700 rounded-t' : 'border-transparent text-white hover:bg-slate-800'}`}
+                  ${activeTab === tab.value ? 'border-accent text-primary bg-surface-2 rounded-t' : 'border-transparent text-primary hover:bg-surface'}`}
                 style={{ minWidth: 0 }}
               >
                 {tab.icon}
                 <span>{tab.label}</span>
                 {tab.badge ? (
-                  <span className="ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-red-500 text-white">{tab.badge}</span>
+                  <span className="ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-danger text-primary">{tab.badge}</span>
                 ) : null}
                 {activeTab === tab.value && (
-                  <span className="absolute left-0 right-0 -bottom-1 h-1 bg-blue-200 rounded-b" style={{ zIndex: 1 }}></span>
+                  <span className="absolute left-0 right-0 -bottom-1 h-1 bg-accent-soft rounded-b" style={{ zIndex: 1 }}></span>
                 )}
               </button>
             ))}
@@ -1454,11 +1520,11 @@ function App() {
           {editingPerson && (!isPeopleEditorDocked || activeTab === 'familyTree') && (
             activeTab === 'familyTree' ? (
               // FAMILYTREE MODE: Collapsible sidebar (alltid synlig)
-              <div className="fixed inset-0 z-[4000] bg-slate-900 flex flex-col">
+              <div className="fixed inset-0 z-[4000] bg-background flex flex-col">
                 {/* TOP MENUBAR (med pilar, appens namn, knappar) */}
-                <div className="menubar shadow-md shrink-0 bg-slate-900 border-b border-slate-700">
+                <div className="menubar shadow-md shrink-0 bg-background border-b border-subtle">
                   <div className="flex items-center space-x-4">
-                    <h1 className="text-lg font-bold tracking-wide mr-2 text-slate-200">
+                    <h1 className="text-lg font-bold tracking-wide mr-2 text-primary">
                       WestFamilyTree{fileHandle && fileHandle.name ? ` – [${fileHandle.name}]` : ''}
                     </h1>
                     <Button onClick={handleBack} disabled={!canGoBack} variant="secondary" size="sm" className={!canGoBack ? 'opacity-50' : ''}>←</Button>
@@ -1471,11 +1537,11 @@ function App() {
                     <Button onClick={() => setIsMergesPanelOpen(true)} variant="secondary" size="sm">Merges</Button>
                     <Button onClick={() => setIsGedcomImporterOpen(true)} variant="secondary" size="sm">GEDCOM import</Button>
                   </div>
-                  <div className="text-xs text-slate-400"><span>{fileHandle ? `Öppen fil: ${fileHandle.name}` : 'Ny namnlös databas'}</span></div>
+                  <div className="text-xs text-secondary"><span>{fileHandle ? `Öppen fil: ${fileHandle.name}` : 'Ny namnlös databas'}</span></div>
                 </div>
                 
                 {/* HUVUDMENY (TABS) */}
-                <div className="w-full border-b border-slate-700 bg-slate-900 shrink-0">
+                <div className="w-full border-b border-subtle bg-background shrink-0">
                   <nav className="flex space-x-2 md:space-x-4 lg:space-x-8 px-4 py-2">
                     {[
                       { label: 'Startsida', value: 'dashboard' },
@@ -1492,7 +1558,7 @@ function App() {
                         key={tab.value}
                         onClick={() => onLocalTabChange(tab.value)}
                         className={`whitespace-nowrap py-2 px-2 md:px-3 border-b-2 font-medium text-sm transition-colors duration-150
-                          ${activeTab === tab.value ? 'border-blue-500 text-white' : 'border-transparent text-slate-400 hover:text-white hover:border-slate-600'}`}
+                          ${activeTab === tab.value ? 'border-accent text-primary' : 'border-transparent text-secondary hover:text-primary hover:border-subtle'}`}
                       >
                         {tab.label}
                       </button>
@@ -1504,7 +1570,7 @@ function App() {
                 <div className="flex-1 flex gap-4 overflow-hidden p-4">
                   {/* VÄNSTER: Collapsible EditPersonModal */}
                   <div 
-                    className={`flex-shrink-0 flex flex-col bg-slate-800 shadow-2xl border-r border-slate-700 overflow-hidden rounded-lg transition-all duration-300 ease-in-out ${
+                    className={`flex-shrink-0 flex flex-col bg-surface shadow-2xl border-r border-subtle overflow-hidden rounded-lg transition-all duration-300 ease-in-out ${
                       isEditModalCollapsed ? 'w-[50px]' : 'w-[600px]'
                     }`}
                     style={{ 
@@ -1518,7 +1584,7 @@ function App() {
                       <div className="flex flex-col items-center h-full py-4">
                         <button
                           onClick={toggleEditModalCollapse}
-                          className="w-10 h-10 rounded-full bg-slate-700 hover:bg-slate-600 flex items-center justify-center text-slate-300 hover:text-white transition-all duration-200"
+                          className="w-10 h-10 rounded-full bg-surface-2 hover:bg-surface-2 flex items-center justify-center text-primary hover:text-primary transition-all duration-200"
                           title="Expandera personmodal"
                         >
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1530,8 +1596,8 @@ function App() {
                       // EXPANDERAD: Hela modalen
                       <>
                         {/* Header med collapse-knapp (X) */}
-                        <div className="flex justify-between items-center border-b border-slate-700 p-3 bg-slate-900 shrink-0">
-                          <h3 className="text-base font-bold text-slate-200 truncate flex-1 min-w-0">
+                        <div className="flex justify-between items-center border-b border-subtle p-3 bg-background shrink-0">
+                          <h3 className="text-base font-bold text-primary truncate flex-1 min-w-0">
                             {editingPerson.firstName} {editingPerson.lastName}
                           </h3>
                           <button 
@@ -1540,7 +1606,7 @@ function App() {
                               e.stopPropagation();
                               toggleEditModalCollapse();
                             }}
-                            className="p-2 hover:bg-slate-700 rounded text-slate-400 hover:text-white transition-colors flex-shrink-0 text-xl font-bold w-8 h-8 flex items-center justify-center"
+                            className="p-2 hover:bg-surface-2 rounded text-secondary hover:text-primary transition-colors flex-shrink-0 text-xl font-bold w-8 h-8 flex items-center justify-center"
                             title="Kollapsa"
                           >
                             &times;
@@ -1650,29 +1716,29 @@ function App() {
           {editingPerson && isPeopleEditorDocked && activeTab !== 'familyTree' && (
             <>
               <div
-                className="w-1.5 bg-slate-700/70 hover:bg-blue-500 rounded cursor-col-resize transition-colors"
+                className="w-1.5 bg-surface-2 hover:bg-accent rounded cursor-col-resize transition-colors"
                 onMouseDown={handleStartResizePeopleEditor}
                 title="Dra för att ändra bredd"
               />
               <div
-                className="shrink-0 h-full min-h-0 bg-slate-800 border border-slate-700 rounded-lg overflow-hidden shadow-2xl flex flex-col people-docked-panel"
+                className="shrink-0 h-full min-h-0 bg-surface border border-subtle rounded-lg overflow-hidden shadow-2xl flex flex-col people-docked-panel"
                 style={{ width: `${peopleEditorWidth}px` }}
               >
-                <div className="h-11 shrink-0 bg-slate-900 border-b border-slate-700 px-2 flex items-center justify-between">
-                  <div className="text-sm font-bold text-slate-200 truncate pl-2">
+                <div className="h-11 shrink-0 bg-background border-b border-subtle px-2 flex items-center justify-between">
+                  <div className="text-sm font-bold text-primary truncate pl-2">
                     Redigera {editingPerson.firstName || ''} {editingPerson.lastName || ''}
                   </div>
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => handleViewInFamilyTree(editingPerson.id)}
-                      className="p-1.5 hover:bg-slate-800 rounded text-slate-400 hover:text-white"
+                      className="p-1.5 hover:bg-surface rounded text-secondary hover:text-primary"
                       title="Visa i släktträd"
                     >
                       <Network size={15} />
                     </button>
                     <button
                       onClick={() => handleToggleBookmark(editingPerson.id)}
-                      className={`p-1.5 hover:bg-slate-800 rounded ${bookmarks.includes(editingPerson.id) ? 'text-yellow-300 hover:text-yellow-200' : 'text-slate-400 hover:text-white'}`}
+                      className={`p-1.5 hover:bg-surface rounded ${bookmarks.includes(editingPerson.id) ? 'text-warning hover:text-warning' : 'text-secondary hover:text-primary'}`}
                       title={bookmarks.includes(editingPerson.id) ? 'Ta bort bokmärke' : 'Lägg till bokmärke'}
                     >
                       <Star size={15} className={bookmarks.includes(editingPerson.id) ? 'fill-current' : ''} />
@@ -1681,7 +1747,7 @@ function App() {
                       onClick={() => {
                         handleTogglePeopleEditorDock(false);
                       }}
-                      className="p-1.5 hover:bg-slate-800 rounded text-slate-400 hover:text-white"
+                      className="p-1.5 hover:bg-surface rounded text-secondary hover:text-primary"
                       title="Frigör från dockning"
                     >
                       <PanelRight size={15} />
@@ -1690,7 +1756,7 @@ function App() {
                       onClick={() => {
                         handleTogglePeopleEditorDock(false);
                       }}
-                      className="p-1.5 hover:bg-slate-800 rounded text-slate-400 hover:text-white"
+                      className="p-1.5 hover:bg-surface rounded text-secondary hover:text-primary"
                       title="Minimera"
                     >
                       <Minus size={15} />
@@ -1699,14 +1765,14 @@ function App() {
                       onClick={() => {
                         handleTogglePeopleEditorDock(false);
                       }}
-                      className="p-1.5 hover:bg-slate-800 rounded text-slate-400 hover:text-white"
+                      className="p-1.5 hover:bg-surface rounded text-secondary hover:text-primary"
                       title="Maximera"
                     >
                       <Maximize2 size={15} />
                     </button>
                     <button
                       onClick={handleCloseEditModalSafe}
-                      className="p-1.5 hover:bg-red-900/50 rounded text-slate-400 hover:text-red-400"
+                      className="p-1.5 hover:bg-danger-soft rounded text-secondary hover:text-danger"
                       title="Stäng"
                     >
                       <X size={15} />
@@ -1848,10 +1914,10 @@ function App() {
 
       {isGedcomImporterOpen && (
         <div className="modal" style={{display: 'block', zIndex: 3000}}>
-          <div className="modal-content card bg-slate-800 border border-slate-700 shadow-2xl rounded-xl max-w-5xl">
-            <div className="flex justify-between items-center border-b border-slate-700 p-4 bg-slate-700 rounded-t-xl">
-              <h3 className="text-lg font-bold text-slate-200">Importera GEDCOM (NY)</h3>
-              <button onClick={() => setIsGedcomImporterOpen(false)} className="text-slate-400 hover:text-slate-300 text-2xl\">&times;</button>
+          <div className="modal-content card bg-surface border border-subtle shadow-2xl rounded-xl max-w-5xl">
+            <div className="flex justify-between items-center border-b border-subtle p-4 bg-surface-2 rounded-t-xl">
+              <h3 className="text-lg font-bold text-primary">Importera GEDCOM (NY)</h3>
+              <button onClick={() => setIsGedcomImporterOpen(false)} className="text-secondary hover:text-primary text-2xl">&times;</button>
             </div>
             <div className="p-6">
               <GedcomImporter onImport={(imported) => {

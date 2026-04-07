@@ -230,7 +230,7 @@ export default function FaceTagOverlay({
         return (
           <div
             key={tag.id}
-            className={`absolute border-2 ${isSelected ? 'border-amber-400' : 'border-blue-400'} bg-blue-400/10 cursor-move`}
+            className={`absolute border-2 ${isSelected ? 'border-strong' : 'border-subtle'} bg-accent-soft/10 cursor-move`}
             style={{
               left: finalX,
               top: finalY,
@@ -259,7 +259,7 @@ export default function FaceTagOverlay({
             {isTaggingMode && (
               <>
                 <button
-                  className="absolute right-0 top-0 bg-red-700 text-white text-xs rounded px-1 py-0.5"
+                  className="absolute right-0 top-0 bg-accent text-on-accent text-xs rounded px-1 py-0.5"
                   style={{ transform: 'translateY(-100%)', pointerEvents: 'auto' }}
                   onClick={e => {
                     e.stopPropagation();
@@ -269,11 +269,11 @@ export default function FaceTagOverlay({
                   title="Ta bort box"
                 >✕</button>
                 <div
-                  className="absolute w-4 h-4 bg-blue-400 border border-white rounded cursor-nwse-resize"
+                  className="absolute w-4 h-4 bg-accent border border-strong rounded cursor-nwse-resize"
                   style={{ right: -8, bottom: -8, pointerEvents: 'auto' }}
                   onMouseDown={e => handleMouseDownResize(e, tag.id)}
                 />
-                <div className="absolute left-0 top-full bg-slate-800 text-xs text-white px-2 py-1 rounded shadow">
+                <div className="absolute left-0 top-full bg-surface-2 text-xs text-primary px-2 py-1 rounded shadow">
                   {personName ? personName : "Ansikte"}
                 </div>
               </>

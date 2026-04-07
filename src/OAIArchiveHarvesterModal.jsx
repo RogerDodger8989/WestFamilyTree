@@ -286,17 +286,17 @@ export function OAIArchiveHarvesterModal({ onClose, onImportSources }) {
       initialWidth={900}
       initialHeight={700}
     >
-      <div className="flex flex-col h-full bg-slate-900">
+      <div className="flex flex-col h-full bg-background">
         {/* HEADER */}
-        <div className="px-4 py-3 border-b border-slate-700 bg-slate-800/50">
-          <h3 className="text-slate-200 font-semibold mb-2">Sök arkiv från Riksarkivet</h3>
+        <div className="px-4 py-3 border-b border-subtle bg-surface">
+          <h3 className="text-primary font-semibold mb-2">Sök arkiv från Riksarkivet</h3>
           <div className="flex gap-2">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-2.5 text-slate-500" size={18} />
+              <Search className="absolute left-3 top-2.5 text-muted" size={18} />
               <input
                 type="text"
                 placeholder="T.ex. Svenstorp, Stockholm..."
-                className="w-full bg-slate-900 border border-slate-600 text-white pl-10 pr-4 py-2 rounded focus:ring-1 focus:ring-blue-500 outline-none text-sm placeholder-slate-500"
+                className="w-full bg-background border border-subtle text-on-accent pl-10 pr-4 py-2 rounded focus:ring-1 focus:ring-accent outline-none text-sm placeholder-slate-500"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearchArchives()}
@@ -323,7 +323,7 @@ export function OAIArchiveHarvesterModal({ onClose, onImportSources }) {
         {/* ARKIV RESULTAT */}
         <div className="flex-1 overflow-y-auto custom-scrollbar">
           {archiveResults.length === 0 && !isSearching ? (
-            <div className="flex flex-col items-center justify-center h-40 text-slate-500 gap-2 p-4">
+            <div className="flex flex-col items-center justify-center h-40 text-muted gap-2 p-4">
               <Search size={32} className="opacity-20" />
               <span>Inga arkiv hittade. Sök för att komma igång.</span>
             </div>
@@ -335,12 +335,12 @@ export function OAIArchiveHarvesterModal({ onClose, onImportSources }) {
                   onClick={() => setSelectedArchive(archive)}
                   className={`p-3 rounded border-2 cursor-pointer transition-colors ${
                     selectedArchive?.setSpec === archive.setSpec
-                      ? 'bg-blue-900/30 border-blue-500'
-                      : 'bg-slate-800 border-slate-700 hover:bg-slate-700'
+                      ? 'bg-accent-soft border-strong'
+                      : 'bg-surface border-subtle hover:bg-surface-2'
                   }`}
                 >
-                  <div className="font-medium text-slate-200">{archive.setName}</div>
-                  <div className="text-xs text-slate-500 mt-1">{archive.setSpec}</div>
+                  <div className="font-medium text-primary">{archive.setName}</div>
+                  <div className="text-xs text-muted mt-1">{archive.setSpec}</div>
                 </div>
               ))}
             </div>
@@ -349,10 +349,10 @@ export function OAIArchiveHarvesterModal({ onClose, onImportSources }) {
 
         {/* FILTERKNAPPAR */}
         {selectedArchive && (
-          <div className="px-4 py-3 border-t border-slate-700 bg-slate-800/50">
+          <div className="px-4 py-3 border-t border-subtle bg-surface">
             <div className="flex items-center gap-2 mb-2">
-              <Filter size={16} className="text-slate-500" />
-              <span className="text-slate-400 text-sm font-medium">Filtrera dokumenttyper</span>
+              <Filter size={16} className="text-muted" />
+              <span className="text-secondary text-sm font-medium">Filtrera dokumenttyper</span>
             </div>
             <div className="flex flex-wrap gap-2">
               {[
@@ -369,8 +369,8 @@ export function OAIArchiveHarvesterModal({ onClose, onImportSources }) {
                   onClick={() => toggleFilter(key)}
                   className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
                     filters[key]
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                      ? 'bg-accent text-on-accent'
+                      : 'bg-surface-2 text-secondary hover:bg-surface'
                   }`}
                 >
                   {label}
@@ -381,9 +381,9 @@ export function OAIArchiveHarvesterModal({ onClose, onImportSources }) {
         )}
 
         {/* FOOTER */}
-        <div className="px-4 py-3 border-t border-slate-700 bg-slate-800/50 flex items-center justify-between">
+        <div className="px-4 py-3 border-t border-subtle bg-surface flex items-center justify-between">
           {isHarvesting && (
-            <div className="text-xs text-slate-400">
+            <div className="text-xs text-secondary">
               Skördar: {harvestProgress.current} / {harvestProgress.total}
             </div>
           )}

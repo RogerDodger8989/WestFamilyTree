@@ -39,9 +39,9 @@ export default function EventEditor({ event, index, onEventChange, allPeople, al
     const selectedEventTypeConfig = useMemo(() => availableEventTypes.find((item) => item.value === event.type) || null, [availableEventTypes, event.type]);
 
     const gedcomTypeBadgeClass = useMemo(() => {
-        if (resolvedGedcomType === 'attribute') return 'bg-amber-900/30 text-amber-200 border-amber-700/60';
-        if (resolvedGedcomType === 'custom') return 'bg-violet-900/30 text-violet-200 border-violet-700/60';
-        return 'bg-blue-900/30 text-blue-200 border-blue-700/60';
+        if (resolvedGedcomType === 'attribute') return 'bg-warning-soft text-warning border-strong';
+        if (resolvedGedcomType === 'custom') return 'bg-accent-soft text-accent border-strong';
+        return 'bg-accent-soft text-accent border-strong';
     }, [resolvedGedcomType]);
 
     const getAttributeValueLabel = (eventType) => {
@@ -158,8 +158,8 @@ export default function EventEditor({ event, index, onEventChange, allPeople, al
     };
 
     const renderLinkedPersonsSection = () => (
-        <div className="mt-2 p-2 rounded-md border border-slate-700/80 bg-slate-900/50">
-            <label className="block text-[11px] font-bold uppercase tracking-wide text-slate-300 mb-1">
+        <div className="mt-2 p-2 rounded-md border border-subtle bg-surface/50">
+            <label className="block text-[11px] font-bold uppercase tracking-wide text-secondary mb-1">
                 Medverkande / Vittnen (Dopvittnen, inneboende etc)
             </label>
             <select
@@ -169,7 +169,7 @@ export default function EventEditor({ event, index, onEventChange, allPeople, al
                     setSelectedLinkedPersonId(selectedId);
                     handleLinkedPersonSelect(selectedId);
                 }}
-                className="w-full p-1.5 border border-slate-600 bg-slate-900 text-slate-200 rounded text-sm"
+                className="w-full p-1.5 border border-subtle bg-surface text-primary rounded text-sm"
             >
                 <option value="">Välj person att koppla...</option>
                 {sortedPeople.map((person) => (
@@ -184,13 +184,13 @@ export default function EventEditor({ event, index, onEventChange, allPeople, al
                     {linkedPeople.map((person) => (
                         <span
                             key={person.id}
-                            className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-blue-900/40 text-blue-100 border border-blue-700/60 text-xs"
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-accent-soft text-accent border border-strong text-xs"
                         >
                             <span>{person.name}</span>
                             <button
                                 type="button"
                                 onClick={() => handleRemoveLinkedPerson(person.id)}
-                                className="w-4 h-4 rounded-full bg-slate-800/80 text-slate-200 hover:bg-red-700/80 hover:text-white leading-none"
+                                className="w-4 h-4 rounded-full bg-surface/80 text-primary hover:bg-warning-soft hover:text-warning leading-none"
                                 aria-label={`Ta bort ${person.name}`}
                                 title={`Ta bort ${person.name}`}
                             >
@@ -210,7 +210,7 @@ export default function EventEditor({ event, index, onEventChange, allPeople, al
                 {event.placeId ? (
                     <span
                         onClick={() => onNavigateToPlace && onNavigateToPlace(event.placeId, event.id)}
-                        className="text-blue-600 hover:underline cursor-pointer font-semibold"
+                        className="text-accent hover:underline cursor-pointer font-semibold"
                         title="Klicka för att visa i Platsregistret"
                     >
                         {resolvedPlaceName || buildPlaceString(localPlace)}
@@ -232,14 +232,14 @@ export default function EventEditor({ event, index, onEventChange, allPeople, al
                     <button
                         type="button"
                         onClick={onEditNote} // ANVÄND onEditNote ISTÄLLET
-                        className={`text-xs font-semibold px-2 py-1 rounded-full border ${event.note && event.note.trim().length > 0 ? 'bg-green-100 text-green-800 border-green-200 hover:bg-green-200' : 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'}`}
+                        className={`text-xs font-semibold px-2 py-1 rounded-full border ${event.note && event.note.trim().length > 0 ? 'bg-accent-soft text-accent border-strong hover:bg-accent-soft/80' : 'bg-accent-soft text-accent border-strong hover:bg-accent-soft/80'}`}
                     >
                         {event.note && event.note.trim().length > 0 ? '✓ Tillagt' : '+ Lägg till'}
                     </button>
                     <button
                         type="button"
                         onClick={handleDeleteNote}
-                        className="text-xs font-semibold px-2 py-1 rounded-full border bg-red-50 text-red-700 border-red-200 hover:bg-red-100 disabled:opacity-50"
+                        className="text-xs font-semibold px-2 py-1 rounded-full border bg-warning-soft text-warning border-strong hover:bg-warning-soft/80 disabled:opacity-50"
                         disabled={!event.description || event.description.trim().length === 0}
                     >
                         Ta bort
@@ -252,10 +252,10 @@ export default function EventEditor({ event, index, onEventChange, allPeople, al
 
     const renderValueField = (label, placeholder) => (
          <td colSpan="3" className="px-4 py-2">
-            <label className="block text-[11px] font-bold uppercase tracking-wide text-slate-400 mb-1">{label}</label>
+            <label className="block text-[11px] font-bold uppercase tracking-wide text-muted mb-1">{label}</label>
             <input
                 type="text"
-                className="w-full bg-transparent border-b border-transparent focus:border-blue-500 outline-none"
+                className="w-full bg-transparent border-b border-transparent focus:border-accent outline-none"
                 value={event.description ?? event.value ?? ''}
                 onChange={(e) => {
                     handleFieldChange('description', e.target.value);
@@ -269,7 +269,7 @@ export default function EventEditor({ event, index, onEventChange, allPeople, al
 
     const renderLinkField = () => (
         <td colSpan="3" className="px-4 py-2">
-            <input type="url" className="w-full bg-transparent border-b border-transparent focus:border-blue-500 outline-none" value={event.description || ''} onChange={(e) => handleFieldChange('description', e.target.value)} placeholder="https://..."/>
+            <input type="url" className="w-full bg-transparent border-b border-transparent focus:border-accent outline-none" value={event.description || ''} onChange={(e) => handleFieldChange('description', e.target.value)} placeholder="https://..."/>
             {renderLinkedPersonsSection()}
         </td>
     );
@@ -281,7 +281,7 @@ export default function EventEditor({ event, index, onEventChange, allPeople, al
                 <select
                     value={event.partnerId || ''}
                     onChange={(e) => handleFieldChange('partnerId', e.target.value)}
-                    className="flex-grow p-1 border border-slate-600 bg-slate-900 text-slate-200 rounded text-sm"
+                    className="flex-grow p-1 border border-subtle bg-surface text-primary rounded text-sm"
                 >
                     <option value="">Välj partner...</option>
                     {allPeople.map(p => (
@@ -293,7 +293,7 @@ export default function EventEditor({ event, index, onEventChange, allPeople, al
                     {event.placeId ? (
                         <span
                             onClick={() => onNavigateToPlace && onNavigateToPlace(event.placeId, event.id)}
-                            className="text-blue-600 hover:underline cursor-pointer font-semibold"
+                            className="text-accent hover:underline cursor-pointer font-semibold"
                             title="Klicka för att visa i Platsregistret"
                         >
                             {resolvedPlaceName || buildPlaceString(localPlace)}
@@ -342,11 +342,11 @@ export default function EventEditor({ event, index, onEventChange, allPeople, al
     return (
         <>
             <td className="px-4 py-2 font-medium align-top">
-                <div className="space-y-2 rounded-md border border-slate-700/80 bg-slate-900/60 px-2 py-2">
+                <div className="space-y-2 rounded-md border border-subtle bg-surface/60 px-2 py-2">
                     <div className="flex items-center justify-between gap-2">
                         <div className="inline-flex items-center gap-1.5 min-w-0">
-                            <span className="text-sm leading-none text-slate-300">{selectedEventTypeConfig?.icon || '•'}</span>
-                            <span className="text-xs font-semibold text-slate-200 truncate">
+                            <span className="text-sm leading-none text-secondary">{selectedEventTypeConfig?.icon || '•'}</span>
+                            <span className="text-xs font-semibold text-primary truncate">
                                 {selectedEventTypeConfig?.label || event.type || 'Händelse'}
                             </span>
                         </div>
@@ -359,7 +359,7 @@ export default function EventEditor({ event, index, onEventChange, allPeople, al
                         <select
                             value={event.type || ''}
                             onChange={(e) => handleEventTypeChange(e.target.value)}
-                            className="w-full appearance-none bg-slate-950/80 border border-slate-700 rounded-md pl-2 pr-8 py-1.5 text-slate-100 text-sm focus:border-blue-500 focus:outline-none"
+                            className="w-full appearance-none bg-background/80 border border-subtle rounded-md pl-2 pr-8 py-1.5 text-primary text-sm focus:border-accent focus:outline-none"
                             title="Byt händelsetyp"
                         >
                             {availableEventTypes.map((eventType) => (
@@ -368,13 +368,13 @@ export default function EventEditor({ event, index, onEventChange, allPeople, al
                                 </option>
                             ))}
                         </select>
-                        <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">▾</span>
+                        <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-muted text-xs">▾</span>
                     </div>
 
                     {resolvedGedcomType === 'custom' && (
                         <input
                             type="text"
-                            className="w-full bg-slate-950/80 border border-slate-700 rounded-md px-2 py-1.5 focus:border-blue-500 outline-none font-semibold text-slate-100"
+                            className="w-full bg-background/80 border border-subtle rounded-md px-2 py-1.5 focus:border-accent outline-none font-semibold text-primary"
                             value={event.customType || ''}
                             onChange={(e) => handleFieldChange('customType', e.target.value)}
                             placeholder="Ange egen händelsetyp..."

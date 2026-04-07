@@ -32,13 +32,13 @@ export default function TagInput({ value, onChange, placeholder = "Taggar..." })
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-1 border border-slate-600 rounded px-2 py-1 bg-slate-900 w-full focus-within:ring-1 focus-within:ring-blue-500 min-h-[30px]">
+    <div className="flex flex-wrap items-center gap-1 border border-subtle rounded px-2 py-1 bg-surface w-full focus-within:ring-1 focus-within:ring-accent min-h-[30px]">
       {tags.map((tag, idx) => (
-        <span key={idx} className="flex items-center gap-1 bg-green-700 text-green-100 text-xs font-semibold px-2 py-0.5 rounded-full border border-green-600">
+        <span key={idx} className="flex items-center gap-1 bg-success text-on-accent text-xs font-semibold px-2 py-0.5 rounded-full border border-strong">
           {tag}
           <button 
             onClick={(e) => { e.stopPropagation(); removeTag(tag); }}
-            className="hover:text-green-200 focus:outline-none font-bold leading-none ml-0.5 text-green-300"
+            className="hover:text-on-accent focus:outline-none font-bold leading-none ml-0.5 text-on-accent/80"
             title="Ta bort tagg"
           >
             ×
@@ -61,7 +61,7 @@ export default function TagInput({ value, onChange, placeholder = "Taggar..." })
             }
         }}
         placeholder={tags.length === 0 ? placeholder : ""}
-        className="flex-1 min-w-[60px] text-sm outline-none bg-transparent text-slate-200"
+        className="flex-1 min-w-[60px] text-sm outline-none bg-transparent text-primary"
       />
     </div>
   );

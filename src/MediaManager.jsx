@@ -129,19 +129,19 @@ const MoveFilesModal = ({ isOpen, onClose, onMove, libraries }) => {
   if (!isOpen) return null;
   return (
     <div className="absolute inset-0 z-[80] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-slate-800 border border-slate-600 rounded-lg shadow-xl w-80 overflow-hidden">
-        <div className="p-3 border-b border-slate-700 bg-slate-900 font-bold text-white flex justify-between items-center">
+      <div className="bg-surface border border-subtle rounded-lg shadow-xl w-80 overflow-hidden">
+        <div className="p-3 border-b border-subtle bg-background font-bold text-on-accent flex justify-between items-center">
             <span>Flytta till...</span>
-            <button onClick={onClose}><X size={16} className="text-slate-400 hover:text-white"/></button>
+            <button onClick={onClose}><X size={16} className="text-muted hover:text-primary"/></button>
         </div>
         <div className="max-h-64 overflow-y-auto p-2 custom-scrollbar">
           {libraries.filter(l => l.id !== 'all').map(lib => (
             <button
               key={lib.id}
               onClick={() => onMove(lib.id)}
-              className="w-full text-left px-3 py-2 hover:bg-slate-700 rounded flex items-center gap-2 text-slate-300 group transition-colors"
+              className="w-full text-left px-3 py-2 hover:bg-surface-2 rounded flex items-center gap-2 text-secondary group transition-colors"
             >
-              <lib.icon size={16} className="text-slate-500 group-hover:text-blue-400"/> 
+              <lib.icon size={16} className="text-muted group-hover:text-accent"/> 
               {lib.label}
             </button>
           ))}
@@ -161,59 +161,59 @@ const BatchEditModal = ({ isOpen, onClose, onSave, count }) => {
 
     return (
         <div className="absolute inset-0 z-[80] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-            <div className="bg-slate-800 border border-slate-600 rounded-lg shadow-xl w-[600px] max-h-[90vh] overflow-hidden flex flex-col">
-                <div className="p-4 border-b border-slate-700 bg-slate-900 font-bold text-white flex justify-between items-center shrink-0">
+            <div className="bg-surface border border-subtle rounded-lg shadow-xl w-[600px] max-h-[90vh] overflow-hidden flex flex-col">
+                <div className="p-4 border-b border-subtle bg-background font-bold text-on-accent flex justify-between items-center shrink-0">
                     <span>Redigera {count} objekt</span>
-                    <button onClick={onClose}><X size={18} className="text-slate-400 hover:text-white"/></button>
+                    <button onClick={onClose}><X size={18} className="text-muted hover:text-primary"/></button>
                 </div>
                 <div className="p-4 space-y-4 overflow-y-auto flex-1">
                     <div>
-                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Sätt gemensamt datum</label>
+                        <label className="block text-xs font-bold text-muted uppercase mb-1">Sätt gemensamt datum</label>
                         <input 
                             type="text" 
                             placeholder="ÅÅÅÅ-MM-DD" 
-                            className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white text-sm focus:outline-none focus:border-blue-500"
+                            className="w-full bg-background border border-subtle rounded p-2 text-on-accent text-sm focus:outline-none focus:border-accent"
                             value={date}
                             onChange={(e) => setDate(e.target.value)}
                         />
-                        <p className="text-[10px] text-slate-500 mt-1">Lämna tomt för att behålla befintliga datum.</p>
+                        <p className="text-[10px] text-muted mt-1">Lämna tomt för att behålla befintliga datum.</p>
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Lägg till taggar</label>
+                        <label className="block text-xs font-bold text-muted uppercase mb-1">Lägg till taggar</label>
                         <input 
                             type="text" 
                             placeholder="T.ex. Sommar, Semester" 
-                            className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white text-sm focus:outline-none focus:border-blue-500"
+                            className="w-full bg-background border border-subtle rounded p-2 text-on-accent text-sm focus:outline-none focus:border-accent"
                             value={tagsToAdd}
                             onChange={(e) => setTagsToAdd(e.target.value)}
                         />
-                        <p className="text-[10px] text-slate-500 mt-1">Separera med kommatecken. Dessa läggs till på befintliga.</p>
+                        <p className="text-[10px] text-muted mt-1">Separera med kommatecken. Dessa läggs till på befintliga.</p>
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Sätt gemensam bildtext / beskrivning</label>
-                        <div className="bg-slate-900 border border-slate-600 rounded p-2 min-h-[100px]">
+                        <label className="block text-xs font-bold text-muted uppercase mb-1">Sätt gemensam bildtext / beskrivning</label>
+                        <div className="bg-background border border-subtle rounded p-2 min-h-[100px]">
                             <Editor
                                 value={description}
                                 onChange={(e) => setDescription(e.target.value)}
                                 placeholder="Skriv en beskrivning som ska gälla för alla valda bilder..."
                             />
                 </div>
-                        <p className="text-[10px] text-slate-500 mt-1">Lämna tomt för att behålla befintliga beskrivningar.</p>
+                        <p className="text-[10px] text-muted mt-1">Lämna tomt för att behålla befintliga beskrivningar.</p>
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Sätt gemensam transkribering</label>
-                        <div className="bg-slate-900 border border-slate-600 rounded p-2 min-h-[150px]">
+                        <label className="block text-xs font-bold text-muted uppercase mb-1">Sätt gemensam transkribering</label>
+                        <div className="bg-background border border-subtle rounded p-2 min-h-[150px]">
                             <Editor
                                 value={transcription}
                                 onChange={(e) => setTranscription(e.target.value)}
                                 placeholder="Skriv en transkribering som ska gälla för alla valda bilder..."
                             />
                         </div>
-                        <p className="text-[10px] text-slate-500 mt-1">Lämna tomt för att behålla befintliga transkriberingar.</p>
+                        <p className="text-[10px] text-muted mt-1">Lämna tomt för att behålla befintliga transkriberingar.</p>
                     </div>
                 </div>
-                <div className="p-3 border-t border-slate-700 bg-slate-900 flex justify-end gap-2 shrink-0">
-                    <button onClick={onClose} className="text-sm text-slate-400 hover:text-white px-3 py-1.5">Avbryt</button>
+                <div className="p-3 border-t border-subtle bg-background flex justify-end gap-2 shrink-0">
+                    <button onClick={onClose} className="text-sm text-muted hover:text-primary px-3 py-1.5">Avbryt</button>
                     <button 
                         onClick={() => onSave({ 
                             date: date || undefined, 
@@ -221,7 +221,7 @@ const BatchEditModal = ({ isOpen, onClose, onSave, count }) => {
                             description: description || undefined,
                             transcription: transcription || undefined
                         })}
-                        className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded text-sm font-medium"
+                        className="bg-accent hover:bg-accent text-on-accent px-4 py-1.5 rounded text-sm font-medium"
                     >
                         Uppdatera
                     </button>
@@ -471,34 +471,34 @@ const OcrResultModal = ({ isOpen, image, ocrResult, setOcrResult, onClose, onSav
       initialHeight={700}
       zIndex={5002}
     >
-      <div className="h-full flex bg-slate-800">
+      <div className="h-full flex bg-surface">
         {/* VÄNSTER: BILD MED ZOOM + PAN */}
-        <div className="w-1/2 border-r border-slate-700 flex flex-col bg-slate-900">
-          <div className="p-3 border-b border-slate-700 flex items-center justify-between bg-slate-800">
-            <h3 className="text-sm font-bold text-white truncate flex-1">{image?.name || 'Bild'}</h3>
+        <div className="w-1/2 border-r border-subtle flex flex-col bg-background">
+          <div className="p-3 border-b border-subtle flex items-center justify-between bg-surface">
+            <h3 className="text-sm font-bold text-on-accent truncate flex-1">{image?.name || 'Bild'}</h3>
             <div className="flex items-center gap-2 ml-4">
               <button
                 onClick={handleZoomOut}
                 disabled={zoomLevel <= 1}
-                className="p-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-1.5 bg-surface-2 hover:bg-slate-600 text-on-accent rounded disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Zooma ut"
               >
                 <ZoomOut size={16} />
               </button>
-              <span className="text-xs text-slate-400 min-w-[50px] text-center">
+              <span className="text-xs text-muted min-w-[50px] text-center">
                 {Math.round(zoomLevel * 100)}%
               </span>
               <button
                 onClick={handleZoomIn}
                 disabled={zoomLevel >= 4}
-                className="p-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-1.5 bg-surface-2 hover:bg-slate-600 text-on-accent rounded disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Zooma in"
               >
                 <ZoomIn size={16} />
               </button>
               <button
                 onClick={handleResetZoom}
-                className="px-2 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded text-xs"
+                className="px-2 py-1.5 bg-surface-2 hover:bg-slate-600 text-on-accent rounded text-xs"
                 title="Återställ zoom"
               >
                 Reset
@@ -513,7 +513,7 @@ const OcrResultModal = ({ isOpen, image, ocrResult, setOcrResult, onClose, onSav
             onMouseLeave={handlePanEnd}
             style={{ cursor: zoomLevel > 1 ? (isPanning ? 'grabbing' : 'grab') : 'default' }}
           >
-            {loading && <span className="text-white animate-pulse">Laddar bild...</span>}
+            {loading && <span className="text-on-accent animate-pulse">Laddar bild...</span>}
             {error && !loading && (
               <div className="text-red-400 text-center p-4">
                 <p className="font-bold mb-2">Fel vid laddning av bild</p>
@@ -521,7 +521,7 @@ const OcrResultModal = ({ isOpen, image, ocrResult, setOcrResult, onClose, onSav
               </div>
             )}
             {!blobUrl && !loading && !error && (
-              <div className="text-slate-400 text-center p-4">
+              <div className="text-muted text-center p-4">
                 <p>Ingen bild att visa</p>
               </div>
             )}
@@ -548,10 +548,10 @@ const OcrResultModal = ({ isOpen, image, ocrResult, setOcrResult, onClose, onSav
         </div>
 
         {/* HÖGER: OCR-REDIGERARE */}
-        <div className="w-1/2 flex flex-col bg-slate-800">
-          <div className="p-4 border-b border-slate-700 bg-slate-800">
-            <h3 className="text-sm font-bold text-white mb-1">OCR-text</h3>
-            <p className="text-xs text-slate-400">Granska och redigera texten nedan</p>
+        <div className="w-1/2 flex flex-col bg-surface">
+          <div className="p-4 border-b border-subtle bg-surface">
+            <h3 className="text-sm font-bold text-on-accent mb-1">OCR-text</h3>
+            <p className="text-xs text-muted">Granska och redigera texten nedan</p>
           </div>
           <div className="flex-1 overflow-y-auto p-4">
             <Editor
@@ -560,16 +560,16 @@ const OcrResultModal = ({ isOpen, image, ocrResult, setOcrResult, onClose, onSav
               placeholder="OCR-text kommer att visas här..."
             />
           </div>
-          <div className="p-4 border-t border-slate-700 bg-slate-800 flex justify-end gap-2">
+          <div className="p-4 border-t border-subtle bg-surface flex justify-end gap-2">
             <button
               onClick={onClose}
-              className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded text-sm"
+              className="px-4 py-2 bg-surface-2 hover:bg-slate-600 text-on-accent rounded text-sm"
             >
               Avbryt
             </button>
             <button
               onClick={onSave}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm"
+              className="px-4 py-2 bg-accent hover:bg-accent text-on-accent rounded text-sm"
             >
               Spara till transkribering
             </button>
@@ -611,7 +611,7 @@ const LibraryButton = ({ lib, isActive, onClick, onDrop, onDelete }) => {
     return (
         <div 
             className={`group flex items-center gap-1 rounded px-2 py-1 transition-colors relative 
-                ${isActive ? 'bg-blue-600/20 text-blue-100' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}
+                ${isActive ? 'bg-accent-soft text-on-accent' : 'text-muted hover:bg-surface hover:text-primary'}
                 ${isOver ? 'bg-blue-500/40 ring-2 ring-blue-500 scale-[1.02]' : ''}
             `}
             onDragOver={handleDragOver}
@@ -622,14 +622,14 @@ const LibraryButton = ({ lib, isActive, onClick, onDrop, onDelete }) => {
                 onClick={onClick}
                 className="flex-1 flex items-center gap-3 text-sm truncate w-full text-left py-1.5"
             >
-                <lib.icon size={16} className={isOver ? 'text-white animate-bounce' : (isActive ? 'text-blue-400' : 'text-slate-500 group-hover:text-blue-400')} /> 
+                <lib.icon size={16} className={isOver ? 'text-on-accent animate-bounce' : (isActive ? 'text-accent' : 'text-muted group-hover:text-accent')} /> 
                 {lib.label}
             </button>
             
             {onDelete && (
                 <button 
                     onClick={(e) => onDelete(lib.id, e)} 
-                    className="p-1.5 text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="p-1.5 text-muted hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
                     title="Radera album"
                 >
                     <Trash2 size={12}/>
@@ -2408,30 +2408,30 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
           background: #2563eb;
         }
       `}</style>
-    <div className="flex flex-1 overflow-hidden w-full h-full bg-slate-900">
+    <div className="flex flex-1 overflow-hidden w-full h-full bg-background">
       {/* VÄNSTER: Bibliotek */}
-      <div className="w-64 bg-slate-800/50 border-r border-slate-700 flex flex-col shrink-0">
+      <div className="w-64 bg-surface border-r border-subtle flex flex-col shrink-0">
       <div className="flex-1 overflow-y-auto custom-scrollbar">
           <div className="p-2 space-y-1">
-              <p className="px-3 py-1 text-[10px] font-bold text-slate-500 uppercase">Bibliotek</p>
+              <p className="px-3 py-1 text-[10px] font-bold text-muted uppercase">Bibliotek</p>
               {SYSTEM_LIBRARIES.map(lib => (
               <LibraryButton key={lib.id} lib={lib} isActive={activeLib === lib.id} onClick={() => { setActiveLib(lib.id); setSelectedImage(null); setIsSelectMode(false); setFilterUnlinked(false); }} onDrop={handleLibraryDrop}/>
               ))}
-              <button onClick={() => { setFilterUnlinked(!filterUnlinked); setActiveLib('all'); setSearch(''); }} className={`flex items-center gap-3 w-full px-3 py-2 rounded text-sm transition-colors ${filterUnlinked ? 'bg-yellow-600/20 text-yellow-400 border border-yellow-600/50' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
+              <button onClick={() => { setFilterUnlinked(!filterUnlinked); setActiveLib('all'); setSearch(''); }} className={`flex items-center gap-3 w-full px-3 py-2 rounded text-sm transition-colors ${filterUnlinked ? 'bg-yellow-600/20 text-yellow-400 border border-yellow-600/50' : 'text-muted hover:bg-surface hover:text-primary'}`}>
                   <AlertCircle size={16} /> Okopplade ({mediaItems.filter(m => (!m.connections?.people || m.connections.people.length === 0) && (!m.connections?.places || m.connections.places.length === 0) && (!m.connections?.sources || m.connections.sources.length === 0)).length})
               </button>
           </div>
-          <div className="p-2 space-y-1 border-t border-slate-700/50">
+          <div className="p-2 space-y-1 border-t border-subtle">
               <div className="flex justify-between items-center px-3 py-1">
-                  <p className="text-[10px] font-bold text-slate-500 uppercase">Mina Album</p>
-                  <button onClick={handleStartCreateLibrary} className="text-slate-500 hover:text-white bg-slate-800 p-1 rounded hover:bg-slate-700 transition-colors"><Plus size={12}/></button>
+                  <p className="text-[10px] font-bold text-muted uppercase">Mina Album</p>
+                  <button onClick={handleStartCreateLibrary} className="text-muted hover:text-primary bg-surface p-1 rounded hover:bg-surface-2 transition-colors"><Plus size={12}/></button>
               </div>
               {customLibraries.map(lib => (
                   <div key={lib.id}>
                   {editingLibId === lib.id ? (
                       <div className="flex items-center gap-2 w-full px-2 py-1">
-                          <Folder size={16} className="text-blue-400 shrink-0"/>
-                          <input ref={libInputRef} type="text" value={tempLibName} onChange={(e) => setTempLibName(e.target.value)} onBlur={handleSaveLibraryName} onKeyDown={handleKeyDownLibrary} className="w-full bg-slate-900 text-white text-sm px-1 py-0.5 rounded border border-blue-500 focus:outline-none"/>
+                          <Folder size={16} className="text-accent shrink-0"/>
+                          <input ref={libInputRef} type="text" value={tempLibName} onChange={(e) => setTempLibName(e.target.value)} onBlur={handleSaveLibraryName} onKeyDown={handleKeyDownLibrary} className="w-full bg-background text-on-accent text-sm px-1 py-0.5 rounded border border-accent focus:outline-none"/>
                       </div>
                   ) : (
                       <LibraryButton lib={lib} isActive={activeLib === lib.id} onClick={() => { setActiveLib(lib.id); setIsSelectMode(false); setFilterUnlinked(false); }} onDelete={handleDeleteLibrary} onDrop={handleLibraryDrop}/>
@@ -2440,7 +2440,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
               ))}
           </div>
       </div>
-      <div className="p-4 border-t border-slate-700">
+      <div className="p-4 border-t border-subtle">
           <input type="file" ref={fileInputRef} className="hidden" multiple accept="image/*" onChange={(e) => handleFiles(e.target.files)}/>
           <button 
             onClick={async () => {
@@ -2475,7 +2475,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                 fileInputRef.current.click();
               }
             }}
-            className="flex items-center justify-center gap-2 w-full bg-blue-600 hover:bg-blue-500 text-white py-2 rounded text-sm transition-colors font-medium"
+            className="flex items-center justify-center gap-2 w-full bg-accent hover:bg-accent text-on-accent py-2 rounded text-sm transition-colors font-medium"
           >
           <UploadCloud size={16}/> Ladda upp
           </button>
@@ -2483,7 +2483,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
           {/* Papperskorg-knapp */}
           <button
             onClick={() => setShowTrashModal(true)}
-            className="flex items-center justify-center gap-2 w-full bg-slate-800 hover:bg-slate-700 text-slate-300 py-2 rounded text-sm transition-colors font-medium border border-slate-700 mt-2"
+            className="flex items-center justify-center gap-2 w-full bg-surface hover:bg-surface-2 text-secondary py-2 rounded text-sm transition-colors font-medium border border-subtle mt-2"
           >
             <Trash size={16}/> Papperskorg
           </button>
@@ -2491,9 +2491,9 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
       </div>
 
       {/* MITTEN: Galleri */}
-      <div className="flex-1 flex flex-col bg-slate-900 min-w-0 relative">
+      <div className="flex-1 flex flex-col bg-background min-w-0 relative">
       
-      <div className="h-14 border-b border-slate-700 flex items-center justify-between px-4 bg-slate-800/30">
+      <div className="h-14 border-b border-subtle flex items-center justify-between px-4 bg-surface-2">
           <div className="flex items-center gap-2">
             <button
               onClick={async () => {
@@ -2584,24 +2584,24 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                   }
                 }
               }}
-              className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs rounded transition-colors flex items-center gap-1.5"
+              className="px-3 py-1.5 bg-surface-2 hover:bg-slate-600 text-primary text-xs rounded transition-colors flex items-center gap-1.5"
               title="Skanna media-mappen för nya bilder"
             >
               <RefreshCw size={14} /> Uppdatera
             </button>
           </div>
           <div className="flex gap-2 items-center">
-              <button onClick={() => { setIsSelectMode(!isSelectMode); setSelectedIds(new Set()); setSelectedImage(null); }} className={`px-3 py-1.5 rounded text-sm border transition-colors ${isSelectMode ? 'bg-blue-600 border-blue-500 text-white' : 'border-slate-600 text-slate-300 hover:border-slate-400 hover:text-white'}`}>
+              <button onClick={() => { setIsSelectMode(!isSelectMode); setSelectedIds(new Set()); setSelectedImage(null); }} className={`px-3 py-1.5 rounded text-sm border transition-colors ${isSelectMode ? 'bg-accent border-accent text-on-accent' : 'border-subtle text-secondary hover:border-strong hover:text-primary'}`}>
                   {isSelectMode ? 'Klar' : 'Välj'}
               </button>
-              <button onClick={handleSelectAll} className="text-xs text-slate-400 hover:text-white px-2">
+              <button onClick={handleSelectAll} className="text-xs text-muted hover:text-primary px-2">
                   {selectedIds.size === sortedMedia.length ? 'Avmarkera alla' : 'Markera alla'}
               </button>
           </div>
           <div className="flex gap-2 items-center flex-wrap">
               {/* Thumbnail Size Slider */}
               <div className="flex items-center gap-1.5 w-24 flex-shrink-0">
-                  <SlidersHorizontal size={12} className="text-slate-400 flex-shrink-0"/>
+                  <SlidersHorizontal size={12} className="text-muted flex-shrink-0"/>
                   <input 
                       type="range" 
                       min="2" 
@@ -2611,7 +2611,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                       className="flex-1 slider min-w-[60px]"
                       title={`${thumbnailSize} kolumner`}
                   />
-                  <span className="text-xs text-slate-400 w-4 text-right flex-shrink-0">{thumbnailSize}</span>
+                  <span className="text-xs text-muted w-4 text-right flex-shrink-0">{thumbnailSize}</span>
               </div>
               
               {/* Sortering Dropdown */}
@@ -2619,7 +2619,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                   <select 
                       value={sortBy} 
                       onChange={(e) => setSortBy(e.target.value)}
-                      className="bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500 appearance-none pr-8 cursor-pointer min-w-[140px]"
+                      className="bg-background border border-subtle rounded-lg px-3 py-1.5 text-sm text-primary focus:outline-none focus:border-accent appearance-none pr-8 cursor-pointer min-w-[140px]"
                   >
                       <option value="newest">Senast tillagd</option>
                       <option value="oldest">Äldst först</option>
@@ -2632,7 +2632,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                       <option value="most-connections">Mest kopplade</option>
                       <option value="most-tags">Mest taggar</option>
                   </select>
-                  <ArrowUpDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"/>
+                  <ArrowUpDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted pointer-events-none"/>
               </div>
               
               {/* Filtrering Dropdown */}
@@ -2640,7 +2640,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                   <select 
                       value={filterBy} 
                       onChange={(e) => setFilterBy(e.target.value)}
-                      className="bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500 appearance-none pr-8 cursor-pointer min-w-[120px]"
+                      className="bg-background border border-subtle rounded-lg px-3 py-1.5 text-sm text-primary focus:outline-none focus:border-accent appearance-none pr-8 cursor-pointer min-w-[120px]"
                   >
                       <option value="all">Alla</option>
                       <option value="with-tags">Med taggar</option>
@@ -2657,19 +2657,19 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                       <option value="medium-files">Medelstora filer (1-5MB)</option>
                       <option value="small-files">Små filer (&lt;1MB)</option>
                   </select>
-                  <Filter size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"/>
+                  <Filter size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted pointer-events-none"/>
               </div>
               
               {/* Sök */}
               <div className="relative w-48">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"/>
-                  <input type="text" placeholder="Sök..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-full pl-9 pr-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500"/>
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted"/>
+                  <input type="text" placeholder="Sök..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-full bg-background border border-subtle rounded-full pl-9 pr-3 py-1.5 text-sm text-primary focus:outline-none focus:border-accent"/>
               </div>
               
               {/* Grid/List View Toggle */}
-              <div className="flex items-center bg-slate-950 rounded-lg p-1 border border-slate-700">
-                  <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded ${viewMode === 'grid' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'}`}><Grid size={16}/></button>
-                  <button onClick={() => setViewMode('list')} className={`p-1.5 rounded ${viewMode === 'list' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'}`}><List size={16}/></button>
+              <div className="flex items-center bg-background rounded-lg p-1 border border-subtle">
+                  <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded ${viewMode === 'grid' ? 'bg-surface-2 text-on-accent' : 'text-muted hover:text-primary'}`}><Grid size={16}/></button>
+                  <button onClick={() => setViewMode('list')} className={`p-1.5 rounded ${viewMode === 'list' ? 'bg-surface-2 text-on-accent' : 'text-muted hover:text-primary'}`}><List size={16}/></button>
               </div>
           </div>
       </div>
@@ -2681,12 +2681,12 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
           onDrop={(e) => {e.preventDefault(); setIsDraggingFile(false); if(e.dataTransfer.files.length > 0) handleFiles(e.dataTransfer.files);}}
       >
           {isDraggingFile && (
-              <div className="absolute inset-0 z-50 flex items-center justify-center bg-blue-900/20 backdrop-blur-sm border-2 border-blue-500 border-dashed m-4 rounded-xl pointer-events-none">
-                  <div className="text-center text-blue-400"><UploadCloud size={64} className="mx-auto mb-2"/><h3 className="font-bold">Släpp filerna här</h3></div>
+              <div className="absolute inset-0 z-50 flex items-center justify-center bg-blue-900/20 backdrop-blur-sm border-2 border-accent border-dashed m-4 rounded-xl pointer-events-none">
+                  <div className="text-center text-accent"><UploadCloud size={64} className="mx-auto mb-2"/><h3 className="font-bold">Släpp filerna här</h3></div>
               </div>
           )}
           {sortedMedia.length === 0 && (
-              <div className="flex flex-col items-center justify-center h-full text-slate-500">
+              <div className="flex flex-col items-center justify-center h-full text-muted">
                   <FileWarning size={48} className="mb-2 opacity-20"/>
                   <p className="text-sm">Inga bilder hittades.</p>
               </div>
@@ -2700,31 +2700,31 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                   onContextMenu={(e) => handleContextMenu(e, item.id)}
                   draggable
                   onDragStart={(e) => handleItemDragStart(e, item.id)}
-                  className={`group relative aspect-square rounded-lg border-2 overflow-hidden cursor-pointer transition-all ${(onSelectMedia && selectedMediaIds.includes(item.id)) ? 'border-green-500 ring-2 ring-green-500/50' : selectedIds.has(item.id) ? 'border-blue-500 ring-2 ring-blue-500/30' : (selectedImage?.id === item.id ? 'border-blue-500' : 'border-slate-700 hover:border-slate-500')}`}
+                  className={`group relative aspect-square rounded-lg border-2 overflow-hidden cursor-pointer transition-all ${(onSelectMedia && selectedMediaIds.includes(item.id)) ? 'border-green-500 ring-2 ring-green-500/50' : selectedIds.has(item.id) ? 'border-accent ring-2 ring-blue-500/30' : (selectedImage?.id === item.id ? 'border-accent' : 'border-subtle hover:border-strong')}`}
               >
                   <img src={item.url} alt={item.name} className="w-full h-full object-cover" onContextMenu={(e) => handleContextMenu(e, item.id)} /> 
                   {(onSelectMedia && selectedMediaIds.includes(item.id)) && (
                       <div className="absolute inset-0 bg-green-500/20 flex items-center justify-center z-10">
-                          <div className="bg-green-500 text-white rounded-full p-2 shadow-lg">
-                              <CheckSquare size={24} fill="currentColor" className="text-white" />
+                          <div className="bg-green-500 text-on-accent rounded-full p-2 shadow-lg">
+                              <CheckSquare size={24} fill="currentColor" className="text-on-accent" />
                           </div>
                       </div>
                   )}
                   {(isSelectMode || selectedIds.has(item.id)) && !onSelectMedia && (
                       <div className="absolute top-2 right-2 z-20" onClick={(e) => { e.stopPropagation(); handleToggleSelect(item.id); }}>
                           {selectedIds.has(item.id) 
-                              ? <div className="bg-blue-600 rounded text-white shadow-lg"><CheckSquare size={24} fill="currentColor" className="text-white" /></div>
-                              : <div className="bg-black/40 rounded hover:bg-black/70 shadow-lg"><Square size={24} className="text-white"/></div>
+                              ? <div className="bg-accent rounded text-on-accent shadow-lg"><CheckSquare size={24} fill="currentColor" className="text-on-accent" /></div>
+                              : <div className="bg-black/40 rounded hover:bg-black/70 shadow-lg"><Square size={24} className="text-on-accent"/></div>
                           }
                       </div>
                   )}
                   {item.connections.people.length === 0 && item.connections.places.length === 0 && item.connections.sources.length === 0 && (
-                      <div className="absolute top-2 left-2 bg-yellow-600 text-white p-1 rounded-full shadow-md" title="Okopplad">
+                      <div className="absolute top-2 left-2 bg-yellow-600 text-on-accent p-1 rounded-full shadow-md" title="Okopplad">
                       <AlertCircle size={10}/>
                       </div>
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2 pointer-events-none">
-                  <p className="text-white text-xs font-medium truncate">{item.name}</p>
+                  <p className="text-on-accent text-xs font-medium truncate">{item.name}</p>
                   </div>
               </div>
               ))}
@@ -2738,16 +2738,16 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                     onContextMenu={(e) => handleContextMenu(e, item.id)}
                       draggable 
                       onDragStart={(e) => handleItemDragStart(e, item.id)} 
-                      className={`flex items-center gap-4 p-2 rounded border cursor-pointer ${selectedIds.has(item.id) ? 'bg-blue-900/30 border-blue-500' : (selectedImage?.id === item.id ? 'bg-slate-800 border-blue-500' : 'bg-slate-800/30 border-slate-700 hover:bg-slate-800')}`}>
+                      className={`flex items-center gap-4 p-2 rounded border cursor-pointer ${selectedIds.has(item.id) ? 'bg-accent-soft border-accent' : (selectedImage?.id === item.id ? 'bg-surface border-accent' : 'bg-surface-2 border-subtle hover:bg-surface')}`}>
                       <div className="w-8 flex justify-center">
-                          {(isSelectMode || selectedIds.has(item.id)) && (selectedIds.has(item.id) ? <CheckSquare size={18} className="text-blue-500"/> : <Square size={18} className="text-slate-500"/>)}
+                          {(isSelectMode || selectedIds.has(item.id)) && (selectedIds.has(item.id) ? <CheckSquare size={18} className="text-blue-500"/> : <Square size={18} className="text-muted"/>)}
                       </div>
-                      <div className="w-10 h-10 bg-slate-900 rounded overflow-hidden shrink-0 border border-slate-600">
+                      <div className="w-10 h-10 bg-background rounded overflow-hidden shrink-0 border border-subtle">
                           <img src={item.url} className="w-full h-full object-cover pointer-events-none"/>
                       </div>
-                      <span className="text-sm text-slate-200 flex-1 truncate font-medium">{item.name}</span>
-                      <span className="text-xs text-slate-500">{item.date}</span>
-                      <span className="text-xs text-slate-400 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">
+                      <span className="text-sm text-primary flex-1 truncate font-medium">{item.name}</span>
+                      <span className="text-xs text-muted">{item.date}</span>
+                      <span className="text-xs text-muted bg-surface px-2 py-0.5 rounded border border-subtle">
                               {allLibraries.find(l => l.id === item.libraryId)?.label || 'Okänt'}
                       </span>
                       {item.connections.people.length === 0 && <AlertCircle size={14} className="text-yellow-500" title="Okopplad"/>}
@@ -2758,12 +2758,12 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
       </div>
 
       {selectedIds.size > 0 && (
-          <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-slate-800 border border-slate-600 text-white px-2 py-1.5 rounded-full shadow-2xl flex gap-2 items-center z-50">
-              <span className="text-xs font-bold text-slate-300 px-2 border-r border-slate-600">{selectedIds.size} valda</span>
-              <button onClick={() => setIsBatchEditOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs hover:bg-slate-700 rounded-full transition-colors">
+          <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-surface border border-subtle text-on-accent px-2 py-1.5 rounded-full shadow-2xl flex gap-2 items-center z-50">
+              <span className="text-xs font-bold text-secondary px-2 border-r border-subtle">{selectedIds.size} valda</span>
+              <button onClick={() => setIsBatchEditOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs hover:bg-surface-2 rounded-full transition-colors">
                   <Edit2 size={14}/> Redigera
               </button>
-              <button onClick={() => setIsMoveModalOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs hover:bg-slate-700 rounded-full transition-colors">
+              <button onClick={() => setIsMoveModalOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs hover:bg-surface-2 rounded-full transition-colors">
                   <MoveRight size={14}/> Flytta
               </button>
               <button onClick={handleBatchDelete} className="flex items-center gap-1.5 px-3 py-1.5 text-xs hover:bg-red-900/50 text-red-400 hover:text-red-300 rounded-full transition-colors">
@@ -2778,11 +2778,11 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
 
       {/* HÖGER: Detaljpanel */}
       {safeDisplayImage ? (
-      <div className="w-96 bg-slate-800 border-l border-slate-700 flex flex-col shrink-0 z-20 shadow-xl">
-          <div className="p-4 border-b border-slate-700 bg-slate-800">
+      <div className="w-96 bg-surface border-l border-subtle flex flex-col shrink-0 z-20 shadow-xl">
+          <div className="p-4 border-b border-subtle bg-surface">
               <div className="flex justify-between items-start mb-2">
-                  <h3 className="text-sm font-bold text-white truncate flex-1">{safeDisplayImage.name}</h3>
-                  <button onClick={() => setSelectedImage(null)} className="text-slate-400 hover:text-white shrink-0 ml-2"><X size={18}/></button>
+                  <h3 className="text-sm font-bold text-on-accent truncate flex-1">{safeDisplayImage.name}</h3>
+                  <button onClick={() => setSelectedImage(null)} className="text-muted hover:text-primary shrink-0 ml-2"><X size={18}/></button>
           </div>
               {safeDisplayImage.filePath && (
                   <button
@@ -2797,29 +2797,29 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                               window.electronAPI.openFolder(fullPath);
                           }
                       }}
-                      className="flex items-center gap-1 text-xs text-slate-500 hover:text-blue-400 transition-colors group"
+                      className="flex items-center gap-1 text-xs text-muted hover:text-accent transition-colors group"
                       title="Öppna i Explorer"
                   >
-                      <FolderOpen size={12} className="group-hover:text-blue-400 shrink-0" />
+                      <FolderOpen size={12} className="group-hover:text-accent shrink-0" />
                       <span className="truncate">media/{safeDisplayImage.filePath}</span>
                   </button>
               )}
           </div>
           
-          <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar bg-slate-800 min-h-0">
+          <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar bg-surface min-h-0">
               <div className="space-y-3">
                   <div>
-                      <label className="text-[10px] uppercase font-bold text-slate-500 block mb-1">Datering</label>
-                      <div className="flex items-center bg-slate-900 border border-slate-600 rounded px-2 py-1.5">
-                          <Calendar size={14} className="text-slate-500 mr-2"/>
-                          <input type="text" defaultValue={safeDisplayImage.date} className="bg-transparent text-sm text-white w-full focus:outline-none" />
+                      <label className="text-[10px] uppercase font-bold text-muted block mb-1">Datering</label>
+                      <div className="flex items-center bg-background border border-subtle rounded px-2 py-1.5">
+                          <Calendar size={14} className="text-muted mr-2"/>
+                          <input type="text" defaultValue={safeDisplayImage.date} className="bg-transparent text-sm text-on-accent w-full focus:outline-none" />
                       </div>
                   </div>
                   <div>
-                      <label className="text-[10px] uppercase font-bold text-slate-500 block mb-1">Bibliotek / Kategori</label>
+                      <label className="text-[10px] uppercase font-bold text-muted block mb-1">Bibliotek / Kategori</label>
                       <select 
                           defaultValue={safeDisplayImage.libraryId}
-                          className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500"
+                          className="w-full bg-background border border-subtle rounded px-2 py-1.5 text-sm text-on-accent focus:outline-none focus:border-accent"
                       >
                           {SYSTEM_LIBRARIES.filter(l => l.id !== 'all').map(l => (
                               <option key={l.id} value={l.id}>{l.label}</option>
@@ -2832,8 +2832,8 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
               </div>
 
               <div>
-                  <label className="text-[10px] uppercase font-bold text-slate-500 block mb-1">Bildtext / Beskrivning</label>
-                  <div className="bg-slate-900 border border-slate-600 rounded p-2 min-h-[100px]">
+                  <label className="text-[10px] uppercase font-bold text-muted block mb-1">Bildtext / Beskrivning</label>
+                  <div className="bg-background border border-subtle rounded p-2 min-h-[100px]">
                       <Editor
                           value={descriptionContent || safeDisplayImage.description || ''}
                           onChange={(e) => {
@@ -2852,14 +2852,14 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
 
                   <div className="space-y-2">
                       <div className="flex justify-between items-center">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase">Transkribering / OCR</label>
+                      <label className="text-[10px] font-bold text-muted uppercase">Transkribering / OCR</label>
                       <div className="flex items-center gap-2 flex-wrap">
                           {/* OCR-typ: Endast Tesseract (TrOCR fungerar inte i Electron) */}
-                          <span className="text-xs text-slate-400">Tesseract OCR</span>
+                          <span className="text-xs text-muted">Tesseract OCR</span>
                           <button 
                               onClick={handleRunOCR} 
                               disabled={isRunningOCR}
-                              className="text-xs flex items-center gap-1 text-blue-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="text-xs flex items-center gap-1 text-accent hover:text-primary disabled:opacity-50 disabled:cursor-not-allowed"
                               title="Läs av text från bilden med OCR"
                           >
                               {isRunningOCR ? (
@@ -2872,13 +2872,13 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                                   </>
                               )}
                           </button>
-                          <button onClick={() => setShowTranscription(!showTranscription)} className="text-xs flex items-center gap-1 text-blue-400 hover:text-white">
+                          <button onClick={() => setShowTranscription(!showTranscription)} className="text-xs flex items-center gap-1 text-accent hover:text-primary">
                               <PenTool size={12}/> {showTranscription ? 'Dölj' : 'Visa / Redigera'}
                           </button>
                       </div>
                       </div>
                       {showTranscription && (
-                      <div className="bg-slate-900 border border-slate-700 rounded p-2 min-h-[150px]">
+                      <div className="bg-background border border-subtle rounded p-2 min-h-[150px]">
                           <Editor
                               value={transcriptionContent || safeDisplayImage.transcription || ''}
                               onChange={(e) => {
@@ -2897,11 +2897,11 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
               </div>
               
               <div className="space-y-4">
-                  <h4 className="text-[10px] font-bold text-slate-500 uppercase border-b border-slate-700 pb-1">Kopplingar</h4>
+                  <h4 className="text-[10px] font-bold text-muted uppercase border-b border-subtle pb-1">Kopplingar</h4>
                   
                   <div className="space-y-2">
                       <div className="flex justify-between items-center">
-                          <label className="text-[10px] font-bold text-slate-400">Personer</label>
+                          <label className="text-[10px] font-bold text-muted">Personer</label>
                       </div>
                       {(() => {
                         const people = safeDisplayImage?.connections?.people;
@@ -2922,7 +2922,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                         });
                         
                         if (!safeDisplayImage) {
-                          return <div className="text-xs text-slate-500 italic py-2">Ingen bild vald</div>;
+                          return <div className="text-xs text-muted italic py-2">Ingen bild vald</div>;
                         }
                         
                         if (!isArray) {
@@ -2930,7 +2930,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                         }
                         
                         if (!hasPeople) {
-                          return <div className="text-xs text-slate-500 italic py-2">Inga personer kopplade</div>;
+                          return <div className="text-xs text-muted italic py-2">Inga personer kopplade</div>;
                         }
                         
                         return people.map((p, idx) => {
@@ -2943,9 +2943,9 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                             // Fallback om personen inte hittas
                             const personName = typeof p === 'object' ? p.name : p;
                             return (
-                              <div key={personId || idx} className="flex items-center justify-between bg-slate-900 p-2 rounded border border-slate-700 text-xs">
-                                <div><span className="text-slate-200 font-medium block">{personName}</span></div>
-                              <button className="text-slate-500 hover:text-red-400"><X size={12}/></button>
+                              <div key={personId || idx} className="flex items-center justify-between bg-background p-2 rounded border border-subtle text-xs">
+                                <div><span className="text-primary font-medium block">{personName}</span></div>
+                              <button className="text-muted hover:text-red-400"><X size={12}/></button>
                           </div>
                             );
                           }
@@ -2970,7 +2970,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                           return (
                             <div 
                               key={personId || idx} 
-                              className="flex items-start gap-2 bg-slate-900 p-2 rounded border border-slate-700 text-xs cursor-pointer hover:bg-slate-800 transition-colors"
+                              className="flex items-start gap-2 bg-background p-2 rounded border border-subtle text-xs cursor-pointer hover:bg-surface transition-colors"
                               onClick={() => {
                                 if (onOpenEditModal) {
                                   onOpenEditModal(personId);
@@ -2978,7 +2978,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                               }}
                             >
                               {/* Rund thumbnail (samma som EditPersonModal) */}
-                              <div className="w-10 h-10 rounded-full bg-slate-600 flex-shrink-0 overflow-hidden border-2 border-slate-500">
+                              <div className="w-10 h-10 rounded-full bg-slate-600 flex-shrink-0 overflow-hidden border-2 border-strong">
                                 {profileImage ? (
                                   <MediaImage
                                     url={profileImage}
@@ -2987,41 +2987,41 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                                     style={getAvatarImageStyle(primaryMedia, person.id)}
                                   />
                                 ) : (
-                                  <User className="w-full h-full p-2 text-slate-400" />
+                                  <User className="w-full h-full p-2 text-muted" />
                                 )}
                               </div>
                               
                               {/* Personinfo */}
                               <div className="flex-1 min-w-0">
                                 {/* Namn */}
-                                <div className="text-slate-200 font-medium mb-0.5">
+                                <div className="text-primary font-medium mb-0.5">
                                   {person.firstName} {person.lastName}
                                 </div>
                                 
                                 {/* Födelsedatum och plats */}
                                 {(birthDate || birthPlace) && (
-                                  <div className="text-[10px] text-slate-400 mb-0.5">
+                                  <div className="text-[10px] text-muted mb-0.5">
                                     * {birthDate || '????-??-??'} {birthPlace && ` ${birthPlace}`} ({sexLabel})
                                   </div>
                                 )}
                                 
                                 {/* Dödsdatum och plats */}
                                 {(deathDate || deathPlace) && (
-                                  <div className="text-[10px] text-slate-400">
+                                  <div className="text-[10px] text-muted">
                                     + {deathDate || '????-??-??'} {deathPlace && ` ${deathPlace}`} ({sexLabel})
                                   </div>
                                 )}
                                 
                                 {/* Om inga datum finns */}
                                 {!birthDate && !deathDate && (
-                                  <div className="text-[10px] text-slate-500 italic">
+                                  <div className="text-[10px] text-muted italic">
                                     Inga datum registrerade
                                   </div>
                                 )}
                               </div>
                               
                               <button 
-                                className="text-slate-500 hover:text-red-400 ml-2 flex-shrink-0"
+                                className="text-muted hover:text-red-400 ml-2 flex-shrink-0"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   // TODO: Ta bort koppling
@@ -3040,7 +3040,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                             setShowLinkPersonModal(true);
                           }
                         }}
-                        className="w-full py-1.5 border border-dashed border-slate-600 text-slate-400 text-xs rounded hover:text-white hover:border-slate-500 hover:bg-slate-700 transition-colors flex items-center justify-center gap-1"
+                        className="w-full py-1.5 border border-dashed border-subtle text-muted text-xs rounded hover:text-primary hover:border-strong hover:bg-surface-2 transition-colors flex items-center justify-center gap-1"
                       >
                         <Plus size={12}/> Koppla person
                       </button>
@@ -3048,7 +3048,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
 
                   <div className="space-y-2">
                       <div className="flex justify-between items-center">
-                          <label className="text-[10px] font-bold text-slate-400">Källor</label>
+                          <label className="text-[10px] font-bold text-muted">Källor</label>
                       </div>
                       {Array.isArray(safeDisplayImage?.connections?.sources) && safeDisplayImage.connections.sources.length > 0 ? (
                         safeDisplayImage.connections.sources.map((s, idx) => {
@@ -3059,11 +3059,11 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                           if (!source) {
                             // Fallback om källan inte hittas
                             return (
-                              <div key={sourceId || idx} className="flex items-center justify-between bg-slate-900 p-2 rounded border border-slate-700 text-xs">
+                              <div key={sourceId || idx} className="flex items-center justify-between bg-background p-2 rounded border border-subtle text-xs">
                               <div>
-                                  <span className="text-slate-200 font-medium block">{typeof s === 'object' ? (s.name || s.title) : s}</span>
+                                  <span className="text-primary font-medium block">{typeof s === 'object' ? (s.name || s.title) : s}</span>
                               </div>
-                              <button className="text-slate-500 hover:text-red-400"><X size={12}/></button>
+                              <button className="text-muted hover:text-red-400"><X size={12}/></button>
                           </div>
                             );
                           }
@@ -3088,10 +3088,10 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                           const pageLabel = pageParts.length > 0 ? pageParts.join(' / ') : '';
                           
                           return (
-                            <div key={sourceId || idx} className="bg-slate-900 p-2 rounded border border-slate-700 text-xs">
+                            <div key={sourceId || idx} className="bg-background p-2 rounded border border-subtle text-xs">
                               {/* Hierarki-titel (klickbar för att öppna i källträdet) */}
                               <div 
-                                className="text-slate-200 font-medium mb-1 cursor-pointer hover:text-blue-400 transition-colors"
+                                className="text-primary font-medium mb-1 cursor-pointer hover:text-accent transition-colors"
                                 onClick={() => {
                                   if (onNavigateToSource) {
                                     onNavigateToSource(sourceId);
@@ -3105,7 +3105,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                               {/* Bild / Sid med AD RA NAD-knappar på samma rad */}
                               <div className="flex items-center gap-2 mb-1.5">
                                 {pageLabel && (
-                                  <div className="text-[10px] text-slate-400">
+                                  <div className="text-[10px] text-muted">
                                     {pageLabel}
                                   </div>
                                 )}
@@ -3122,7 +3122,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                                   variant={source.aid ? "success" : "ghost"}
                                   size="xs"
                                   title={source.aid ? `Öppna AID: ${source.aid}` : "Ingen AID"}
-                                  className={source.aid ? "" : "opacity-50 border border-slate-600"}
+                                  className={source.aid ? "" : "opacity-50 border border-subtle"}
                                   disabled={!source.aid}
                                 >
                                   AD
@@ -3137,7 +3137,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                                   variant={source.bildid ? "success" : "ghost"}
                                   size="xs"
                                   title={source.bildid ? `Öppna RA: ${source.bildid}` : "Ingen RA-länk"}
-                                  className={source.bildid ? "" : "opacity-50 border border-slate-600"}
+                                  className={source.bildid ? "" : "opacity-50 border border-subtle"}
                                   disabled={!source.bildid}
                                 >
                                   RA
@@ -3152,7 +3152,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                                   variant={source.nad ? "success" : "ghost"}
                                   size="xs"
                                   title={source.nad ? `Öppna NAD: ${source.nad}` : "Ingen NAD-länk"}
-                                  className={source.nad ? "" : "opacity-50 border border-slate-600"}
+                                  className={source.nad ? "" : "opacity-50 border border-subtle"}
                                   disabled={!source.nad}
                                 >
                                   NAD
@@ -3163,7 +3163,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                               {/* Ta bort-knapp */}
                               <div className="flex justify-end">
                         <button 
-                                  className="text-slate-500 hover:text-red-400"
+                                  className="text-muted hover:text-red-400"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     // TODO: Ta bort koppling
@@ -3177,11 +3177,11 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                           );
                         })
                       ) : (
-                        <div className="text-xs text-slate-500 italic py-2">Inga källor kopplade</div>
+                        <div className="text-xs text-muted italic py-2">Inga källor kopplade</div>
                       )}
                         <button 
                           onClick={() => setIsSourceDrawerOpen(safeDisplayImage)}
-                          className="w-full py-1.5 border border-dashed border-slate-600 text-slate-400 text-xs rounded hover:text-white hover:border-slate-500 hover:bg-slate-700 transition-colors flex items-center justify-center gap-1"
+                          className="w-full py-1.5 border border-dashed border-subtle text-muted text-xs rounded hover:text-primary hover:border-strong hover:bg-surface-2 transition-colors flex items-center justify-center gap-1"
                       >
                           <Link size={12}/> Koppla källa
                       </button>
@@ -3189,14 +3189,14 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
 
                   <div className="space-y-2">
                       <div className="flex justify-between items-center">
-                          <label className="text-[10px] font-bold text-slate-400">Platser</label>
+                          <label className="text-[10px] font-bold text-muted">Platser</label>
                       </div>
                       {Array.isArray(safeDisplayImage?.connections?.places) && safeDisplayImage.connections.places.length > 0 ? (
                         safeDisplayImage.connections.places.map(p => (
-                          <div key={p.id} className="bg-slate-900 p-2 rounded border border-slate-700 text-xs">
+                          <div key={p.id} className="bg-background p-2 rounded border border-subtle text-xs">
                               {/* Platsnamn (klickbar för att öppna i platsregistret) */}
                               <div 
-                                className="text-slate-200 font-medium mb-1 cursor-pointer hover:text-blue-400 transition-colors"
+                                className="text-primary font-medium mb-1 cursor-pointer hover:text-accent transition-colors"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   console.log('[MediaManager] Klickade på plats:', p.id, p.name, 'onNavigateToPlace:', typeof onNavigateToPlace);
@@ -3213,7 +3213,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                               
                               {/* Plats-typ (på svenska) */}
                               {p.type && (
-                                <div className="text-[10px] text-slate-400 mb-1">
+                                <div className="text-[10px] text-muted mb-1">
                                   {translatePlaceType(p.type)}
                                 </div>
                               )}
@@ -3234,7 +3234,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                                     };
                                   }));
                                 }}
-                                className="text-slate-500 hover:text-red-400"
+                                className="text-muted hover:text-red-400"
                                   title="Ta bort koppling"
                               >
                                 <X size={12}/>
@@ -3243,11 +3243,11 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                           </div>
                         ))
                       ) : (
-                        <div className="text-xs text-slate-500 italic py-2">Inga platser kopplade</div>
+                        <div className="text-xs text-muted italic py-2">Inga platser kopplade</div>
                       )}
                         <button 
                           onClick={() => setIsPlaceDrawerOpen(safeDisplayImage)}
-                          className="w-full py-1.5 border border-dashed border-slate-600 text-slate-400 text-xs rounded hover:text-white hover:border-slate-500 hover:bg-slate-700 transition-colors flex items-center justify-center gap-1"
+                          className="w-full py-1.5 border border-dashed border-subtle text-muted text-xs rounded hover:text-primary hover:border-strong hover:bg-surface-2 transition-colors flex items-center justify-center gap-1"
                       >
                           <MapPin size={12}/> Koppla plats
                       </button>
@@ -3255,7 +3255,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
 
                   <div className="space-y-2">
                       <div className="flex justify-between items-center">
-                          <label className="text-[10px] font-bold text-slate-400">Händelser</label>
+                          <label className="text-[10px] font-bold text-muted">Händelser</label>
               </div>
                       {(() => {
                         // Hitta alla händelser som är kopplade till denna bild
@@ -3284,13 +3284,13 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                         }
                         
                         if (eventConnections.length === 0) {
-                          return <div className="text-xs text-slate-500 italic py-2">Inga händelser kopplade</div>;
+                          return <div className="text-xs text-muted italic py-2">Inga händelser kopplade</div>;
                         }
                         
                         return eventConnections.map((conn, idx) => (
                           <div 
                             key={`${conn.personId}-${conn.eventId}-${idx}`} 
-                            className="bg-slate-900 p-2 rounded border border-slate-700 text-xs cursor-pointer hover:bg-slate-800 transition-colors"
+                            className="bg-background p-2 rounded border border-subtle text-xs cursor-pointer hover:bg-surface transition-colors"
                             onClick={() => {
                               if (onOpenEditModal) {
                                 onOpenEditModal(conn.personId);
@@ -3298,12 +3298,12 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                             }}
                           >
                             {/* Personnamn */}
-                            <div className="text-slate-200 font-medium mb-1">
+                            <div className="text-primary font-medium mb-1">
                               {conn.personName}
                             </div>
                             
                             {/* Händelsetyp och datum */}
-                            <div className="text-[10px] text-slate-400">
+                            <div className="text-[10px] text-muted">
                               {conn.eventType}
                               {conn.eventDate && ` - ${conn.eventDate}`}
                               {conn.eventPlace && ` (${conn.eventPlace})`}
@@ -3315,7 +3315,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
               </div>
 
               <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase mb-2 block">Taggar</label>
+                  <label className="text-[10px] font-bold text-muted uppercase mb-2 block">Taggar</label>
                   
                   {/* Visade taggar */}
                   {Array.isArray(safeDisplayImage?.tags) && safeDisplayImage.tags.length > 0 && (
@@ -3351,7 +3351,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                           ref={tagInputRef}
                           type="text"
                           placeholder="Skriv eller välj tagg..."
-                          className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500"
+                          className="w-full bg-background border border-subtle rounded px-2 py-1.5 text-sm text-on-accent focus:outline-none focus:border-accent"
                           value={tagInput}
                           onChange={(e) => {
                               setTagInput(e.target.value);
@@ -3386,7 +3386,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                       
                       {/* Autocomplete dropdown */}
                       {tagSuggestions.length > 0 && tagInput && (
-                          <div className="absolute z-50 w-full mt-1 bg-slate-800 border border-slate-600 rounded shadow-lg max-h-40 overflow-y-auto">
+                          <div className="absolute z-50 w-full mt-1 bg-surface border border-subtle rounded shadow-lg max-h-40 overflow-y-auto">
                               {tagSuggestions.map((suggestion, idx) => (
                                   <button
                                       key={idx}
@@ -3396,9 +3396,9 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                                           setTagInput('');
                                           setTagSuggestions([]);
                                       }}
-                                      className="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 transition-colors flex items-center gap-2"
+                                      className="w-full text-left px-3 py-2 text-sm text-primary hover:bg-surface-2 transition-colors flex items-center gap-2"
                                   >
-                                      <Tag size={12} className="text-slate-500" />
+                                      <Tag size={12} className="text-muted" />
                                       <span>{suggestion}</span>
                                   </button>
                               ))}
@@ -3406,12 +3406,12 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                       )}
                   </div>
                   
-                  <p className="text-[10px] text-slate-500">Tryck Enter eller "," för att lägga till tagg</p>
+                  <p className="text-[10px] text-muted">Tryck Enter eller "," för att lägga till tagg</p>
               </div>
 
               {/* EXIF & METADATA SEKTION */}
-              <div className="space-y-3 border-t border-slate-700 pt-4">
-                  <h4 className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-2">
+              <div className="space-y-3 border-t border-subtle pt-4">
+                  <h4 className="text-[10px] font-bold text-muted uppercase flex items-center gap-2">
                       <Camera size={12}/> EXIF & Metadata
                   </h4>
 
@@ -3420,20 +3420,20 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                           {/* Face Tags */}
                           {exifData.face_tags && exifData.face_tags.length > 0 ? (
                             <div className="space-y-2">
-                              <label className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                              <label className="text-[10px] font-bold text-muted flex items-center gap-1">
                                 <ScanFace size={12}/> Face Tags
                               </label>
                               {exifData.face_tags.map((face, idx) => (
-                                <div key={idx} className="flex items-center justify-between bg-slate-900 p-2 rounded border border-slate-700 text-xs">
+                                <div key={idx} className="flex items-center justify-between bg-background p-2 rounded border border-subtle text-xs">
                                   <div>
-                                    <span className="text-slate-200 font-medium block">{face.name}</span>
-                                    <span className="text-[10px] text-slate-500">{face.source}</span>
+                                    <span className="text-primary font-medium block">{face.name}</span>
+                                    <span className="text-[10px] text-muted">{face.source}</span>
                                   </div>
                                   <div className="flex gap-1">
                                     <button className="text-green-400 hover:text-green-300 p-1" title="Länka till person">
                                       <Link size={12}/>
                                     </button>
-                                    <button className="text-slate-500 hover:text-red-400 p-1">
+                                    <button className="text-muted hover:text-red-400 p-1">
                                       <X size={12}/>
                                     </button>
                                   </div>
@@ -3441,20 +3441,20 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                               ))}
                             </div>
                           ) : (
-                            <p className="text-[11px] text-slate-500">Inga face tags hittades i EXIF.</p>
+                            <p className="text-[11px] text-muted">Inga face tags hittades i EXIF.</p>
                           )}
 
                           {/* Keywords - dölj om taggar redan finns */}
                           {(!mediaItems.find(m => m.id === selectedImage?.id)?.tags?.length) && exifData.keywords && exifData.keywords.length > 0 ? (
                             <div className="space-y-2">
-                              <label className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                              <label className="text-[10px] font-bold text-muted flex items-center gap-1">
                                 <Tag size={12}/> Keywords (EXIF)
                               </label>
                               <div className="flex flex-wrap gap-1">
                                 {exifData.keywords.map((keyword, idx) => (
-                                  <span key={idx} className="bg-blue-900/30 border border-blue-700/50 text-blue-300 text-xs px-2 py-0.5 rounded flex items-center gap-1">
+                                  <span key={idx} className="bg-accent-soft border border-blue-700/50 text-accent text-xs px-2 py-0.5 rounded flex items-center gap-1">
                                     {keyword}
-                                    <button className="hover:text-white">
+                                    <button className="hover:text-primary">
                                       <X size={10}/>
                                     </button>
                                   </span>
@@ -3462,27 +3462,27 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                               </div>
                             </div>
                           ) : (
-                            <p className="text-[11px] text-slate-500">Inga keywords hittades i EXIF.</p>
+                            <p className="text-[11px] text-muted">Inga keywords hittades i EXIF.</p>
                           )}
 
                           {/* Metadata */}
                           {exifData.metadata && Object.keys(exifData.metadata).length > 0 && (
                               <div className="space-y-1">
-                                  <label className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                                  <label className="text-[10px] font-bold text-muted flex items-center gap-1">
                                       <Info size={12}/> Metadata
                                   </label>
-                                  <div className="bg-slate-900 border border-slate-700 rounded p-2 text-xs space-y-1">
+                                  <div className="bg-background border border-subtle rounded p-2 text-xs space-y-1">
                                       {exifData.metadata.date_taken && (
-                                          <div><span className="text-slate-500">Datum:</span> <span className="text-slate-300">{exifData.metadata.date_taken}</span></div>
+                                          <div><span className="text-muted">Datum:</span> <span className="text-secondary">{exifData.metadata.date_taken}</span></div>
                                       )}
                                       {exifData.metadata.title && (
-                                          <div><span className="text-slate-500">Titel:</span> <span className="text-slate-300">{exifData.metadata.title}</span></div>
+                                          <div><span className="text-muted">Titel:</span> <span className="text-secondary">{exifData.metadata.title}</span></div>
                                       )}
                                       {exifData.metadata.description && (
-                                          <div><span className="text-slate-500">Beskrivning:</span> <span className="text-slate-300">{exifData.metadata.description}</span></div>
+                                          <div><span className="text-muted">Beskrivning:</span> <span className="text-secondary">{exifData.metadata.description}</span></div>
                                       )}
                                       {exifData.metadata.artist && (
-                                          <div><span className="text-slate-500">Artist:</span> <span className="text-slate-300">{exifData.metadata.artist}</span></div>
+                                          <div><span className="text-muted">Artist:</span> <span className="text-secondary">{exifData.metadata.artist}</span></div>
                                       )}
                                   </div>
                               </div>
@@ -3491,15 +3491,15 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                           {/* GPS */}
                           {exifData.gps && (
                               <div className="space-y-1">
-                                  <label className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                                  <label className="text-[10px] font-bold text-muted flex items-center gap-1">
                                       <MapPin size={12}/> GPS-koordinater
                                   </label>
-                                  <div className="bg-slate-900 border border-slate-700 rounded p-2 text-xs">
-                                      <div className="text-slate-300 font-mono">
+                                  <div className="bg-background border border-subtle rounded p-2 text-xs">
+                                      <div className="text-secondary font-mono">
                                           {exifData.gps.latitude.toFixed(6)}, {exifData.gps.longitude.toFixed(6)}
                                       </div>
                                       {exifData.gps.altitude && (
-                                          <div className="text-slate-400 text-[10px] mt-1">
+                                          <div className="text-muted text-[10px] mt-1">
                                               Höjd: {exifData.gps.altitude.toFixed(0)}m
                                           </div>
                                       )}
@@ -3508,14 +3508,14 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                           )}
                       </div>
                   ) : (
-                      <div className="text-center py-4 text-slate-500 text-xs">
+                      <div className="text-center py-4 text-muted text-xs">
                           Laddar EXIF-data automatiskt...
                       </div>
                   )}
               </div>
           </div>
           
-          <div className="p-4 border-t border-slate-700 bg-slate-900 flex justify-between items-center">
+          <div className="p-4 border-t border-subtle bg-background flex justify-between items-center">
               <button 
                   onClick={() => {
                       if (selectedImage) {
@@ -3554,15 +3554,15 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                           alert('Bilden sparad!');
                       }
                   }}
-                  className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded text-xs font-bold flex items-center gap-1 shadow-lg shadow-blue-900/20 transition-all hover:scale-[1.02]"
+                  className="bg-accent hover:bg-accent text-on-accent px-4 py-1.5 rounded text-xs font-bold flex items-center gap-1 shadow-lg shadow-blue-900/20 transition-all hover:scale-[1.02]"
               >
                   <Save size={14}/> Spara
               </button>
           </div>
       </div>
       ) : (
-          <div className="w-96 bg-slate-800 border-l border-slate-700 flex flex-col shrink-0 z-20 shadow-xl p-4">
-              <p className="text-slate-400 text-sm">Välj en bild</p>
+          <div className="w-96 bg-surface border-l border-subtle flex flex-col shrink-0 z-20 shadow-xl p-4">
+              <p className="text-muted text-sm">Välj en bild</p>
           </div>
       )}
 
@@ -3814,7 +3814,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
       {/* Context Menu */}
       {contextMenuOpen && (
         <div 
-          className="fixed bg-slate-800 border border-slate-600 rounded-lg shadow-2xl py-1 z-[10000]"
+          className="fixed bg-surface border border-subtle rounded-lg shadow-2xl py-1 z-[10000]"
           style={{ 
             left: `${contextMenuPos.x}px`, 
             top: `${contextMenuPos.y}px` 
@@ -3822,28 +3822,28 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
         >
           <button
             onClick={() => performAction('tag')}
-            className="w-full px-4 py-2 text-left text-sm text-white hover:bg-slate-700 flex items-center gap-2"
+            className="w-full px-4 py-2 text-left text-sm text-on-accent hover:bg-surface-2 flex items-center gap-2"
           >
             <ScanFace size={16} />
             Tagga
           </button>
           <button
             onClick={() => performAction('edit')}
-            className="w-full px-4 py-2 text-left text-sm text-white hover:bg-slate-700 flex items-center gap-2"
+            className="w-full px-4 py-2 text-left text-sm text-on-accent hover:bg-surface-2 flex items-center gap-2"
           >
             <Edit2 size={16} />
             Redigera bild
           </button>
           <button
             onClick={() => performAction('rotate')}
-            className="w-full px-4 py-2 text-left text-sm text-white hover:bg-slate-700 flex items-center gap-2"
+            className="w-full px-4 py-2 text-left text-sm text-on-accent hover:bg-surface-2 flex items-center gap-2"
           >
             <RotateCw size={16} />
             Rotera
           </button>
           <button
             onClick={() => performAction('delete')}
-            className="w-full px-4 py-2 text-left text-sm text-white hover:bg-slate-700 flex items-center gap-2"
+            className="w-full px-4 py-2 text-left text-sm text-on-accent hover:bg-surface-2 flex items-center gap-2"
           >
             <Trash2 size={16} />
             Ta bort

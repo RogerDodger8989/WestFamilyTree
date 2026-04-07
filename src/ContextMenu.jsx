@@ -32,29 +32,14 @@ export default function ContextMenu({ visible, x = 0, y = 0, items = [], onClose
 
   if (!visible) return null;
 
-  const style = {
-    position: 'fixed',
-    left: x,
-    top: y,
-    zIndex: 9999,
-    minWidth: 160,
-    background: '#1e293b',
-    border: '1px solid rgba(0,0,0,0.08)',
-    borderRadius: 6,
-    boxShadow: '0 6px 18px rgba(0,0,0,0.12)',
-    padding: 6,
-  };
-
   return (
-    <div ref={rootRef} style={style} role="menu" aria-hidden={!visible}>
+    <div ref={rootRef} role="menu" aria-hidden={!visible} className="fixed z-[9999] min-w-40 bg-surface-2 border border-subtle rounded-md shadow-lg p-1.5 text-primary" style={{ left: x, top: y }}>
       {items.map((it, i) => (
         <div
           key={i}
           role="menuitem"
           onClick={(e) => { e.stopPropagation(); try { it.onClick && it.onClick(); } catch (err) { console.error('ContextMenu item error', err); } onClose(); }}
-          style={{ padding: '8px 10px', cursor: 'pointer', borderRadius: 4, whiteSpace: 'nowrap' }}
-          onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
-          onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+          className="px-2.5 py-2 cursor-pointer rounded whitespace-nowrap hover:bg-surface"
         >
           {it.label}
         </div>

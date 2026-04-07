@@ -161,30 +161,30 @@ export default function AuditMergesSettingsModal({ isOpen, onClose, onBack }) {
 
                 <div className="space-y-6">
                     {/* Audit Log */}
-                    <div className="bg-slate-900 border border-slate-700 rounded p-4">
-                        <h3 className="text-lg font-semibold text-slate-200 mb-3">Audit-loggar</h3>
+                    <div className="bg-background border border-subtle rounded p-4">
+                        <h3 className="text-lg font-semibold text-primary mb-3">Audit-loggar</h3>
                         <div className="space-y-3">
                             <div className="flex justify-between items-center">
-                                <span className="text-slate-400">Filstorlek:</span>
-                                <span className="text-slate-200 font-medium">
+                                <span className="text-secondary">Filstorlek:</span>
+                                <span className="text-primary font-medium">
                                     {auditSize.exists ? `${auditSize.sizeMB} MB` : 'Filen finns inte'}
                                 </span>
                             </div>
                             <div className="flex justify-between items-center">
-                                <span className="text-slate-400">Antal poster:</span>
-                                <span className="text-slate-200 font-medium">{auditCount.toLocaleString()}</span>
+                                <span className="text-secondary">Antal poster:</span>
+                                <span className="text-primary font-medium">{auditCount.toLocaleString()}</span>
                             </div>
                             <div className="flex items-center gap-2 mt-4">
-                                <label className="text-sm text-slate-400">Behåll senaste:</label>
+                                <label className="text-sm text-secondary">Behåll senaste:</label>
                                 <input
                                     type="number"
                                     min="100"
                                     max="50000"
                                     value={keepAuditLast}
                                     onChange={(e) => setKeepAuditLast(parseInt(e.target.value) || 1000)}
-                                    className="w-24 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-200 text-sm"
+                                    className="w-24 bg-surface border border-subtle rounded px-2 py-1 text-primary text-sm"
                                 />
-                                <span className="text-xs text-slate-500">poster</span>
+                                <span className="text-xs text-muted">poster</span>
                             </div>
                             <Button
                                 onClick={handleCleanupAudit}
@@ -196,7 +196,7 @@ export default function AuditMergesSettingsModal({ isOpen, onClose, onBack }) {
                                 Rensa gamla audit-poster
                             </Button>
                             {auditCount > 10000 && (
-                                <div className="flex items-center gap-2 text-amber-500 text-sm mt-2">
+                                <div className="flex items-center gap-2 text-warning text-sm mt-2">
                                     <AlertTriangle size={16} />
                                     <span>Varning: Audit-loggen är stor ({auditCount} poster). Överväg att rensa.</span>
                                 </div>
@@ -205,30 +205,30 @@ export default function AuditMergesSettingsModal({ isOpen, onClose, onBack }) {
                     </div>
 
                     {/* Merges Log */}
-                    <div className="bg-slate-900 border border-slate-700 rounded p-4">
-                        <h3 className="text-lg font-semibold text-slate-200 mb-3">Merge-loggar</h3>
+                    <div className="bg-background border border-subtle rounded p-4">
+                        <h3 className="text-lg font-semibold text-primary mb-3">Merge-loggar</h3>
                         <div className="space-y-3">
                             <div className="flex justify-between items-center">
-                                <span className="text-slate-400">Filstorlek:</span>
-                                <span className="text-slate-200 font-medium">
+                                <span className="text-secondary">Filstorlek:</span>
+                                <span className="text-primary font-medium">
                                     {mergesSize.exists ? `${mergesSize.sizeMB} MB` : 'Filen finns inte'}
                                 </span>
                             </div>
                             <div className="flex justify-between items-center">
-                                <span className="text-slate-400">Antal poster:</span>
-                                <span className="text-slate-200 font-medium">{mergesCount.toLocaleString()}</span>
+                                <span className="text-secondary">Antal poster:</span>
+                                <span className="text-primary font-medium">{mergesCount.toLocaleString()}</span>
                             </div>
                             <div className="flex items-center gap-2 mt-4">
-                                <label className="text-sm text-slate-400">Behåll senaste:</label>
+                                <label className="text-sm text-secondary">Behåll senaste:</label>
                                 <input
                                     type="number"
                                     min="50"
                                     max="5000"
                                     value={keepMergesLast}
                                     onChange={(e) => setKeepMergesLast(parseInt(e.target.value) || 500)}
-                                    className="w-24 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-200 text-sm"
+                                    className="w-24 bg-surface border border-subtle rounded px-2 py-1 text-primary text-sm"
                                 />
-                                <span className="text-xs text-slate-500">poster</span>
+                                <span className="text-xs text-muted">poster</span>
                             </div>
                             <Button
                                 onClick={handleCleanupMerges}
@@ -240,7 +240,7 @@ export default function AuditMergesSettingsModal({ isOpen, onClose, onBack }) {
                                 Rensa gamla merge-poster
                             </Button>
                             {mergesCount > 1000 && (
-                                <div className="flex items-center gap-2 text-amber-500 text-sm mt-2">
+                                <div className="flex items-center gap-2 text-warning text-sm mt-2">
                                     <AlertTriangle size={16} />
                                     <span>Varning: Merge-loggen är stor ({mergesCount} poster). Överväg att rensa.</span>
                                 </div>
@@ -249,10 +249,10 @@ export default function AuditMergesSettingsModal({ isOpen, onClose, onBack }) {
                     </div>
 
                     {/* Info */}
-                    <div className="bg-blue-900/20 border border-blue-700 rounded p-3 text-sm text-blue-200">
+                    <div className="bg-accent-soft border border-strong rounded p-3 text-sm text-primary">
                         <p>
                             <strong>Info:</strong> Audit- och merge-loggar sparas nu i separata filer 
-                            (<code className="bg-slate-800 px-1 rounded">*_audit.json</code> och <code className="bg-slate-800 px-1 rounded">*_merges.json</code>) 
+                            (<code className="bg-surface px-1 rounded">*_audit.json</code> och <code className="bg-surface px-1 rounded">*_merges.json</code>) 
                             istället för i huvuddatabasen. Detta gör databasen mycket mindre och snabbare.
                         </p>
                     </div>

@@ -84,7 +84,7 @@ const FaceOverlay = ({ faces }) => (
     {faces.map((face, idx) => (
       <div 
         key={idx}
-        className="absolute border-2 border-yellow-400 bg-yellow-400/10 hover:bg-yellow-400/20 cursor-pointer transition-colors pointer-events-auto"
+        className="absolute border-2 border-strong bg-accent-soft hover:bg-accent-soft/80 cursor-pointer transition-colors pointer-events-auto"
         style={{
           left: `${face.x}%`,
           top: `${face.y}%`,
@@ -106,19 +106,19 @@ const MoveFilesModal = ({ isOpen, onClose, onMove, libraries }) => {
   if (!isOpen) return null;
   return (
     <div className="absolute inset-0 z-[80] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-slate-800 border border-slate-600 rounded-lg shadow-xl w-80 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        <div className="p-3 border-b border-slate-700 bg-slate-900 font-bold text-white flex justify-between items-center">
+            <div className="bg-surface-2 border border-subtle rounded-lg shadow-xl w-80 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                <div className="p-3 border-b border-subtle bg-background font-bold text-primary flex justify-between items-center">
             <span>Flytta till...</span>
-            <button onClick={onClose}><X size={16} className="text-slate-400 hover:text-white"/></button>
+                        <button onClick={onClose}><X size={16} className="text-muted hover:text-primary"/></button>
         </div>
         <div className="max-h-64 overflow-y-auto p-2 custom-scrollbar">
           {libraries.filter(l => l.id !== 'all').map(lib => (
             <button
               key={lib.id}
               onClick={() => onMove(lib.id)}
-              className="w-full text-left px-3 py-2 hover:bg-slate-700 rounded flex items-center gap-2 text-slate-300 group transition-colors"
+                            className="w-full text-left px-3 py-2 hover:bg-surface rounded flex items-center gap-2 text-secondary group transition-colors"
             >
-              <lib.icon size={16} className="text-slate-500 group-hover:text-blue-400"/> 
+                            <lib.icon size={16} className="text-muted group-hover:text-accent"/> 
               {lib.label}
             </button>
           ))}
@@ -136,40 +136,40 @@ const BatchEditModal = ({ isOpen, onClose, onSave, count }) => {
 
     return (
         <div className="absolute inset-0 z-[80] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-            <div className="bg-slate-800 border border-slate-600 rounded-lg shadow-xl w-96 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                <div className="p-4 border-b border-slate-700 bg-slate-900 font-bold text-white flex justify-between items-center">
+            <div className="bg-surface-2 border border-subtle rounded-lg shadow-xl w-96 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                <div className="p-4 border-b border-subtle bg-background font-bold text-primary flex justify-between items-center">
                     <span>Redigera {count} objekt</span>
-                    <button onClick={onClose}><X size={18} className="text-slate-400 hover:text-white"/></button>
+                    <button onClick={onClose}><X size={18} className="text-muted hover:text-primary"/></button>
                 </div>
                 <div className="p-4 space-y-4">
                     <div>
-                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Sätt gemensamt datum</label>
+                        <label className="block text-xs font-bold text-muted uppercase mb-1">Sätt gemensamt datum</label>
                         <input 
                             type="text" 
                             placeholder="ÅÅÅÅ-MM-DD" 
-                            className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white text-sm focus:outline-none focus:border-blue-500"
+                            className="w-full bg-background border border-subtle rounded p-2 text-primary text-sm focus:outline-none focus:border-strong"
                             value={date}
                             onChange={(e) => setDate(e.target.value)}
                         />
-                        <p className="text-[10px] text-slate-500 mt-1">Lämna tomt för att behålla befintliga datum.</p>
+                        <p className="text-[10px] text-muted mt-1">Lämna tomt för att behålla befintliga datum.</p>
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Lägg till taggar</label>
+                        <label className="block text-xs font-bold text-muted uppercase mb-1">Lägg till taggar</label>
                         <input 
                             type="text" 
                             placeholder="T.ex. Sommar, Semester" 
-                            className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white text-sm focus:outline-none focus:border-blue-500"
+                            className="w-full bg-background border border-subtle rounded p-2 text-primary text-sm focus:outline-none focus:border-strong"
                             value={tagsToAdd}
                             onChange={(e) => setTagsToAdd(e.target.value)}
                         />
-                        <p className="text-[10px] text-slate-500 mt-1">Separera med kommatecken. Dessa läggs till på befintliga.</p>
+                        <p className="text-[10px] text-muted mt-1">Separera med kommatecken. Dessa läggs till på befintliga.</p>
                     </div>
                 </div>
-                <div className="p-3 border-t border-slate-700 bg-slate-900 flex justify-end gap-2">
-                    <button onClick={onClose} className="text-sm text-slate-400 hover:text-white px-3 py-1.5">Avbryt</button>
+                <div className="p-3 border-t border-subtle bg-background flex justify-end gap-2">
+                    <button onClick={onClose} className="text-sm text-muted hover:text-primary px-3 py-1.5">Avbryt</button>
                     <button 
                         onClick={() => onSave({ date, tags: tagsToAdd })}
-                        className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded text-sm font-medium"
+                        className="bg-accent hover:bg-accent/90 text-on-accent px-4 py-1.5 rounded text-sm font-medium"
                     >
                         Uppdatera
                     </button>
@@ -211,8 +211,8 @@ const LibraryButton = ({ lib, isActive, onClick, onDrop, onDelete }) => {
     return (
         <div 
             className={`group flex items-center gap-1 rounded px-2 py-1 transition-colors relative 
-                ${isActive ? 'bg-blue-600/20 text-blue-100' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}
-                ${isOver ? 'bg-blue-500/40 ring-2 ring-blue-500 scale-[1.02]' : ''}
+                ${isActive ? 'bg-accent-soft text-accent' : 'text-muted hover:bg-surface-2 hover:text-primary'}
+                ${isOver ? 'bg-accent-soft ring-2 ring-strong scale-[1.02]' : ''}
             `}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
@@ -222,14 +222,14 @@ const LibraryButton = ({ lib, isActive, onClick, onDrop, onDelete }) => {
                 onClick={onClick}
                 className="flex-1 flex items-center gap-3 text-sm truncate w-full text-left py-1.5"
             >
-                <lib.icon size={16} className={isOver ? 'text-white animate-bounce' : (isActive ? 'text-blue-400' : 'text-slate-500 group-hover:text-blue-400')} /> 
+                <lib.icon size={16} className={isOver ? 'text-primary animate-bounce' : (isActive ? 'text-accent' : 'text-muted group-hover:text-accent')} /> 
                 {lib.label}
             </button>
             
             {onDelete && (
                 <button 
                     onClick={(e) => onDelete(lib.id, e)} 
-                    className="p-1.5 text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="p-1.5 text-muted hover:text-accent opacity-0 group-hover:opacity-100 transition-opacity"
                     title="Radera album"
                 >
                     <Trash2 size={12}/>
@@ -237,7 +237,7 @@ const LibraryButton = ({ lib, isActive, onClick, onDrop, onDelete }) => {
             )}
             
             {isOver && (
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 text-white text-xs font-bold flex items-center gap-1 bg-black/50 px-2 py-0.5 rounded pointer-events-none">
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 text-primary text-xs font-bold flex items-center gap-1 bg-black/50 px-2 py-0.5 rounded pointer-events-none">
                     <CornerDownRight size={12}/> Flytta hit
                 </div>
             )}
@@ -600,25 +600,25 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {} }) {
     <div className={`fixed z-[70] ${!winState.isMaximized ? 'inset-0' : ''}`}>
         
         {/* WINDOW CONTAINER */}
-        <div className={`bg-slate-900 border border-slate-700 shadow-2xl flex flex-col overflow-hidden transition-all duration-200 ease-out 
+           <div className={`bg-background border border-subtle shadow-2xl flex flex-col overflow-hidden transition-all duration-200 ease-out 
              ${winState.isMaximized ? '' : 'rounded-xl'}`}
              style={{ ...windowStyle, position: 'fixed' }}
         >
         
         {/* WINDOW HEADER */}
         <div 
-            className="bg-slate-900 border-b border-slate-800 p-2 flex justify-between items-center select-none cursor-grab active:cursor-grabbing"
+            className="bg-background border-b border-subtle p-2 flex justify-between items-center select-none cursor-grab active:cursor-grabbing"
             onMouseDown={startDrag}
         >
-            <div className="flex items-center gap-2 text-slate-300 text-sm font-bold pl-2">
+            <div className="flex items-center gap-2 text-secondary text-sm font-bold pl-2">
                 <Layers size={16}/> Mediahanterare
             </div>
             <div className="flex items-center gap-1">
-                <button onClick={toggleMinimize} className="p-1.5 hover:bg-slate-800 rounded text-slate-400 hover:text-white" title="Minimera"><Minus size={16}/></button>
-                <button onClick={toggleMaximize} className="p-1.5 hover:bg-slate-800 rounded text-slate-400 hover:text-white" title={winState.isMaximized ? "Återställ" : "Maximera"}>
+                <button onClick={toggleMinimize} className="p-1.5 hover:bg-surface rounded text-muted hover:text-primary" title="Minimera"><Minus size={16}/></button>
+                <button onClick={toggleMaximize} className="p-1.5 hover:bg-surface rounded text-muted hover:text-primary" title={winState.isMaximized ? "Återställ" : "Maximera"}>
                     {winState.isMaximized ? <Minimize2 size={16}/> : <Maximize2 size={16}/>}
                 </button>
-                <button onClick={onClose} className="p-1.5 hover:bg-red-900/50 rounded text-slate-400 hover:text-red-400" title="Stäng"><X size={16}/></button>
+                <button onClick={onClose} className="p-1.5 hover:bg-accent-soft rounded text-muted hover:text-accent" title="Stäng"><X size={16}/></button>
             </div>
         </div>
 
@@ -627,28 +627,28 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {} }) {
             <div className="flex-1 flex overflow-hidden">
                 
                 {/* VÄNSTER: Bibliotek */}
-                <div className="w-64 bg-slate-800/50 border-r border-slate-700 flex flex-col shrink-0">
+                <div className="w-64 bg-surface/50 border-r border-subtle flex flex-col shrink-0">
                 <div className="flex-1 overflow-y-auto custom-scrollbar">
                     <div className="p-2 space-y-1">
-                        <p className="px-3 py-1 text-[10px] font-bold text-slate-500 uppercase">Bibliotek</p>
+                        <p className="px-3 py-1 text-[10px] font-bold text-muted uppercase">Bibliotek</p>
                         {SYSTEM_LIBRARIES.map(lib => (
                         <LibraryButton key={lib.id} lib={lib} isActive={activeLib === lib.id} onClick={() => { setActiveLib(lib.id); setSelectedImage(null); setIsSelectMode(false); setFilterUnlinked(false); }} onDrop={handleLibraryDrop}/>
                         ))}
-                        <button onClick={() => { setFilterUnlinked(!filterUnlinked); setActiveLib('all'); }} className={`flex items-center gap-3 w-full px-3 py-2 rounded text-sm transition-colors ${filterUnlinked ? 'bg-yellow-600/20 text-yellow-400 border border-yellow-600/50' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
+                        <button onClick={() => { setFilterUnlinked(!filterUnlinked); setActiveLib('all'); }} className={`flex items-center gap-3 w-full px-3 py-2 rounded text-sm transition-colors ${filterUnlinked ? 'bg-accent-soft text-accent border border-strong' : 'text-muted hover:bg-surface-2 hover:text-primary'}`}>
                             <AlertCircle size={16} /> Okopplade ({mediaItems.filter(m => m.connections.people.length === 0 && m.connections.places.length === 0 && m.connections.sources.length === 0).length})
                         </button>
                     </div>
-                    <div className="p-2 space-y-1 border-t border-slate-700/50">
+                    <div className="p-2 space-y-1 border-t border-subtle">
                         <div className="flex justify-between items-center px-3 py-1">
-                            <p className="text-[10px] font-bold text-slate-500 uppercase">Mina Album</p>
-                            <button onClick={handleStartCreateLibrary} className="text-slate-500 hover:text-white bg-slate-800 p-1 rounded hover:bg-slate-700 transition-colors"><Plus size={12}/></button>
+                            <p className="text-[10px] font-bold text-muted uppercase">Mina Album</p>
+                            <button onClick={handleStartCreateLibrary} className="text-muted hover:text-primary bg-surface p-1 rounded hover:bg-surface-2 transition-colors"><Plus size={12}/></button>
                         </div>
                         {customLibraries.map(lib => (
                             <div key={lib.id}>
                             {editingLibId === lib.id ? (
                                 <div className="flex items-center gap-2 w-full px-2 py-1">
-                                    <Folder size={16} className="text-blue-400 shrink-0"/>
-                                    <input ref={libInputRef} type="text" value={tempLibName} onChange={(e) => setTempLibName(e.target.value)} onBlur={handleSaveLibraryName} onKeyDown={handleKeyDownLibrary} className="w-full bg-slate-900 text-white text-sm px-1 py-0.5 rounded border border-blue-500 focus:outline-none"/>
+                                    <Folder size={16} className="text-accent shrink-0"/>
+                                    <input ref={libInputRef} type="text" value={tempLibName} onChange={(e) => setTempLibName(e.target.value)} onBlur={handleSaveLibraryName} onKeyDown={handleKeyDownLibrary} className="w-full bg-background text-primary text-sm px-1 py-0.5 rounded border border-strong focus:outline-none"/>
                                 </div>
                             ) : (
                                 <LibraryButton lib={lib} isActive={activeLib === lib.id} onClick={() => { setActiveLib(lib.id); setIsSelectMode(false); setFilterUnlinked(false); }} onDelete={handleDeleteLibrary} onDrop={handleLibraryDrop}/>
@@ -657,34 +657,34 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {} }) {
                         ))}
                     </div>
                 </div>
-                <div className="p-4 border-t border-slate-700">
+                <div className="p-4 border-t border-subtle">
                     <input type="file" ref={fileInputRef} className="hidden" multiple accept="image/*" onChange={(e) => handleFiles(e.target.files)}/>
-                    <button onClick={() => fileInputRef.current.click()} className="flex items-center justify-center gap-2 w-full bg-blue-600 hover:bg-blue-500 text-white py-2 rounded text-sm transition-colors font-medium">
+                    <button onClick={() => fileInputRef.current.click()} className="flex items-center justify-center gap-2 w-full bg-accent hover:bg-accent/90 text-on-accent py-2 rounded text-sm transition-colors font-medium">
                     <UploadCloud size={16}/> Ladda upp
                     </button>
                 </div>
                 </div>
 
                 {/* MITTEN: Galleri */}
-                <div className="flex-1 flex flex-col bg-slate-900 min-w-0 relative">
+                <div className="flex-1 flex flex-col bg-background min-w-0 relative">
                 
-                <div className="h-14 border-b border-slate-700 flex items-center justify-between px-4 bg-slate-800/30">
+                <div className="h-14 border-b border-subtle flex items-center justify-between px-4 bg-surface/30">
                     <div className="flex gap-2 items-center">
-                        <button onClick={() => { setIsSelectMode(!isSelectMode); setSelectedIds(new Set()); setSelectedImage(null); }} className={`px-3 py-1.5 rounded text-sm border transition-colors ${isSelectMode ? 'bg-blue-600 border-blue-500 text-white' : 'border-slate-600 text-slate-300 hover:border-slate-400 hover:text-white'}`}>
+                        <button onClick={() => { setIsSelectMode(!isSelectMode); setSelectedIds(new Set()); setSelectedImage(null); }} className={`px-3 py-1.5 rounded text-sm border transition-colors ${isSelectMode ? 'bg-accent border-strong text-on-accent' : 'border-subtle text-secondary hover:border-strong hover:text-primary'}`}>
                             {isSelectMode ? 'Klar' : 'Välj'}
                         </button>
-                        <button onClick={handleSelectAll} className="text-xs text-slate-400 hover:text-white px-2">
+                        <button onClick={handleSelectAll} className="text-xs text-muted hover:text-primary px-2">
                             {selectedIds.size === filteredMedia.length ? 'Avmarkera alla' : 'Markera alla'}
                         </button>
                     </div>
                     <div className="flex gap-2 items-center">
                         <div className="relative w-48">
-                            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"/>
-                            <input type="text" placeholder="Sök..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-full pl-9 pr-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500"/>
+                            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted"/>
+                            <input type="text" placeholder="Sök..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-full bg-background border border-subtle rounded-full pl-9 pr-3 py-1.5 text-sm text-primary focus:outline-none focus:border-strong"/>
                         </div>
-                        <div className="flex items-center bg-slate-950 rounded-lg p-1 border border-slate-700">
-                            <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded ${viewMode === 'grid' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'}`}><Grid size={16}/></button>
-                            <button onClick={() => setViewMode('list')} className={`p-1.5 rounded ${viewMode === 'list' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'}`}><List size={16}/></button>
+                        <div className="flex items-center bg-background rounded-lg p-1 border border-subtle">
+                            <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded ${viewMode === 'grid' ? 'bg-surface text-primary' : 'text-muted hover:text-primary'}`}><Grid size={16}/></button>
+                            <button onClick={() => setViewMode('list')} className={`p-1.5 rounded ${viewMode === 'list' ? 'bg-surface text-primary' : 'text-muted hover:text-primary'}`}><List size={16}/></button>
                         </div>
                     </div>
                 </div>
@@ -696,12 +696,12 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {} }) {
                     onDrop={(e) => {e.preventDefault(); setIsDraggingFile(false); if(e.dataTransfer.files.length > 0) handleFiles(e.dataTransfer.files);}}
                 >
                     {isDraggingFile && (
-                        <div className="absolute inset-0 z-50 flex items-center justify-center bg-blue-900/20 backdrop-blur-sm border-2 border-blue-500 border-dashed m-4 rounded-xl pointer-events-none">
-                            <div className="text-center text-blue-400"><UploadCloud size={64} className="mx-auto mb-2"/><h3 className="font-bold">Släpp filerna här</h3></div>
+                        <div className="absolute inset-0 z-50 flex items-center justify-center bg-accent-soft backdrop-blur-sm border-2 border-strong border-dashed m-4 rounded-xl pointer-events-none">
+                            <div className="text-center text-accent"><UploadCloud size={64} className="mx-auto mb-2"/><h3 className="font-bold">Släpp filerna här</h3></div>
                         </div>
                     )}
                     {filteredMedia.length === 0 && (
-                        <div className="flex flex-col items-center justify-center h-full text-slate-500">
+                        <div className="flex flex-col items-center justify-center h-full text-muted">
                             <FileWarning size={48} className="mb-2 opacity-20"/>
                             <p className="text-sm">Inga bilder hittades.</p>
                         </div>
@@ -714,7 +714,7 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {} }) {
                             onContextMenu={(e) => handleContextMenu(e, item.id)}
                             draggable
                             onDragStart={(e) => handleItemDragStart(e, item.id)}
-                            className={`group relative aspect-square rounded-lg border-2 overflow-hidden cursor-pointer transition-all ${selectedIds.has(item.id) ? 'border-blue-500 ring-2 ring-blue-500/30' : (selectedImage?.id === item.id ? 'border-blue-500' : 'border-slate-700 hover:border-slate-500')}`}
+                            className={`group relative aspect-square rounded-lg border-2 overflow-hidden cursor-pointer transition-all ${selectedIds.has(item.id) ? 'border-strong ring-2 ring-accent-soft' : (selectedImage?.id === item.id ? 'border-strong' : 'border-subtle hover:border-strong')}`}
                         >
                             <img 
                                 src={item.url} 
@@ -725,18 +725,18 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {} }) {
                             {(isSelectMode || selectedIds.has(item.id)) && (
                                 <div className="absolute top-2 right-2 z-20" onClick={(e) => { e.stopPropagation(); handleToggleSelect(item.id); }}>
                                     {selectedIds.has(item.id) 
-                                        ? <div className="bg-blue-600 rounded text-white shadow-lg"><CheckSquare size={24} fill="currentColor" className="text-white" /></div>
-                                        : <div className="bg-black/40 rounded hover:bg-black/70 shadow-lg"><Square size={24} className="text-white"/></div>
+                                        ? <div className="bg-accent rounded text-on-accent shadow-lg"><CheckSquare size={24} fill="currentColor" className="text-on-accent" /></div>
+                                        : <div className="bg-background/40 rounded hover:bg-background/70 shadow-lg"><Square size={24} className="text-primary"/></div>
                                     }
                                 </div>
                             )}
                             {item.connections.people.length === 0 && item.connections.places.length === 0 && item.connections.sources.length === 0 && (
-                                <div className="absolute top-2 left-2 bg-yellow-600 text-white p-1 rounded-full shadow-md" title="Okopplad">
+                                <div className="absolute top-2 left-2 bg-accent text-on-accent p-1 rounded-full shadow-md" title="Okopplad">
                                 <AlertCircle size={10}/>
                                 </div>
                             )}
                             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2 pointer-events-none">
-                            <p className="text-white text-xs font-medium truncate">{item.name}</p>
+                            <p className="text-primary text-xs font-medium truncate">{item.name}</p>
                             </div>
                         </div>
                         ))}
@@ -749,20 +749,20 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {} }) {
                                 onContextMenu={(e) => handleContextMenu(e, item.id)}
                                 draggable 
                                 onDragStart={(e) => handleItemDragStart(e, item.id)} 
-                                className={`flex items-center gap-4 p-2 rounded border cursor-pointer ${selectedIds.has(item.id) ? 'bg-blue-900/30 border-blue-500' : (selectedImage?.id === item.id ? 'bg-slate-800 border-blue-500' : 'bg-slate-800/30 border-slate-700 hover:bg-slate-800')}`}
+                                className={`flex items-center gap-4 p-2 rounded border cursor-pointer ${selectedIds.has(item.id) ? 'bg-accent-soft border-strong' : (selectedImage?.id === item.id ? 'bg-surface-2 border-strong' : 'bg-surface/30 border-subtle hover:bg-surface-2')}`}
                             >
                                 <div className="w-8 flex justify-center">
-                                    {(isSelectMode || selectedIds.has(item.id)) && (selectedIds.has(item.id) ? <CheckSquare size={18} className="text-blue-500"/> : <Square size={18} className="text-slate-500"/>)}
+                                    {(isSelectMode || selectedIds.has(item.id)) && (selectedIds.has(item.id) ? <CheckSquare size={18} className="text-accent"/> : <Square size={18} className="text-muted"/>)}
                                 </div>
-                                <div className="w-10 h-10 bg-slate-900 rounded overflow-hidden shrink-0 border border-slate-600">
+                                <div className="w-10 h-10 bg-background rounded overflow-hidden shrink-0 border border-subtle">
                                     <img src={item.url} className="w-full h-full object-cover pointer-events-none"/>
                                 </div>
-                                <span className="text-sm text-slate-200 flex-1 truncate font-medium">{item.name}</span>
-                                <span className="text-xs text-slate-500">{item.date}</span>
-                                <span className="text-xs text-slate-400 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">
+                                <span className="text-sm text-primary flex-1 truncate font-medium">{item.name}</span>
+                                <span className="text-xs text-muted">{item.date}</span>
+                                <span className="text-xs text-secondary bg-surface-2 px-2 py-0.5 rounded border border-subtle">
                                         {allLibraries.find(l => l.id === item.libraryId)?.label || 'Okänt'}
                                 </span>
-                                {item.connections.people.length === 0 && <AlertCircle size={14} className="text-yellow-500" title="Okopplad"/>}
+                                {item.connections.people.length === 0 && <AlertCircle size={14} className="text-accent" title="Okopplad"/>}
                             </div>
                         ))}
                     </div>
@@ -772,26 +772,26 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {} }) {
                 {/* Context Menu */}
                 {contextMenuOpen && (
                     <div 
-                        className="fixed bg-slate-900 border border-slate-600 rounded-lg shadow-2xl z-[9999] py-1 animate-in fade-in zoom-in-95 duration-100 w-40"
+                        className="fixed bg-background border border-subtle rounded-lg shadow-2xl z-[9999] py-1 animate-in fade-in zoom-in-95 duration-100 w-40"
                         style={{ top: `${contextMenuPos.y}px`, left: `${contextMenuPos.x}px` }}
                         onClick={(e) => e.stopPropagation()}
                     >
                         <button 
                             onClick={(e) => { e.stopPropagation(); performAction('tag'); }}
-                            className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700 hover:text-white flex items-center gap-2 whitespace-nowrap"
+                            className="w-full px-4 py-2 text-left text-sm text-secondary hover:bg-surface hover:text-primary flex items-center gap-2 whitespace-nowrap"
                         >
                             <ScanFace size={16}/> Tagga
                         </button>
                         <button 
                             onClick={(e) => { e.stopPropagation(); performAction('rotate'); }}
-                            className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700 hover:text-white flex items-center gap-2 whitespace-nowrap"
+                            className="w-full px-4 py-2 text-left text-sm text-secondary hover:bg-surface hover:text-primary flex items-center gap-2 whitespace-nowrap"
                         >
                             <RotateCw size={16}/> Rotera
                         </button>
-                        <div className="border-t border-slate-700 my-1"></div>
+                        <div className="border-t border-subtle my-1"></div>
                         <button 
                             onClick={(e) => { e.stopPropagation(); performAction('delete'); }}
-                            className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-red-900/20 hover:text-red-300 flex items-center gap-2 whitespace-nowrap"
+                            className="w-full px-4 py-2 text-left text-sm text-accent hover:bg-accent-soft hover:text-accent flex items-center gap-2 whitespace-nowrap"
                         >
                             <Trash2 size={16}/> Radera
                         </button>
@@ -799,15 +799,15 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {} }) {
                 )}
 
                 {selectedIds.size > 0 && (
-                    <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-slate-800 border border-slate-600 text-white px-2 py-1.5 rounded-full shadow-2xl flex gap-2 items-center animate-in slide-in-from-bottom-4 z-50">
-                        <span className="text-xs font-bold text-slate-300 px-2 border-r border-slate-600">{selectedIds.size} valda</span>
-                        <button onClick={() => setIsBatchEditOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs hover:bg-slate-700 rounded-full transition-colors">
+                    <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-surface-2 border border-subtle text-primary px-2 py-1.5 rounded-full shadow-2xl flex gap-2 items-center animate-in slide-in-from-bottom-4 z-50">
+                        <span className="text-xs font-bold text-secondary px-2 border-r border-subtle">{selectedIds.size} valda</span>
+                        <button onClick={() => setIsBatchEditOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs hover:bg-surface rounded-full transition-colors">
                             <Edit2 size={14}/> Redigera
                         </button>
-                        <button onClick={() => setIsMoveModalOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs hover:bg-slate-700 rounded-full transition-colors">
+                        <button onClick={() => setIsMoveModalOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs hover:bg-surface rounded-full transition-colors">
                             <MoveRight size={14}/> Flytta
                         </button>
-                        <button onClick={handleBatchDelete} className="flex items-center gap-1.5 px-3 py-1.5 text-xs hover:bg-red-900/50 text-red-400 hover:text-red-300 rounded-full transition-colors">
+                        <button onClick={handleBatchDelete} className="flex items-center gap-1.5 px-3 py-1.5 text-xs hover:bg-accent-soft text-accent hover:text-accent rounded-full transition-colors">
                             <Trash2 size={14}/> Radera
                         </button>
                     </div>
@@ -819,46 +819,46 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {} }) {
 
                 {/* HÖGER: Detaljpanel */}
                 {selectedImage ? (
-                <div className="w-96 bg-slate-800 border-l border-slate-700 flex flex-col shrink-0 animate-in slide-in-from-right-10 duration-200 z-20 shadow-xl">
-                    <div className="p-4 border-b border-slate-700 flex justify-between bg-slate-800">
-                        <h3 className="text-sm font-bold text-white truncate w-64">{selectedImage.name}</h3>
+                <div className="w-96 bg-surface-2 border-l border-subtle flex flex-col shrink-0 animate-in slide-in-from-right-10 duration-200 z-20 shadow-xl">
+                    <div className="p-4 border-b border-subtle flex justify-between bg-surface-2">
+                        <h3 className="text-sm font-bold text-primary truncate w-64">{selectedImage.name}</h3>
                         <div className="flex items-center gap-2">
                             <div className="relative" onClick={(e) => e.stopPropagation()}>
                                 <button 
                                     onClick={(e) => { e.stopPropagation(); setContextMenuOpen(!contextMenuOpen); }} 
-                                    className="text-slate-400 hover:text-white p-1 rounded hover:bg-slate-700"
+                                    className="text-muted hover:text-primary p-1 rounded hover:bg-surface"
                                 >
                                     <MoreVertical size={18}/>
                                 </button>
                                 {contextMenuOpen && (
-                                    <div className="absolute right-0 top-full mt-1 w-48 bg-slate-900 border border-slate-600 rounded-lg shadow-2xl z-[9999] py-1 animate-in fade-in zoom-in-95 duration-100" onClick={(e) => e.stopPropagation()}>
+                                    <div className="absolute right-0 top-full mt-1 w-48 bg-background border border-subtle rounded-lg shadow-2xl z-[9999] py-1 animate-in fade-in zoom-in-95 duration-100" onClick={(e) => e.stopPropagation()}>
                                         <button 
                                             onClick={() => { handleTagFace(); setContextMenuOpen(false); }}
-                                            className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700 hover:text-white flex items-center gap-2"
+                                            className="w-full px-4 py-2 text-left text-sm text-secondary hover:bg-surface hover:text-primary flex items-center gap-2"
                                         >
                                             <ScanFace size={16}/> Tagga
                                         </button>
                                         <button 
                                             onClick={() => { handleRotate(); setContextMenuOpen(false); }}
-                                            className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700 hover:text-white flex items-center gap-2"
+                                            className="w-full px-4 py-2 text-left text-sm text-secondary hover:bg-surface hover:text-primary flex items-center gap-2"
                                         >
                                             <RotateCw size={16}/> Rotera
                                         </button>
-                                        <div className="border-t border-slate-700 my-1"></div>
+                                        <div className="border-t border-subtle my-1"></div>
                                         <button 
                                             onClick={() => { handleDelete(); }}
-                                            className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-red-900/20 hover:text-red-300 flex items-center gap-2"
+                                            className="w-full px-4 py-2 text-left text-sm text-accent hover:bg-accent-soft hover:text-accent flex items-center gap-2"
                                         >
                                             <Trash2 size={16}/> Radera
                                         </button>
                                     </div>
                                 )}
                             </div>
-                            <button onClick={() => setSelectedImage(null)} className="text-slate-400 hover:text-white"><X size={18}/></button>
+                            <button onClick={() => setSelectedImage(null)} className="text-muted hover:text-primary"><X size={18}/></button>
                         </div>
                     </div>
                     <div 
-                        className="aspect-video bg-black/50 relative overflow-hidden cursor-grab active:cursor-grabbing border-b border-slate-700 group"
+                        className="aspect-video bg-background/50 relative overflow-hidden cursor-grab active:cursor-grabbing border-b border-subtle group"
                         onWheel={handleWheel} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}
                         onDoubleClick={() => setTransform({x:0, y:0, scale:1, rotate:0})}
                     >
@@ -868,44 +868,44 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {} }) {
                         </div>
                         
                         <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                            <button className="flex items-center gap-1 px-2 py-1 bg-black/60 backdrop-blur rounded text-xs text-white hover:bg-blue-600 transition-colors" onClick={(e) => { e.stopPropagation(); handleTagFace(); }} title="Tagga ansikte">
+                            <button className="flex items-center gap-1 px-2 py-1 bg-background/60 backdrop-blur rounded text-xs text-primary hover:bg-accent transition-colors" onClick={(e) => { e.stopPropagation(); handleTagFace(); }} title="Tagga ansikte">
                                 <ScanFace size={14}/> <span className="font-medium">Tagga</span>
                             </button>
                         </div>
 
                         <div className="absolute bottom-2 left-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => setTransform(p => ({...p, scale: Math.max(0.5, p.scale - 0.5)}))} className="p-1.5 bg-black/60 rounded text-white hover:bg-blue-600 transition-colors"><ZoomOut size={14}/></button>
-                        <button onClick={() => setTransform({x:0, y:0, scale:1, rotate: 0})} className="p-1.5 bg-black/60 rounded text-white hover:bg-blue-600 transition-colors"><Maximize size={14}/></button>
-                        <button onClick={() => setTransform(p => ({...p, scale: Math.min(5, p.scale + 0.5)}))} className="p-1.5 bg-black/60 rounded text-white hover:bg-blue-600 transition-colors"><ZoomIn size={14}/></button>
+                        <button onClick={() => setTransform(p => ({...p, scale: Math.max(0.5, p.scale - 0.5)}))} className="p-1.5 bg-background/60 rounded text-primary hover:bg-accent transition-colors"><ZoomOut size={14}/></button>
+                        <button onClick={() => setTransform({x:0, y:0, scale:1, rotate: 0})} className="p-1.5 bg-background/60 rounded text-primary hover:bg-accent transition-colors"><Maximize size={14}/></button>
+                        <button onClick={() => setTransform(p => ({...p, scale: Math.min(5, p.scale + 0.5)}))} className="p-1.5 bg-background/60 rounded text-primary hover:bg-accent transition-colors"><ZoomIn size={14}/></button>
                         </div>
                     </div>
                     
-                    <div className="grid grid-cols-3 gap-1 p-2 border-b border-slate-700 bg-slate-800/50">
-                        <button onClick={handleTagFace} className="flex flex-col items-center justify-center p-2 rounded hover:bg-slate-700 text-slate-400 hover:text-white text-[10px] gap-1 transition-colors">
+                    <div className="grid grid-cols-3 gap-1 p-2 border-b border-subtle bg-surface/50">
+                        <button onClick={handleTagFace} className="flex flex-col items-center justify-center p-2 rounded hover:bg-surface text-muted hover:text-primary text-[10px] gap-1 transition-colors">
                             <ScanFace size={16}/> Tagga
                         </button>
-                        <button onClick={handleRotate} className="flex flex-col items-center justify-center p-2 rounded hover:bg-slate-700 text-slate-400 hover:text-white text-[10px] gap-1 transition-colors">
+                        <button onClick={handleRotate} className="flex flex-col items-center justify-center p-2 rounded hover:bg-surface text-muted hover:text-primary text-[10px] gap-1 transition-colors">
                             <RotateCw size={16}/> Rotera
                         </button>
-                        <button onClick={handleCrop} className="flex flex-col items-center justify-center p-2 rounded hover:bg-slate-700 text-slate-400 hover:text-white text-[10px] gap-1 transition-colors">
+                        <button onClick={handleCrop} className="flex flex-col items-center justify-center p-2 rounded hover:bg-surface text-muted hover:text-primary text-[10px] gap-1 transition-colors">
                             <Crop size={16}/> Beskär
                         </button>
                     </div>
                     
-                    <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar bg-slate-800">
+                    <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar bg-surface-2">
                         <div className="space-y-3">
                             <div>
-                                <label className="text-[10px] uppercase font-bold text-slate-500 block mb-1">Datering</label>
-                                <div className="flex items-center bg-slate-900 border border-slate-600 rounded px-2 py-1.5">
-                                    <Calendar size={14} className="text-slate-500 mr-2"/>
-                                    <input type="text" defaultValue={selectedImage.date} className="bg-transparent text-sm text-white w-full focus:outline-none" />
+                                <label className="text-[10px] uppercase font-bold text-muted block mb-1">Datering</label>
+                                <div className="flex items-center bg-background border border-subtle rounded px-2 py-1.5">
+                                    <Calendar size={14} className="text-muted mr-2"/>
+                                    <input type="text" defaultValue={selectedImage.date} className="bg-transparent text-sm text-primary w-full focus:outline-none" />
                                 </div>
                             </div>
                             <div>
-                                <label className="text-[10px] uppercase font-bold text-slate-500 block mb-1">Bibliotek / Kategori</label>
+                                <label className="text-[10px] uppercase font-bold text-muted block mb-1">Bibliotek / Kategori</label>
                                 <select 
                                     defaultValue={selectedImage.libraryId}
-                                    className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500"
+                                    className="w-full bg-background border border-subtle rounded px-2 py-1.5 text-sm text-primary focus:outline-none focus:border-strong"
                                 >
                                     {SYSTEM_LIBRARIES.filter(l => l.id !== 'all').map(l => (
                                         <option key={l.id} value={l.id}>{l.label}</option>
@@ -918,11 +918,11 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {} }) {
                         </div>
 
                         <div>
-                            <label className="text-[10px] uppercase font-bold text-slate-500 block mb-1">Bildtext / Beskrivning</label>
-                            <div className="bg-slate-900 border border-slate-600 rounded p-2">
-                                <textarea className="w-full bg-transparent text-sm text-white focus:outline-none resize-y min-h-[60px]" placeholder="Skriv en beskrivning..." defaultValue={selectedImage.description} />
+                            <label className="text-[10px] uppercase font-bold text-muted block mb-1">Bildtext / Beskrivning</label>
+                            <div className="bg-background border border-subtle rounded p-2">
+                                <textarea className="w-full bg-transparent text-sm text-primary focus:outline-none resize-y min-h-[60px]" placeholder="Skriv en beskrivning..." defaultValue={selectedImage.description} />
                                 <div className="flex justify-end mt-1">
-                                    <button className="text-slate-500 hover:text-white" title="Tala in memo"><Mic size={14}/></button>
+                                    <button className="text-muted hover:text-primary" title="Tala in memo"><Mic size={14}/></button>
                                 </div>
                             </div>
                         </div>
@@ -930,77 +930,77 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {} }) {
                         {selectedImage.libraryId === 'sources' && (
                             <div className="space-y-2">
                                 <div className="flex justify-between items-center">
-                                    <label className="text-[10px] font-bold text-slate-500 uppercase">Transkribering</label>
-                                    <button onClick={() => setShowTranscription(!showTranscription)} className="text-xs flex items-center gap-1 text-blue-400 hover:text-white">
+                                    <label className="text-[10px] font-bold text-muted uppercase">Transkribering</label>
+                                    <button onClick={() => setShowTranscription(!showTranscription)} className="text-xs flex items-center gap-1 text-accent hover:text-primary">
                                         <PenTool size={12}/> {showTranscription ? 'Dölj' : 'Visa / Redigera'}
                                     </button>
                                 </div>
                                 {showTranscription && (
-                                    <textarea className="w-full h-32 bg-slate-900 border border-slate-700 rounded p-2 text-sm text-slate-300 focus:outline-none focus:border-blue-500" placeholder="Skriv av texten här..." defaultValue={selectedImage.transcription} />
+                                    <textarea className="w-full h-32 bg-background border border-subtle rounded p-2 text-sm text-secondary focus:outline-none focus:border-strong" placeholder="Skriv av texten här..." defaultValue={selectedImage.transcription} />
                                 )}
                             </div>
                         )}
                         
                         <div className="space-y-4">
-                            <h4 className="text-[10px] font-bold text-slate-500 uppercase border-b border-slate-700 pb-1">Kopplingar</h4>
+                            <h4 className="text-[10px] font-bold text-muted uppercase border-b border-subtle pb-1">Kopplingar</h4>
                             
                             {/* Personer */}
                             <div className="space-y-2">
                                 <div className="flex justify-between items-center">
-                                    <label className="text-[10px] font-bold text-slate-400">Personer</label>
+                                    <label className="text-[10px] font-bold text-muted">Personer</label>
                                 </div>
                                 {selectedImage.connections.people.map(p => (
-                                    <div key={p.id} className="flex items-center justify-between bg-slate-900 p-2 rounded border border-slate-700 text-xs">
-                                        <div><span className="text-slate-200 font-medium block">{p.name}</span><span className="text-[10px] text-slate-500">{p.dates}</span></div>
-                                        <button className="text-slate-500 hover:text-red-400"><X size={12}/></button>
+                                    <div key={p.id} className="flex items-center justify-between bg-background p-2 rounded border border-subtle text-xs">
+                                        <div><span className="text-primary font-medium block">{p.name}</span><span className="text-[10px] text-muted">{p.dates}</span></div>
+                                        <button className="text-muted hover:text-accent"><X size={12}/></button>
                                     </div>
                                 ))}
-                                <button className="w-full py-1.5 border border-dashed border-slate-600 text-slate-400 text-xs rounded hover:text-white hover:border-slate-500 hover:bg-slate-700 transition-colors flex items-center justify-center gap-1"><Plus size={12}/> Koppla person</button>
+                                <button className="w-full py-1.5 border border-dashed border-subtle text-muted text-xs rounded hover:text-primary hover:border-strong hover:bg-surface transition-colors flex items-center justify-center gap-1"><Plus size={12}/> Koppla person</button>
                             </div>
 
                             {/* Källor */}
                             <div className="space-y-2">
                                 <div className="flex justify-between items-center">
-                                    <label className="text-[10px] font-bold text-slate-400">Källor</label>
+                                    <label className="text-[10px] font-bold text-muted">Källor</label>
                                 </div>
                                 {selectedImage.connections.sources.map(s => (
-                                    <div key={s.id} className="flex items-center justify-between bg-slate-900 p-2 rounded border border-slate-700 text-xs">
-                                        <div><span className="text-slate-200 font-medium block">{s.name}</span><span className="text-[10px] text-slate-500">{s.ref}</span></div>
-                                        <button className="text-slate-500 hover:text-red-400"><X size={12}/></button>
+                                    <div key={s.id} className="flex items-center justify-between bg-background p-2 rounded border border-subtle text-xs">
+                                        <div><span className="text-primary font-medium block">{s.name}</span><span className="text-[10px] text-muted">{s.ref}</span></div>
+                                        <button className="text-muted hover:text-accent"><X size={12}/></button>
                                     </div>
                                 ))}
-                                <button className="w-full py-1.5 border border-dashed border-slate-600 text-slate-400 text-xs rounded hover:text-white hover:border-slate-500 hover:bg-slate-700 transition-colors flex items-center justify-center gap-1"><Link size={12}/> Koppla källa</button>
+                                <button className="w-full py-1.5 border border-dashed border-subtle text-muted text-xs rounded hover:text-primary hover:border-strong hover:bg-surface transition-colors flex items-center justify-center gap-1"><Link size={12}/> Koppla källa</button>
                             </div>
 
                             {/* Platser */}
                             <div className="space-y-2">
                                 <div className="flex justify-between items-center">
-                                    <label className="text-[10px] font-bold text-slate-400">Platser</label>
+                                    <label className="text-[10px] font-bold text-muted">Platser</label>
                                 </div>
                                 {selectedImage.connections.places.map(p => (
-                                    <div key={p.id} className="flex items-center justify-between bg-slate-900 p-2 rounded border border-slate-700 text-xs">
-                                        <div><span className="text-slate-200 font-medium block">{p.name}</span><span className="text-[10px] text-slate-500">{p.type}</span></div>
-                                        <button className="text-slate-500 hover:text-red-400"><X size={12}/></button>
+                                    <div key={p.id} className="flex items-center justify-between bg-background p-2 rounded border border-subtle text-xs">
+                                        <div><span className="text-primary font-medium block">{p.name}</span><span className="text-[10px] text-muted">{p.type}</span></div>
+                                        <button className="text-muted hover:text-accent"><X size={12}/></button>
                                     </div>
                                 ))}
-                                <button className="w-full py-1.5 border border-dashed border-slate-600 text-slate-400 text-xs rounded hover:text-white hover:border-slate-500 hover:bg-slate-700 transition-colors flex items-center justify-center gap-1"><MapPin size={12}/> Koppla plats</button>
+                                <button className="w-full py-1.5 border border-dashed border-subtle text-muted text-xs rounded hover:text-primary hover:border-strong hover:bg-surface transition-colors flex items-center justify-center gap-1"><MapPin size={12}/> Koppla plats</button>
                             </div>
                         </div>
 
                         <div>
-                            <label className="text-[10px] font-bold text-slate-500 uppercase mb-2 block">Taggar</label>
+                            <label className="text-[10px] font-bold text-muted uppercase mb-2 block">Taggar</label>
                             <div className="flex flex-wrap gap-2">
                                 {selectedImage.tags.map(t => (
-                                    <span key={t} className="bg-slate-700 text-slate-300 text-xs px-2 py-0.5 rounded-full flex items-center gap-1">{t} <button className="hover:text-white"><X size={10}/></button></span>
+                                    <span key={t} className="bg-surface text-secondary text-xs px-2 py-0.5 rounded-full flex items-center gap-1">{t} <button className="hover:text-primary"><X size={10}/></button></span>
                                 ))}
-                                <button className="text-xs text-slate-400 bg-slate-900 border border-slate-700 px-2 py-0.5 rounded-full hover:text-white hover:border-slate-500">+ Tagg</button>
+                                <button className="text-xs text-muted bg-background border border-subtle px-2 py-0.5 rounded-full hover:text-primary hover:border-strong">+ Tagg</button>
                             </div>
                         </div>
                     </div>
                     
-                    <div className="p-4 border-t border-slate-700 bg-slate-900 flex justify-between items-center">
-                        <button className="text-red-400 hover:text-red-300 text-xs flex items-center gap-1 transition-colors"><Trash2 size={14}/> Ta bort fil</button>
-                        <button className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded text-xs font-bold flex items-center gap-1 shadow-lg shadow-blue-900/20 transition-all hover:scale-[1.02]"><Save size={14}/> Spara</button>
+                    <div className="p-4 border-t border-subtle bg-background flex justify-between items-center">
+                        <button className="text-accent hover:text-accent text-xs flex items-center gap-1 transition-colors"><Trash2 size={14}/> Ta bort fil</button>
+                        <button className="bg-accent hover:bg-accent/90 text-on-accent px-4 py-1.5 rounded text-xs font-bold flex items-center gap-1 shadow-lg transition-all hover:scale-[1.02]"><Save size={14}/> Spara</button>
                     </div>
                 </div>
                 ) : null}
@@ -1014,7 +1014,7 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {} }) {
               className="absolute bottom-0 right-0 w-6 h-6 cursor-se-resize flex items-center justify-center"
               onMouseDown={startResize}
             >
-              <div className="w-2 h-2 bg-slate-500 rounded-full"/>
+                            <div className="w-2 h-2 bg-muted rounded-full"/>
             </div>
         )}
 
@@ -1053,8 +1053,8 @@ export function MediaManager({ allPeople = [], onOpenEditModal = () => {} }) {
 export default function DemoWrapper() {
   const [isOpen, setIsOpen] = useState(true);
   return (
-    <div className="h-screen bg-slate-950 flex items-center justify-center">
-      {!isOpen && <button onClick={() => setIsOpen(true)} className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded font-medium">Öppna Mediahanterare</button>}
+        <div className="h-screen bg-background flex items-center justify-center">
+            {!isOpen && <button onClick={() => setIsOpen(true)} className="bg-accent hover:bg-accent/90 text-on-accent px-4 py-2 rounded font-medium">Öppna Mediahanterare</button>}
       <MediaManagerModal isOpen={isOpen} onClose={() => setIsOpen(false)} />
     </div>
   );

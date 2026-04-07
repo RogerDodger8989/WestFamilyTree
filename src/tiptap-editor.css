@@ -1,7 +1,7 @@
 .tiptap-wrapper {
-  border: 1px solid #475569; /* slate-600 */
+  border: 1px solid var(--color-border);
   border-radius: 4px;
-  background: #0f172a; /* slate-900 */
+  background: var(--color-background);
   overflow: hidden;
 }
 
@@ -9,15 +9,15 @@
   display: flex;
   gap: 4px;
   padding: 8px;
-  border-bottom: 1px solid #334155; /* slate-700 */
-  background: #1e293b; /* slate-800 */
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
   flex-wrap: wrap;
 }
 
 .tiptap-toolbar button {
-  background: #475569; /* slate-600 */
-  color: #e2e8f0; /* slate-200 */
-  border: 1px solid #334155; /* slate-700 */
+  background: var(--color-surface-2);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
   padding: 6px 10px;
   cursor: pointer;
   border-radius: 3px;
@@ -27,14 +27,14 @@
 }
 
 .tiptap-toolbar button:hover:not(:disabled) {
-  background: #64748b; /* slate-500 */
-  border-color: #475569; /* slate-600 */
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
 }
 
 .tiptap-toolbar button.is-active {
-  background: #3b82f6; /* blue-500 */
-  border-color: #2563eb; /* blue-600 */
-  color: #ffffff;
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-on-accent);
 }
 
 .tiptap-toolbar button:disabled {
@@ -44,7 +44,7 @@
 
 .toolbar-divider {
   width: 1px;
-  background: #334155; /* slate-700 */
+  background: var(--color-border);
   margin: 0 4px;
 }
 
@@ -59,24 +59,24 @@
 }
 
 .tiptap-content .ProseMirror {
-  color: #e2e8f0; /* slate-200 */
+  color: var(--color-text-primary);
   outline: none;
 }
 
 .tiptap-content .ProseMirror p {
-  color: #e2e8f0;
+  color: var(--color-text-primary);
   margin: 0;
   padding: 4px 0;
 }
 
 .tiptap-content .ProseMirror ul,
 .tiptap-content .ProseMirror ol {
-  color: #e2e8f0;
+  color: var(--color-text-primary);
   padding-left: 1.5rem;
 }
 
 .tiptap-content .ProseMirror li {
-  color: #e2e8f0;
+  color: var(--color-text-primary);
 }
 
 .tiptap-content .ProseMirror h1,
@@ -85,36 +85,36 @@
 .tiptap-content .ProseMirror h4,
 .tiptap-content .ProseMirror h5,
 .tiptap-content .ProseMirror h6 {
-  color: #e2e8f0;
+  color: var(--color-text-primary);
   margin: 8px 0;
 }
 
 .tiptap-content .ProseMirror blockquote {
-  border-left: 3px solid #475569;
-  color: #cbd5e1; /* slate-300 */
+  border-left: 3px solid var(--color-border-strong);
+  color: var(--color-text-secondary);
   padding-left: 12px;
   margin-left: 0;
 }
 
 .tiptap-content .ProseMirror code {
-  background: #1e293b;
-  color: #e2e8f0;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
   padding: 2px 6px;
   border-radius: 2px;
   font-family: monospace;
 }
 
 .tiptap-content .ProseMirror pre {
-  background: #1e293b;
-  color: #e2e8f0;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
   padding: 12px;
   border-radius: 4px;
-  border: 1px solid #334155;
+  border: 1px solid var(--color-border);
   overflow-x: auto;
 }
 
 .tiptap-content .ProseMirror pre code {
   background: none;
-  color: #e2e8f0;
+  color: var(--color-text-primary);
   padding: 0;
 }

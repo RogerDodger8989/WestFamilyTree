@@ -129,7 +129,7 @@ const RegionComponent = React.memo(({ region, idx, people, isHighlighted, onStar
     return (
         <div 
             ref={containerRef}
-            className={`absolute border-2 group transition-colors ${isHighlighted ? 'border-emerald-300 bg-emerald-400/20 shadow-[0_0_0_2px_rgba(16,185,129,0.4)]' : 'border-green-400 hover:bg-green-400/20'}`}
+            className={`absolute border-2 group transition-colors ${isHighlighted ? 'border-success bg-success/20 shadow-[0_0_0_2px_rgba(16,185,129,0.4)]' : 'border-success hover:bg-success/20'}`}
             style={{ 
                 left: `${region.x}%`, top: `${region.y}%`, 
                 width: `${region.w}%`, height: `${region.h}%`,
@@ -138,7 +138,7 @@ const RegionComponent = React.memo(({ region, idx, people, isHighlighted, onStar
             }}
             onMouseDown={(e) => handleMouseDown(e, 'move')}
         >
-            <div className={`absolute top-full left-0 mt-1 text-[9px] px-1.5 py-0.5 rounded text-white pointer-events-none ${isHighlighted ? 'bg-emerald-700/95' : 'bg-black/70'}`}>
+            <div className={`absolute top-full left-0 mt-1 text-[9px] px-1.5 py-0.5 rounded text-primary pointer-events-none ${isHighlighted ? 'bg-success/95' : 'bg-background/70'}`}>
                 {labelText}
             </div>
             
@@ -146,7 +146,7 @@ const RegionComponent = React.memo(({ region, idx, people, isHighlighted, onStar
             {['t', 'b', 'l', 'r', 'tl', 'tr', 'bl', 'br'].map(side => (
                 <div
                     key={side}
-                    className="absolute bg-green-500 w-2 h-2 rounded-full border border-white opacity-0 group-hover:opacity-100"
+                    className="absolute bg-success w-2 h-2 rounded-full border border-strong opacity-0 group-hover:opacity-100"
                     style={{
                         top: side.includes('t') ? '-4px' : (side.includes('b') ? 'calc(100% - 4px)' : '50%'),
                         left: side.includes('l') ? '-4px' : (side.includes('r') ? 'calc(100% - 4px)' : '50%'),
@@ -627,7 +627,7 @@ export default function ImageViewer({
                 initialWidth={1000}
                 initialHeight={800}
             >
-                <div className="flex flex-col h-full bg-slate-900 relative">
+                <div className="flex flex-col h-full bg-background relative">
                     <div 
                         className="flex-1 flex overflow-hidden relative" 
                         onMouseUp={handleMouseUp}
@@ -639,8 +639,8 @@ export default function ImageViewer({
                             className={`flex-1 flex items-center justify-center overflow-hidden p-4 relative ${isInteracting ? 'cursor-grabbing' : ''}`}
                             onWheel={handleZoom}
                         >
-                            {loading && <span className="text-white animate-pulse">Laddar bild...</span>}
-                            {error && (<div className="text-red-400 font-bold">Fel: {error}</div>)}
+                            {loading && <span className="text-primary animate-pulse">Laddar bild...</span>}
+                            {error && (<div className="text-warning font-bold">Fel: {error}</div>)}
 
                             {blobUrl && !loading && (
                                 <div className="relative inline-block"
@@ -683,7 +683,7 @@ export default function ImageViewer({
                                     {/* RITAD BOX (UNDER CREATION) */}
                                     {currentBox && (
                                         <div 
-                                            className="absolute border-2 border-blue-400 bg-blue-400/20"
+                                            className="absolute border-2 border-strong bg-accent-soft"
                                             style={{ 
                                                 left: `${currentBox.x}%`, top: `${currentBox.y}%`, 
                                                 width: `${currentBox.w}%`, height: `${currentBox.h}%` 
@@ -695,69 +695,69 @@ export default function ImageViewer({
                         </div>
                         
                         {/* HÖGER: SIDOPANEL MED TAGGAR */}
-                        <div className="w-72 bg-slate-800 p-4 shrink-0 overflow-y-auto custom-scrollbar text-white border-l border-slate-700">
-                                <div className="mb-4 pb-3 border-b border-slate-700">
+                        <div className="w-72 bg-surface p-4 shrink-0 overflow-y-auto custom-scrollbar text-primary border-l border-subtle">
+                                <div className="mb-4 pb-3 border-b border-subtle">
                                     <div className="flex items-center justify-between mb-2">
-                                        <h4 className="text-sm font-bold text-slate-200">Bildinformation</h4>
-                                        <span className="text-[10px] text-slate-400 italic transition-opacity">
+                                        <h4 className="text-sm font-bold text-primary">Bildinformation</h4>
+                                        <span className="text-[10px] text-secondary italic transition-opacity">
                                             {saveStatus === 'saving' ? 'Sparar...' : saveStatus === 'saved' ? 'Sparat ✓' : ''}
                                         </span>
                                     </div>
                                     <div className="space-y-2">
                                         <div>
-                                            <label className="block text-[10px] uppercase tracking-wide text-slate-400 mb-1">Rubrik</label>
+                                            <label className="block text-[10px] uppercase tracking-wide text-secondary mb-1">Rubrik</label>
                                             <input
                                                 type="text"
                                                 value={metaTitle}
                                                 onChange={(e) => { setSaveStatus('saving'); setMetaTitle(e.target.value); }}
-                                                className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+                                                className="w-full bg-background border border-subtle rounded px-2 py-1.5 text-xs text-primary focus:outline-none focus:border-strong"
                                                 placeholder="Ange rubrik..."
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-[10px] uppercase tracking-wide text-slate-400 mb-1">Beskrivning / Notis</label>
+                                            <label className="block text-[10px] uppercase tracking-wide text-secondary mb-1">Beskrivning / Notis</label>
                                             <textarea
                                                 value={metaDescription}
                                                 onChange={(e) => { setSaveStatus('saving'); setMetaDescription(e.target.value); }}
-                                                className="w-full h-20 bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-100 resize-none focus:outline-none focus:border-blue-500"
+                                                className="w-full h-20 bg-background border border-subtle rounded px-2 py-1.5 text-xs text-primary resize-none focus:outline-none focus:border-strong"
                                                 placeholder="Skriv notis..."
                                             />
                                         </div>
                                     </div>
                                 </div>
 
-                                <h4 className="text-sm font-bold border-b border-slate-700 pb-2 mb-2">
+                                <h4 className="text-sm font-bold border-b border-subtle pb-2 mb-2">
                                     Personregister (för ny tagg)
                                 </h4>
                                 <div className="mb-3">
-                                    <label className="block text-[11px] uppercase tracking-wide text-slate-400 mb-1">Sök person</label>
+                                    <label className="block text-[11px] uppercase tracking-wide text-secondary mb-1">Sök person</label>
                                     <div className="relative">
-                                        <Search size={13} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-500" />
+                                        <Search size={13} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted" />
                                         <input
                                             type="text"
                                             value={personSearchTerm}
                                             onChange={(e) => setPersonSearchTerm(e.target.value)}
                                             placeholder="Namn eller ref..."
-                                            className="w-full bg-slate-900 border border-slate-700 rounded pl-7 pr-2 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+                                            className="w-full bg-background border border-subtle rounded pl-7 pr-2 py-1.5 text-xs text-primary focus:outline-none focus:border-strong"
                                         />
                                     </div>
                                 </div>
                                 {currentBox ? (
-                                    <div className="mb-3 p-2 rounded border border-emerald-700/50 bg-emerald-900/20 text-[10px] text-emerald-200 flex items-center justify-between gap-2">
+                                    <div className="mb-3 p-2 rounded border border-success bg-success/20 text-[10px] text-secondary flex items-center justify-between gap-2">
                                         <span>Ny ruta ritad. Välj person nedan.</span>
                                         <button
                                             type="button"
                                             onClick={() => { setCurrentBox(null); setStartPos(null); }}
-                                            className="inline-flex items-center justify-center w-5 h-5 rounded border border-emerald-500/50 hover:border-emerald-400 hover:bg-emerald-800/40"
+                                            className="inline-flex items-center justify-center w-5 h-5 rounded border border-success hover:border-success hover:bg-success/40"
                                             title="Avbryt ny tagg"
                                         >
                                             <X size={11} />
                                         </button>
                                     </div>
                                 ) : (
-                                    <p className="mb-3 text-[10px] text-slate-500">Rita först en ruta på bilden för att skapa ny tagg.</p>
+                                    <p className="mb-3 text-[10px] text-muted">Rita först en ruta på bilden för att skapa ny tagg.</p>
                                 )}
-                                <div className="max-h-36 overflow-y-auto custom-scrollbar space-y-1 mb-4 border border-slate-700 rounded p-1.5 bg-slate-900/40">
+                                <div className="max-h-36 overflow-y-auto custom-scrollbar space-y-1 mb-4 border border-subtle rounded p-1.5 bg-surface-2">
                                     {filteredPeople.slice(0, 60).map((candidate) => {
                                         const candidateName = getPersonDisplayName(candidate) || `${candidate.firstName || ''} ${candidate.lastName || ''}`.trim();
                                         const candidateYears = getPersonLifeYears(candidate);
@@ -770,10 +770,10 @@ export default function ImageViewer({
                                                 type="button"
                                                 disabled={!currentBox}
                                                 onClick={() => handlePersonSelected(candidate.id)}
-                                                className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded border border-slate-700 hover:border-blue-500 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded border border-subtle hover:border-strong hover:bg-surface disabled:opacity-50 disabled:cursor-not-allowed"
                                                 title={currentBox ? 'Lägg till som ny tagg' : 'Rita först en ruta på bilden'}
                                             >
-                                                <div className="w-7 h-7 rounded-full overflow-hidden border border-slate-600 bg-slate-800 shrink-0">
+                                                <div className="w-7 h-7 rounded-full overflow-hidden border border-subtle bg-surface shrink-0">
                                                     {candidateImageUrl ? (
                                                         <MediaImage
                                                             url={candidateImageUrl}
@@ -782,34 +782,34 @@ export default function ImageViewer({
                                                             style={getAvatarImageStyle(candidatePrimaryMedia, candidate.id)}
                                                         />
                                                     ) : (
-                                                        <div className="w-full h-full flex items-center justify-center text-[10px] text-slate-500">?</div>
+                                                        <div className="w-full h-full flex items-center justify-center text-[10px] text-muted">?</div>
                                                     )}
                                                 </div>
                                                 <div className="min-w-0">
-                                                    <div className="text-[10px] text-slate-400">Ref {candidate.refNumber || '-'}</div>
-                                                    <div className="text-[11px] text-slate-100 truncate">{candidateName}</div>
-                                                    {candidateYears && <div className="text-[10px] text-slate-500">{candidateYears}</div>}
-                                                    {hasThisImage && <div className="text-[10px] text-emerald-300">Har redan denna bild</div>}
+                                                    <div className="text-[10px] text-secondary">Ref {candidate.refNumber || '-'}</div>
+                                                    <div className="text-[11px] text-primary truncate">{candidateName}</div>
+                                                    {candidateYears && <div className="text-[10px] text-muted">{candidateYears}</div>}
+                                                    {hasThisImage && <div className="text-[10px] text-secondary">Har redan denna bild</div>}
                                                 </div>
-                                                <UserPlus size={12} className="ml-auto text-blue-300" />
+                                                <UserPlus size={12} className="ml-auto text-accent" />
                                             </button>
                                         );
                                     })}
                                 </div>
 
-                                <h4 className="text-sm font-bold border-b border-slate-700 pb-2 mb-2">
+                                <h4 className="text-sm font-bold border-b border-subtle pb-2 mb-2">
                                     Taggade personer ({regionsWithDetails.length})
                                 </h4>
                                 <ul className="space-y-3 text-xs">
                                     {regionsWithDetails.map((tagRegion) => (
                                         <li
                                             key={`${tagRegion.personId || 'unknown'}_${tagRegion.index}`}
-                                            className={`pb-3 border-b border-slate-700 rounded ${hoveredRegionIndex === tagRegion.index ? 'bg-emerald-900/20 border-emerald-700/60' : ''}`}
+                                            className={`pb-3 border-b border-subtle rounded ${hoveredRegionIndex === tagRegion.index ? 'bg-success/20 border-success' : ''}`}
                                             onMouseEnter={() => setHoveredRegionIndex(tagRegion.index)}
                                             onMouseLeave={() => setHoveredRegionIndex(null)}
                                         >
                                             <div className="flex items-start gap-2">
-                                                <div className="w-7 h-7 rounded-full overflow-hidden border border-slate-600 bg-slate-800 shrink-0 mt-0.5">
+                                                <div className="w-7 h-7 rounded-full overflow-hidden border border-subtle bg-surface shrink-0 mt-0.5">
                                                     {tagRegion.person?.media?.[0] ? (
                                                         <MediaImage
                                                             url={tagRegion.person.media[0].url || tagRegion.person.media[0].path}
@@ -818,26 +818,26 @@ export default function ImageViewer({
                                                             style={getAvatarImageStyle(tagRegion.person.media[0], tagRegion.person.id)}
                                                         />
                                                     ) : (
-                                                        <div className="w-full h-full flex items-center justify-center text-[10px] text-slate-500">?</div>
+                                                        <div className="w-full h-full flex items-center justify-center text-[10px] text-muted">?</div>
                                                     )}
                                                 </div>
                                                 <div className="min-w-0 flex-1">
-                                                    <div className="text-slate-400">{tagRegion.refNumber ? `Ref ${tagRegion.refNumber}` : 'Ref saknas'}</div>
+                                                    <div className="text-secondary">{tagRegion.refNumber ? `Ref ${tagRegion.refNumber}` : 'Ref saknas'}</div>
                                                     <button 
-                                                        className="text-blue-300 hover:text-blue-100 hover:underline font-bold text-left block truncate"
+                                                        className="text-accent hover:text-primary hover:underline font-bold text-left block truncate"
                                                         onClick={() => tagRegion.person && onOpenEditModal && onOpenEditModal(tagRegion.person.id)}
                                                         title={`Öppna redigering för ${tagRegion.personName}`}
                                                     >
                                                         {tagRegion.personName}
                                                     </button>
-                                                    {tagRegion.lifeRange && <div className="text-slate-400">{tagRegion.lifeRange}</div>}
+                                                    {tagRegion.lifeRange && <div className="text-secondary">{tagRegion.lifeRange}</div>}
                                                 </div>
                                             </div>
                                             <div className="mt-2 grid grid-cols-[1fr_auto_auto] gap-1 items-center">
                                                 <select
                                                     value={tagRegion.personId || ''}
                                                     onChange={(e) => handleReassignRegionPerson(tagRegion.index, e.target.value)}
-                                                    className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-[11px] text-slate-200"
+                                                    className="bg-background border border-subtle rounded px-2 py-1 text-[11px] text-primary"
                                                 >
                                                     <option value="">Välj person...</option>
                                                     {filteredPeople.map((p) => (
@@ -852,7 +852,7 @@ export default function ImageViewer({
                                                         setEditingTagIndex(tagRegion.index);
                                                         setShowLinkModal(true);
                                                     }}
-                                                    className="inline-flex items-center justify-center w-7 h-7 rounded border border-slate-600 text-slate-300 hover:text-blue-200 hover:border-blue-500"
+                                                    className="inline-flex items-center justify-center w-7 h-7 rounded border border-subtle text-primary hover:text-accent hover:border-strong"
                                                     title="Byt person med sökdialog"
                                                 >
                                                     <Pencil size={12} />
@@ -860,7 +860,7 @@ export default function ImageViewer({
                                                 <button
                                                     type="button"
                                                     onClick={() => handleDeleteRegion(tagRegion.index)}
-                                                    className="inline-flex items-center justify-center w-7 h-7 rounded border border-red-700/60 bg-red-900/20 text-red-200 hover:text-red-100 hover:border-red-500 hover:bg-red-900/40"
+                                                    className="inline-flex items-center justify-center w-7 h-7 rounded border border-strong bg-warning-soft text-warning hover:text-warning hover:border-strong hover:bg-warning-soft/80"
                                                     title="Ta bort tagg"
                                                 >
                                                     <Trash2 size={12} />
@@ -873,10 +873,10 @@ export default function ImageViewer({
                     </div>
 
                     {/* VERKTYGSFÄLT */}
-                    <div className="bg-slate-800 p-3 border-t border-slate-700 flex justify-between items-center shrink-0">
-                        <div className="text-slate-400 text-xs flex gap-4">
+                    <div className="bg-surface p-3 border-t border-subtle flex justify-between items-center shrink-0">
+                        <div className="text-secondary text-xs flex gap-4">
                             {isDrawing ? "Klicka och dra en ruta för att tagga en person." : `${regionsWithDetails.length} ansiktstaggar.`}
-                            {zoomLevel > 0 && <span className="text-sm text-white">Zoom: {Math.round(zoomLevel * 100)}%</span>}
+                            {zoomLevel > 0 && <span className="text-sm text-primary">Zoom: {Math.round(zoomLevel * 100)}%</span>}
                         </div>
                         <div className="flex gap-2 items-center">
                             <Button

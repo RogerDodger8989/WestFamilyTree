@@ -30,15 +30,15 @@ export default function RelationshipMatrix({ allPeople = [], onClose }) {
 
     return (
         <div className="fixed inset-0 z-60 flex items-start justify-center" style={{ paddingTop: 80 }}>
-            <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-lg" style={{ width: '90%', maxWidth: 1100, maxHeight: '80vh', overflow: 'auto' }}>
+            <div className="bg-surface border border-subtle rounded-lg shadow-lg" style={{ width: '90%', maxWidth: 1100, maxHeight: '80vh', overflow: 'auto' }}>
                 <div className="flex items-center justify-between p-4 border-b">
                     <div>
                         <div className="text-lg font-semibold">Relation Matrix</div>
-                        <div className="text-sm text-slate-300">Välj en grupp personer för att visa parvisa relationer</div>
+                        <div className="text-sm text-secondary">Välj en grupp personer för att visa parvisa relationer</div>
                     </div>
                     <div className="flex items-center gap-2">
                         <input placeholder="Sök namn..." value={query} onChange={(e) => setQuery(e.target.value)} className="p-2 border rounded" />
-                        <button onClick={onClose} className="px-3 py-1 bg-slate-700 text-slate-200 rounded hover:bg-slate-600">Stäng</button>
+                        <button onClick={onClose} className="px-3 py-1 bg-surface-2 text-primary rounded hover:bg-surface">Stäng</button>
                     </div>
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
@@ -83,7 +83,7 @@ export default function RelationshipMatrix({ allPeople = [], onClose }) {
                 <div className="p-3 border-t flex justify-end">
                     <button onClick={() => { setSelectedIds(allPeople.map(p => p.id)); }} className="px-3 py-1 border rounded mr-2">Markera alla</button>
                     <button onClick={() => { setSelectedIds([]); }} className="px-3 py-1 border rounded mr-2">Rensa</button>
-                    <button onClick={onClose} className="px-3 py-1 bg-blue-600 text-white rounded">Stäng</button>
+                    <button onClick={onClose} className="px-3 py-1 bg-accent text-on-accent rounded">Stäng</button>
                 </div>
             </div>
         </div>

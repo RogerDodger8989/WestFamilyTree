@@ -108,15 +108,15 @@ export default function PlaceLinkModal({ place, onClose, onLink, onCreateNewPlac
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-      <div className="bg-slate-800 border border-slate-700 rounded shadow-lg p-6 w-full max-w-2xl relative max-h-[90vh] overflow-y-auto">
-        <button onClick={onClose} className="absolute top-2 right-2 text-slate-400 hover:text-slate-300">✕</button>
+      <div className="bg-surface border border-subtle rounded shadow-lg p-6 w-full max-w-2xl relative max-h-[90vh] overflow-y-auto">
+        <button onClick={onClose} className="absolute top-2 right-2 text-secondary hover:text-primary">✕</button>
         <h2 className="text-lg font-bold mb-2">Koppla plats: {place?.name}</h2>
-        <div className="mb-4 text-xs text-slate-400">
+        <div className="mb-4 text-xs text-secondary">
           <b>Parser:</b> {parsed.type || 'okänd'} {parsed.countryCode && `(${parsed.countryCode})`} {parsed.usedHeuristics && <span className="text-orange-600">(heuristik)</span>}
           {parsed.parts && parsed.parts.length > 0 && (
             <span className="ml-2">[
               {parsed.parts.map((part, idx) => (
-                <span key={idx} className="bg-slate-700 rounded px-2 py-0.5 mx-0.5 text-slate-200">{part}</span>
+                <span key={idx} className="bg-surface-2 rounded px-2 py-0.5 mx-0.5 text-primary">{part}</span>
               ))}
             ]</span>
           )}
@@ -126,7 +126,7 @@ export default function PlaceLinkModal({ place, onClose, onLink, onCreateNewPlac
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="mb-2">
             <label className="block text-xs mb-1 font-bold">Land:</label>
-            <select className="w-full border rounded p-1 text-sm bg-slate-900 border-slate-700 text-slate-200" value={country} onChange={e => setCountry(e.target.value)} disabled>
+            <select className="w-full border rounded p-1 text-sm bg-background border-subtle text-primary" value={country} onChange={e => setCountry(e.target.value)} disabled>
                 <option value="Sverige">Sverige</option>
             </select>
             </div>
@@ -233,19 +233,19 @@ export default function PlaceLinkModal({ place, onClose, onLink, onCreateNewPlac
 
         {/* Vald platsinformation - Stylad likt OfficialPlaceEditPanel */}
         {selectedPlace && (
-          <div className="mt-6 p-4 bg-slate-800 border border-slate-700 rounded">
+          <div className="mt-6 p-4 bg-surface border border-subtle rounded">
             <h4 className="text-sm font-bold mb-3 border-b pb-1">Vald platsinformation</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
               {codeFields.map(field => field.value && (
                 <div key={field.label} className="flex items-center justify-between gap-2">
-                  <span className="text-slate-400 font-medium">{field.label}:</span>
+                  <span className="text-secondary font-medium">{field.label}:</span>
                   <div className="flex items-center gap-1">
-                    <span className="font-mono bg-slate-900 border border-slate-600 px-2 py-0.5 rounded text-slate-200 min-w-[3rem] text-center">
+                    <span className="font-mono bg-background border border-subtle px-2 py-0.5 rounded text-primary min-w-[3rem] text-center">
                       {field.value}
                     </span>
                     <button
                       onClick={(e) => copyToClipboard(field.value, e)}
-                      className="px-2 py-0.5 bg-blue-600 hover:bg-blue-700 text-white rounded font-semibold transition-colors"
+                      className="px-2 py-0.5 bg-accent hover:bg-accent text-on-accent rounded font-semibold transition-colors"
                       title="Kopiera"
                     >
                       Kopiera
@@ -260,9 +260,9 @@ export default function PlaceLinkModal({ place, onClose, onLink, onCreateNewPlac
         {/* NYTT: Visa knapp för att skapa officiell plats om ingen match finns */}
         {!selectedPlace && (
           <div className="mt-6 flex flex-col items-center">
-            <div className="text-sm text-slate-400 mb-2">Ingen officiell plats hittades.</div>
+            <div className="text-sm text-secondary mb-2">Ingen officiell plats hittades.</div>
             <button
-              className="px-4 py-2 bg-blue-600 text-white rounded font-bold shadow hover:bg-blue-700"
+              className="px-4 py-2 bg-accent text-on-accent rounded font-bold shadow hover:bg-accent"
               onClick={() => onCreateNewPlace && onCreateNewPlace()}
             >
               Skapa officiell plats
@@ -271,16 +271,16 @@ export default function PlaceLinkModal({ place, onClose, onLink, onCreateNewPlac
         )}
 
         <div className="flex justify-end gap-2 mt-6 border-t pt-4">
-          <button onClick={onClose} className="px-4 py-2 bg-slate-700 text-slate-200 hover:bg-slate-600 rounded text-sm font-medium">Avbryt</button>
+          <button onClick={onClose} className="px-4 py-2 bg-surface-2 text-primary hover:bg-surface rounded text-sm font-medium">Avbryt</button>
           <button
             onClick={() => selectedPlace && onLink(selectedPlace)}
-            className={`px-4 py-2 rounded text-white text-sm font-bold shadow-sm ${selectedPlace ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-600 cursor-not-allowed'}`}
+            className={`px-4 py-2 rounded text-white text-sm font-bold shadow-sm ${selectedPlace ? 'bg-green-600 hover:bg-green-700' : 'bg-surface-2 cursor-not-allowed'}`}
             disabled={!selectedPlace}
           >
             Koppla vald plats
           </button>
         </div>
-        {loading && <div className="text-xs text-slate-400 mt-2 text-center">Laddar...</div>}
+        {loading && <div className="text-xs text-secondary mt-2 text-center">Laddar...</div>}
       </div>
     </div>
   );

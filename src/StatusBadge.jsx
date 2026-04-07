@@ -2,12 +2,12 @@ import React from 'react';
 
 export default function StatusBadge({ label = 'Kopplad', variant = 'success', icon = '✔' }) {
   let bgClass = '';
-  let textClass = 'text-white';
+  let textClass = 'text-on-accent';
   switch (variant) {
-    case 'success': bgClass = 'bg-green-600'; textClass = 'text-white'; break;
-    case 'warn': bgClass = 'bg-yellow-500'; textClass = 'text-black'; break;
-    case 'error': bgClass = 'bg-red-600'; textClass = 'text-white'; break;
-    default: bgClass = 'bg-slate-700'; textClass = 'text-slate-200';
+    case 'success': bgClass = 'bg-success'; textClass = 'text-on-accent'; break;
+    case 'warn': bgClass = 'bg-accent'; textClass = 'text-on-accent'; break;
+    case 'error': bgClass = 'bg-danger'; textClass = 'text-on-accent'; break;
+    default: bgClass = 'bg-surface-2'; textClass = 'text-primary';
   }
 
   return (

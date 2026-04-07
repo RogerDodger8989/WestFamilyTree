@@ -35,13 +35,13 @@ function getLifeSpan(p) {
   if (!birth && !death) return null;
   if (birth && !death) return `f. ${birth}`;
   if (!birth && death) return `d. ${death}`;
-  return `${birth}–${death}`;
+  return `${birth}-${death}`;
 }
 
 function getScoreBadgeStyle(score) {
-  if (score > 0.9) return 'bg-green-900 text-green-100 border border-green-700';
-  if (score > 0.7) return 'bg-yellow-900 text-yellow-100 border border-yellow-700';
-  return 'bg-slate-700 text-slate-100 border border-slate-600';
+  if (score > 0.9) return 'bg-success text-on-accent border border-success';
+  if (score > 0.7) return 'bg-warning text-on-accent border border-warning';
+  return 'bg-surface-2 text-primary border border-subtle';
 }
 
 function levenshtein(a = '', b = '') {
@@ -87,11 +87,11 @@ export default function SuggestionsPanel({ allPeople = [], onOpenPair }) {
   }, [allPeople, dbData]);
 
   return (
-    <div className="card p-3 bg-slate-800 border border-slate-700" style={{ minHeight: 220 }}>
-      <div className="font-medium mb-1 text-slate-200">Förslag</div>
-      <div className="text-xs text-slate-400 mb-3">Automatch baserat på namn, födelseår och efternamn</div>
+    <div className="card p-3 bg-surface border border-subtle" style={{ minHeight: 220 }}>
+      <div className="font-medium mb-1 text-primary">Förslag</div>
+      <div className="text-xs text-secondary mb-3">Automatch baserat på namn, födelseår och efternamn</div>
       <div style={{ maxHeight: 440, overflow: 'auto' }}>
-        {suggestions.length === 0 && <div className="text-sm text-slate-400">Inga förslag</div>}
+        {suggestions.length === 0 && <div className="text-sm text-secondary">Inga förslag</div>}
         {suggestions.map((s, i) => {
           const p1 = s.pair[0];
           const p2 = s.pair[1];
@@ -103,7 +103,7 @@ export default function SuggestionsPanel({ allPeople = [], onOpenPair }) {
             <div
               key={i}
               onClick={() => onOpenPair && onOpenPair(s.pair)}
-              className="mb-3 p-3 bg-slate-900 border border-slate-700 hover:border-slate-600 rounded-lg cursor-pointer transition-all hover:shadow-lg hover:bg-slate-850"
+              className="mb-3 p-3 bg-surface-2 border border-subtle hover:border-subtle rounded-lg cursor-pointer transition-all hover:shadow-lg hover:bg-surface-2"
             >
               {/* Score Badge */}
               <div className="flex justify-between items-start mb-2">
@@ -116,7 +116,7 @@ export default function SuggestionsPanel({ allPeople = [], onOpenPair }) {
               <div className="flex items-center justify-between gap-3 mb-3">
                 {/* Person 1 */}
                 <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <div className="flex-shrink-0 w-10 h-10 rounded-full bg-slate-700 border border-slate-600 overflow-hidden flex items-center justify-center">
+                  <div className="flex-shrink-0 w-10 h-10 rounded-full bg-surface-2 border border-subtle overflow-hidden flex items-center justify-center">
                     {p1.media && p1.media.length > 0 ? (
                       <MediaImage
                         media={p1.media[0]}
@@ -124,27 +124,27 @@ export default function SuggestionsPanel({ allPeople = [], onOpenPair }) {
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <User size={18} className="text-slate-400" />
+                      <User size={18} className="text-secondary" />
                     )}
                   </div>
                   <div className="min-w-0">
-                    <div className="text-sm font-semibold text-slate-100 truncate">
+                    <div className="text-sm font-semibold text-primary truncate">
                       {p1.firstName} {p1.lastName}
                     </div>
-                    <div className="text-xs text-slate-400">
+                    <div className="text-xs text-secondary">
                       {p1.refNumber}{lifeSpan1 && ` · ${lifeSpan1}`}
                     </div>
                   </div>
                 </div>
 
                 {/* Arrow in Middle */}
-                <div className="flex-shrink-0 text-slate-500">
+                <div className="flex-shrink-0 text-muted">
                   <ArrowRightLeft size={16} />
                 </div>
 
                 {/* Person 2 */}
                 <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <div className="flex-shrink-0 w-10 h-10 rounded-full bg-slate-700 border border-slate-600 overflow-hidden flex items-center justify-center">
+                  <div className="flex-shrink-0 w-10 h-10 rounded-full bg-surface-2 border border-subtle overflow-hidden flex items-center justify-center">
                     {p2.media && p2.media.length > 0 ? (
                       <MediaImage
                         media={p2.media[0]}
@@ -152,14 +152,14 @@ export default function SuggestionsPanel({ allPeople = [], onOpenPair }) {
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <User size={18} className="text-slate-400" />
+                      <User size={18} className="text-secondary" />
                     )}
                   </div>
                   <div className="min-w-0">
-                    <div className="text-sm font-semibold text-slate-100 truncate">
+                    <div className="text-sm font-semibold text-primary truncate">
                       {p2.firstName} {p2.lastName}
                     </div>
-                    <div className="text-xs text-slate-400">
+                    <div className="text-xs text-secondary">
                       {p2.refNumber}{lifeSpan2 && ` · ${lifeSpan2}`}
                     </div>
                   </div>
@@ -170,22 +170,22 @@ export default function SuggestionsPanel({ allPeople = [], onOpenPair }) {
               {s.breakdown && (
                 <div className="flex flex-wrap gap-2 text-xs">
                   {s.breakdown.name !== undefined && (
-                    <span className="px-2 py-1 bg-slate-800 text-slate-300 rounded border border-slate-700">
+                    <span className="px-2 py-1 bg-surface text-primary rounded border border-subtle">
                       Namn: {Math.round(s.breakdown.name * 100)}%
                     </span>
                   )}
                   {s.breakdown.life !== undefined && (
-                    <span className="px-2 py-1 bg-slate-800 text-slate-300 rounded border border-slate-700">
+                    <span className="px-2 py-1 bg-surface text-primary rounded border border-subtle">
                       Liv: {Math.round(s.breakdown.life * 100)}%
                     </span>
                   )}
                   {s.breakdown.place !== undefined && (
-                    <span className="px-2 py-1 bg-slate-800 text-slate-300 rounded border border-slate-700">
+                    <span className="px-2 py-1 bg-surface text-primary rounded border border-subtle">
                       Plats: {Math.round(s.breakdown.place * 100)}%
                     </span>
                   )}
                   {s.breakdown.sources !== undefined && (
-                    <span className="px-2 py-1 bg-slate-800 text-slate-300 rounded border border-slate-700">
+                    <span className="px-2 py-1 bg-surface text-primary rounded border border-subtle">
                       Källor: {Math.round(s.breakdown.sources * 100)}%
                     </span>
                   )}
@@ -198,3 +198,4 @@ export default function SuggestionsPanel({ allPeople = [], onOpenPair }) {
     </div>
   );
 }
+

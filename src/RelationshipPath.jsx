@@ -42,22 +42,22 @@ export default function RelationshipPath({ startPerson, endPersonId, allPeople }
     }
 
     return (
-        <div className="text-sm text-slate-300 mb-4 flex flex-wrap items-start gap-x-2">
+        <div className="text-sm text-secondary mb-4 flex flex-wrap items-start gap-x-2">
             <span className="font-bold">Relationsstig:</span>
             {path.map((person, index) => (
                 <React.Fragment key={person.id}>
                     <div className="text-center">
-                        <div className={`font-semibold ${index % 2 === 0 ? 'text-blue-700' : 'text-red-700'}`}>
+                        <div className={`font-semibold ${index % 2 === 0 ? 'text-accent' : 'text-danger'}`}>
                             {person.firstName} {person.lastName}
                         </div>
                         {index > 0 && ( // Visa bara relation för personer efter den första
-                                <div className="text-xs text-slate-400 italic">
+                                <div className="text-xs text-muted italic">
                                 ({getConnectingRelationship(person, path[index - 1], getPersonRelations)})
                             </div>
                         )}
                     </div>
                     {index < path.length - 1 && (
-                        <span className="text-slate-400 font-bold self-center">→</span>
+                        <span className="text-muted font-bold self-center">→</span>
                     )}
                 </React.Fragment>
             ))}

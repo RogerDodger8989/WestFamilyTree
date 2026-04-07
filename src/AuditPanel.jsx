@@ -219,7 +219,7 @@ export default function AuditPanel() {
           // Ensure target exists in current DB if possible
           const exists = !!dbData.sources?.find(s => s.id === sid);
           if (!exists) {
-            showStatus('Kunde inte hitta källan i databas — försöker ändå öppna.');
+            showStatus('Kunde inte hitta källan i databas - försöker ändå öppna.');
           }
           return handleNavigateToSource(sid);
         }
@@ -236,7 +236,7 @@ export default function AuditPanel() {
         if (pid) {
           const exists = !!dbData.places?.find(p => p.id === pid);
           if (!exists) {
-            showStatus('Kunde inte hitta platsen i databas — försöker ändå öppna.');
+            showStatus('Kunde inte hitta platsen i databas - försöker ändå öppna.');
           }
           return handleNavigateToPlace(pid);
         }
@@ -270,16 +270,16 @@ export default function AuditPanel() {
 
   return (
     <div className="tab-content max-w-6xl mx-auto w-full">
-      <div className="bg-slate-800 rounded-xl shadow p-4 border border-slate-700">
+      <div className="bg-surface rounded-xl shadow p-4 border border-subtle">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-bold text-slate-200">Audit / Historik</h3>
+          <h3 className="text-lg font-bold text-primary">Audit / Historik</h3>
           <div className="flex items-center gap-2">
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Sök..." className="px-2 py-1 border border-slate-600 rounded bg-slate-900 text-slate-200" />
-            <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="px-2 py-1 border border-slate-600 rounded bg-slate-900 text-slate-200">
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Sök..." className="px-2 py-1 border border-subtle rounded bg-surface-2 text-primary" />
+            <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="px-2 py-1 border border-subtle rounded bg-surface-2 text-primary">
               <option value="">Alla typer</option>
               {allTypes.map(t => <option key={t} value={t}>{typeLabel(t)}</option>)}
             </select>
-            <select value={entityFilter} onChange={(e) => setEntityFilter(e.target.value)} className="px-2 py-1 border border-slate-600 rounded bg-slate-900 text-slate-200">
+            <select value={entityFilter} onChange={(e) => setEntityFilter(e.target.value)} className="px-2 py-1 border border-subtle rounded bg-surface-2 text-primary">
               <option value="">Alla enheter</option>
               {allEntities.map(t => <option key={t} value={t}>{entityLabel(t)}</option>)}
             </select>
@@ -289,7 +289,7 @@ export default function AuditPanel() {
               } else {
                 setTypeFilter('warning'); setEntityFilter('relation-validation'); setQ('');
               }
-            }} className="px-2 py-1 text-xs border border-slate-600 rounded bg-slate-700 text-slate-200 hover:bg-slate-600">Visa relation-validering</button>
+            }} className="px-2 py-1 text-xs border border-subtle rounded bg-surface-2 text-primary hover:bg-surface-2">Visa relation-validering</button>
             <button type="button" onClick={async () => {
               // Export: copy to clipboard and attempt to save to disk via Electron if available
               try {
@@ -308,7 +308,7 @@ export default function AuditPanel() {
                 console.debug('export audit error', err);
                 showStatus('Export misslyckades.');
               }
-            }} className="px-2 py-1 text-xs border border-slate-600 rounded bg-slate-700 text-slate-200 hover:bg-slate-600">Exportera audit</button>
+            }} className="px-2 py-1 text-xs border border-subtle rounded bg-surface-2 text-primary hover:bg-surface-2">Exportera audit</button>
             <button type="button" onClick={async () => {
               // Import: open file dialog and read JSON
               try {
@@ -344,7 +344,7 @@ export default function AuditPanel() {
                 console.debug('import audit error', err);
                 showStatus('Import misslyckades.');
               }
-            }} className="px-2 py-1 text-xs border border-slate-600 rounded bg-slate-700 text-slate-200 hover:bg-slate-600">Importera audit</button>
+            }} className="px-2 py-1 text-xs border border-subtle rounded bg-surface-2 text-primary hover:bg-surface-2">Importera audit</button>
             <button type="button" onClick={async () => {
               try {
                 if (window.electronAPI && typeof window.electronAPI.openAuditBackupFolder === 'function') {
@@ -363,21 +363,21 @@ export default function AuditPanel() {
                 console.debug('openAuditBackupFolder error', err);
                 showStatus('Fel vid öppning av backup-mapp.');
               }
-            }} className="px-2 py-1 text-xs border border-slate-600 rounded bg-slate-700 text-slate-200 hover:bg-slate-600">Öppna backup-mapp</button>
+            }} className="px-2 py-1 text-xs border border-subtle rounded bg-surface-2 text-primary hover:bg-surface-2">Öppna backup-mapp</button>
           </div>
         </div>
 
-        <div className="text-sm text-slate-400 mb-4">Visar {filtered.length} av {(audits||[]).length} poster</div>
+        <div className="text-sm text-secondary mb-4">Visar {filtered.length} av {(audits||[]).length} poster</div>
 
-        <div className="overflow-y-auto max-h-[60vh] border border-slate-700 rounded bg-slate-800">
-          <table className="w-full text-left text-slate-200">
-            <thead className="bg-slate-900 sticky top-0">
+        <div className="overflow-y-auto max-h-[60vh] border border-subtle rounded bg-surface">
+          <table className="w-full text-left text-primary">
+            <thead className="bg-surface-2 sticky top-0">
                 <tr>
-                  <th className="p-2 text-xs text-slate-300">Tid</th>
-                  <th className="p-2 text-xs text-slate-300">Typ</th>
-                  <th className="p-2 text-xs text-slate-300">Namn</th>
-                  <th className="p-2 text-xs text-slate-300">Ref</th>
-                  <th className="p-2 text-xs text-slate-300">Åtgärd</th>
+                  <th className="p-2 text-xs text-primary">Tid</th>
+                  <th className="p-2 text-xs text-primary">Typ</th>
+                  <th className="p-2 text-xs text-primary">Namn</th>
+                  <th className="p-2 text-xs text-primary">Ref</th>
+                  <th className="p-2 text-xs text-primary">Åtgärd</th>
                 </tr>
             </thead>
             <tbody>
@@ -386,9 +386,9 @@ export default function AuditPanel() {
                 const pretty = prettyDetails(a.details, dbData);
                 return (
                   <React.Fragment key={a.id}>
-                    <tr className="border-b border-slate-700 hover:bg-slate-700">
-                      <td className="p-2 align-top text-xs text-slate-400">{new Date(a.timestamp).toLocaleString()}</td>
-                      <td className="p-2 align-top text-sm font-medium text-slate-300">{typeLabel(a.type)}</td>
+                    <tr className="border-b border-subtle hover:bg-surface-2">
+                      <td className="p-2 align-top text-xs text-secondary">{new Date(a.timestamp).toLocaleString()}</td>
+                      <td className="p-2 align-top text-sm font-medium text-primary">{typeLabel(a.type)}</td>
                       <td className="p-2 align-top text-sm">
                         {a.entityType === 'person' ? (
                           (() => {
@@ -398,13 +398,13 @@ export default function AuditPanel() {
                               const p = dbData.people?.find(x => x.id === id) || null;
                               if (p && (p.firstName || p.lastName)) {
                                 const name = `${p.firstName || ''} ${p.lastName || ''}`.trim();
-                                return (<button onClick={() => openEntity(a)} className="text-left px-0 py-0 text-sm text-blue-600 hover:underline">{name}</button>);
+                                return (<button onClick={() => openEntity(a)} className="text-left px-0 py-0 text-sm text-accent hover:underline">{name}</button>);
                               }
                             }
                             // 2) Fallback to details.name (string)
                             if (a.details && typeof a.details.name === 'string' && a.details.name.trim()) {
                               // show as plain text (no open action if no entityId)
-                              return (<span className="text-sm text-slate-200">{a.details.name}</span>);
+                              return (<span className="text-sm text-primary">{a.details.name}</span>);
                             }
                             // 3) Fallback to common snapshot fields in details
                             if (a.details && typeof a.details === 'object') {
@@ -412,24 +412,24 @@ export default function AuditPanel() {
                               const snap = det.person || det.snapshot || det.createdPerson || det.newPerson || null;
                               if (snap && (snap.firstName || snap.lastName)) {
                                 const name = `${snap.firstName || ''} ${snap.lastName || ''}`.trim();
-                                return (<span className="text-sm text-slate-200">{name}</span>);
+                                return (<span className="text-sm text-primary">{name}</span>);
                               }
                             }
                             // 4) Final fallback
-                            return (<span className="text-sm text-slate-400">(okänd)</span>);
+                            return (<span className="text-sm text-secondary">(okänd)</span>);
                           })()
                         ) : (
                           (() => {
                             const lbl = labelFor(a);
                             if (a.entityId) {
-                              return (<button onClick={() => openEntity(a)} className="text-left px-0 py-0 text-sm text-blue-600 hover:underline">{lbl}</button>);
+                              return (<button onClick={() => openEntity(a)} className="text-left px-0 py-0 text-sm text-accent hover:underline">{lbl}</button>);
                             }
-                            return (<span className="text-sm text-slate-200">{lbl}</span>);
+                            return (<span className="text-sm text-primary">{lbl}</span>);
                           })()
                         )}
                         {/* Show svMessage prominently for relation-validation entries */}
                         {a.details && a.details.svMessage && (
-                          <div className="mt-1 text-sm text-red-700 font-medium">{a.details.svMessage}</div>
+                          <div className="mt-1 text-sm text-danger font-medium">{a.details.svMessage}</div>
                         )}
                       </td>
                       <td className="p-2 align-top text-sm">{
@@ -458,32 +458,32 @@ export default function AuditPanel() {
                           }
                           if (!src) return '';
                           if (src === 'live') {
-                            return (<button onClick={() => openEntity(a)} className="text-left px-0 py-0 text-sm text-blue-600 hover:underline">{refVal}</button>);
+                            return (<button onClick={() => openEntity(a)} className="text-left px-0 py-0 text-sm text-accent hover:underline">{refVal}</button>);
                           }
                           // details or snapshot: show muted italic indicator
-                          return (<span className="text-sm text-slate-500 italic">{refVal}</span>);
+                          return (<span className="text-sm text-muted italic">{refVal}</span>);
                         })()
                       }</td>
                       <td className="p-2 align-top">
                         <div className="flex gap-2">
                           {a.entityType === 'person' ? (
                             <>
-                              <button onClick={() => handleUndoAudit(a)} className="px-2 py-1 text-xs bg-amber-700 text-amber-100 border border-amber-600 rounded hover:bg-amber-600">Ångra</button>
+                              <button onClick={() => handleUndoAudit(a)} className="px-2 py-1 text-xs bg-warning text-on-accent border border-warning rounded hover:opacity-90">Ångra</button>
                             </>
                           ) : (
                             <>
-                              <button onClick={() => openEntity(a)} className="px-2 py-1 text-xs bg-blue-700 text-blue-100 border border-blue-600 rounded hover:bg-blue-600">Öppna</button>
+                              <button onClick={() => openEntity(a)} className="px-2 py-1 text-xs bg-accent text-primary border border-strong rounded hover:bg-accent">Öppna</button>
                             </>
                           )}
-                          <button onClick={() => toggle(a.id)} className="px-2 py-1 text-xs border border-slate-600 bg-slate-700 text-slate-200 rounded hover:bg-slate-600">{isExpanded ? 'Dölj' : 'Visa'}</button>
+                          <button onClick={() => toggle(a.id)} className="px-2 py-1 text-xs border border-subtle bg-surface-2 text-primary rounded hover:bg-surface-2">{isExpanded ? 'Dölj' : 'Visa'}</button>
                         </div>
                       </td>
                     </tr>
                     {isExpanded && (
-                      <tr className="bg-slate-900">
+                      <tr className="bg-surface-2">
                         <td colSpan={5} className="p-3">
-                          <div className="text-xs font-medium mb-2 text-slate-300">Detaljer</div>
-                          <pre className="text-xs overflow-auto p-2 bg-slate-950 border border-slate-700 rounded text-slate-200" style={{ maxHeight: 280 }}>{typeof pretty === 'string' ? pretty : JSON.stringify(pretty, null, 2)}</pre>
+                          <div className="text-xs font-medium mb-2 text-primary">Detaljer</div>
+                          <pre className="text-xs overflow-auto p-2 bg-background border border-subtle rounded text-primary" style={{ maxHeight: 280 }}>{typeof pretty === 'string' ? pretty : JSON.stringify(pretty, null, 2)}</pre>
                         </td>
                       </tr>
                     )}
@@ -491,7 +491,7 @@ export default function AuditPanel() {
                 );
               })}
               {filtered.length === 0 && (
-                <tr><td colSpan={5} className="p-4 text-center text-sm text-slate-500">Inga poster matchar filtren.</td></tr>
+                <tr><td colSpan={5} className="p-4 text-center text-sm text-muted">Inga poster matchar filtren.</td></tr>
               )}
             </tbody>
           </table>
@@ -500,3 +500,4 @@ export default function AuditPanel() {
     </div>
   );
 }
+

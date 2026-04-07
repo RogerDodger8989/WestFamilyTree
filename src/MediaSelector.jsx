@@ -706,7 +706,7 @@ export default function MediaSelector({
         <div className="flex items-center gap-2 flex-1">
           <button
             onClick={() => setIsMediaManagerOpen(true)}
-            className="p-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
+            className="p-1.5 bg-accent hover:bg-accent text-on-accent rounded transition-colors"
             title="Välj från bibliotek"
             aria-label="Välj från bibliotek"
           >
@@ -725,18 +725,18 @@ export default function MediaSelector({
         {media.length > 0 && (
           <div className="flex items-center gap-2">
             <div className="relative">
-              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-slate-400" size={16} />
+              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-muted" size={16} />
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Sök bilder..."
-                className="pl-8 pr-8 py-1.5 bg-slate-900 border border-slate-700 rounded text-sm text-white focus:border-blue-500 focus:outline-none w-48"
+                className="pl-8 pr-8 py-1.5 bg-background border border-subtle rounded text-sm text-on-accent focus:border-accent focus:outline-none w-48"
               />
               {searchTerm && (
                 <button
                   onClick={() => setSearchTerm('')}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-white"
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted hover:text-primary"
                 >
                   <X size={16} />
                 </button>
@@ -744,7 +744,7 @@ export default function MediaSelector({
             </div>
             <button
               onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-              className="p-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded transition-colors"
+              className="p-1.5 bg-surface-2 hover:bg-slate-600 text-on-accent rounded transition-colors"
               title={viewMode === 'grid' ? 'Lista' : 'Grid'}
             >
               <Grid size={16} />
@@ -752,7 +752,7 @@ export default function MediaSelector({
             <select
               value={sortBy}
               onChange={(e) => updateMediaSortConfig({ sortBy: e.target.value })}
-              className="bg-slate-900 border border-slate-700 rounded text-xs text-slate-200 px-2 py-1.5"
+              className="bg-background border border-subtle rounded text-xs text-primary px-2 py-1.5"
               title="Sortering"
             >
               <option value="custom">Sortering: Anpassad</option>
@@ -763,7 +763,7 @@ export default function MediaSelector({
             </select>
             <button
               onClick={() => handleDownload(null, true)}
-              className="p-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded transition-colors"
+              className="p-1.5 bg-surface-2 hover:bg-slate-600 text-on-accent rounded transition-colors"
               title="Ladda ner alla bilder som zip"
               aria-label="Ladda ner alla"
             >
@@ -777,7 +777,7 @@ export default function MediaSelector({
         ref={dropZoneRef}
         onClick={() => fileInputRef.current?.click()}
         className={`mb-3 border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${
-          isDragging ? 'border-blue-500 bg-blue-500/10 text-blue-300' : 'border-slate-600 text-slate-400 hover:border-slate-500'
+          isDragging ? 'border-accent bg-accent-soft text-accent' : 'border-subtle text-muted hover:border-strong'
         }`}
         title="Klistra in / Släpp bild / Ladda upp bild"
       >
@@ -786,12 +786,12 @@ export default function MediaSelector({
 
       {/* Media Grid/List */}
       <div 
-        className={`flex-1 overflow-y-auto ${isDragging ? 'ring-2 ring-blue-500 bg-blue-500/10' : ''}`}
+        className={`flex-1 overflow-y-auto ${isDragging ? 'ring-2 ring-blue-500 bg-accent-soft' : ''}`}
       >
         {media.length === 0 ? (
           <div 
-            className={`h-full border-2 border-dashed rounded-lg flex items-center justify-center text-slate-400 ${
-              isDragging ? 'border-blue-500 bg-blue-500/10' : 'border-slate-600'
+            className={`h-full border-2 border-dashed rounded-lg flex items-center justify-center text-muted ${
+              isDragging ? 'border-accent bg-accent-soft' : 'border-subtle'
             }`}
           >
             <div className="text-center">
@@ -802,7 +802,7 @@ export default function MediaSelector({
             </div>
           </div>
         ) : sortedFilteredMedia.length === 0 ? (
-          <div className="h-full border border-slate-700 rounded-lg flex items-center justify-center text-slate-400 p-8">
+          <div className="h-full border border-subtle rounded-lg flex items-center justify-center text-muted p-8">
             <div className="text-center">
               <Search size={40} className="mx-auto mb-3 opacity-60" />
               <p className="text-sm">Inga bilder matchar din sökning</p>
@@ -836,15 +836,15 @@ export default function MediaSelector({
                   onContextMenu={(e) => handleContextMenu(e, originalIndex)}
                   className={`group relative rounded-lg border-2 overflow-hidden transition-all ${
                     dragOverIndex === originalIndex 
-                      ? 'border-blue-500 ring-2 ring-blue-500/50 scale-105' 
+                      ? 'border-accent ring-2 ring-blue-500/50 scale-105' 
                       : isSelected || selectedImageIndex === originalIndex
-                      ? 'border-blue-500 ring-2 ring-blue-500/50'
-                      : 'border-slate-700 hover:border-slate-600'
+                      ? 'border-accent ring-2 ring-blue-500/50'
+                      : 'border-subtle hover:border-subtle'
                   } ${draggedIndex === originalIndex ? 'opacity-50' : ''}`}
                 >
                   <div className="flex flex-col">
                     <div 
-                      className="aspect-square bg-slate-800 relative cursor-pointer"
+                      className="aspect-square bg-surface relative cursor-pointer"
                       onClick={() => {
                         setSelectedImageIndex(originalIndex);
                         setIsImageViewerOpen(true);
@@ -872,14 +872,14 @@ export default function MediaSelector({
                           checked={isSelected}
                           onClick={(e) => e.stopPropagation()}
                           onChange={() => toggleSelectedIndex(originalIndex)}
-                          className="h-5 w-5 cursor-pointer rounded border-slate-400 bg-slate-950/80 accent-blue-500 shadow-lg shadow-slate-950/40"
+                          className="h-5 w-5 cursor-pointer rounded border-strong bg-background accent-blue-500 shadow-lg shadow-slate-950/40"
                           aria-label={`Markera ${item.name || 'bild'}`}
                         />
                       </div>
                       <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <p className="text-white text-xs font-medium truncate">{item.name || 'Namnlös'}</p>
+                        <p className="text-on-accent text-xs font-medium truncate">{item.name || 'Namnlös'}</p>
                         {item.date && (
-                          <p className="text-white/70 text-[10px]">{item.date}</p>
+                          <p className="text-on-accent/70 text-[10px]">{item.date}</p>
                         )}
                       </div>
                     </div>
@@ -887,14 +887,14 @@ export default function MediaSelector({
                     {/* Förhandsvisning av noteringar under bilden (grid-vy) */}
                     {item.note && (
                       <div 
-                        className="mt-2 p-2 bg-slate-900 border border-slate-700 rounded cursor-pointer hover:border-slate-600 transition-colors"
+                        className="mt-2 p-2 bg-background border border-subtle rounded cursor-pointer hover:border-subtle transition-colors"
                         onClick={(e) => {
                           e.stopPropagation();
                           setEditingNoteIndex(originalIndex);
                         }}
                       >
-                        <div className="text-xs text-slate-300 line-clamp-2" dangerouslySetInnerHTML={{ __html: item.note }} />
-                        <p className="text-[10px] text-slate-500 mt-1">Klicka för att redigera</p>
+                        <div className="text-xs text-secondary line-clamp-2" dangerouslySetInnerHTML={{ __html: item.note }} />
+                        <p className="text-[10px] text-muted mt-1">Klicka för att redigera</p>
                       </div>
                     )}
                   </div>
@@ -924,14 +924,14 @@ export default function MediaSelector({
                   onContextMenu={(e) => handleContextMenu(e, originalIndex)}
                   className={`group relative flex items-start gap-4 p-3 pr-12 rounded-lg border-2 transition-all ${
                     dragOverIndex === originalIndex 
-                      ? 'border-blue-500 ring-2 ring-blue-500/50' 
+                      ? 'border-accent ring-2 ring-blue-500/50' 
                       : isSelected || selectedImageIndex === originalIndex
-                      ? 'border-blue-500 bg-blue-500/10'
-                      : 'border-slate-700 hover:border-slate-600 hover:bg-slate-800/50'
+                      ? 'border-accent bg-accent-soft'
+                      : 'border-subtle hover:border-subtle hover:bg-surface'
                   } ${draggedIndex === originalIndex ? 'opacity-50' : ''}`}
                 >
                   <div 
-                    className="bg-slate-800 rounded overflow-hidden flex-shrink-0 relative cursor-pointer"
+                    className="bg-surface rounded overflow-hidden flex-shrink-0 relative cursor-pointer"
                     style={{
                       width: `${Math.max(44, Math.round(96 * imageSizeMultiplier))}px`,
                       height: `${Math.max(44, Math.round(96 * imageSizeMultiplier))}px`
@@ -958,7 +958,7 @@ export default function MediaSelector({
                       </div>
                     )}
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1.5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                      <p className="text-white text-[11px] font-medium truncate">{item.name || 'Namnlös'}</p>
+                      <p className="text-on-accent text-[11px] font-medium truncate">{item.name || 'Namnlös'}</p>
                     </div>
                   </div>
                   <div className="absolute top-3 right-3 z-20">
@@ -967,14 +967,14 @@ export default function MediaSelector({
                       checked={isSelected}
                       onClick={(e) => e.stopPropagation()}
                       onChange={() => toggleSelectedIndex(originalIndex)}
-                      className="h-5 w-5 cursor-pointer rounded border-slate-400 bg-slate-950/80 accent-blue-500 shadow-lg shadow-slate-950/40"
+                      className="h-5 w-5 cursor-pointer rounded border-strong bg-background accent-blue-500 shadow-lg shadow-slate-950/40"
                       aria-label={`Markera ${item.name || 'bild'}`}
                     />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <p 
-                        className="text-sm font-medium text-slate-200 truncate cursor-pointer hover:text-blue-400"
+                        className="text-sm font-medium text-primary truncate cursor-pointer hover:text-accent"
                         onClick={() => {
                           setSelectedImageIndex(originalIndex);
                           setIsImageViewerOpen(true);
@@ -987,22 +987,22 @@ export default function MediaSelector({
                       )}
                     </div>
                     {item.date && (
-                      <p className="text-xs text-slate-400">{item.date}</p>
+                      <p className="text-xs text-muted">{item.date}</p>
                     )}
                     <p
-                      className="text-xs text-slate-500 mt-1 truncate"
+                      className="text-xs text-muted mt-1 truncate"
                       title={Array.isArray(item.tags) && item.tags.length > 0 ? item.tags.join(', ') : 'Inga nyckelord'}
                     >
                       Nyckelord: {Array.isArray(item.tags) && item.tags.length > 0 ? item.tags.join(', ') : 'Inga nyckelord'}
                     </p>
                     <p
-                      className="text-xs text-slate-500 mt-1 truncate"
+                      className="text-xs text-muted mt-1 truncate"
                       title={item.description || 'Ingen beskrivning'}
                     >
                       Beskrivning: {item.description || 'Ingen beskrivning'}
                     </p>
                     <p
-                      className="text-xs text-slate-500 mt-1 truncate"
+                      className="text-xs text-muted mt-1 truncate"
                       title={stripHtmlTags(item.note) || 'Inga notiser'}
                     >
                       Notis: {stripHtmlTags(item.note) || 'Inga notiser'}
@@ -1011,15 +1011,15 @@ export default function MediaSelector({
                     {/* Förhandsvisning av noteringar till höger om bilden (list-vy) */}
                     {item.note && (
                       <div 
-                        className="mt-3 p-2 bg-slate-900 border border-slate-700 rounded cursor-pointer hover:border-slate-600 transition-colors"
+                        className="mt-3 p-2 bg-background border border-subtle rounded cursor-pointer hover:border-subtle transition-colors"
                         title={stripHtmlTags(item.note)}
                         onClick={(e) => {
                           e.stopPropagation();
                           setEditingNoteIndex(originalIndex);
                         }}
                       >
-                        <div className="text-xs text-slate-300 line-clamp-3" dangerouslySetInnerHTML={{ __html: item.note }} />
-                        <p className="text-[10px] text-slate-500 mt-1">Klicka för att redigera</p>
+                        <div className="text-xs text-secondary line-clamp-3" dangerouslySetInnerHTML={{ __html: item.note }} />
+                        <p className="text-[10px] text-muted mt-1">Klicka för att redigera</p>
                       </div>
                     )}
                   </div>
@@ -1033,7 +1033,7 @@ export default function MediaSelector({
                         setIsImageViewerOpen(true);
                         setSelectedImageIndex(originalIndex);
                       }}
-                      className="p-2 bg-slate-700 rounded hover:bg-slate-600 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="p-2 bg-surface-2 rounded hover:bg-slate-600 text-on-accent opacity-0 group-hover:opacity-100 transition-opacity"
                       title="Visa"
                     >
                       <Eye size={14} />
@@ -1047,9 +1047,9 @@ export default function MediaSelector({
       </div>
 
       {selectedIndices.size > 0 && (
-        <div className="fixed bottom-4 left-1/2 z-[9999] w-[min(92vw,720px)] -translate-x-1/2 rounded-2xl border border-slate-700 bg-slate-950/95 px-4 py-3 shadow-2xl shadow-black/40 backdrop-blur">
+        <div className="fixed bottom-4 left-1/2 z-[9999] w-[min(92vw,720px)] -translate-x-1/2 rounded-2xl border border-subtle bg-background px-4 py-3 shadow-2xl shadow-black/40 backdrop-blur">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="text-sm text-slate-200">
+            <div className="text-sm text-primary">
               <span className="font-semibold">{selectedIndices.size}</span> valda bilder
             </div>
             <div className="flex items-center gap-2">
@@ -1064,7 +1064,7 @@ export default function MediaSelector({
               <button
                 type="button"
                 onClick={() => handleDownload(Array.from(selectedIndices))}
-                className="inline-flex items-center gap-2 rounded-lg border border-blue-500/40 bg-blue-500/10 px-3 py-2 text-sm font-medium text-blue-100 hover:bg-blue-500/20"
+                className="inline-flex items-center gap-2 rounded-lg border border-accent/40 bg-accent-soft px-3 py-2 text-sm font-medium text-on-accent hover:bg-accent/20"
               >
                 <Download size={16} />
                 Ladda ner
@@ -1084,7 +1084,7 @@ export default function MediaSelector({
           initialHeight={800}
           zIndex={5000}
         >
-          <div className="h-full w-full bg-slate-900">
+          <div className="h-full w-full bg-background">
             <MediaManager
               allPeople={allPeople}
               onOpenEditModal={onOpenEditModal}
@@ -1181,13 +1181,13 @@ export default function MediaSelector({
           initialHeight={700}
           zIndex={5000}
         >
-          <div className="h-full flex flex-col bg-slate-800">
+          <div className="h-full flex flex-col bg-surface">
             <div className="flex flex-1 overflow-hidden">
               {/* Vänster sidebar: Bibliotek */}
-              <div className="w-64 bg-slate-800/50 border-r border-slate-700 flex flex-col shrink-0">
+              <div className="w-64 bg-surface border-r border-subtle flex flex-col shrink-0">
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
                   <div className="space-y-1">
-                    <p className="px-3 py-1 text-[10px] font-bold text-slate-500 uppercase">Bibliotek</p>
+                    <p className="px-3 py-1 text-[10px] font-bold text-muted uppercase">Bibliotek</p>
                     {SYSTEM_LIBRARIES.map(lib => {
                       const Icon = lib.icon;
                       return (
@@ -1196,8 +1196,8 @@ export default function MediaSelector({
                           onClick={() => setActiveLibrary(lib.id)}
                           className={`flex items-center gap-3 w-full px-3 py-2 rounded text-sm transition-colors ${
                             activeLibrary === lib.id
-                              ? 'bg-blue-600 text-white'
-                              : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                              ? 'bg-accent text-on-accent'
+                              : 'text-muted hover:bg-surface hover:text-primary'
                           }`}
                         >
                           <Icon size={16} />
@@ -1209,7 +1209,7 @@ export default function MediaSelector({
                     {/* Custom libraries */}
                     {customLibraries.length > 0 && (
                       <>
-                        <div className="px-3 py-1 text-[10px] font-bold text-slate-500 uppercase mt-2">Egna mappar</div>
+                        <div className="px-3 py-1 text-[10px] font-bold text-muted uppercase mt-2">Egna mappar</div>
                         {customLibraries.map(lib => {
                           const Icon = lib.icon || Folder;
                           return (
@@ -1218,8 +1218,8 @@ export default function MediaSelector({
                               onClick={() => setActiveLibrary(lib.id)}
                               className={`flex items-center gap-3 w-full px-3 py-2 rounded text-sm transition-colors ${
                                 activeLibrary === lib.id
-                                  ? 'bg-blue-600 text-white'
-                                  : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                                  ? 'bg-accent text-on-accent'
+                                  : 'text-muted hover:bg-surface hover:text-primary'
                               }`}
                             >
                               <Icon size={16} />
@@ -1231,7 +1231,7 @@ export default function MediaSelector({
                     )}
                     
                     {/* Skapa nytt bibliotek */}
-                    <div className="border-t border-slate-700/50 mt-2 pt-2">
+                    <div className="border-t border-subtle mt-2 pt-2">
                       {isCreatingLibrary ? (
                         <div className="px-3 py-2">
                           <input
@@ -1257,14 +1257,14 @@ export default function MediaSelector({
                               }
                             }}
                             placeholder="Mappnamn..."
-                            className="w-full px-2 py-1 bg-slate-700 text-white text-sm rounded border border-slate-600 focus:outline-none focus:border-blue-500"
+                            className="w-full px-2 py-1 bg-surface-2 text-on-accent text-sm rounded border border-subtle focus:outline-none focus:border-accent"
                             autoFocus
                           />
                         </div>
                       ) : (
                         <button
                           onClick={() => setIsCreatingLibrary(true)}
-                          className="flex items-center gap-3 w-full px-3 py-2 rounded text-sm text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+                          className="flex items-center gap-3 w-full px-3 py-2 rounded text-sm text-muted hover:bg-surface hover:text-primary transition-colors"
                         >
                           <FolderPlus size={16} />
                           <span>Skapa mapp</span>
@@ -1280,18 +1280,18 @@ export default function MediaSelector({
                 {/* Sök och filter */}
                 <div className="mb-4 flex items-center gap-2">
                   <div className="relative flex-1">
-                    <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
+                    <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted" />
                     <input
                       type="text"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       placeholder="Sök bilder..."
-                      className="w-full pl-10 pr-4 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:outline-none focus:border-blue-500"
+                      className="w-full pl-10 pr-4 py-2 bg-surface-2 text-on-accent rounded border border-subtle focus:outline-none focus:border-accent"
                     />
                   </div>
                   <button
                     onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-                    className="p-2 bg-slate-700 hover:bg-slate-600 rounded text-white"
+                    className="p-2 bg-surface-2 hover:bg-slate-600 rounded text-on-accent"
                     title={viewMode === 'grid' ? 'Listvy' : 'Rutnätsvy'}
                   >
                     {viewMode === 'grid' ? <Grid size={18} /> : <List size={18} />}
@@ -1311,7 +1311,7 @@ export default function MediaSelector({
                   
                   if (searchFiltered.length === 0) {
                     return (
-                      <div className="text-center py-12 text-slate-400">
+                      <div className="text-center py-12 text-muted">
                         <ImageIcon size={48} className="mx-auto mb-4 opacity-50" />
                         <p>Inga bilder hittades</p>
                       </div>
@@ -1387,12 +1387,12 @@ export default function MediaSelector({
                               ? `relative aspect-square rounded-lg border-2 overflow-hidden cursor-pointer transition-all group ${
                                   isSelected 
                                     ? 'border-green-500 ring-2 ring-green-500/50' 
-                                    : 'border-slate-700 hover:border-blue-500'
+                                    : 'border-subtle hover:border-accent'
                                 }`
                               : `flex items-center gap-4 p-2 rounded border cursor-pointer ${
                                   isSelected 
                                     ? 'bg-green-500/20 border-green-500' 
-                                    : 'bg-slate-800/30 border-slate-700 hover:bg-slate-800'
+                                    : 'bg-surface-2 border-subtle hover:bg-surface'
                                 }`
                             }
                           >
@@ -1405,7 +1405,7 @@ export default function MediaSelector({
                                 />
                                 {isSelected && (
                                   <div className="absolute inset-0 bg-green-500/20 flex items-center justify-center">
-                                    <div className="bg-green-500 text-white rounded-full p-2">
+                                    <div className="bg-green-500 text-on-accent rounded-full p-2">
                                       <Check size={20} />
                                     </div>
                                   </div>
@@ -1418,7 +1418,7 @@ export default function MediaSelector({
                                         setItemToMove(item);
                                         setIsMoveModalOpen(true);
                                       }}
-                                      className="p-1.5 bg-slate-800/90 hover:bg-slate-700 rounded text-white"
+                                      className="p-1.5 bg-surface hover:bg-surface-2 rounded text-on-accent"
                                       title="Flytta till annan mapp"
                                     >
                                       <MoveRight size={14} />
@@ -1426,22 +1426,22 @@ export default function MediaSelector({
                                   </div>
                                 </div>
                                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <p className="text-white text-xs truncate">{item.name}</p>
+                                  <p className="text-on-accent text-xs truncate">{item.name}</p>
                                   {item.date && (
-                                    <p className="text-white/70 text-[10px]">{item.date}</p>
+                                    <p className="text-on-accent/70 text-[10px]">{item.date}</p>
                                   )}
                                 </div>
                               </>
                             ) : (
                               <>
-                                <div className="w-16 h-16 bg-slate-900 rounded overflow-hidden shrink-0 border border-slate-600">
+                                <div className="w-16 h-16 bg-background rounded overflow-hidden shrink-0 border border-subtle">
                                   <MediaImage url={item.url} alt={item.name} className="w-full h-full object-cover" />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-sm text-slate-200 font-medium truncate">{item.name}</p>
-                                  {item.date && <p className="text-xs text-slate-400">{item.date}</p>}
+                                  <p className="text-sm text-primary font-medium truncate">{item.name}</p>
+                                  {item.date && <p className="text-xs text-muted">{item.date}</p>}
                                   {item.description && (
-                                    <p className="text-xs text-slate-500 truncate mt-1">{item.description}</p>
+                                    <p className="text-xs text-muted truncate mt-1">{item.description}</p>
                                   )}
                                 </div>
                                 {isSelected && (
@@ -1476,8 +1476,8 @@ export default function MediaSelector({
           initialHeight={300}
           zIndex={5001}
         >
-          <div className="p-4 bg-slate-800">
-            <p className="text-slate-200 mb-4">Välj mapp att flytta bilden till:</p>
+          <div className="p-4 bg-surface">
+            <p className="text-primary mb-4">Välj mapp att flytta bilden till:</p>
             <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
               {allLibraries.filter(lib => lib.id !== 'all').map(lib => {
                 const Icon = lib.icon;
@@ -1489,7 +1489,7 @@ export default function MediaSelector({
                       setIsMoveModalOpen(false);
                       setItemToMove(null);
                     }}
-                    className="w-full flex items-center gap-3 px-3 py-2 rounded text-sm text-slate-300 hover:bg-slate-700 transition-colors"
+                    className="w-full flex items-center gap-3 px-3 py-2 rounded text-sm text-secondary hover:bg-surface-2 transition-colors"
                   >
                     <Icon size={16} />
                     <span className="flex-1 text-left">{lib.label}</span>
@@ -1514,8 +1514,8 @@ export default function MediaSelector({
           initialHeight={300}
           zIndex={5001}
         >
-          <div className="p-4 bg-slate-800">
-            <p className="text-slate-200 mb-4">Välj mapp att flytta bilden till:</p>
+          <div className="p-4 bg-surface">
+            <p className="text-primary mb-4">Välj mapp att flytta bilden till:</p>
             <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
               {allLibraries.filter(lib => lib.id !== 'all').map(lib => {
                 const Icon = lib.icon;
@@ -1527,7 +1527,7 @@ export default function MediaSelector({
                       setIsMoveModalOpen(false);
                       setItemToMove(null);
                     }}
-                    className="w-full flex items-center gap-3 px-3 py-2 rounded text-sm text-slate-300 hover:bg-slate-700 transition-colors"
+                    className="w-full flex items-center gap-3 px-3 py-2 rounded text-sm text-secondary hover:bg-surface-2 transition-colors"
                   >
                     <Icon size={16} />
                     <span className="flex-1 text-left">{lib.label}</span>
@@ -1602,7 +1602,7 @@ export default function MediaSelector({
       {/* Context Menu */}
       {contextMenu.open && contextMenu.itemIndex !== null && (
         <div
-          className="fixed z-[10000] bg-slate-800 border border-slate-600 rounded-lg shadow-2xl py-1 min-w-[180px]"
+          className="fixed z-[10000] bg-surface border border-subtle rounded-lg shadow-2xl py-1 min-w-[180px]"
           style={{
             left: `${contextMenu.x}px`,
             top: `${contextMenu.y}px`
@@ -1616,7 +1616,7 @@ export default function MediaSelector({
               setSelectedImageIndex(contextMenu.itemIndex);
               setContextMenu({ open: false, x: 0, y: 0, itemIndex: null });
             }}
-            className="w-full px-4 py-2 text-left text-sm text-white hover:bg-slate-700 flex items-center gap-2"
+            className="w-full px-4 py-2 text-left text-sm text-on-accent hover:bg-surface-2 flex items-center gap-2"
           >
             <Eye size={16} />
             <span>Öppna</span>
@@ -1628,7 +1628,7 @@ export default function MediaSelector({
               setIsImageEditorOpen(true);
               setContextMenu({ open: false, x: 0, y: 0, itemIndex: null });
             }}
-            className="w-full px-4 py-2 text-left text-sm text-white hover:bg-slate-700 flex items-center gap-2"
+            className="w-full px-4 py-2 text-left text-sm text-on-accent hover:bg-surface-2 flex items-center gap-2"
           >
             <Edit2 size={16} />
             <span>Redigera</span>
@@ -1639,7 +1639,7 @@ export default function MediaSelector({
               setEditingNoteIndex(contextMenu.itemIndex);
               setContextMenu({ open: false, x: 0, y: 0, itemIndex: null });
             }}
-            className="w-full px-4 py-2 text-left text-sm text-white hover:bg-slate-700 flex items-center gap-2"
+            className="w-full px-4 py-2 text-left text-sm text-on-accent hover:bg-surface-2 flex items-center gap-2"
           >
             <Edit2 size={16} />
             <span>Notiser</span>
@@ -1650,7 +1650,7 @@ export default function MediaSelector({
               setShowConnectionsIndex(showConnectionsIndex === contextMenu.itemIndex ? null : contextMenu.itemIndex);
               setContextMenu({ open: false, x: 0, y: 0, itemIndex: null });
             }}
-            className={`w-full px-4 py-2 text-left text-sm text-white hover:bg-slate-700 flex items-center gap-2 ${
+            className={`w-full px-4 py-2 text-left text-sm text-on-accent hover:bg-surface-2 flex items-center gap-2 ${
               showConnectionsIndex === contextMenu.itemIndex ? 'bg-purple-900/50' : ''
             }`}
           >
@@ -1663,7 +1663,7 @@ export default function MediaSelector({
               handleDownload([contextMenu.itemIndex], false);
               setContextMenu({ open: false, x: 0, y: 0, itemIndex: null });
             }}
-            className="w-full px-4 py-2 text-left text-sm text-white hover:bg-slate-700 flex items-center gap-2"
+            className="w-full px-4 py-2 text-left text-sm text-on-accent hover:bg-surface-2 flex items-center gap-2"
           >
             <Download size={16} />
             <span>Ladda ner</span>
@@ -1681,8 +1681,8 @@ export default function MediaSelector({
               }}
               className={`w-full px-4 py-2 text-left text-sm flex items-center gap-2 ${
                 contextMenu.itemIndex === 0
-                  ? 'text-slate-500 cursor-not-allowed'
-                  : 'text-white hover:bg-slate-700'
+                  ? 'text-muted cursor-not-allowed'
+                  : 'text-on-accent hover:bg-surface-2'
               }`}
               disabled={contextMenu.itemIndex === 0}
             >
@@ -1714,16 +1714,16 @@ export default function MediaSelector({
           initialHeight={500}
           zIndex={5001}
         >
-          <div className="h-full flex flex-col bg-slate-800 p-4">
+          <div className="h-full flex flex-col bg-surface p-4">
             <div className="mb-4">
-              <h3 className="text-lg font-bold text-white mb-2">{media[showConnectionsIndex].name || 'Bild'}</h3>
-              <p className="text-sm text-slate-400">Personer, källor och platser kopplade till denna bild</p>
+              <h3 className="text-lg font-bold text-on-accent mb-2">{media[showConnectionsIndex].name || 'Bild'}</h3>
+              <p className="text-sm text-muted">Personer, källor och platser kopplade till denna bild</p>
             </div>
             <div className="flex-1 overflow-y-auto space-y-4">
               {/* Personer kopplade via regions (ansiktstagging) */}
               {media[showConnectionsIndex].regions && media[showConnectionsIndex].regions.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-semibold text-slate-300 mb-2 flex items-center gap-2">
+                  <h4 className="text-sm font-semibold text-secondary mb-2 flex items-center gap-2">
                     <User size={16} />
                     Personer (ansiktstagging)
                   </h4>
@@ -1734,13 +1734,13 @@ export default function MediaSelector({
                       return (
                         <div
                           key={idx}
-                          className="p-2 bg-slate-700 rounded hover:bg-slate-600 cursor-pointer transition-colors"
+                          className="p-2 bg-surface-2 rounded hover:bg-slate-600 cursor-pointer transition-colors"
                           onClick={() => {
                             onOpenEditModal(person.id);
                             setShowConnectionsIndex(null);
                           }}
                         >
-                          <p className="text-sm text-white font-medium">
+                          <p className="text-sm text-on-accent font-medium">
                             {person.firstName} {person.lastName}
                             {person.refNumber && ` (Ref: ${person.refNumber})`}
                           </p>
@@ -1754,7 +1754,7 @@ export default function MediaSelector({
               {/* Personer kopplade via connections */}
               {media[showConnectionsIndex].connections?.people && media[showConnectionsIndex].connections.people.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-semibold text-slate-300 mb-2 flex items-center gap-2">
+                  <h4 className="text-sm font-semibold text-secondary mb-2 flex items-center gap-2">
                     <User size={16} />
                     Personer
                   </h4>
@@ -1765,13 +1765,13 @@ export default function MediaSelector({
                       return (
                         <div
                           key={idx}
-                          className="p-2 bg-slate-700 rounded hover:bg-slate-600 cursor-pointer transition-colors"
+                          className="p-2 bg-surface-2 rounded hover:bg-slate-600 cursor-pointer transition-colors"
                           onClick={() => {
                             onOpenEditModal(person.id);
                             setShowConnectionsIndex(null);
                           }}
                         >
-                          <p className="text-sm text-white font-medium">
+                          <p className="text-sm text-on-accent font-medium">
                             {person.firstName} {person.lastName}
                             {person.refNumber && ` (Ref: ${person.refNumber})`}
                           </p>
@@ -1785,15 +1785,15 @@ export default function MediaSelector({
               {/* Källor */}
               {media[showConnectionsIndex].connections?.sources && media[showConnectionsIndex].connections.sources.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-semibold text-slate-300 mb-2 flex items-center gap-2">
+                  <h4 className="text-sm font-semibold text-secondary mb-2 flex items-center gap-2">
                     <FileText size={16} />
                     Källor
                   </h4>
                   <div className="space-y-2">
                     {media[showConnectionsIndex].connections.sources.map((source, idx) => (
-                      <div key={idx} className="p-2 bg-slate-700 rounded">
-                        <p className="text-sm text-white font-medium">{source.name || source.id}</p>
-                        {source.ref && <p className="text-xs text-slate-400 mt-1">Ref: {source.ref}</p>}
+                      <div key={idx} className="p-2 bg-surface-2 rounded">
+                        <p className="text-sm text-on-accent font-medium">{source.name || source.id}</p>
+                        {source.ref && <p className="text-xs text-muted mt-1">Ref: {source.ref}</p>}
                       </div>
                     ))}
                   </div>
@@ -1803,15 +1803,15 @@ export default function MediaSelector({
               {/* Platser */}
               {media[showConnectionsIndex].connections?.places && media[showConnectionsIndex].connections.places.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-semibold text-slate-300 mb-2 flex items-center gap-2">
+                  <h4 className="text-sm font-semibold text-secondary mb-2 flex items-center gap-2">
                     <MapPin size={16} />
                     Platser
                   </h4>
                   <div className="space-y-2">
                     {media[showConnectionsIndex].connections.places.map((place, idx) => (
-                      <div key={idx} className="p-2 bg-slate-700 rounded">
-                        <p className="text-sm text-white font-medium">{place.name || place.id}</p>
-                        {place.type && <p className="text-xs text-slate-400 mt-1">Typ: {place.type}</p>}
+                      <div key={idx} className="p-2 bg-surface-2 rounded">
+                        <p className="text-sm text-on-accent font-medium">{place.name || place.id}</p>
+                        {place.type && <p className="text-xs text-muted mt-1">Typ: {place.type}</p>}
                       </div>
                     ))}
                   </div>
@@ -1823,7 +1823,7 @@ export default function MediaSelector({
                (!media[showConnectionsIndex].connections?.people || media[showConnectionsIndex].connections.people.length === 0) &&
                (!media[showConnectionsIndex].connections?.sources || media[showConnectionsIndex].connections.sources.length === 0) &&
                (!media[showConnectionsIndex].connections?.places || media[showConnectionsIndex].connections.places.length === 0) && (
-                <div className="text-center py-8 text-slate-400">
+                <div className="text-center py-8 text-muted">
                   <LinkIcon size={48} className="mx-auto mb-2 opacity-50" />
                   <p>Inga kopplingar ännu</p>
                   <p className="text-xs mt-1">Använd ansiktstagging eller koppla till källor/platser</p>
@@ -1944,10 +1944,10 @@ function NoteEditorModal({ imageName, initialNote, onSave, onClose }) {
       initialHeight={600}
       zIndex={5001}
     >
-      <div className="h-full flex flex-col bg-slate-800 p-4">
+      <div className="h-full flex flex-col bg-surface p-4">
         <div className="mb-4">
-          <h3 className="text-lg font-bold text-white mb-2">{imageName}</h3>
-          <p className="text-sm text-slate-400">Lägg till notiser om denna bild</p>
+          <h3 className="text-lg font-bold text-on-accent mb-2">{imageName}</h3>
+          <p className="text-sm text-muted">Lägg till notiser om denna bild</p>
         </div>
         <div className="flex-1 overflow-y-auto">
           <Editor
@@ -1961,7 +1961,7 @@ function NoteEditorModal({ imageName, initialNote, onSave, onClose }) {
         <div className="mt-4 flex justify-end gap-2">
           <button
             onClick={handleSave}
-            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded"
+            className="px-4 py-2 bg-surface-2 hover:bg-slate-600 text-on-accent rounded"
           >
             Stäng
           </button>

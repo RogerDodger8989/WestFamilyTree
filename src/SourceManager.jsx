@@ -46,7 +46,7 @@ function SourceManager({ event, allSources, onLinkSource, onUnlinkSource, onTogg
         <div className="source-manager mt-2">
             <div className="flex flex-wrap items-center gap-2">
                 
-                <span className="text-xs font-bold text-slate-400 uppercase mr-1">Källor:</span>
+                <span className="text-xs font-bold text-muted uppercase mr-1">Källor:</span>
 
                 {(event.sources || []).map((sourceEntry, index) => {
                     // Hantera både objekt och strängar
@@ -71,7 +71,7 @@ function SourceManager({ event, allSources, onLinkSource, onUnlinkSource, onTogg
                     return (
                         <div 
                             key={`${sourceId}-${index}`} 
-                            className="group flex items-center bg-blue-50 border border-blue-200 rounded-full pl-3 pr-1 py-1 text-xs text-blue-900 transition-colors hover:bg-blue-100 hover:border-blue-300"
+                            className="group flex items-center bg-accent-soft border border-strong rounded-full pl-3 pr-1 py-1 text-xs text-accent transition-colors hover:bg-accent-soft/80 hover:border-strong"
                             title={tooltipText} // Nu visas radbrytningarna korrekt!
                         >
                             {/* Källans namn */}
@@ -86,7 +86,7 @@ function SourceManager({ event, allSources, onLinkSource, onUnlinkSource, onTogg
 
                             {/* Visa sidhänvisning (PAGE) direkt i pillret om det finns plats, annars bara i tooltip */}
                             {citationPage && (
-                                <span className="text-slate-400 mr-1 border-l border-slate-600 pl-1">
+                                <span className="text-muted mr-1 border-l border-subtle pl-1">
                                     {citationPage}
                                 </span>
                             )}
@@ -95,7 +95,7 @@ function SourceManager({ event, allSources, onLinkSource, onUnlinkSource, onTogg
                             {source.aid && (
                                 <span 
                                     onClick={(e) => handleOpenAid(e, source.aid)}
-                                    className="mx-1 text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-mono"
+                                    className="mx-1 text-accent hover:text-primary hover:underline cursor-pointer font-mono"
                                     title={`Öppna AID: ${source.aid}`}
                                 >
                                     (AID)
@@ -108,7 +108,7 @@ function SourceManager({ event, allSources, onLinkSource, onUnlinkSource, onTogg
                                     e.stopPropagation(); 
                                     onUnlinkSource(sourceId); 
                                 }}
-                                className="flex items-center justify-center w-5 h-5 ml-1 bg-slate-700 text-red-400 rounded-full hover:bg-red-600 hover:text-white border border-red-700 transition-colors"
+                                className="flex items-center justify-center w-5 h-5 ml-1 bg-surface-2 text-warning rounded-full hover:bg-warning-soft hover:text-warning border border-strong transition-colors"
                                 title="Ta bort koppling"
                             >
                                 ×
@@ -119,7 +119,7 @@ function SourceManager({ event, allSources, onLinkSource, onUnlinkSource, onTogg
 
                 <button 
                     onClick={onToggleDrawer}
-                    className="text-xs text-blue-400 hover:text-blue-300 bg-slate-700 border border-dashed border-blue-600 rounded-full px-3 py-1 hover:bg-slate-600 hover:border-blue-500 transition-colors"
+                    className="text-xs text-accent hover:text-accent bg-surface-2 border border-dashed border-strong rounded-full px-3 py-1 hover:bg-surface hover:border-strong transition-colors"
                 >
                     + Lägg till källa
                 </button>

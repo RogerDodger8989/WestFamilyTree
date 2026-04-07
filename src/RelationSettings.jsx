@@ -45,7 +45,7 @@ export default function RelationSettings({ onClose, inline = false }) {
   }
 
   const content = (
-    <div className={inline ? '' : 'bg-slate-800 border border-slate-700 rounded p-6 w-[520px] max-h-[80vh] overflow-y-auto'}>
+    <div className={inline ? '' : 'bg-surface-2 border border-subtle rounded p-6 w-[520px] max-h-[80vh] overflow-y-auto'}>
       <h3 className="text-lg font-bold mb-4">Inställningar för relationsförslag</h3>
       <div className="space-y-3 text-sm">
         <div className="grid grid-cols-2 gap-2">
@@ -67,7 +67,7 @@ export default function RelationSettings({ onClose, inline = false }) {
       </div>
       <div className="mt-4 flex justify-end gap-2">
         <button onClick={onClose} className="px-3 py-1 border rounded">Avbryt</button>
-        <button onClick={handleSave} className="px-4 py-1 bg-blue-600 text-white rounded">Spara</button>
+        <button onClick={handleSave} className="px-4 py-1 bg-accent text-on-accent rounded">Spara</button>
       </div>
     </div>
   );

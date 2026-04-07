@@ -34,19 +34,19 @@ const RELATION_TYPES = {
 };
 
 const PRIORITY_LEVELS = [
-  { level: 0, label: 'Ingen prio', color: 'text-slate-400' },
-  { level: 1, label: 'Låg prio', color: 'text-green-400' },
-  { level: 2, label: 'Mellan prio', color: 'text-yellow-400' },
-  { level: 3, label: 'Hög prio', color: 'text-orange-400' },
-  { level: 4, label: 'Mycket hög prio', color: 'text-red-400' },
-  { level: 5, label: 'Extremt hög prio', color: 'text-red-600 font-bold' },
+  { level: 0, label: 'Ingen prio', color: 'text-muted' },
+  { level: 1, label: 'Låg prio', color: 'text-success' },
+  { level: 2, label: 'Mellan prio', color: 'text-warning' },
+  { level: 3, label: 'Hög prio', color: 'text-warning' },
+  { level: 4, label: 'Mycket hög prio', color: 'text-danger' },
+  { level: 5, label: 'Extremt hög prio', color: 'text-danger font-bold' },
 ];
 
 const TASK_STATUS = [
-  { value: 'not-started', label: 'Inte påbörjad', color: 'text-slate-400', bgColor: 'bg-slate-700' },
-  { value: 'in-progress', label: 'Pågående', color: 'text-blue-400', bgColor: 'bg-blue-900/30' },
-  { value: 'completed', label: 'Klar', color: 'text-green-400', bgColor: 'bg-green-900/30' },
-  { value: 'on-hold', label: 'Pausad', color: 'text-yellow-400', bgColor: 'bg-yellow-900/30' },
+  { value: 'not-started', label: 'Inte påbörjad', color: 'text-muted', bgColor: 'bg-surface-2' },
+  { value: 'in-progress', label: 'Pågående', color: 'text-accent', bgColor: 'bg-accent-soft' },
+  { value: 'completed', label: 'Klar', color: 'text-success', bgColor: 'bg-success-soft' },
+  { value: 'on-hold', label: 'Pausad', color: 'text-warning', bgColor: 'bg-warning-soft' },
 ];
 
 const EVENT_TYPES = [
@@ -284,15 +284,15 @@ const standardizeDate = (input) => {
 // --- SUB-COMPONENTS ---
 
 const EditorToolbar = () => (
-  <div className="flex gap-1 bg-slate-800 p-1 rounded-t border-b border-slate-700 mb-0">
+  <div className="flex gap-1 bg-surface p-1 rounded-t border-b border-subtle mb-0">
     {['B', 'I', 'U'].map(cmd => (
-      <button key={cmd} className="w-6 h-6 flex items-center justify-center hover:bg-slate-700 rounded text-xs font-bold text-slate-300">
+      <button key={cmd} className="w-6 h-6 flex items-center justify-center hover:bg-surface-2 rounded text-xs font-bold text-secondary">
         {cmd}
       </button>
     ))}
-    <div className="w-px h-4 bg-slate-600 mx-1 self-center"></div>
-    <button className="px-2 h-6 flex items-center justify-center hover:bg-slate-700 rounded text-xs text-slate-300">H1</button>
-    <button className="px-2 h-6 flex items-center justify-center hover:bg-slate-700 rounded text-xs text-slate-300">Lista</button>
+    <div className="w-px h-4 bg-surface mx-1 self-center"></div>
+    <button className="px-2 h-6 flex items-center justify-center hover:bg-surface-2 rounded text-xs text-secondary">H1</button>
+    <button className="px-2 h-6 flex items-center justify-center hover:bg-surface-2 rounded text-xs text-secondary">Lista</button>
   </div>
 );
 
@@ -357,10 +357,10 @@ const SourceModal = ({ isOpen, onClose, onAdd, eventType }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[4100] flex items-center justify-center bg-black/30">
+    <div className="fixed inset-0 z-[4100] flex items-center justify-center bg-background/30">
       <div
         ref={modalRef}
-        className="bg-slate-800 border border-slate-700 rounded-lg shadow-2xl w-full max-w-md p-0 overflow-hidden"
+        className="bg-surface border border-subtle rounded-lg shadow-2xl w-full max-w-md p-0 overflow-hidden"
         style={{
           position: 'fixed',
           left: `${position.x}px`,
@@ -369,17 +369,17 @@ const SourceModal = ({ isOpen, onClose, onAdd, eventType }) => {
         }}
         onMouseDown={handleMouseDown}
       >
-        <div className="modal-header bg-slate-900 p-4 border-b border-slate-700 flex justify-between items-center cursor-move">
-          <h3 className="font-bold text-white">Lägg till källa</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-white"><X size={20} /></button>
+        <div className="modal-header bg-background p-4 border-b border-subtle flex justify-between items-center cursor-move">
+          <h3 className="font-bold text-on-accent">Lägg till källa</h3>
+          <button onClick={onClose} className="text-muted hover:text-on-accent"><X size={20} /></button>
         </div>
         <div className="p-6 space-y-4">
           <div>
-            <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Källtyp</label>
+            <label className="block text-xs font-bold text-muted uppercase mb-1">Källtyp</label>
             <select
               value={source.type}
               onChange={e => setSource({ ...source, type: e.target.value })}
-              className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:border-blue-500 focus:outline-none"
+              className="w-full bg-background border border-subtle rounded p-2 text-on-accent focus:border-accent focus:outline-none"
             >
               <option>Arkiv</option>
               <option>Bok</option>
@@ -390,61 +390,61 @@ const SourceModal = ({ isOpen, onClose, onAdd, eventType }) => {
             </select>
           </div>
           <div>
-            <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Titel</label>
+            <label className="block text-xs font-bold text-muted uppercase mb-1">Titel</label>
             <input
               type="text"
               value={source.title}
               onChange={e => setSource({ ...source, title: e.target.value })}
-              className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:border-blue-500 focus:outline-none"
+              className="w-full bg-background border border-subtle rounded p-2 text-on-accent focus:border-accent focus:outline-none"
               placeholder="Källans titel"
             />
           </div>
           <div>
-            <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Författare</label>
+            <label className="block text-xs font-bold text-muted uppercase mb-1">Författare</label>
             <input
               type="text"
               value={source.author}
               onChange={e => setSource({ ...source, author: e.target.value })}
-              className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white focus:border-blue-500 focus:outline-none"
+              className="w-full bg-background border border-subtle rounded p-2 text-on-accent focus:border-accent focus:outline-none"
               placeholder="Namn"
             />
           </div>
           <div>
-            <label className="block text-xs font-bold text-slate-300 uppercase mb-1">År</label>
+            <label className="block text-xs font-bold text-secondary uppercase mb-1">År</label>
             <input
               type="text"
               value={source.year}
               onChange={e => setSource({ ...source, year: e.target.value })}
-              className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-slate-200 focus:border-blue-500 focus:outline-none"
+              className="w-full bg-background border border-subtle rounded p-2 text-primary focus:border-accent focus:outline-none"
               placeholder="ÅÅÅÅ"
             />
           </div>
           <div>
-            <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Citat/Referens</label>
+            <label className="block text-xs font-bold text-secondary uppercase mb-1">Citat/Referens</label>
             <textarea
               value={source.citation}
               onChange={e => setSource({ ...source, citation: e.target.value })}
-              className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-slate-200 focus:border-blue-500 focus:outline-none resize-none"
+              className="w-full bg-background border border-subtle rounded p-2 text-primary focus:border-accent focus:outline-none resize-none"
               rows="3"
               placeholder="Relevanta citat eller sidnummer"
             />
           </div>
           <div>
-            <label className="block text-xs font-bold text-slate-300 uppercase mb-1">URL (valfritt)</label>
+            <label className="block text-xs font-bold text-secondary uppercase mb-1">URL (valfritt)</label>
             <input
               type="url"
               value={source.url}
               onChange={e => setSource({ ...source, url: e.target.value })}
-              className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-slate-200 focus:border-blue-500 focus:outline-none"
+              className="w-full bg-background border border-subtle rounded p-2 text-primary focus:border-accent focus:outline-none"
               placeholder="https://..."
             />
           </div>
         </div>
-        <div className="bg-slate-900 p-4 border-t border-slate-700 flex justify-end gap-3">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-slate-400 hover:text-white">Avbryt</button>
+        <div className="bg-background p-4 border-t border-subtle flex justify-end gap-3">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-muted hover:text-on-accent">Avbryt</button>
           <button
             onClick={handleAdd}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded text-sm font-medium transition-colors"
+            className="px-4 py-2 bg-accent hover:bg-accent text-on-accent rounded text-sm font-medium transition-colors"
           >
             Lägg till källa
           </button>
@@ -459,10 +459,10 @@ const SecondParentSelector = ({ isOpen, onClose, candidates, onSelect, onSelectO
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[5000] flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-slate-800 border-2 border-slate-600 rounded-xl shadow-2xl w-full max-w-md p-6 transform scale-100 animate-in fade-in zoom-in duration-200">
-        <h3 className="text-xl font-bold text-white mb-2 text-center">Vem är den andra föräldern?</h3>
-        <p className="text-slate-400 text-center text-sm mb-6">
+    <div className="fixed inset-0 z-[5000] flex items-center justify-center bg-background/60 backdrop-blur-sm">
+      <div className="bg-surface border-2 border-subtle rounded-xl shadow-2xl w-full max-w-md p-6 transform scale-100 animate-in fade-in zoom-in duration-200">
+        <h3 className="text-xl font-bold text-on-accent mb-2 text-center">Vem är den andra föräldern?</h3>
+        <p className="text-muted text-center text-sm mb-6">
           Du lägger till ett barn till en förälder som har partners.
           Vill du koppla barnet till någon av dem?
         </p>
@@ -472,9 +472,9 @@ const SecondParentSelector = ({ isOpen, onClose, candidates, onSelect, onSelectO
             <button
               key={candidate.id}
               onClick={() => onSelect(candidate)}
-              className="w-full flex items-center gap-4 p-4 bg-slate-700 hover:bg-slate-600 border border-slate-600 hover:border-blue-500 rounded-lg transition-all group text-left"
+              className="w-full flex items-center gap-4 p-4 bg-surface-2 hover:bg-surface border border-subtle hover:border-accent rounded-lg transition-all group text-left"
             >
-              <div className="w-10 h-10 rounded-full bg-slate-500 flex-shrink-0 overflow-hidden border-2 border-slate-400 group-hover:border-blue-400">
+              <div className="w-10 h-10 rounded-full bg-surface flex-shrink-0 overflow-hidden border-2 border-strong group-hover:border-accent">
                 {candidate.media && candidate.media.length > 0 ? (
                   <MediaImage
                     url={candidate.media[0].url || candidate.media[0].path}
@@ -483,12 +483,12 @@ const SecondParentSelector = ({ isOpen, onClose, candidates, onSelect, onSelectO
                     style={getAvatarImageStyle(candidate.media[0], candidate.id)}
                   />
                 ) : (
-                  <User className="w-full h-full p-2 text-slate-300" />
+                  <User className="w-full h-full p-2 text-secondary" />
                 )}
               </div>
               <div>
-                <div className="font-bold text-slate-200 group-hover:text-white text-lg">{candidate.name}</div>
-                <div className="text-xs text-slate-400 group-hover:text-blue-300">Nuvarande partner</div>
+                <div className="font-bold text-primary group-hover:text-on-accent text-lg">{candidate.name}</div>
+                <div className="text-xs text-muted group-hover:text-accent">Nuvarande partner</div>
               </div>
             </button>
           ))}
@@ -496,13 +496,13 @@ const SecondParentSelector = ({ isOpen, onClose, candidates, onSelect, onSelectO
           <div className="grid grid-cols-2 gap-3 mt-4">
             <button
               onClick={onSelectOther}
-              className="flex items-center justify-center gap-2 p-3 bg-slate-750 hover:bg-slate-700 border border-slate-600 rounded-lg text-slate-300 hover:text-white transition-colors"
+              className="flex items-center justify-center gap-2 p-3 bg-surface-2 hover:bg-surface-2 border border-subtle rounded-lg text-secondary hover:text-on-accent transition-colors"
             >
               <Search size={16} /> Välj annan
             </button>
             <button
               onClick={onSelectUnknown}
-              className="flex items-center justify-center gap-2 p-3 bg-slate-750 hover:bg-slate-700 border border-slate-600 rounded-lg text-slate-300 hover:text-white transition-colors"
+              className="flex items-center justify-center gap-2 p-3 bg-surface-2 hover:bg-surface-2 border border-subtle rounded-lg text-secondary hover:text-on-accent transition-colors"
             >
               <HelpCircle size={16} /> Okänd/Ingen
             </button>
@@ -2916,15 +2916,15 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
   return (
     <>
       {/* BARA INNEHÅL - WindowFrame hanterar containern */}
-      <div className="w-full h-full bg-slate-800 flex flex-col overflow-hidden">
+      <div className="w-full h-full bg-surface flex flex-col overflow-hidden">
         {/* HEADER - Döljs när isDocked är true, MEN flikarna behålls */}
         {!isDocked ? (
-          <div className="modal-header h-16 bg-slate-700 border-b border-slate-600 flex items-center justify-between px-6 shrink-0">
+          <div className="modal-header h-16 bg-surface-2 border-b border-subtle flex items-center justify-between px-6 shrink-0">
             <div className="flex items-center gap-4 select-none">
               <button
                 type="button"
                 onClick={openPrimaryProfileImage}
-                className="w-10 h-10 rounded-full bg-slate-600 overflow-hidden border-2 border-slate-500 hover:border-blue-400 transition-colors"
+                className="w-10 h-10 rounded-full bg-surface overflow-hidden border-2 border-strong hover:border-accent transition-colors"
                 style={person?.color ? { borderColor: person.color, boxShadow: `0 0 0 1px ${person.color}55` } : undefined}
                 title={person.media?.length > 0 ? 'Öppna profilbild' : 'Lägg till profilbild'}
                 aria-label={person.media?.length > 0 ? 'Öppna profilbild' : 'Lägg till profilbild'}
@@ -2937,17 +2937,17 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                     style={primaryAvatarStyle}
                   />
                 ) : (
-                  <User className="w-full h-full p-1 text-slate-400" />
+                  <User className="w-full h-full p-1 text-muted" />
                 )}
               </button>
               <div>
                 <div className="flex items-center gap-2">
-                  <h1 className="text-lg font-bold text-slate-200 leading-tight">
+                  <h1 className="text-lg font-bold text-primary leading-tight">
                     {person.firstName} {person.lastName}
                   </h1>
                   {person?.color && (
                     <span
-                      className="inline-flex w-2.5 h-2.5 rounded-full border border-white/40"
+                      className="inline-flex w-2.5 h-2.5 rounded-full border border-subtle"
                       style={{ backgroundColor: person.color }}
                       title={`Grenfärg: ${person.color}`}
                     />
@@ -2956,7 +2956,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                     <button
                       type="button"
                       onClick={() => onViewInFamilyTree(person.id)}
-                      className="inline-flex items-center justify-center w-8 h-8 rounded border border-slate-600 text-slate-300 hover:text-cyan-200 hover:border-cyan-500 hover:bg-cyan-900/30 transition-colors"
+                      className="inline-flex items-center justify-center w-8 h-8 rounded border border-subtle text-secondary hover:text-accent hover:border-accent hover:bg-accent-soft transition-colors"
                       title="Visa i släktträd"
                       aria-label="Visa i släktträd"
                     >
@@ -2970,14 +2970,14 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                         handleToggleBookmark(person.id);
                       }
                     }}
-                    className={`p-1 rounded transition-colors ${isBookmarked ? 'text-yellow-300 hover:text-yellow-200' : 'text-slate-400 hover:text-slate-200'}`}
+                    className={`p-1 rounded transition-colors ${isBookmarked ? 'text-warning hover:text-warning' : 'text-muted hover:text-primary'}`}
                     title={isBookmarked ? 'Ta bort bokmärke' : 'Lägg till bokmärke'}
                     aria-label={isBookmarked ? 'Ta bort bokmärke' : 'Lägg till bokmärke'}
                   >
                     <Star className={`w-4 h-4 ${isBookmarked ? 'fill-current' : ''}`} />
                   </button>
                 </div>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-muted">
                   {(() => {
                     const { birthYear, deathYear, lifeSpan } = getLifeInfo(person);
                     if (birthYear && deathYear && lifeSpan !== null) {
@@ -2998,7 +2998,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
               {onToggleCollapse && (
                 <button
                   onClick={onToggleCollapse}
-                  className="p-2 hover:bg-slate-600 rounded text-slate-300 hover:text-slate-100 transition-colors"
+                  className="p-2 hover:bg-surface rounded text-secondary hover:text-primary transition-colors"
                   title={isCollapsed ? "Expandera" : "Fäll in"}
                 >
                   {isCollapsed ? (
@@ -3022,8 +3022,8 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                     title={tab.label}
                     aria-label={tab.label}
                     className={`inline-flex items-center justify-center px-3 py-2 text-sm font-medium transition-all relative ${activeTab === tab.id
-                      ? 'bg-slate-900 text-blue-400 border-b-2 border-blue-500'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 border-b-2 border-transparent'
+                      ? 'bg-background text-accent border-b-2 border-accent'
+                      : 'text-muted hover:text-primary hover:bg-surface-2 border-b-2 border-transparent'
                       }`}
                   >
                     <tab.icon size={16} />
@@ -3034,7 +3034,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
           </div>
         ) : (
           // När dockad: Visa bara flikarna (utan header med profilbild/namn)
-          <div className="border-b border-slate-600 bg-slate-700 px-4 py-2 shrink-0">
+          <div className="border-b border-subtle bg-surface-2 px-4 py-2 shrink-0">
             <nav className="flex gap-1">
               {[
                 { id: 'info', icon: User, label: 'Info' },
@@ -3049,8 +3049,8 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                   title={tab.label}
                   aria-label={tab.label}
                   className={`inline-flex items-center justify-center px-3 py-2 text-sm font-medium transition-all relative ${activeTab === tab.id
-                    ? 'bg-slate-900 text-blue-400 border-b-2 border-blue-500'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 border-b-2 border-transparent'
+                    ? 'bg-background text-accent border-b-2 border-accent'
+                    : 'text-muted hover:text-primary hover:bg-surface-2 border-b-2 border-transparent'
                     }`}
                 >
                   <tab.icon size={16} />
@@ -3062,7 +3062,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
 
         {/* CONTENT AREA - Dölj om collapsed */}
         {!isCollapsed && (
-          <div className="flex-1 overflow-hidden flex bg-slate-900 relative min-h-0">
+          <div className="flex-1 overflow-hidden flex bg-background relative min-h-0">
             <div className="flex-1 overflow-y-auto p-6 custom-scrollbar min-h-0">
 
               {/* FLIK: INFO */}
@@ -3075,7 +3075,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                       <button
                         type="button"
                         onClick={openPrimaryProfileImage}
-                        className="aspect-[3/4] w-full bg-slate-700 rounded-lg border border-slate-600 flex items-center justify-center relative overflow-hidden hover:border-blue-400 transition-colors"
+                        className="aspect-[3/4] w-full bg-surface-2 rounded-lg border border-subtle flex items-center justify-center relative overflow-hidden hover:border-accent transition-colors"
                         style={person?.color ? { borderColor: person.color, boxShadow: `0 0 0 1px ${person.color}55` } : undefined}
                         title={person.media?.length > 0 ? 'Öppna profilbild' : 'Gå till Media för att lägga till bild'}
                         aria-label={person.media?.length > 0 ? 'Öppna profilbild' : 'Gå till Media för att lägga till bild'}
@@ -3088,17 +3088,17 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                             style={primaryAvatarStyle}
                           />
                         ) : (
-                          <User size={40} className="text-slate-400" />
+                          <User size={40} className="text-muted" />
                         )}
                       </button>
                       {isDocked && (() => {
                         const { birthYear, deathYear, lifeSpan } = getLifeInfo(person);
                         return (
                           <div className="mt-2 text-center leading-tight">
-                            <div className="text-[11px] font-bold text-slate-200 whitespace-nowrap">
+                            <div className="text-[11px] font-bold text-primary whitespace-nowrap">
                               {birthYear || '????'} - {deathYear || '????'}
                             </div>
-                            <div className="text-xs text-slate-400">
+                            <div className="text-xs text-muted">
                               {lifeSpan !== null ? `${lifeSpan} år` : '? år'}
                             </div>
                           </div>
@@ -3107,7 +3107,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                     </div>
                     <div className="col-span-10 grid grid-cols-2 gap-4 content-start">
                       <div>
-                        <label className="text-xs uppercase font-bold text-slate-300">Förnamn</label>
+                        <label className="text-xs uppercase font-bold text-secondary">Förnamn</label>
                         <input ref={firstNameInputRef} type="text" value={person.firstName} onChange={e => {
                           const nextFirstName = e.target.value;
                           const parsedNickname = extractNicknameFromQuotedName(nextFirstName);
@@ -3120,25 +3120,25 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                           if (onChange) onChange(updated);
                         }}
                           title='Tilltalsnamn skrivs med STORA bokstäver (GEDCOM-standard). Smeknamn tolkas när de skrivs inom citattecken i förnamn, t.ex. "Kalle".'
-                          className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-slate-200 focus:border-blue-500 focus:outline-none"
+                          className="w-full bg-background border border-subtle rounded px-3 py-2 text-primary focus:border-accent focus:outline-none"
                         />
                       </div>
                       <div>
-                        <label className="text-xs uppercase font-bold text-slate-300">Efternamn</label>
+                        <label className="text-xs uppercase font-bold text-secondary">Efternamn</label>
                         <input type="text" value={person.lastName} onChange={e => {
                           const updated = { ...person, lastName: e.target.value };
                           setPerson(updated);
                           if (onChange) onChange(updated);
-                        }} className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-slate-200 focus:border-blue-500 focus:outline-none" />
+                        }} className="w-full bg-background border border-subtle rounded px-3 py-2 text-primary focus:border-accent focus:outline-none" />
                       </div>
 
                       <div>
-                        <label className="text-xs uppercase font-bold text-slate-300">Kön</label>
+                        <label className="text-xs uppercase font-bold text-secondary">Kön</label>
                         <select value={person.sex} onChange={e => {
                           const updated = { ...person, sex: e.target.value };
                           setPerson(updated);
                           if (onChange) onChange(updated);
-                        }} className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-slate-200 focus:border-blue-500 focus:outline-none">
+                        }} className="w-full bg-background border border-subtle rounded px-3 py-2 text-primary focus:border-accent focus:outline-none">
                           <option value="M">Man</option>
                           <option value="K">Kvinna</option>
                           <option value="U">Okänd</option>
@@ -3146,11 +3146,11 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                       </div>
                       <div>
                         <div className="flex items-center gap-2 mb-1">
-                          <label className="text-xs uppercase font-bold text-slate-300">Ref Nr</label>
+                          <label className="text-xs uppercase font-bold text-secondary">Ref Nr</label>
                           <button
                             type="button"
                             onClick={handleCopyRefNumber}
-                            className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] transition-colors ${isRefCopied ? 'border-green-500 text-green-300 bg-green-900/20' : 'border-slate-600 text-slate-300 hover:bg-slate-700'}`}
+                            className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] transition-colors ${isRefCopied ? 'border-success text-success bg-success-soft' : 'border-subtle text-secondary hover:bg-surface-2'}`}
                             title={isRefCopied ? 'Kopierat' : 'Kopiera REF-nummer'}
                             aria-label={isRefCopied ? 'Kopierat' : 'Kopiera REF-nummer'}
                           >
@@ -3197,11 +3197,11 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                               }
                             }
                           }}
-                          className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-slate-200 focus:border-blue-500 focus:outline-none"
+                          className="w-full bg-background border border-subtle rounded px-3 py-2 text-primary focus:border-accent focus:outline-none"
                         />
                       </div>
                       <div className="col-span-2">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase mb-2 block">Taggar</label>
+                        <label className="text-[10px] font-bold text-muted uppercase mb-2 block">Taggar</label>
 
                         {/* Visade taggar */}
                         {Array.isArray(person?.tags) && person.tags.length > 0 && (
@@ -3209,7 +3209,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                             {person.tags.map((tag, idx) => (
                               <span
                                 key={idx}
-                                className="bg-green-600/20 border border-green-500/50 text-green-300 text-xs px-2 py-1 rounded-full flex items-center gap-1.5 group hover:bg-green-600/30 transition-colors"
+                                className="bg-success/20 border border-success/50 text-success text-xs px-2 py-1 rounded-full flex items-center gap-1.5 group hover:bg-success/30 transition-colors"
                               >
                                 <span>{tag}</span>
                                 <button
@@ -3217,7 +3217,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                     e.stopPropagation();
                                     removeTag(tag);
                                   }}
-                                  className="text-green-400 hover:text-red-400 transition-colors ml-0.5"
+                                  className="text-success hover:text-danger transition-colors ml-0.5"
                                   title="Ta bort tagg"
                                 >
                                   <X size={12} />
@@ -3233,7 +3233,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                             ref={tagInputRef}
                             type="text"
                             placeholder="Skriv eller välj tagg..."
-                            className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500"
+                            className="w-full bg-background border border-subtle rounded px-2 py-1.5 text-sm text-on-accent focus:outline-none focus:border-accent"
                             value={tagInput}
                             onChange={(e) => {
                               setTagInput(e.target.value);
@@ -3267,7 +3267,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
 
                           {/* Autocomplete dropdown */}
                           {tagSuggestions.length > 0 && tagInput && (
-                            <div className="absolute z-50 w-full mt-1 bg-slate-800 border border-slate-600 rounded shadow-lg max-h-40 overflow-y-auto">
+                            <div className="absolute z-50 w-full mt-1 bg-surface border border-subtle rounded shadow-lg max-h-40 overflow-y-auto">
                               {tagSuggestions.map((suggestion, idx) => (
                                 <button
                                   key={idx}
@@ -3277,9 +3277,9 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                     setTagInput('');
                                     setTagSuggestions([]);
                                   }}
-                                  className="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 transition-colors flex items-center gap-2"
+                                  className="w-full text-left px-3 py-2 text-sm text-primary hover:bg-surface-2 transition-colors flex items-center gap-2"
                                 >
-                                  <Tag size={12} className="text-slate-500" />
+                                  <Tag size={12} className="text-muted" />
                                   <span>{suggestion}</span>
                                 </button>
                               ))}
@@ -3287,7 +3287,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                           )}
                         </div>
 
-                        <p className="text-[10px] text-slate-500 mt-1">Tryck Enter eller "," för att lägga till tagg</p>
+                        <p className="text-[10px] text-muted mt-1">Tryck Enter eller "," för att lägga till tagg</p>
                       </div>
                     </div>
                   </div>
@@ -3295,14 +3295,14 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                   {/* Livshändelser */}
                   <div>
                     <div className="flex justify-between items-center mb-3">
-                      <h3 className="text-md font-bold text-slate-200 uppercase tracking-wide flex items-center gap-2">
-                        <Activity size={16} className="text-blue-600" /> Livshändelser
+                      <h3 className="text-md font-bold text-primary uppercase tracking-wide flex items-center gap-2">
+                        <Activity size={16} className="text-accent" /> Livshändelser
                       </h3>
                       <div className="flex items-center gap-2">
                         {!hasBirthEvent && (
                           <button
                             onClick={() => handleQuickAddEvent('Födelse')}
-                            className="flex items-center gap-1 text-xs bg-slate-700 hover:bg-slate-600 text-slate-100 px-2.5 py-1 rounded transition-colors"
+                            className="flex items-center gap-1 text-xs bg-surface-2 hover:bg-surface text-primary px-2.5 py-1 rounded transition-colors"
                           >
                             <Plus size={13} /> Födelse
                           </button>
@@ -3310,7 +3310,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                         {!hasDeathEvent && (
                           <button
                             onClick={() => handleQuickAddEvent('Död')}
-                            className="flex items-center gap-1 text-xs bg-slate-700 hover:bg-slate-600 text-slate-100 px-2.5 py-1 rounded transition-colors"
+                            className="flex items-center gap-1 text-xs bg-surface-2 hover:bg-surface text-primary px-2.5 py-1 rounded transition-colors"
                           >
                             <Plus size={13} /> Död
                           </button>
@@ -3318,16 +3318,16 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                         <button
                           onClick={handleAddEvent}
                           ref={eventTypeButtonRef}
-                          className="flex items-center gap-1 text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded transition-colors"
+                          className="flex items-center gap-1 text-xs bg-accent hover:bg-accent text-on-accent px-3 py-1 rounded transition-colors"
                         >
                           <Plus size={14} /> Lägg till händelse
                         </button>
                       </div>
                     </div>
 
-                    <div className="bg-slate-900 rounded-lg border border-slate-700 overflow-hidden">
+                    <div className="bg-background rounded-lg border border-subtle overflow-hidden">
                       <table className="w-full text-sm text-left">
-                        <thead className="bg-slate-800 text-slate-300 text-xs uppercase">
+                        <thead className="bg-surface text-secondary text-xs uppercase">
                           <tr>
                             <th className="p-2 w-16">Ålder</th>
                             <th className="p-2 w-24">Typ</th>
@@ -3338,7 +3338,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                             <th className="p-2 text-right w-20"></th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-200">
+                        <tbody className="divide-y divide-subtle">
                           {sortedEvents().map((evt, idx) => {
                             const actualIndex = Array.isArray(person.events)
                               ? person.events.findIndex((eventItem) => eventItem?.id === evt?.id)
@@ -3397,13 +3397,13 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                   handleEditEvent(evt.id);
                                 }}
                                 onContextMenu={(e) => handleEventContextMenu(e, actualIndex === -1 ? idx : actualIndex, evt.id)}
-                                className={`hover:bg-slate-800 transition-colors group ${canDragEvent ? 'cursor-move' : 'cursor-default'} ${selectedEventIndex === actualIndex && editingEventIndex === null ? 'bg-blue-900/30 border-l-4 border-blue-500' : ''} ${dragOverEventIndex === actualIndex && draggedEventIndex === null ? 'bg-blue-900/60 ring-2 ring-inset ring-blue-500' : ''} ${eventSortOverIndex === actualIndex && draggedEventIndex !== null ? 'border-t-2 border-emerald-500' : ''}`}
+                                className={`hover:bg-surface transition-colors group ${canDragEvent ? 'cursor-move' : 'cursor-default'} ${selectedEventIndex === actualIndex && editingEventIndex === null ? 'bg-accent-soft border-l-4 border-accent' : ''} ${dragOverEventIndex === actualIndex && draggedEventIndex === null ? 'bg-accent-soft ring-2 ring-inset ring-accent' : ''} ${eventSortOverIndex === actualIndex && draggedEventIndex !== null ? 'border-t-2 border-emerald-500' : ''}`}
                               >
-                                <td className="p-2 text-slate-300 text-xs whitespace-nowrap">{age !== null ? `${age} år` : '-'}</td>
-                                <td className="p-2 font-medium text-slate-200 text-xs">{evt.type}</td>
-                                <td className="p-2 font-mono text-slate-300 text-xs whitespace-nowrap">{evt.date || '-'}</td>
+                                <td className="p-2 text-secondary text-xs whitespace-nowrap">{age !== null ? `${age} år` : '-'}</td>
+                                <td className="p-2 font-medium text-primary text-xs">{evt.type}</td>
+                                <td className="p-2 font-mono text-secondary text-xs whitespace-nowrap">{evt.date || '-'}</td>
                                 <td
-                                  className="p-2 text-slate-200 hover:text-blue-400 hover:underline cursor-pointer flex items-center gap-1 text-xs"
+                                  className="p-2 text-primary hover:text-accent hover:underline cursor-pointer flex items-center gap-1 text-xs"
                                   title={getPlaceHierarchy(evt)}
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -3416,7 +3416,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                 >
                                   <MapPin size={10} /> <span className="truncate max-w-[100px]">{evt.place || '-'}</span>
                                 </td>
-                                <td className="p-2 text-slate-200 text-xs">
+                                <td className="p-2 text-primary text-xs">
                                   {/* För vigsel, lysning, samlevnad, skilsmässa, förlovning: visa partner-namn */}
                                   {['Vigsel', 'Lysning', 'Samlevnad', 'Skilsmässa', 'Förlovning'].includes(evt.type) ? (
                                     <span className="truncate block max-w-[80px]" title={partnerName || ''}>
@@ -3429,7 +3429,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                       const displayText = textContent.length > 15 ? `${textContent.substring(0, 15)}...` : textContent;
                                       return (
                                         <span
-                                          className="truncate block max-w-[80px] cursor-pointer hover:text-blue-400 hover:underline"
+                                          className="truncate block max-w-[80px] cursor-pointer hover:text-accent hover:underline"
                                           title={textContent.length > 15 ? textContent : ''}
                                           onClick={(e) => {
                                             e.stopPropagation();
@@ -3445,9 +3445,9 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                   )}
                                 </td>
                                 <td className="p-2">
-                                  <div className="flex justify-center gap-2 text-xs text-slate-400">
+                                  <div className="flex justify-center gap-2 text-xs text-muted">
                                     <span
-                                      className={`flex items-center gap-0.5 cursor-pointer hover:text-blue-600 ${evt.sources?.length > 0 ? 'text-slate-200' : ''}`}
+                                      className={`flex items-center gap-0.5 cursor-pointer hover:text-accent ${evt.sources?.length > 0 ? 'text-primary' : ''}`}
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         if (typeof onOpenSourceDrawer === 'function') {
@@ -3459,7 +3459,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                       <LinkIcon size={10} /> {evt.sources?.length || 0}
                                     </span>
                                     <span
-                                      className={`flex items-center gap-0.5 cursor-pointer hover:text-blue-600 ${getMeaningfulNoteText(evt.notes) ? 'text-slate-200' : ''}`}
+                                      className={`flex items-center gap-0.5 cursor-pointer hover:text-accent ${getMeaningfulNoteText(evt.notes) ? 'text-primary' : ''}`}
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         handleEditEvent(evt.id);
@@ -3469,7 +3469,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                       <FileText size={10} /> {getMeaningfulNoteText(evt.notes) ? 1 : 0}
                                     </span>
                                     <span
-                                      className={`flex items-center gap-0.5 cursor-pointer hover:text-blue-600 ${(Array.isArray(evt.images) ? evt.images.length : (evt.images || 0)) > 0 ? 'text-slate-200' : ''}`}
+                                      className={`flex items-center gap-0.5 cursor-pointer hover:text-accent ${(Array.isArray(evt.images) ? evt.images.length : (evt.images || 0)) > 0 ? 'text-primary' : ''}`}
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         handleEditEvent(evt.id);
@@ -3479,7 +3479,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                       <ImageIcon size={10} /> {Array.isArray(evt.images) ? evt.images.length : (evt.images || 0)}
                                     </span>
                                     <span
-                                      className={`flex items-center gap-0.5 cursor-pointer hover:text-blue-600 ${witnessCount > 0 ? 'text-slate-200' : 'text-slate-500'}`}
+                                      className={`flex items-center gap-0.5 cursor-pointer hover:text-accent ${witnessCount > 0 ? 'text-primary' : 'text-muted'}`}
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         openWitnessEditorForEvent(evt.id);
@@ -3492,14 +3492,14 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                 </td>
                                 <td className="p-2 text-right flex gap-1 justify-end items-center">
                                   {dragOverEventIndex === idx && (
-                                    <span className="mr-2 inline-flex items-center rounded border border-blue-400/70 bg-blue-500/20 px-2 py-0.5 text-[10px] uppercase tracking-wide text-blue-100">
+                                    <span className="mr-2 inline-flex items-center rounded border border-accent/70 bg-accent-soft px-2 py-0.5 text-[10px] uppercase tracking-wide text-on-accent">
                                       Släpp här för att koppla källa
                                     </span>
                                   )}
-                                  <button onClick={(e) => { e.stopPropagation(); handleEditEvent(evt.id); }} className="text-slate-400 hover:text-slate-300 p-1 opacity-0 group-hover:opacity-100 transition-opacity" title="Redigera">
+                                  <button onClick={(e) => { e.stopPropagation(); handleEditEvent(evt.id); }} className="text-muted hover:text-secondary p-1 opacity-0 group-hover:opacity-100 transition-opacity" title="Redigera">
                                     <Edit3 size={12} />
                                   </button>
-                                  <button onClick={(e) => { e.stopPropagation(); if (actualIndex !== -1) handleDeleteEvent(actualIndex); }} className="text-slate-400 hover:text-red-600 p-1 opacity-0 group-hover:opacity-100 transition-opacity" title="Ta bort">
+                                  <button onClick={(e) => { e.stopPropagation(); if (actualIndex !== -1) handleDeleteEvent(actualIndex); }} className="text-muted hover:text-danger p-1 opacity-0 group-hover:opacity-100 transition-opacity" title="Ta bort">
                                     <Trash2 size={12} />
                                   </button>
                                 </td>
@@ -3508,7 +3508,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                           })}
                           {(!person.events || person.events.length === 0) && (
                             <tr>
-                              <td colSpan="7" className="p-4 text-center text-slate-400 text-sm">Inga händelser tillagda än</td>
+                              <td colSpan="7" className="p-4 text-center text-muted text-sm">Inga händelser tillagda än</td>
                             </tr>
                           )}
                         </tbody>
@@ -3523,13 +3523,13 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                 <div className="space-y-6 animate-in fade-in duration-300">
                   
                   {/* Föräldrar */}
-                  <div className="bg-slate-800 p-4 rounded-lg border-l-4 border-l-purple-500 border border-slate-700">
+                  <div className="bg-surface p-4 rounded-lg border-l-4 border-l-accent border border-subtle">
                     <div className="flex justify-between items-center mb-3">
                       <div className="flex items-center gap-2">
-                        <Users size={18} className="text-purple-400" />
-                        <h4 className="text-sm font-bold text-slate-100 uppercase tracking-wide">Föräldrar</h4>
+                        <Users size={18} className="text-accent" />
+                        <h4 className="text-sm font-bold text-primary uppercase tracking-wide">Föräldrar</h4>
                       </div>
-                      <button onClick={() => openRelationModal('parents')} className="bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold px-2 py-1 rounded flex items-center gap-1 transition-colors"><Plus size={12} /> Lägg till</button>
+                      <button onClick={() => openRelationModal('parents')} className="bg-accent hover:bg-accent text-on-accent text-xs font-semibold px-2 py-1 rounded flex items-center gap-1 transition-colors"><Plus size={12} /> Lägg till</button>
                     </div>
                     {person.relations?.parents?.length > 0 ? (
                       person.relations.parents.map((p, idx) => {
@@ -3542,9 +3542,9 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                         const profileImage = parentPerson?.media && parentPerson.media.length > 0 ? parentPerson.media[0].url : null;
 
                         return (
-                          <div key={parentId || idx} className="flex items-center justify-between bg-slate-700 p-2 rounded mb-2 border border-slate-600">
+                          <div key={parentId || idx} className="flex items-center justify-between bg-surface-2 p-2 rounded mb-2 border border-subtle">
                             <div className="flex items-center gap-3 flex-1">
-                              <div className="w-8 h-8 rounded-full bg-slate-600 flex-shrink-0 overflow-hidden border-2 border-slate-500">
+                              <div className="w-8 h-8 rounded-full bg-surface flex-shrink-0 overflow-hidden border-2 border-strong">
                                 {profileImage ? (
                                   <MediaImage
                                     url={profileImage}
@@ -3553,11 +3553,11 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                     style={getAvatarImageStyle(parentPerson?.media?.[0], parentId)}
                                   />
                                 ) : (
-                                  <User size={16} className="w-full h-full p-1.5 text-slate-400" />
+                                  <User size={16} className="w-full h-full p-1.5 text-muted" />
                                 )}
                               </div>
                               <span
-                                className="text-slate-200 font-medium cursor-pointer hover:text-blue-400"
+                                className="text-primary font-medium cursor-pointer hover:text-accent"
                                 onClick={() => parentPerson && onOpenEditModal && onOpenEditModal(parentId)}
                               >
                                 {parentName}
@@ -3582,28 +3582,28 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                     return { ...prev, relations: rels };
                                   });
                                 }}
-                                className="bg-slate-900 border border-slate-600 text-xs rounded px-2 py-1 text-slate-200"
+                                className="bg-background border border-subtle text-xs rounded px-2 py-1 text-primary"
                               >
                                 {RELATION_TYPES.parent.map(r => <option key={r} value={r}>{r}</option>)}
                               </select>
-                              <button onClick={() => removeRelation('parents', parentId)} className="text-red-600 hover:text-red-800 text-xs"><Trash2 size={14} /></button>
+                              <button onClick={() => removeRelation('parents', parentId)} className="text-danger hover:text-danger text-xs"><Trash2 size={14} /></button>
                             </div>
                           </div>
                         );
                       })
                     ) : (
-                      <p className="text-xs text-slate-400">Ingen förälder tillagd</p>
+                      <p className="text-xs text-muted">Ingen förälder tillagd</p>
                     )}
                   </div>
 
                   {/* Partners */}
-                  <div className="bg-slate-800 p-4 rounded-lg border-l-4 border-l-red-500 border border-slate-700">
+                  <div className="bg-surface p-4 rounded-lg border-l-4 border-l-red-500 border border-subtle">
                     <div className="flex justify-between items-center mb-3">
                       <div className="flex items-center gap-2">
-                        <Heart size={18} className="text-red-400" />
-                        <h4 className="text-sm font-bold text-slate-100 uppercase tracking-wide">Partners</h4>
+                        <Heart size={18} className="text-danger" />
+                        <h4 className="text-sm font-bold text-primary uppercase tracking-wide">Partners</h4>
                       </div>
-                      <button onClick={() => openRelationModal('partners')} className="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-2 py-1 rounded flex items-center gap-1 transition-colors"><Plus size={12} /> Lägg till</button>
+                      <button onClick={() => openRelationModal('partners')} className="bg-danger hover:bg-danger text-on-accent text-xs font-semibold px-2 py-1 rounded flex items-center gap-1 transition-colors"><Plus size={12} /> Lägg till</button>
                     </div>
                     {person.relations?.partners?.length > 0 ? (
                       person.relations.partners.map((p, partnerIdx) => {
@@ -3624,11 +3624,11 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                         });
 
                         return (
-                          <div key={partnerId || partnerIdx} className="bg-slate-700 rounded-lg border border-slate-600 mb-4 p-3">
+                          <div key={partnerId || partnerIdx} className="bg-surface-2 rounded-lg border border-subtle mb-4 p-3">
                             {/* Partner header */}
                             <div className="flex items-center justify-between mb-3">
                               <div className="flex items-center gap-3 flex-1">
-                                <div className="w-10 h-10 rounded-full bg-slate-600 flex-shrink-0 overflow-hidden border-2 border-slate-500">
+                                <div className="w-10 h-10 rounded-full bg-surface flex-shrink-0 overflow-hidden border-2 border-strong">
                                   {partnerImage ? (
                                     <MediaImage
                                       url={partnerImage}
@@ -3637,17 +3637,17 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                       style={getAvatarImageStyle(partnerPerson?.media?.[0], partnerId)}
                                     />
                                   ) : (
-                                    <User size={20} className="w-full h-full p-2 text-slate-400" />
+                                    <User size={20} className="w-full h-full p-2 text-muted" />
                                   )}
                                 </div>
                                 <div>
                                   <span
-                                    className="text-slate-200 font-medium cursor-pointer hover:text-blue-400 block"
+                                    className="text-primary font-medium cursor-pointer hover:text-accent block"
                                     onClick={() => partnerPerson && onOpenEditModal && onOpenEditModal(partnerId)}
                                   >
                                     {partnerName}
                                   </span>
-                                  <span className="text-xs text-slate-400">Partner</span>
+                                  <span className="text-xs text-muted">Partner</span>
                                 </div>
                               </div>
                               <div className="flex items-center gap-2">
@@ -3685,21 +3685,21 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                       return { ...prev, relations: rels, events };
                                     });
                                   }}
-                                  className="bg-slate-900 border border-slate-600 text-xs rounded px-2 py-1 text-slate-200"
+                                  className="bg-background border border-subtle text-xs rounded px-2 py-1 text-primary"
                                 >
                                   {RELATION_TYPES.partner.map(r => <option key={r} value={r}>{r}</option>)}
                                 </select>
-                                <button onClick={() => removeRelation('partners', partnerId)} className="text-red-600 hover:text-red-800 text-xs"><Trash2 size={14} /></button>
+                                <button onClick={() => removeRelation('partners', partnerId)} className="text-danger hover:text-danger text-xs"><Trash2 size={14} /></button>
                               </div>
                             </div>
 
                             {/* Barn under denna partner */}
-                            <div className="ml-4 border-l-2 border-slate-600 pl-3">
+                            <div className="ml-4 border-l-2 border-subtle pl-3">
                               <div className="flex justify-between mb-2">
-                                <h5 className="text-xs font-semibold text-slate-300 uppercase">Barn</h5>
+                                <h5 className="text-xs font-semibold text-secondary uppercase">Barn</h5>
                                 <button
                                   onClick={() => openRelationModal('children', partnerId)}
-                                  className="text-blue-600 hover:text-blue-800 text-xs flex items-center gap-1"
+                                  className="text-accent hover:text-accent text-xs flex items-center gap-1"
                                 >
                                   <Plus size={10} /> Lägg till
                                 </button>
@@ -3715,9 +3715,9 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                   const profileImage = childPerson?.media && childPerson.media.length > 0 ? childPerson.media[0].url : null;
 
                                   return (
-                                    <div key={childId || childIdx} className="flex items-center justify-between bg-slate-800 p-2 rounded mb-2 border border-slate-600">
+                                    <div key={childId || childIdx} className="flex items-center justify-between bg-surface p-2 rounded mb-2 border border-subtle">
                                       <div className="flex items-center gap-3 flex-1">
-                                        <div className="w-8 h-8 rounded-full bg-slate-700 flex-shrink-0 overflow-hidden border-2 border-slate-500">
+                                        <div className="w-8 h-8 rounded-full bg-surface-2 flex-shrink-0 overflow-hidden border-2 border-strong">
                                           {profileImage ? (
                                             <MediaImage
                                               url={profileImage}
@@ -3726,11 +3726,11 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                               style={getAvatarImageStyle(childPerson?.media?.[0], childId)}
                                             />
                                           ) : (
-                                            <User size={16} className="w-full h-full p-1.5 text-slate-400" />
+                                            <User size={16} className="w-full h-full p-1.5 text-muted" />
                                           )}
                                         </div>
                                         <span
-                                          className="text-slate-200 font-medium cursor-pointer hover:text-blue-400"
+                                          className="text-primary font-medium cursor-pointer hover:text-accent"
                                           onClick={() => childPerson && onOpenEditModal && onOpenEditModal(childId)}
                                         >
                                           {childName}
@@ -3756,37 +3756,37 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                               return { ...prev, relations: rels };
                                             });
                                           }}
-                                          className="bg-slate-900 border border-slate-600 text-xs rounded px-2 py-1 text-slate-200"
+                                          className="bg-background border border-subtle text-xs rounded px-2 py-1 text-primary"
                                         >
                                           {RELATION_TYPES.child.map(r => <option key={r} value={r}>{r}</option>)}
                                         </select>
-                                        <button onClick={() => removeRelation('children', childId)} className="text-red-600 hover:text-red-800 text-xs"><Trash2 size={14} /></button>
+                                        <button onClick={() => removeRelation('children', childId)} className="text-danger hover:text-danger text-xs"><Trash2 size={14} /></button>
                                       </div>
                                     </div>
                                   );
                                 })
                               ) : (
-                                <p className="text-xs text-slate-500 italic">Inga barn tillagda</p>
+                                <p className="text-xs text-muted italic">Inga barn tillagda</p>
                               )}
                             </div>
                           </div>
                         );
                       })
                     ) : (
-                      <p className="text-xs text-slate-400">Ingen partner tillagd</p>
+                      <p className="text-xs text-muted">Ingen partner tillagd</p>
                     )}
                   </div>
 
                   {/* Barn */}
-                  <div className="bg-slate-800 p-4 rounded-lg border-l-4 border-l-green-500 border border-slate-700">
+                  <div className="bg-surface p-4 rounded-lg border-l-4 border-l-green-500 border border-subtle">
                     <div className="flex justify-between items-center mb-3">
                       <div className="flex items-center gap-2">
-                        <User size={18} className="text-green-400" />
-                        <h4 className="text-sm font-bold text-slate-100 uppercase tracking-wide">Barn</h4>
+                        <User size={18} className="text-success" />
+                        <h4 className="text-sm font-bold text-primary uppercase tracking-wide">Barn</h4>
                       </div>
                       <button
                         onClick={() => openRelationModal('children')}
-                        className="bg-green-600 hover:bg-green-700 text-white text-xs font-semibold px-2 py-1 rounded flex items-center gap-1 transition-colors"
+                        className="bg-success hover:bg-success text-on-accent text-xs font-semibold px-2 py-1 rounded flex items-center gap-1 transition-colors"
                       >
                         <Plus size={12} /> Lägg till
                       </button>
@@ -3802,9 +3802,9 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                         const profileImage = childPerson?.media && childPerson.media.length > 0 ? childPerson.media[0].url : null;
 
                         return (
-                          <div key={childId || idx} className="flex items-center justify-between bg-slate-700 p-2 rounded mb-2 border border-slate-600">
+                          <div key={childId || idx} className="flex items-center justify-between bg-surface-2 p-2 rounded mb-2 border border-subtle">
                             <div className="flex items-center gap-3 flex-1">
-                              <div className="w-8 h-8 rounded-full bg-slate-600 flex-shrink-0 overflow-hidden border-2 border-slate-500">
+                              <div className="w-8 h-8 rounded-full bg-surface flex-shrink-0 overflow-hidden border-2 border-strong">
                                 {profileImage ? (
                                   <MediaImage
                                     url={profileImage}
@@ -3813,11 +3813,11 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                     style={getAvatarImageStyle(childPerson?.media?.[0], childId)}
                                   />
                                 ) : (
-                                  <User size={16} className="w-full h-full p-1.5 text-slate-400" />
+                                  <User size={16} className="w-full h-full p-1.5 text-muted" />
                                 )}
                               </div>
                               <span
-                                className="text-slate-200 font-medium cursor-pointer hover:text-blue-400"
+                                className="text-primary font-medium cursor-pointer hover:text-accent"
                                 onClick={() => childPerson && onOpenEditModal && onOpenEditModal(childId)}
                               >
                                 {childName}
@@ -3843,28 +3843,28 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                     return { ...prev, relations: rels };
                                   });
                                 }}
-                                className="bg-slate-900 border border-slate-600 text-xs rounded px-2 py-1 text-slate-200"
+                                className="bg-background border border-subtle text-xs rounded px-2 py-1 text-primary"
                               >
                                 {RELATION_TYPES.child.map(r => <option key={r} value={r}>{r}</option>)}
                               </select>
-                              <button onClick={() => removeRelation('children', childId)} className="text-red-600 hover:text-red-800 text-xs"><Trash2 size={14} /></button>
+                              <button onClick={() => removeRelation('children', childId)} className="text-danger hover:text-danger text-xs"><Trash2 size={14} /></button>
                             </div>
                           </div>
                         );
                       })
                     ) : (
-                      <p className="text-xs text-slate-400">Inga barn tillagda</p>
+                      <p className="text-xs text-muted">Inga barn tillagda</p>
                     )}
                   </div>
 
                   {/* Syskon */}
-                  <div className="bg-slate-800 p-4 rounded-lg border-l-4 border-l-amber-500 border border-slate-700">
+                  <div className="bg-surface p-4 rounded-lg border-l-4 border-l-amber-500 border border-subtle">
                     <div className="flex justify-between items-center mb-3">
                       <div className="flex items-center gap-2">
                         <GitFork size={18} className="text-amber-400" />
-                        <h4 className="text-sm font-bold text-slate-100 uppercase tracking-wide">Syskon</h4>
+                        <h4 className="text-sm font-bold text-primary uppercase tracking-wide">Syskon</h4>
                       </div>
-                      <button onClick={() => openRelationModal('siblings')} className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold px-2 py-1 rounded flex items-center gap-1 transition-colors"><Plus size={12} /> Lägg till syskon</button>
+                      <button onClick={() => openRelationModal('siblings')} className="bg-warning hover:bg-warning text-on-accent text-xs font-semibold px-2 py-1 rounded flex items-center gap-1 transition-colors"><Plus size={12} /> Lägg till syskon</button>
                     </div>
                     {person.relations?.siblings?.length > 0 ? (
                       person.relations.siblings.map((s, idx) => {
@@ -3877,9 +3877,9 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                         const profileImage = siblingPerson?.media && siblingPerson.media.length > 0 ? siblingPerson.media[0].url : null;
 
                         return (
-                          <div key={siblingId || idx} className="flex items-center justify-between bg-slate-700 p-2 rounded mb-2 border border-slate-600">
+                          <div key={siblingId || idx} className="flex items-center justify-between bg-surface-2 p-2 rounded mb-2 border border-subtle">
                             <div className="flex items-center gap-3 flex-1">
-                              <div className="w-8 h-8 rounded-full bg-slate-600 flex-shrink-0 overflow-hidden border-2 border-slate-500">
+                              <div className="w-8 h-8 rounded-full bg-surface flex-shrink-0 overflow-hidden border-2 border-strong">
                                 {profileImage ? (
                                   <MediaImage
                                     url={profileImage}
@@ -3888,11 +3888,11 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                     style={getAvatarImageStyle(siblingPerson?.media?.[0], siblingId)}
                                   />
                                 ) : (
-                                  <User size={16} className="w-full h-full p-1.5 text-slate-400" />
+                                  <User size={16} className="w-full h-full p-1.5 text-muted" />
                                 )}
                               </div>
                               <span
-                                className="text-slate-200 font-medium cursor-pointer hover:text-blue-400"
+                                className="text-primary font-medium cursor-pointer hover:text-accent"
                                 onClick={() => siblingPerson && onOpenEditModal && onOpenEditModal(siblingId)}
                               >
                                 {siblingName}
@@ -3918,17 +3918,17 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                     return { ...prev, relations: rels };
                                   });
                                 }}
-                                className="bg-slate-900 border border-slate-600 text-xs rounded px-2 py-1 text-slate-200"
+                                className="bg-background border border-subtle text-xs rounded px-2 py-1 text-primary"
                               >
                                 {RELATION_TYPES.sibling.map(r => <option key={r} value={r}>{r}</option>)}
                               </select>
-                              <button onClick={() => removeRelation('siblings', siblingId)} className="text-red-600 hover:text-red-800 text-xs"><Trash2 size={14} /></button>
+                              <button onClick={() => removeRelation('siblings', siblingId)} className="text-danger hover:text-danger text-xs"><Trash2 size={14} /></button>
                             </div>
                           </div>
                         );
                       })
                     ) : (
-                      <p className="text-xs text-slate-400">Ingen syskon tillagd</p>
+                      <p className="text-xs text-muted">Ingen syskon tillagd</p>
                     )}
                   </div>
 
@@ -3982,17 +3982,17 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                         initialHeight={600}
                         zIndex={4200}
                       >
-                        <div className="h-full flex flex-col bg-slate-800 overflow-hidden">
+                        <div className="h-full flex flex-col bg-surface overflow-hidden">
                           <div className="p-4 space-y-3 flex-shrink-0">
                             {/* Sökfält */}
                             <div className="relative">
-                              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
+                              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted" size={18} />
                               <input
                                 type="text"
                                 value={relationSearch}
                                 onChange={e => { setRelationSearch(e.target.value); setRelationSearchIndex(0); }}
                                 placeholder="Sök på namn, ref, f.namn, e.namn..."
-                                className="w-full bg-slate-900 border border-slate-700 rounded p-2 pl-10 text-white focus:border-blue-500 focus:outline-none"
+                                className="w-full bg-background border border-subtle rounded p-2 pl-10 text-on-accent focus:border-accent focus:outline-none"
                                 autoFocus
                               />
                             </div>
@@ -4002,8 +4002,8 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                               <button
                                 onClick={() => { setRelationSortBy('name'); setRelationSearchIndex(0); }}
                                 className={`px-3 py-1 text-xs rounded transition-colors ${relationSortBy === 'name'
-                                  ? 'bg-blue-600 text-white'
-                                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                                  ? 'bg-accent text-on-accent'
+                                  : 'bg-surface-2 text-secondary hover:bg-surface'
                                   }`}
                               >
                                 Namn
@@ -4011,8 +4011,8 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                               <button
                                 onClick={() => { setRelationSortBy('recent'); setRelationSearchIndex(0); }}
                                 className={`px-3 py-1 text-xs rounded transition-colors ${relationSortBy === 'recent'
-                                  ? 'bg-blue-600 text-white'
-                                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                                  ? 'bg-accent text-on-accent'
+                                  : 'bg-surface-2 text-secondary hover:bg-surface'
                                   }`}
                               >
                                 Senast tillagd
@@ -4020,8 +4020,8 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                               <button
                                 onClick={() => { setRelationSortBy('related'); setRelationSearchIndex(0); }}
                                 className={`px-3 py-1 text-xs rounded transition-colors ${relationSortBy === 'related'
-                                  ? 'bg-blue-600 text-white'
-                                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                                  ? 'bg-accent text-on-accent'
+                                  : 'bg-surface-2 text-secondary hover:bg-surface'
                                   }`}
                               >
                                 Närmast släkt
@@ -4029,9 +4029,9 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                             </div>
 
                             {/* Personlista */}
-                            <div className="flex-1 overflow-y-auto divide-y divide-slate-700 custom-scrollbar">
+                            <div className="flex-1 overflow-y-auto divide-y divide-subtle custom-scrollbar">
                               {filteredPeople.length === 0 ? (
-                                <div className="text-slate-400 py-8 text-center">Ingen person hittades</div>
+                                <div className="text-muted py-8 text-center">Ingen person hittades</div>
                               ) : (
                                 filteredPeople.map((p, idx) => {
                                   const { birthDate, birthPlace, deathDate, deathPlace } = getPersonLifeDetails(p);
@@ -4042,13 +4042,13 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                   return (
                                     <div
                                       key={p.id}
-                                      className={`flex items-start gap-3 py-3 px-3 cursor-pointer hover:bg-slate-700 transition-colors ${idx === relationSearchIndex ? 'bg-blue-600 text-white' : 'text-slate-200'
+                                      className={`flex items-start gap-3 py-3 px-3 cursor-pointer hover:bg-surface-2 transition-colors ${idx === relationSearchIndex ? 'bg-accent text-on-accent' : 'text-primary'
                                         }`}
                                       onClick={() => addRelation(p.id)}
                                       onMouseEnter={() => setRelationSearchIndex(idx)}
                                     >
                                       {/* Rund thumbnail */}
-                                      <div className="w-12 h-12 rounded-full bg-slate-600 flex-shrink-0 overflow-hidden border-2 border-slate-500">
+                                      <div className="w-12 h-12 rounded-full bg-surface flex-shrink-0 overflow-hidden border-2 border-strong">
                                         {profileImage ? (
                                           <MediaImage
                                             url={profileImage}
@@ -4057,7 +4057,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                             style={getAvatarImageStyle(p.media?.[0], p.id)}
                                           />
                                         ) : (
-                                          <User className="w-full h-full p-2 text-slate-400" />
+                                          <User className="w-full h-full p-2 text-muted" />
                                         )}
                                       </div>
 
@@ -4066,7 +4066,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                         <div className="font-semibold text-base mb-1">
                                           {p.firstName} {p.lastName}
                                           {p.relationship && (
-                                            <span className="ml-2 text-xs font-normal text-slate-400">
+                                            <span className="ml-2 text-xs font-normal text-muted">
                                               ({p.relationship === 'partner' ? 'Partner' :
                                                 p.relationship === 'parent' ? 'Förälder' :
                                                   p.relationship === 'child' ? 'Barn' :
@@ -4077,21 +4077,21 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
 
                                         {/* Födelsedatum och plats */}
                                         {(birthDate || birthPlace) && (
-                                          <div className="text-sm text-slate-400 mb-0.5">
+                                          <div className="text-sm text-muted mb-0.5">
                                             * {birthDate || '????-??-??'} {birthPlace && ` ${birthPlace}`} ({sexLabel})
                                           </div>
                                         )}
 
                                         {/* Dödsdatum och plats */}
                                         {(deathDate || deathPlace) && (
-                                          <div className="text-sm text-slate-400">
+                                          <div className="text-sm text-muted">
                                             + {deathDate || '????-??-??'} {deathPlace && ` ${deathPlace}`} ({sexLabel})
                                           </div>
                                         )}
 
                                         {/* Om inga datum finns */}
                                         {!birthDate && !deathDate && (
-                                          <div className="text-sm text-slate-500 italic">
+                                          <div className="text-sm text-muted italic">
                                             Inga datum registrerade
                                           </div>
                                         )}
@@ -4113,8 +4113,8 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
               {activeTab === 'media' && (
                 <div className="animate-in fade-in duration-300 h-full">
                   <div className="flex justify-end items-center gap-3 mb-3">
-                    <div className="flex items-center gap-2 rounded border border-slate-700 bg-slate-900 px-3 py-1.5">
-                      <span className="text-xs text-slate-400 whitespace-nowrap">Storlek</span>
+                    <div className="flex items-center gap-2 rounded border border-subtle bg-background px-3 py-1.5">
+                      <span className="text-xs text-muted whitespace-nowrap">Storlek</span>
                       <input
                         type="range"
                         min="0.2"
@@ -4128,13 +4128,13 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                         className="w-36 accent-blue-500"
                         aria-label="Justera storlek på tumnaglar"
                       />
-                      <span className="text-xs text-slate-400 tabular-nums w-10 text-right">
+                      <span className="text-xs text-muted tabular-nums w-10 text-right">
                         {Math.round(Number(mediaSortConfig?.imageSize ?? 0.62) * 100)}%
                       </span>
                     </div>
                     <button
                       onClick={handleDownloadPersonImages}
-                      className="text-xs bg-slate-700 hover:bg-slate-600 text-slate-100 px-3 py-1.5 rounded flex items-center gap-1 transition-colors"
+                      className="text-xs bg-surface-2 hover:bg-surface text-primary px-3 py-1.5 rounded flex items-center gap-1 transition-colors"
                     >
                       <DownloadCloud size={14} /> Ladda ner personens bilder
                     </button>
@@ -4169,8 +4169,8 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                   {/* FORSKNINGSUPPGIFTER */}
                   <div>
                     <div className="flex justify-between items-center mb-4">
-                      <h3 className="text-md font-bold text-slate-200 uppercase flex items-center gap-2">
-                        <ClipboardList size={18} className="text-blue-400" /> Forskningsuppgifter
+                      <h3 className="text-md font-bold text-primary uppercase flex items-center gap-2">
+                        <ClipboardList size={18} className="text-accent" /> Forskningsuppgifter
                       </h3>
                       <button
                         onClick={() => {
@@ -4192,7 +4192,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                           });
                           setEditingTaskIndex((currentResearch.tasks || []).length);
                         }}
-                        className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded flex items-center gap-1.5 transition-colors"
+                        className="text-xs bg-accent hover:bg-accent text-on-accent px-3 py-1.5 rounded flex items-center gap-1.5 transition-colors"
                       >
                         <Plus size={14} /> Ny uppgift
                       </button>
@@ -4200,9 +4200,9 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
 
                     <div className="space-y-3">
                       {(person.research?.tasks || []).length === 0 ? (
-                        <div className="bg-slate-900 border border-slate-700 rounded-lg p-8 text-center">
-                          <ClipboardList size={32} className="text-slate-500 mx-auto mb-2" />
-                          <p className="text-slate-400 text-sm">Inga forskningsuppgifter än. Klicka på "Ny uppgift" för att lägga till en.</p>
+                        <div className="bg-background border border-subtle rounded-lg p-8 text-center">
+                          <ClipboardList size={32} className="text-muted mx-auto mb-2" />
+                          <p className="text-muted text-sm">Inga forskningsuppgifter än. Klicka på "Ny uppgift" för att lägga till en.</p>
                         </div>
                       ) : (
                         (person.research?.tasks || []).map((task, idx) => {
@@ -4211,7 +4211,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                           const isEditing = editingTaskIndex === idx;
 
                           return (
-                            <div key={task.id || idx} className="bg-slate-900 border border-slate-700 rounded-lg p-4 hover:border-slate-600 transition-colors">
+                            <div key={task.id || idx} className="bg-background border border-subtle rounded-lg p-4 hover:border-subtle transition-colors">
                               <div className="flex justify-between items-start mb-3">
                                 <div className="flex-1">
                                   <input
@@ -4229,7 +4229,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                       });
                                     }}
                                     placeholder="Beskriv uppgiften..."
-                                    className="bg-transparent font-medium text-slate-200 w-full focus:outline-none focus:border-b border-blue-500 pb-1"
+                                    className="bg-transparent font-medium text-primary w-full focus:outline-none focus:border-b border-accent pb-1"
                                   />
                                 </div>
                                 <div className="flex gap-2 ml-4 items-center">
@@ -4247,7 +4247,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                         }
                                       });
                                     }}
-                                    className={`bg-slate-800 border border-slate-700 text-xs rounded px-2 py-1 ${status.color}`}
+                                    className={`bg-surface border border-subtle text-xs rounded px-2 py-1 ${status.color}`}
                                   >
                                     {TASK_STATUS.map(s => (
                                       <option key={s.value} value={s.value}>{s.label}</option>
@@ -4268,7 +4268,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                         }
                                       });
                                     }}
-                                    className={`bg-slate-800 border border-slate-700 text-xs rounded px-2 py-1 text-slate-200 ${prio.color}`}
+                                    className={`bg-surface border border-subtle text-xs rounded px-2 py-1 text-primary ${prio.color}`}
                                   >
                                     {PRIORITY_LEVELS.map(p => (
                                       <option key={p.level} value={p.level}>{p.level} - {p.label}</option>
@@ -4291,9 +4291,9 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                           }
                                         });
                                       }}
-                                      className="bg-slate-800 border border-slate-700 text-xs rounded px-2 py-1 text-slate-200 w-32"
+                                      className="bg-surface border border-subtle text-xs rounded px-2 py-1 text-primary w-32"
                                     />
-                                    <Clock size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                    <Clock size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
                                   </div>
 
                                   {/* Ta bort */}
@@ -4308,7 +4308,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                         }
                                       });
                                     }}
-                                    className="text-slate-400 hover:text-red-600 transition-colors"
+                                    className="text-muted hover:text-danger transition-colors"
                                     title="Ta bort uppgift"
                                   >
                                     <Trash2 size={16} />
@@ -4317,7 +4317,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                               </div>
 
                               {/* Noteringar för uppgiften */}
-                              <div className="bg-slate-800 rounded border border-slate-700 mt-2">
+                              <div className="bg-surface rounded border border-subtle mt-2">
                                 <Editor
                                   value={task.notes || ''}
                                   onChange={(e) => {
@@ -4343,10 +4343,10 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
 
                   {/* FORSKNINGSNOTERINGAR */}
                   <div>
-                    <h3 className="text-md font-bold text-slate-200 uppercase mb-4 flex items-center gap-2">
-                      <BookOpen size={18} className="text-blue-400" /> Forskningsnoteringar
+                    <h3 className="text-md font-bold text-primary uppercase mb-4 flex items-center gap-2">
+                      <BookOpen size={18} className="text-accent" /> Forskningsnoteringar
                     </h3>
-                    <div className="bg-slate-900 border border-slate-700 rounded-lg p-4">
+                    <div className="bg-background border border-subtle rounded-lg p-4">
                       <Editor
                         value={person.research?.notes || ''}
                         onChange={(e) => {
@@ -4366,8 +4366,8 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                   {/* FRÅGOR ATT BESVARA */}
                   <div>
                     <div className="flex justify-between items-center mb-4">
-                      <h3 className="text-md font-bold text-slate-200 uppercase flex items-center gap-2">
-                        <HelpCircle size={18} className="text-blue-400" /> Frågor att besvara
+                      <h3 className="text-md font-bold text-primary uppercase flex items-center gap-2">
+                        <HelpCircle size={18} className="text-accent" /> Frågor att besvara
                       </h3>
                     </div>
 
@@ -4396,7 +4396,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                             }
                           }}
                           placeholder="Skriv en fråga och tryck Enter..."
-                          className="flex-1 bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
+                          className="flex-1 bg-background border border-subtle rounded px-3 py-2 text-sm text-primary focus:outline-none focus:border-accent"
                         />
                         <button
                           onClick={() => {
@@ -4416,26 +4416,26 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                               setNewQuestionInput('');
                             }
                           }}
-                          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm flex items-center gap-2 transition-colors"
+                          className="bg-accent hover:bg-accent text-on-accent px-4 py-2 rounded text-sm flex items-center gap-2 transition-colors"
                         >
                           <Plus size={16} /> Lägg till
                         </button>
                       </div>
-                      <p className="text-xs text-slate-500 mt-1">Tryck Enter eller klicka på "Lägg till" för att lägga till frågan</p>
+                      <p className="text-xs text-muted mt-1">Tryck Enter eller klicka på "Lägg till" för att lägga till frågan</p>
                     </div>
 
                     {/* Lista med frågor */}
                     <div className="space-y-2">
                       {(person.research?.questions || []).length === 0 ? (
-                        <div className="bg-slate-900 border border-slate-700 rounded-lg p-6 text-center">
-                          <HelpCircle size={32} className="text-slate-500 mx-auto mb-2" />
-                          <p className="text-slate-400 text-sm">Inga frågor än. Lägg till frågor du behöver hitta svar på.</p>
+                        <div className="bg-background border border-subtle rounded-lg p-6 text-center">
+                          <HelpCircle size={32} className="text-muted mx-auto mb-2" />
+                          <p className="text-muted text-sm">Inga frågor än. Lägg till frågor du behöver hitta svar på.</p>
                         </div>
                       ) : (
                         (person.research?.questions || []).map((q, idx) => (
                           <div
                             key={q.id || idx}
-                            className={`bg-slate-900 border rounded-lg p-3 flex items-start gap-3 transition-colors ${q.answered ? 'border-green-700/50 bg-green-900/10' : 'border-slate-700 hover:border-slate-600'
+                            className={`bg-background border rounded-lg p-3 flex items-start gap-3 transition-colors ${q.answered ? 'border-success bg-success-soft' : 'border-subtle hover:border-subtle'
                               }`}
                           >
                             <button
@@ -4451,8 +4451,8 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                 });
                               }}
                               className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${q.answered
-                                ? 'bg-green-600 border-green-600 text-white'
-                                : 'border-slate-600 hover:border-green-600'
+                                ? 'bg-success border-success text-on-accent'
+                                : 'border-subtle hover:border-success'
                                 }`}
                               title={q.answered ? 'Markera som obesvarad' : 'Markera som besvarad'}
                             >
@@ -4472,8 +4472,8 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                   }
                                 });
                               }}
-                              className={`flex-1 bg-transparent text-sm ${q.answered ? 'text-slate-500 line-through' : 'text-slate-200'
-                                } focus:outline-none focus:border-b border-blue-500 pb-1`}
+                              className={`flex-1 bg-transparent text-sm ${q.answered ? 'text-muted line-through' : 'text-primary'
+                                } focus:outline-none focus:border-b border-accent pb-1`}
                               placeholder="Fråga..."
                             />
                             <button
@@ -4487,7 +4487,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                   }
                                 });
                               }}
-                              className="text-slate-400 hover:text-red-600 transition-colors flex-shrink-0"
+                              className="text-muted hover:text-danger transition-colors flex-shrink-0"
                               title="Ta bort fråga"
                             >
                               <X size={16} />
@@ -4601,11 +4601,11 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                 return (
                   <div className="space-y-4 animate-in fade-in duration-300">
                     <div className="flex justify-between items-center mb-4">
-                      <h3 className="text-lg font-bold text-slate-200">Noteringar</h3>
+                      <h3 className="text-lg font-bold text-primary">Noteringar</h3>
                       <div className="flex items-center gap-2">
                         <button
                           onClick={handleGenerateBiography}
-                          className="text-xs bg-slate-700 hover:bg-slate-600 text-slate-100 px-3 py-1.5 rounded flex items-center gap-1 transition-colors"
+                          className="text-xs bg-surface-2 hover:bg-surface text-primary px-3 py-1.5 rounded flex items-center gap-1 transition-colors"
                         >
                           <Sparkles size={14} /> Generera Biografi
                         </button>
@@ -4624,7 +4624,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                               notes: [...(prev.notes || []), newNote]
                             }));
                           }}
-                          className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded flex items-center gap-1 transition-colors"
+                          className="text-xs bg-accent hover:bg-accent text-on-accent px-3 py-1.5 rounded flex items-center gap-1 transition-colors"
                         >
                           <Plus size={14} /> Ny notering
                         </button>
@@ -4633,18 +4633,18 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
 
                     {/* Sökfält */}
                     <div className="relative mb-4">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted" size={18} />
                       <input
                         type="text"
                         value={noteSearch}
                         onChange={(e) => setNoteSearch(e.target.value)}
                         placeholder="Sök i noteringar..."
-                        className="w-full bg-slate-900 border border-slate-700 rounded p-2 pl-10 text-white focus:border-blue-500 focus:outline-none"
+                        className="w-full bg-background border border-subtle rounded p-2 pl-10 text-on-accent focus:border-accent focus:outline-none"
                       />
                       {noteSearch && (
                         <button
                           onClick={() => setNoteSearch('')}
-                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-white"
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted hover:text-on-accent"
                         >
                           <X size={18} />
                         </button>
@@ -4652,12 +4652,12 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                     </div>
 
                     {(!notesWithDates || notesWithDates.length === 0) ? (
-                      <div className="text-center py-12 text-slate-400">
+                      <div className="text-center py-12 text-muted">
                         <FileText size={48} className="mx-auto mb-4 opacity-50" />
                         <p className="text-sm">Inga noteringar ännu. Klicka på "Ny notering" för att lägga till en.</p>
                       </div>
                     ) : filteredNotes.length === 0 ? (
-                      <div className="text-center py-12 text-slate-400">
+                      <div className="text-center py-12 text-muted">
                         <Search size={48} className="mx-auto mb-4 opacity-50" />
                         <p className="text-sm">Inga noteringar matchar din sökning.</p>
                       </div>
@@ -4675,12 +4675,12 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                             onDragLeave={handleDragLeave}
                             onDrop={(e) => handleDrop(e, idx)}
                             onDragEnd={handleDragEnd}
-                            className={`bg-slate-900 border border-slate-700 rounded-lg overflow-hidden transition-all cursor-move ${dragOverIndex === idx ? 'border-blue-500 ring-2 ring-blue-500/50' : ''
+                            className={`bg-background border border-subtle rounded-lg overflow-hidden transition-all cursor-move ${dragOverIndex === idx ? 'border-accent ring-2 ring-accent/50' : ''
                               } ${draggedNoteIndex === idx ? 'opacity-50' : ''}`}
                           >
-                            <div className="bg-slate-800 p-3 border-b border-slate-700 flex justify-between items-center">
+                            <div className="bg-surface p-3 border-b border-subtle flex justify-between items-center">
                               <div className="flex-1 flex items-center gap-2">
-                                <div className="text-slate-500 cursor-grab active:cursor-grabbing" title="Dra för att sortera">
+                                <div className="text-muted cursor-grab active:cursor-grabbing" title="Dra för att sortera">
                                   <MoreHorizontal size={18} />
                                 </div>
                                 <input
@@ -4697,19 +4697,19 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                       )
                                     }));
                                   }}
-                                  className="bg-transparent font-bold text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-2 py-1 flex-1"
+                                  className="bg-transparent font-bold text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent rounded px-2 py-1 flex-1"
                                   placeholder="Titel på notering..."
                                   onClick={(e) => e.stopPropagation()}
                                 />
                               </div>
                               <div className="flex gap-3 items-center ml-3">
                                 {/* Datum */}
-                                <div className="text-xs text-slate-500 flex flex-col items-end">
+                                <div className="text-xs text-muted flex flex-col items-end">
                                   {note.createdAt && (
                                     <span title="Skapad">Skapad: {formatDate(note.createdAt)}</span>
                                   )}
                                   {note.modifiedAt && note.modifiedAt !== note.createdAt && (
-                                    <span title="Senast ändrad" className="text-slate-600">Ändrad: {formatDate(note.modifiedAt)}</span>
+                                    <span title="Senast ändrad" className="text-muted">Ändrad: {formatDate(note.modifiedAt)}</span>
                                   )}
                                 </div>
                                 <button
@@ -4720,14 +4720,14 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                       notes: prev.notes.filter((_, i) => i !== originalIndex)
                                     }));
                                   }}
-                                  className="text-slate-400 hover:text-red-600 transition-colors p-1"
+                                  className="text-muted hover:text-danger transition-colors p-1"
                                   title="Ta bort notering"
                                 >
                                   <Trash2 size={16} />
                                 </button>
                               </div>
                             </div>
-                            <div className="p-4 bg-slate-800" onClick={(e) => e.stopPropagation()}>
+                            <div className="p-4 bg-surface" onClick={(e) => e.stopPropagation()}>
                               <Editor
                                 value={note.content || ''}
                                 onChange={(e) => {
@@ -4760,16 +4760,16 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
 
         {/* DETAIL BLOCK - visa källa-info för vald händelse */}
         {!isCollapsed && selectedEventIndex !== null && editingEventIndex === null && person.events?.[selectedEventIndex] && (
-          <div className="bg-slate-800 border-t border-slate-700 p-4 max-h-40 overflow-y-auto">
-            <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-700">
-              <h4 className="text-sm font-bold text-slate-200">
+          <div className="bg-surface border-t border-subtle p-4 max-h-40 overflow-y-auto">
+            <div className="flex items-center justify-between mb-3 pb-2 border-b border-subtle">
+              <h4 className="text-sm font-bold text-primary">
                 {person.events[selectedEventIndex].type}
                 {person.events[selectedEventIndex].date && ` - ${person.events[selectedEventIndex].date}`}
               </h4>
               {/* INFO-rad kopiad från livshändelser */}
-              <div className="flex gap-3 text-xs text-slate-400">
+              <div className="flex gap-3 text-xs text-muted">
                 <span
-                  className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${person.events[selectedEventIndex].sources?.length > 0 ? 'text-slate-200' : ''} ${eventDetailView === 'sources' ? 'text-blue-400' : ''}`}
+                  className={`flex items-center gap-1 cursor-pointer hover:text-accent ${person.events[selectedEventIndex].sources?.length > 0 ? 'text-primary' : ''} ${eventDetailView === 'sources' ? 'text-accent' : ''}`}
                   onClick={() => {
                     setEventDetailView('sources');
                   }}
@@ -4777,14 +4777,14 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                   <LinkIcon size={12} /> {person.events[selectedEventIndex].sources?.length || 0}
                 </span>
                 <span
-                  className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${getMeaningfulNoteText(person.events[selectedEventIndex].notes) ? 'text-slate-200' : ''} ${eventDetailView === 'notes' ? 'text-blue-400' : ''}`}
+                  className={`flex items-center gap-1 cursor-pointer hover:text-accent ${getMeaningfulNoteText(person.events[selectedEventIndex].notes) ? 'text-primary' : ''} ${eventDetailView === 'notes' ? 'text-accent' : ''}`}
                   onClick={() => setEventDetailView('notes')}
                   title={getMeaningfulNoteText(person.events[selectedEventIndex].notes) || ''}
                 >
                   <FileText size={12} /> {getMeaningfulNoteText(person.events[selectedEventIndex].notes) ? 1 : 0}
                 </span>
                 <span
-                  className={`flex items-center gap-1 cursor-pointer hover:text-blue-600 ${(Array.isArray(person.events[selectedEventIndex].images) ? person.events[selectedEventIndex].images.length : (person.events[selectedEventIndex].images || 0)) > 0 ? 'text-slate-200' : ''} ${eventDetailView === 'images' ? 'text-blue-400' : ''}`}
+                  className={`flex items-center gap-1 cursor-pointer hover:text-accent ${(Array.isArray(person.events[selectedEventIndex].images) ? person.events[selectedEventIndex].images.length : (person.events[selectedEventIndex].images || 0)) > 0 ? 'text-primary' : ''} ${eventDetailView === 'images' ? 'text-accent' : ''}`}
                   onClick={() => setEventDetailView('images')}
                 >
                   <ImageIcon size={12} /> {Array.isArray(person.events[selectedEventIndex].images) ? person.events[selectedEventIndex].images.length : (person.events[selectedEventIndex].images || 0)}
@@ -4825,7 +4825,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                       });
 
                       return (
-                        <div key={sourceId} className="bg-slate-800 p-2 rounded border border-slate-700 flex items-start gap-3">
+                        <div key={sourceId} className="bg-surface p-2 rounded border border-subtle flex items-start gap-3">
                           {/* Thumbnails */}
                           <div className="flex gap-1 items-start">
                             {displaySource.images && displaySource.images.length > 0 ? (
@@ -4834,19 +4834,19 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                   <img
                                     src={img.url || img.thumbnail || img}
                                     alt="Thumbnail"
-                                    className="h-8 w-8 object-cover rounded cursor-pointer border border-slate-600 hover:border-blue-500"
+                                    className="h-8 w-8 object-cover rounded cursor-pointer border border-subtle hover:border-accent"
                                     onClick={() => {
                                       const fullUrl = img.url || img;
                                       window.open(fullUrl, '_blank');
                                     }}
                                   />
-                                  <div className="absolute hidden group-hover:block z-50 bg-slate-900 border border-slate-600 rounded shadow-lg p-1 left-0 top-10">
+                                  <div className="absolute hidden group-hover:block z-50 bg-background border border-subtle rounded shadow-lg p-1 left-0 top-10">
                                     <img src={img.url || img} alt="Preview" className="h-32 w-32 object-cover rounded" />
                                   </div>
                                 </div>
                               ))
                             ) : (
-                              <div className="h-8 w-8 bg-slate-700 rounded flex items-center justify-center text-slate-400">
+                              <div className="h-8 w-8 bg-surface-2 rounded flex items-center justify-center text-muted">
                                 <ImageIcon size={12} />
                               </div>
                             )}
@@ -4854,7 +4854,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
 
                           {/* Source info */}
                           <div className="flex-1 text-xs">
-                            <div className="font-semibold text-slate-200 mb-1">
+                            <div className="font-semibold text-primary mb-1">
                               {displaySource.title || 'Ingen titel'}
                               {displaySource.location && ` (${displaySource.location})`}
                               {displaySource.volume && ` vol. ${displaySource.volume}`}
@@ -4865,18 +4865,18 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
 
                             {/* Trovärdighet - Stjärnor */}
                             <div className="flex gap-0.5 mt-1 items-center">
-                              <span className="text-xs text-slate-400 mr-1">Trovärdighet:</span>
+                              <span className="text-xs text-muted mr-1">Trovärdighet:</span>
                               {[...Array(5)].map((_, i) => (
-                                <span key={i} className={i < (displaySource.credibility || 0) ? "text-yellow-500" : "text-slate-600"}>★</span>
+                                <span key={i} className={i < (displaySource.credibility || 0) ? "text-warning" : "text-muted"}>★</span>
                               ))}
-                              {displaySource.credibilityLabel && <span className="ml-1 text-slate-300 text-xs">{displaySource.credibilityLabel}</span>}
+                              {displaySource.credibilityLabel && <span className="ml-1 text-secondary text-xs">{displaySource.credibilityLabel}</span>}
                             </div>
 
                             {/* Trovärdighetsikoner */}
                             <div className="flex gap-2 mt-1">
                               {/* AD - Arkivdigital */}
                               <button
-                                className={`px-2 py-0.5 rounded text-xs font-semibold ${displaySource.aid ? 'bg-green-100 text-green-700 hover:bg-green-200 cursor-pointer' : 'bg-slate-700 text-slate-500 cursor-default'}`}
+                                className={`px-2 py-0.5 rounded text-xs font-semibold ${displaySource.aid ? 'bg-success-soft text-success hover:bg-success-soft cursor-pointer' : 'bg-surface-2 text-muted cursor-default'}`}
                                 title={displaySource.aid ? `AID: ${displaySource.aid}` : 'Inte länkat till Arkivdigital'}
                                 onClick={() => displaySource.aid && window.open(`https://sok.riksarkivet.se/bildvisning/${displaySource.aid}`, '_blank')}
                               >
@@ -4885,7 +4885,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
 
                               {/* RA - Riksarkivet */}
                               <button
-                                className={`px-2 py-0.5 rounded text-xs font-semibold ${displaySource.bildId ? 'bg-green-100 text-green-700 hover:bg-green-200 cursor-pointer' : 'bg-slate-700 text-slate-500 cursor-default'}`}
+                                className={`px-2 py-0.5 rounded text-xs font-semibold ${displaySource.bildId ? 'bg-success-soft text-success hover:bg-success-soft cursor-pointer' : 'bg-surface-2 text-muted cursor-default'}`}
                                 title={displaySource.bildId ? `BILDID: ${displaySource.bildId}` : 'Inte länkat till Riksarkivet'}
                                 onClick={() => displaySource.bildId && window.open(`https://www.riksarkivet.se/bildvisning/${displaySource.bildId}`, '_blank')}
                               >
@@ -4894,7 +4894,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
 
                               {/* NAD - Näringsliv Arkiv Digital */}
                               <button
-                                className={`px-2 py-0.5 rounded text-xs font-semibold ${displaySource.nad ? 'bg-green-100 text-green-700 hover:bg-green-200 cursor-pointer' : 'bg-slate-700 text-slate-500 cursor-default'}`}
+                                className={`px-2 py-0.5 rounded text-xs font-semibold ${displaySource.nad ? 'bg-success-soft text-success hover:bg-success-soft cursor-pointer' : 'bg-surface-2 text-muted cursor-default'}`}
                                 title={displaySource.nad ? `NAD: ${displaySource.nad}` : 'Inte länkat till NAD'}
                                 onClick={() => displaySource.nad && window.open(`https://nad.ra.se/${displaySource.nad}`, '_blank')}
                               >
@@ -4903,7 +4903,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                             </div>
 
                             {displaySource.notes && (
-                              <div className="mt-1 text-slate-400 text-xs italic line-clamp-1">
+                              <div className="mt-1 text-muted text-xs italic line-clamp-1">
                                 {displaySource.notes}
                               </div>
                             )}
@@ -4915,15 +4915,15 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                             {displaySource.notes && (
                               <div className="relative group">
                                 <button
-                                  className="text-slate-400 hover:text-blue-600 p-1 flex items-center gap-0.5"
+                                  className="text-muted hover:text-accent p-1 flex items-center gap-0.5"
                                   title="Noter"
                                 >
                                   <FileText size={12} />
-                                  <span className="text-slate-400">1</span>
+                                  <span className="text-muted">1</span>
                                 </button>
-                                <div className="absolute hidden group-hover:block z-50 bg-slate-900 text-white text-xs rounded shadow-lg p-2 right-0 top-6 min-w-max max-w-xs whitespace-normal">
+                                <div className="absolute hidden group-hover:block z-50 bg-background text-on-accent text-xs rounded shadow-lg p-2 right-0 top-6 min-w-max max-w-xs whitespace-normal">
                                   {displaySource.notes}
-                                  <div className="absolute top-0 right-2 transform -translate-y-1 w-2 h-2 bg-slate-900 rotate-45"></div>
+                                  <div className="absolute top-0 right-2 transform -translate-y-1 w-2 h-2 bg-background rotate-45"></div>
                                 </div>
                               </div>
                             )}
@@ -4931,11 +4931,11 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                             {/* Bild-ikon */}
                             {displaySource.images && displaySource.images.length > 0 && (
                               <button
-                                className="text-slate-400 hover:text-blue-600 p-1 flex items-center gap-0.5"
+                                className="text-muted hover:text-accent p-1 flex items-center gap-0.5"
                                 title={`${displaySource.images.length} bilder`}
                               >
                                 <ImageIcon size={12} />
-                                <span className="text-slate-400">{displaySource.images.length}</span>
+                                <span className="text-muted">{displaySource.images.length}</span>
                               </button>
                             )}
 
@@ -4948,7 +4948,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                   console.log('Opening source drawer to edit source:', sourceId);
                                 }
                               }}
-                              className="text-slate-400 hover:text-blue-600 p-1"
+                              className="text-muted hover:text-accent p-1"
                               title="Redigera källa"
                             >
                               <Edit3 size={14} />
@@ -4961,7 +4961,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                 );
                                 setPerson({ ...person, events: updatedEvents });
                               }}
-                              className="text-slate-400 hover:text-red-600 p-1"
+                              className="text-muted hover:text-danger p-1"
                               title="Ta bort källa"
                             >
                               <Trash2 size={14} />
@@ -4972,7 +4972,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                     })}
                   </div>
                 ) : (
-                  <p className="text-xs text-slate-400">Ingen källa kopplad till denna händelse</p>
+                  <p className="text-xs text-muted">Ingen källa kopplad till denna händelse</p>
                 )}
               </>
             )}
@@ -4981,8 +4981,8 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
             {eventDetailView === 'notes' && (
               <div className="space-y-2">
                 {person.events[selectedEventIndex].notes ? (
-                  <div className="bg-slate-900 border border-slate-700 rounded p-3">
-                    <div className="bg-slate-800 border border-slate-600 rounded p-3 min-h-[100px]">
+                  <div className="bg-background border border-subtle rounded p-3">
+                    <div className="bg-surface border border-subtle rounded p-3 min-h-[100px]">
                       <Editor
                         value={person.events[selectedEventIndex].notes || ''}
                         onChange={(e) => {
@@ -4996,7 +4996,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                     </div>
                   </div>
                 ) : (
-                  <p className="text-xs text-slate-400">Inga noteringar för denna händelse</p>
+                  <p className="text-xs text-muted">Inga noteringar för denna händelse</p>
                 )}
               </div>
             )}
@@ -5010,7 +5010,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                     : [];
 
                   if (eventImages.length === 0) {
-                    return <p className="text-xs text-slate-400">Inga bilder kopplade till denna händelse</p>;
+                    return <p className="text-xs text-muted">Inga bilder kopplade till denna händelse</p>;
                   }
 
                   // Hämta media-objekt från allMediaItems
@@ -5021,7 +5021,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                       {mediaObjects.map((mediaItem, idx) => (
                         <div
                           key={mediaItem.id}
-                          className="relative aspect-square bg-slate-900 rounded-lg border-2 border-slate-700 overflow-hidden cursor-pointer hover:border-blue-500 hover:shadow-lg transition-all group"
+                          className="relative aspect-square bg-background rounded-lg border-2 border-subtle overflow-hidden cursor-pointer hover:border-accent hover:shadow-lg transition-all group"
                           onDoubleClick={() => {
                             setImageEditorContext('event');
                             setEditingImageIndex(idx);
@@ -5035,14 +5035,14 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                             className="w-full h-full object-cover"
                             loading="lazy"
                           />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2">
-                            <p className="text-white text-xs font-medium truncate mb-0.5">{mediaItem.name || 'Namnlös'}</p>
+                          <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-background/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2">
+                            <p className="text-on-accent text-xs font-medium truncate mb-0.5">{mediaItem.name || 'Namnlös'}</p>
                             {mediaItem.date && (
-                              <p className="text-white/70 text-[10px]">{mediaItem.date}</p>
+                              <p className="text-on-accent/70 text-[10px]">{mediaItem.date}</p>
                             )}
                           </div>
-                          <div className="absolute top-2 right-2 bg-black/50 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <ImageIcon size={14} className="text-white" />
+                          <div className="absolute top-2 right-2 bg-background/50 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <ImageIcon size={14} className="text-on-accent" />
                           </div>
                         </div>
                       ))}
@@ -5056,8 +5056,8 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
             {eventDetailView === 'notes' && (
               <div className="space-y-2">
                 {person.events[selectedEventIndex].notes ? (
-                  <div className="bg-slate-900 border border-slate-700 rounded p-3">
-                    <div className="bg-slate-800 border border-slate-600 rounded p-3 min-h-[100px]">
+                  <div className="bg-background border border-subtle rounded p-3">
+                    <div className="bg-surface border border-subtle rounded p-3 min-h-[100px]">
                       <Editor
                         value={person.events[selectedEventIndex].notes || ''}
                         onChange={(e) => {
@@ -5071,7 +5071,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                     </div>
                   </div>
                 ) : (
-                  <p className="text-xs text-slate-400">Inga noteringar för denna händelse</p>
+                  <p className="text-xs text-muted">Inga noteringar för denna händelse</p>
                 )}
               </div>
             )}
@@ -5086,7 +5086,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
       {isEventTypeMenuOpen && createPortal(
         <div
           ref={eventTypeMenuRef}
-          className="fixed z-[6005] rounded-lg border border-slate-700 bg-slate-900 shadow-2xl overflow-hidden"
+          className="fixed z-[6005] rounded-lg border border-subtle bg-background shadow-2xl overflow-hidden"
           style={{
             top: `${eventTypeMenuPosition.top}px`,
             left: `${eventTypeMenuPosition.left}px`,
@@ -5094,10 +5094,10 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
             maxHeight: `${eventTypeMenuPosition.maxHeight}px`
           }}
         >
-          <div className="px-3 py-2 border-b border-slate-700 space-y-2">
-            <div className="text-xs font-bold uppercase tracking-wide text-slate-400">Välj händelsetyp</div>
+          <div className="px-3 py-2 border-b border-subtle space-y-2">
+            <div className="text-xs font-bold uppercase tracking-wide text-muted">Välj händelsetyp</div>
             <div className="relative">
-              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
+              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
               <input
                 ref={eventTypeSearchInputRef}
                 type="text"
@@ -5110,7 +5110,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                 aria-controls="event-type-listbox"
                 aria-autocomplete="list"
                 aria-activedescendant={eventTypeActiveIndex >= 0 && eventTypeOptions[eventTypeActiveIndex] ? `event-type-option-${eventTypeOptions[eventTypeActiveIndex].value}` : undefined}
-                className="w-full bg-slate-950 border border-slate-700 rounded pl-8 pr-2 py-1.5 text-sm text-slate-100 focus:outline-none focus:border-blue-500"
+                className="w-full bg-background border border-subtle rounded pl-8 pr-2 py-1.5 text-sm text-primary focus:outline-none focus:border-accent"
               />
             </div>
           </div>
@@ -5122,7 +5122,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
             style={{ maxHeight: `${Math.max(220, eventTypeMenuPosition.maxHeight - 82)}px` }}
           >
             {eventTypeOptions.length === 0 && (
-              <div className="px-3 py-4 text-sm text-slate-400">Ingen händelsetyp matchade sökningen.</div>
+              <div className="px-3 py-4 text-sm text-muted">Ingen händelsetyp matchade sökningen.</div>
             )}
 
             {EVENT_TYPE_CATEGORIES.map((category) => {
@@ -5131,7 +5131,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
 
               return (
                 <div key={category} role="group" aria-label={category}>
-                  <div className="px-3 py-1.5 bg-slate-800/60 border-y border-slate-800 text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                  <div className="px-3 py-1.5 bg-surface/60 border-y border-subtle text-[10px] font-bold uppercase tracking-wide text-muted">
                     {category}
                   </div>
                   {categoryItems.map((eventType) => {
@@ -5149,15 +5149,15 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                         onMouseEnter={() => setEventTypeActiveIndex(optionIndex)}
                         disabled={isDisabled}
                         className={`w-full flex items-center gap-3 px-3 py-2 text-left text-sm transition-colors ${isDisabled
-                          ? 'text-slate-600 cursor-not-allowed'
+                          ? 'text-muted cursor-not-allowed'
                           : isActive
-                            ? 'bg-blue-900/40 text-slate-100'
-                            : 'text-slate-200 hover:bg-slate-800'
+                            ? 'bg-accent-soft text-primary'
+                            : 'text-primary hover:bg-surface'
                           }`}
                       >
                         <span className="text-base w-5 text-center">{eventType.icon}</span>
                         <span className="flex-1">{eventType.label}</span>
-                        <span className="text-[10px] uppercase tracking-wide text-slate-500">{eventType.gedcomType}</span>
+                        <span className="text-[10px] uppercase tracking-wide text-muted">{eventType.gedcomType}</span>
                       </button>
                     );
                   })}
@@ -5180,12 +5180,12 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
           <div className="flex flex-col h-full">
             <div className="p-4 space-y-3 flex-1 overflow-y-auto custom-scrollbar min-h-0 pr-1">
               <div className="space-y-2.5">
-                <div className="rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-2">
-                  <div className="text-xs font-bold uppercase text-slate-400 mb-1">Händelsetyp</div>
+                <div className="rounded-lg border border-subtle bg-background/60 px-3 py-2">
+                  <div className="text-xs font-bold uppercase text-muted mb-1">Händelsetyp</div>
                   <select
                     value={newEvent.type || ''}
                     onChange={(e) => handleEventTypeChange(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-slate-200 focus:border-blue-500 focus:outline-none"
+                    className="w-full bg-background border border-subtle rounded p-2 text-primary focus:border-accent focus:outline-none"
                   >
                     {EVENT_TYPES.map((eventType) => (
                       <option key={eventType.value} value={eventType.value}>
@@ -5197,11 +5197,11 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
 
                 {newEvent.type === 'Vigsel' && person.relations?.partners?.length > 0 && (
                   <div className="mb-3">
-                    <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Partner</label>
+                    <label className="block text-xs font-bold text-secondary uppercase mb-1">Partner</label>
                     <select
                       value={newEvent.partnerId || ''}
                       onChange={e => setNewEvent({ ...newEvent, partnerId: e.target.value })}
-                      className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-slate-200 focus:border-blue-500 focus:outline-none"
+                      className="w-full bg-background border border-subtle rounded p-2 text-primary focus:border-accent focus:outline-none"
                     >
                       <option value="">Välj partner...</option>
                       {person.relations.partners.map(p => (
@@ -5213,13 +5213,13 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
 
                 {selectedEventGedcomType === 'custom' && (
                   <div>
-                    <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Egen händelsetyp</label>
+                    <label className="block text-xs font-bold text-secondary uppercase mb-1">Egen händelsetyp</label>
                     <input
                       type="text"
                       value={newEvent.customType || ''}
                       onChange={(e) => setNewEvent({ ...newEvent, customType: e.target.value })}
                       onKeyDown={handleEventModalInputKeyDown}
-                      className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-slate-200 focus:border-blue-500 focus:outline-none"
+                      className="w-full bg-background border border-subtle rounded p-2 text-primary focus:border-accent focus:outline-none"
                       placeholder="t.ex. Kontraktsskrivning, Flytt till gård..."
                     />
                   </div>
@@ -5227,7 +5227,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
 
                 {selectedEventGedcomType === 'attribute' && (
                   <div>
-                    <label className="block text-xs font-bold text-slate-300 uppercase mb-1">{getAttributeValueLabel(newEvent.type)}</label>
+                    <label className="block text-xs font-bold text-secondary uppercase mb-1">{getAttributeValueLabel(newEvent.type)}</label>
                     <input
                       type="text"
                       value={newEvent.description ?? newEvent.value ?? ''}
@@ -5236,7 +5236,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                         setNewEvent({ ...newEvent, description: nextValue, value: nextValue });
                       }}
                       onKeyDown={handleEventModalInputKeyDown}
-                      className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-slate-200 focus:border-blue-500 focus:outline-none"
+                      className="w-full bg-background border border-subtle rounded p-2 text-primary focus:border-accent focus:outline-none"
                       placeholder={`Ange ${newEvent.type?.toLowerCase() || 'värde'}...`}
                     />
                   </div>
@@ -5244,9 +5244,9 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Datum</label>
+                    <label className="block text-xs font-bold text-secondary uppercase mb-1">Datum</label>
                     <div className="relative">
-                      <Calendar size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
+                      <Calendar size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted" />
                       <input
                         ref={eventDateInputRef}
                         type="text"
@@ -5254,14 +5254,14 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                         value={newEvent.date}
                         onChange={(e) => setNewEvent({ ...newEvent, date: e.target.value })}
                         onKeyDown={handleEventModalInputKeyDown}
-                        className="w-full bg-slate-900 border border-slate-600 rounded pl-9 p-2 text-slate-200 focus:border-blue-500 focus:outline-none"
+                        className="w-full bg-background border border-subtle rounded pl-9 p-2 text-primary focus:border-accent focus:outline-none"
                         onBlur={(e) => setNewEvent({ ...newEvent, date: parseAndFormatDate(e.target.value) })}
                       />
                     </div>
-                    <p className="text-xs text-slate-400 mt-1">Format: ÅÅÅÅ-MM-DD, eller skriv naturligt</p>
+                    <p className="text-xs text-muted mt-1">Format: ÅÅÅÅ-MM-DD, eller skriv naturligt</p>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Plats</label>
+                    <label className="block text-xs font-bold text-secondary uppercase mb-1">Plats</label>
                     <PlacePicker
                       value={newEvent.placeId || ''}
                       displayValue={newEvent.place || ''}
@@ -5276,7 +5276,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
 
                 <div>
                   <div className="flex items-center justify-between mb-1 gap-2">
-                    <label className="block text-xs font-bold text-slate-300 uppercase">Medverkande / Vittnen (Dopvittnen, inneboende etc)</label>
+                    <label className="block text-xs font-bold text-secondary uppercase">Medverkande / Vittnen (Dopvittnen, inneboende etc)</label>
                     <button
                       type="button"
                       onClick={() => {
@@ -5287,7 +5287,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                           resetWitnessDraft('existing');
                         }
                       }}
-                      className="text-xs bg-slate-700 hover:bg-slate-600 text-blue-300 px-2 py-1 rounded"
+                      className="text-xs bg-surface-2 hover:bg-surface text-accent px-2 py-1 rounded"
                     >
                       Hantera
                     </button>
@@ -5298,7 +5298,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                       {linkedPersonsForEvent.map((personLink) => (
                         <span
                           key={personLink.id}
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-blue-900/30 border border-blue-700/60 text-blue-100 text-xs"
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-accent-soft border border-accent text-on-accent text-xs"
                           title={personLink.note || undefined}
                         >
                           <span className="font-semibold">{personLink.role || 'Vittne'}:</span>
@@ -5307,7 +5307,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                       ))}
                     </div>
                   ) : (
-                    <p className="text-xs text-slate-400 mt-1">Inga vittnen tillagda</p>
+                    <p className="text-xs text-muted mt-1">Inga vittnen tillagda</p>
                   )}
                 </div>
               </div>
@@ -5315,7 +5315,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
               {/* Källor */}
               <div>
                 <div className="flex justify-between items-center mb-2">
-                  <label className="block text-xs font-bold text-slate-300 uppercase">Källor</label>
+                  <label className="block text-xs font-bold text-secondary uppercase">Källor</label>
                   <button
                     onClick={() => {
                       // Öppna source drawer UTAN att spara personen
@@ -5337,7 +5337,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                         setSourceModalOpen(true);
                       }
                     }}
-                    className="text-xs bg-slate-700 hover:bg-slate-600 text-blue-400 px-2 py-1 rounded flex items-center gap-1"
+                    className="text-xs bg-surface-2 hover:bg-surface text-accent px-2 py-1 rounded flex items-center gap-1"
                   >
                     <Plus size={12} /> Lägg till källa
                   </button>
@@ -5350,9 +5350,9 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                       if (!source) return null;
 
                       return (
-                        <div key={sourceId} className="bg-slate-800 p-3 rounded text-sm border border-slate-700 flex justify-between items-start">
+                        <div key={sourceId} className="bg-surface p-3 rounded text-sm border border-subtle flex justify-between items-start">
                           <div className="flex-1">
-                            <p className="font-semibold text-slate-200 mb-1">
+                            <p className="font-semibold text-primary mb-1">
                               {source.title || 'Ingen titel'}
                               {source.location && ` / ${source.location}`}
                               {source.volume && ` vol. ${source.volume}`}
@@ -5363,7 +5363,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                 href={`https://sok.riksarkivet.se/bildvisning/${source.aid}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-blue-600 hover:text-blue-800 underline text-xs"
+                                className="text-accent hover:text-accent underline text-xs"
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 AID: {source.aid}
@@ -5376,7 +5376,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                 ...newEvent,
                                 sources: newEvent.sources.filter(id => id !== sourceId)
                               })}
-                              className="text-slate-400 hover:text-red-600 p-1"
+                              className="text-muted hover:text-danger p-1"
                               title="Ta bort källa"
                             >
                               <Trash2 size={14} />
@@ -5387,16 +5387,16 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                     })}
                   </div>
                 ) : (
-                  <p className="text-xs text-slate-400">Ingen källa tillagd</p>
+                  <p className="text-xs text-muted">Ingen källa tillagd</p>
                 )}
               </div>
 
               {/* Bilder */}
               <div>
                 <div className="flex justify-between items-center mb-2">
-                  <label className="block text-xs font-bold text-slate-300 uppercase">Bilder</label>
+                  <label className="block text-xs font-bold text-secondary uppercase">Bilder</label>
                 </div>
-                <div className="bg-slate-900 border border-slate-700 rounded p-3 min-h-[140px]">
+                <div className="bg-background border border-subtle rounded p-3 min-h-[140px]">
                   <MediaSelector
                     media={(() => {
                       // Hämta media-objekt från allMediaItems baserat på IDs i newEvent.images
@@ -5422,8 +5422,8 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
 
               {/* Noteringar */}
               <div>
-                <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Noteringar</label>
-                <div className="bg-slate-900 border border-slate-600 rounded p-2 min-h-[80px]">
+                <label className="block text-xs font-bold text-secondary uppercase mb-1">Noteringar</label>
+                <div className="bg-background border border-subtle rounded p-2 min-h-[80px]">
                   <Editor
                     value={newEvent.notes || ''}
                     onChange={(e) => setNewEvent({ ...newEvent, notes: e.target.value })}
@@ -5432,11 +5432,11 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                 </div>
               </div>
             </div>
-            <div className="bg-slate-900 px-4 py-3 border-t border-slate-700 flex justify-end gap-3 shrink-0">
-              <button onClick={closeEventModal} className="px-4 py-2 text-sm text-slate-400 hover:text-white rounded-md transition-colors">Avbryt</button>
+            <div className="bg-background px-4 py-3 border-t border-subtle flex justify-end gap-3 shrink-0">
+              <button onClick={closeEventModal} className="px-4 py-2 text-sm text-muted hover:text-on-accent rounded-md transition-colors">Avbryt</button>
               <button
                 onClick={handleSaveEvent}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-md text-sm font-medium transition-colors"
+                className="px-4 py-2 bg-accent hover:bg-accent text-on-accent rounded-md text-sm font-medium transition-colors"
               >
                 {editingEventIndex !== null ? 'Uppdatera' : 'Lägg till'} händelse
               </button>
@@ -5456,25 +5456,25 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
           ignoreSavedPosition={true}
           onClose={() => setWitnessModalOpen(false)}
         >
-          <div className="flex flex-col h-full bg-slate-900">
+          <div className="flex flex-col h-full bg-background">
             <div className="flex-1 grid grid-cols-12 gap-3 p-4 overflow-hidden">
-              <div className="col-span-5 border border-slate-700 rounded-md bg-slate-850 overflow-hidden flex flex-col">
-                <div className="px-3 py-2 text-xs font-bold uppercase text-slate-300 border-b border-slate-700 flex justify-between items-center">
+              <div className="col-span-5 border border-subtle rounded-md bg-surface overflow-hidden flex flex-col">
+                <div className="px-3 py-2 text-xs font-bold uppercase text-secondary border-b border-subtle flex justify-between items-center">
                   <span>Vittnen</span>
                   <button
                     type="button"
                     onClick={() => resetWitnessDraft('existing')}
-                    className="text-[11px] px-2 py-1 rounded bg-slate-700 hover:bg-slate-600 text-slate-100"
+                    className="text-[11px] px-2 py-1 rounded bg-surface-2 hover:bg-surface text-primary"
                   >
                     Nytt vittne
                   </button>
                 </div>
                 <div className="overflow-auto flex-1">
                   {linkedPersonsForEvent.length === 0 ? (
-                    <div className="p-4 text-sm text-slate-400">Inga vittnen registrerade ännu.</div>
+                    <div className="p-4 text-sm text-muted">Inga vittnen registrerade ännu.</div>
                   ) : (
                     <table className="w-full text-sm">
-                      <thead className="sticky top-0 bg-slate-800 border-b border-slate-700 text-slate-300">
+                      <thead className="sticky top-0 bg-surface border-b border-subtle text-secondary">
                         <tr>
                           <th className="text-left px-3 py-2 font-semibold">Roll</th>
                           <th className="text-left px-3 py-2 font-semibold">Vittne</th>
@@ -5484,11 +5484,11 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                         {linkedPersonsForEvent.map((entry) => (
                           <tr
                             key={entry.id}
-                            className={`cursor-pointer border-b border-slate-800 ${selectedWitnessId === entry.id ? 'bg-blue-900/30' : 'hover:bg-slate-800/60'}`}
+                            className={`cursor-pointer border-b border-subtle ${selectedWitnessId === entry.id ? 'bg-accent-soft' : 'hover:bg-surface/60'}`}
                             onClick={() => loadWitnessIntoDraft(entry)}
                           >
-                            <td className="px-3 py-2 text-slate-300">{entry.role || 'Vittne'}</td>
-                            <td className="px-3 py-2 text-blue-300 underline underline-offset-2">{entry.name}</td>
+                            <td className="px-3 py-2 text-secondary">{entry.role || 'Vittne'}</td>
+                            <td className="px-3 py-2 text-accent underline underline-offset-2">{entry.name}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -5497,12 +5497,12 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                 </div>
               </div>
 
-              <div className="col-span-7 border border-slate-700 rounded-md bg-slate-850 p-4 flex flex-col">
+              <div className="col-span-7 border border-subtle rounded-md bg-surface p-4 flex flex-col">
                 <div className="space-y-3 flex-1">
-                  <h3 className="text-lg font-semibold text-slate-100">{witnessDraft.id ? 'Redigera vittne' : 'Nytt vittne'}</h3>
+                  <h3 className="text-lg font-semibold text-primary">{witnessDraft.id ? 'Redigera vittne' : 'Nytt vittne'}</h3>
 
                   <div>
-                    <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Vittne</label>
+                    <label className="block text-xs font-bold text-secondary uppercase mb-1">Vittne</label>
                     <select
                       value={witnessMode}
                       onChange={(e) => {
@@ -5514,7 +5514,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                           name: nextMode === 'free' ? prev.name : prev.name
                         }));
                       }}
-                      className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-slate-200"
+                      className="w-full bg-background border border-subtle rounded p-2 text-primary"
                     >
                       <option value="existing">Befintlig person</option>
                       <option value="free">Ny person / Fritext</option>
@@ -5527,12 +5527,12 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                         type="text"
                         value={witnessSearch}
                         onChange={(e) => setWitnessSearch(e.target.value)}
-                        className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-slate-200"
+                        className="w-full bg-background border border-subtle rounded p-2 text-primary"
                         placeholder="Sök befintlig person i fritext..."
                       />
-                      <div className="max-h-44 overflow-auto border border-slate-700 rounded bg-slate-900">
+                      <div className="max-h-44 overflow-auto border border-subtle rounded bg-background">
                         {filteredWitnessCandidates.length === 0 ? (
-                          <p className="p-2 text-xs text-slate-400">Inga matchningar</p>
+                          <p className="p-2 text-xs text-muted">Inga matchningar</p>
                         ) : (
                           filteredWitnessCandidates.map((candidate) => {
                             const displayName = formatWitnessPersonName(candidate);
@@ -5542,7 +5542,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                 key={candidate.id}
                                 type="button"
                                 onClick={() => handlePickWitnessPerson(candidate.id)}
-                                className={`w-full text-left px-2 py-1.5 text-sm border-b border-slate-800 last:border-b-0 ${isSelected ? 'bg-blue-900/35 text-blue-200' : 'text-slate-200 hover:bg-slate-800'}`}
+                                className={`w-full text-left px-2 py-1.5 text-sm border-b border-subtle last:border-b-0 ${isSelected ? 'bg-accent-soft text-accent' : 'text-primary hover:bg-surface'}`}
                               >
                                 {displayName}
                                 {candidate.refNumber ? ` (REF: ${candidate.refNumber})` : ''}
@@ -5558,18 +5558,18 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                         type="text"
                         value={witnessDraft.name}
                         onChange={(e) => setWitnessDraft((prev) => ({ ...prev, name: e.target.value, personId: '' }))}
-                        className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-slate-200"
+                        className="w-full bg-background border border-subtle rounded p-2 text-primary"
                         placeholder="Namn på vittne (fritext)..."
                       />
                     </div>
                   )}
 
                   <div>
-                    <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Roll</label>
+                    <label className="block text-xs font-bold text-secondary uppercase mb-1">Roll</label>
                     <select
                       value={witnessDraft.role || (witnessRoleOptionsForType[0] || 'Vittne')}
                       onChange={(e) => setWitnessDraft((prev) => ({ ...prev, role: e.target.value }))}
-                      className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-slate-200"
+                      className="w-full bg-background border border-subtle rounded p-2 text-primary"
                     >
                       {witnessRoleOptionsForType.map((roleOption) => (
                         <option key={roleOption} value={roleOption}>{roleOption}</option>
@@ -5578,22 +5578,22 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-slate-300 uppercase mb-1">Notering</label>
+                    <label className="block text-xs font-bold text-secondary uppercase mb-1">Notering</label>
                     <textarea
                       value={witnessDraft.note || ''}
                       onChange={(e) => setWitnessDraft((prev) => ({ ...prev, note: e.target.value }))}
-                      className="w-full h-24 bg-slate-900 border border-slate-600 rounded p-2 text-slate-200 resize-none"
+                      className="w-full h-24 bg-background border border-subtle rounded p-2 text-primary resize-none"
                       placeholder="Frivillig notering..."
                     />
                   </div>
                 </div>
 
-                <div className="flex justify-between items-center gap-2 mt-4 pt-3 border-t border-slate-700">
+                <div className="flex justify-between items-center gap-2 mt-4 pt-3 border-t border-subtle">
                   <button
                     type="button"
                     onClick={() => witnessDraft.id && handleDeleteWitnessEntry(witnessDraft.id)}
                     disabled={!witnessDraft.id}
-                    className="px-3 py-2 text-sm rounded bg-red-900/50 border border-red-700 text-red-100 hover:bg-red-800 disabled:opacity-50"
+                    className="px-3 py-2 text-sm rounded bg-danger-soft border border-danger text-on-accent hover:bg-danger disabled:opacity-50"
                   >
                     Ta bort
                   </button>
@@ -5601,21 +5601,21 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                     <button
                       type="button"
                       onClick={() => setWitnessModalOpen(false)}
-                      className="px-3 py-2 text-sm rounded border border-slate-600 text-slate-300 hover:bg-slate-700"
+                      className="px-3 py-2 text-sm rounded border border-subtle text-secondary hover:bg-surface-2"
                     >
                       Stäng
                     </button>
                     <button
                       type="button"
                       onClick={() => handleSaveWitnessDraft(false)}
-                      className="px-3 py-2 text-sm rounded bg-slate-700 text-slate-100 hover:bg-slate-600"
+                      className="px-3 py-2 text-sm rounded bg-surface-2 text-primary hover:bg-surface"
                     >
                       Spara
                     </button>
                     <button
                       type="button"
                       onClick={() => handleSaveWitnessDraft(true)}
-                      className="px-3 py-2 text-sm rounded bg-blue-600 text-white hover:bg-blue-500"
+                      className="px-3 py-2 text-sm rounded bg-accent text-on-accent hover:bg-accent"
                     >
                       Spara och stäng
                     </button>
@@ -5685,7 +5685,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
       {eventContextMenu.isOpen && (
         <div
           ref={eventContextMenuRef}
-          className="fixed z-[9999] bg-slate-800 border border-slate-600 rounded-lg shadow-lg inline-block"
+          className="fixed z-[9999] bg-surface border border-subtle rounded-lg shadow-lg inline-block"
           style={{
             left: `${eventContextMenu.x}px`,
             top: `${eventContextMenu.y}px`
@@ -5698,7 +5698,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                 handleEditEvent(eventContextMenu.eventId);
                 setEventContextMenu({ isOpen: false, x: 0, y: 0, eventIndex: null, eventId: null });
               }}
-              className="w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 transition-colors flex items-center gap-2"
+              className="w-full text-left px-4 py-2 text-sm text-primary hover:bg-surface-2 transition-colors flex items-center gap-2"
             >
               <Edit3 size={14} /> Redigera händelse
             </button>
@@ -5709,17 +5709,17 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                 handleEditEvent(eventContextMenu.eventId);
                 setEventContextMenu({ isOpen: false, x: 0, y: 0, eventIndex: null, eventId: null });
               }}
-              className="w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 transition-colors flex items-center gap-2"
+              className="w-full text-left px-4 py-2 text-sm text-primary hover:bg-surface-2 transition-colors flex items-center gap-2"
             >
               <Edit3 size={14} /> Byt händelse
             </button>
 
-            <div className="my-1 h-px bg-slate-700"></div>
+            <div className="my-1 h-px bg-surface-2"></div>
 
             {/* Kopiera händelse */}
             <button
               onClick={() => handleCopyEvent(eventContextMenu.eventIndex)}
-              className="w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 transition-colors flex items-center gap-2"
+              className="w-full text-left px-4 py-2 text-sm text-primary hover:bg-surface-2 transition-colors flex items-center gap-2"
             >
               <Copy size={14} /> Kopiera händelse
             </button>
@@ -5731,7 +5731,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                 handlePasteEvent();
               }}
               disabled={!hasCopiedEvent}
-              className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 transition-colors ${hasCopiedEvent ? 'text-slate-200 hover:bg-slate-700' : 'text-slate-500 cursor-not-allowed opacity-50'}`}
+              className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 transition-colors ${hasCopiedEvent ? 'text-primary hover:bg-surface-2' : 'text-muted cursor-not-allowed opacity-50'}`}
             >
               <ClipboardList size={14} /> Klistra in händelse
             </button>
@@ -5739,7 +5739,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
             {/* Kopiera källa */}
             <button
               onClick={() => handleCopyEventSources(eventContextMenu.eventIndex)}
-              className="w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 transition-colors flex items-center gap-2"
+              className="w-full text-left px-4 py-2 text-sm text-primary hover:bg-surface-2 transition-colors flex items-center gap-2"
             >
               <Copy size={14} /> Kopiera källa
             </button>
@@ -5751,7 +5751,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                 handlePasteEventSources(eventContextMenu.eventIndex);
               }}
               disabled={!hasCopiedSources}
-              className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 transition-colors ${hasCopiedSources ? 'text-slate-200 hover:bg-slate-700' : 'text-slate-500 cursor-not-allowed opacity-50'}`}
+              className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 transition-colors ${hasCopiedSources ? 'text-primary hover:bg-surface-2' : 'text-muted cursor-not-allowed opacity-50'}`}
             >
               <ClipboardList size={14} /> Klistra in källa
             </button>
@@ -5759,12 +5759,12 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
             {/* Kopiera som text */}
             <button
               onClick={() => handleCopyEventAsText(eventContextMenu.eventIndex)}
-              className="w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 transition-colors flex items-center gap-2"
+              className="w-full text-left px-4 py-2 text-sm text-primary hover:bg-surface-2 transition-colors flex items-center gap-2"
             >
               <Copy size={14} /> Kopiera som text
             </button>
 
-            <div className="my-1 h-px bg-slate-700"></div>
+            <div className="my-1 h-px bg-surface-2"></div>
 
             {/* Gå till platsen (endast om placeId finns) */}
             {person.events[eventContextMenu.eventIndex]?.placeId && (
@@ -5778,7 +5778,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                   }
                   setEventContextMenu({ isOpen: false, x: 0, y: 0, eventIndex: null, eventId: null });
                 }}
-                className="w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 transition-colors flex items-center gap-2"
+                className="w-full text-left px-4 py-2 text-sm text-primary hover:bg-surface-2 transition-colors flex items-center gap-2"
               >
                 <MapPin size={14} /> Gå till platsen
               </button>
@@ -5787,12 +5787,12 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
             {/* Sök händelse i arkiv */}
             <button
               onClick={() => handleSearchInArchive(eventContextMenu.eventIndex)}
-              className="w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 transition-colors flex items-center gap-2"
+              className="w-full text-left px-4 py-2 text-sm text-primary hover:bg-surface-2 transition-colors flex items-center gap-2"
             >
               <Globe size={14} /> Sök händelse i arkiv
             </button>
 
-            <div className="my-1 h-px bg-slate-700"></div>
+            <div className="my-1 h-px bg-surface-2"></div>
 
             {/* Radera händelse */}
             <button
@@ -5802,7 +5802,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                   setEventContextMenu({ isOpen: false, x: 0, y: 0, eventIndex: null, eventId: null });
                 }
               }}
-              className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-900/30 transition-colors flex items-center gap-2"
+              className="w-full text-left px-4 py-2 text-sm text-danger hover:bg-danger-soft transition-colors flex items-center gap-2"
             >
               <Trash2 size={14} /> Radera händelse
             </button>

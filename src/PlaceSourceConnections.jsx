@@ -42,29 +42,29 @@ export default function PlaceSourceConnections({ place, allSources, onNavigateTo
     return (
         <div className="mt-6">
             <div className="flex justify-between items-center border-b pb-2 mb-2">
-                <h4 className="text-lg font-semibold text-slate-200">Kopplade Källor</h4>
-                <button onClick={() => onAttachSource('place', place.id)} className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 font-semibold">[+ Koppla källa]</button>
+                <h4 className="text-lg font-semibold text-primary">Kopplade Källor</h4>
+                <button onClick={() => onAttachSource('place', place.id)} className="px-3 py-1 text-xs bg-accent text-on-accent rounded hover:bg-accent font-semibold">[+ Koppla källa]</button>
             </div>
             {connectedSources.length > 0 ? (
                 <ul className="space-y-2 mb-6">
                     {connectedSources.map(source => (
-                        <li key={source.id} className="text-sm p-2 bg-slate-800 rounded-md border border-slate-700">
+                        <li key={source.id} className="text-sm p-2 bg-surface rounded-md border border-subtle">
                             <span className="font-bold cursor-pointer hover:underline" onClick={() => onNavigateToSource(source.id)}>{buildSourceString(source)}</span>
                         </li>
                     ))}
                 </ul>
             ) : (
-                <p className="text-sm text-slate-400 italic mt-2 mb-6">Inga källor är kopplade till denna plats än.</p>
+                <p className="text-sm text-secondary italic mt-2 mb-6">Inga källor är kopplade till denna plats än.</p>
             )}
 
             {/* NYTT: Sektion för föreslagna källor */}
             {suggestedSources.length > 0 && (
                 <div>
-                    <h5 className="text-md font-semibold text-slate-200 border-b pb-1 mb-2">Föreslagna Källor (baserat på platsnamn)</h5>
+                    <h5 className="text-md font-semibold text-primary border-b pb-1 mb-2">Föreslagna Källor (baserat på platsnamn)</h5>
                     <ul className="space-y-1">
                         {suggestedSources.map(source => (
-                            <li key={source.id} className="text-sm p-1.5 bg-slate-700 rounded-md flex justify-between items-center">
-                                <span className="font-semibold cursor-pointer hover:underline text-slate-200" onClick={() => onNavigateToSource(source.id)}>
+                            <li key={source.id} className="text-sm p-1.5 bg-surface-2 rounded-md flex justify-between items-center">
+                                <span className="font-semibold cursor-pointer hover:underline text-primary" onClick={() => onNavigateToSource(source.id)}>
                                     {buildSourceString(source)}
                                 </span>
                                 <button onClick={() => handleQuickAttach(source.id)} className="px-2 py-0.5 text-xs bg-green-600 text-white rounded hover:bg-green-700 font-semibold">[+ Koppla]</button>

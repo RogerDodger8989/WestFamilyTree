@@ -137,13 +137,13 @@ export default function TrashModal({ isOpen, onClose, onRestore, onEmptyTrash })
       minWidth={600}
       minHeight={400}
     >
-      <div className="flex flex-col h-full bg-slate-900 text-slate-200">
+      <div className="flex flex-col h-full bg-background text-primary">
         {/* Header */}
-        <div className="p-4 border-b border-slate-700 flex items-center justify-between">
+        <div className="p-4 border-b border-subtle flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Trash size={20} className="text-slate-400" />
+            <Trash size={20} className="text-secondary" />
             <h2 className="text-lg font-semibold">Papperskorg</h2>
-            <span className="text-sm text-slate-500">
+            <span className="text-sm text-muted">
               ({trashFiles.length} filer)
             </span>
           </div>
@@ -162,9 +162,9 @@ export default function TrashModal({ isOpen, onClose, onRestore, onEmptyTrash })
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4">
           {loading ? (
-            <div className="text-center py-8 text-slate-500">Laddar...</div>
+            <div className="text-center py-8 text-muted">Laddar...</div>
           ) : trashFiles.length === 0 ? (
-            <div className="text-center py-8 text-slate-500">
+            <div className="text-center py-8 text-muted">
               <Trash size={48} className="mx-auto mb-4 opacity-50" />
               <p>Papperskorgen är tom</p>
             </div>
@@ -190,25 +190,25 @@ export default function TrashModal({ isOpen, onClose, onRestore, onEmptyTrash })
                         className="bg-red-900/20 border border-red-800/50 rounded p-3 mb-2 flex items-center gap-3"
                       >
                         {isImage && imageUrl ? (
-                          <div className="w-16 h-16 shrink-0 rounded overflow-hidden bg-slate-800 border border-slate-700">
+                          <div className="w-16 h-16 shrink-0 rounded overflow-hidden bg-surface border border-subtle">
                             <img
                               src={imageUrl}
                               alt={file.originalName}
                               className="w-full h-full object-cover"
                               onError={(e) => {
                                 e.target.style.display = 'none';
-                                e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center text-slate-500 text-xs">Ingen bild</div>';
+                                e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center text-muted text-xs">Ingen bild</div>';
                               }}
                             />
                           </div>
                         ) : (
-                          <div className="w-16 h-16 shrink-0 rounded bg-slate-800 border border-slate-700 flex items-center justify-center">
-                            <FileText size={24} className="text-slate-500" />
+                          <div className="w-16 h-16 shrink-0 rounded bg-surface border border-subtle flex items-center justify-center">
+                            <FileText size={24} className="text-muted" />
                           </div>
                         )}
                         <div className="flex-1 min-w-0">
                           <div className="font-medium text-sm truncate">{file.originalName}</div>
-                          <div className="text-xs text-slate-400 mt-1 flex flex-col gap-1">
+                          <div className="text-xs text-secondary mt-1 flex flex-col gap-1">
                             <div className="flex items-center gap-3">
                               <span className="flex items-center gap-1">
                                 <Calendar size={12} />
@@ -222,10 +222,10 @@ export default function TrashModal({ isOpen, onClose, onRestore, onEmptyTrash })
                                 e.stopPropagation();
                                 handleOpenInExplorer(file);
                               }}
-                              className="flex items-center gap-1 text-slate-500 hover:text-blue-400 transition-colors group"
+                              className="flex items-center gap-1 text-muted hover:text-accent transition-colors group"
                               title="Öppna i Explorer"
                             >
-                              <FolderOpen size={12} className="group-hover:text-blue-400" />
+                              <FolderOpen size={12} className="group-hover:text-accent" />
                               <span className="truncate max-w-md">media/{file.path}</span>
                             </button>
                           </div>
@@ -233,7 +233,7 @@ export default function TrashModal({ isOpen, onClose, onRestore, onEmptyTrash })
                         <div className="flex items-center gap-2 ml-4 shrink-0">
                           <button
                             onClick={() => handleRestore(file)}
-                            className="px-2 py-1 bg-blue-900/30 border border-blue-700/50 text-blue-300 text-xs rounded hover:bg-blue-900/50 transition-colors flex items-center gap-1"
+                            className="px-2 py-1 bg-accent-soft border border-strong text-accent text-xs rounded hover:bg-accent-soft transition-colors flex items-center gap-1"
                             title="Återställ"
                           >
                             <RotateCcw size={14} />
@@ -256,7 +256,7 @@ export default function TrashModal({ isOpen, onClose, onRestore, onEmptyTrash })
               {filesSafe.length > 0 && (
                 <div>
                   {filesToBeDeleted.length > 0 && (
-                    <div className="flex items-center gap-2 mb-2 text-sm text-slate-400">
+                    <div className="flex items-center gap-2 mb-2 text-sm text-secondary">
                       <span className="font-semibold">
                         Säker ({filesSafe.length})
                       </span>
@@ -270,45 +270,45 @@ export default function TrashModal({ isOpen, onClose, onRestore, onEmptyTrash })
                     return (
                       <div
                         key={file.name}
-                        className="bg-slate-800/50 border border-slate-700 rounded p-3 mb-2 flex items-center gap-3 hover:bg-slate-800 transition-colors"
+                        className="bg-surface border border-subtle rounded p-3 mb-2 flex items-center gap-3 hover:bg-surface transition-colors"
                       >
                         {isImage && imageUrl ? (
-                          <div className="w-16 h-16 shrink-0 rounded overflow-hidden bg-slate-800 border border-slate-700">
+                          <div className="w-16 h-16 shrink-0 rounded overflow-hidden bg-surface border border-subtle">
                             <img
                               src={imageUrl}
                               alt={file.originalName}
                               className="w-full h-full object-cover"
                               onError={(e) => {
                                 e.target.style.display = 'none';
-                                e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center text-slate-500 text-xs">Ingen bild</div>';
+                                e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center text-muted text-xs">Ingen bild</div>';
                               }}
                             />
                           </div>
                         ) : (
-                          <div className="w-16 h-16 shrink-0 rounded bg-slate-800 border border-slate-700 flex items-center justify-center">
-                            <FileText size={24} className="text-slate-500" />
+                          <div className="w-16 h-16 shrink-0 rounded bg-surface border border-subtle flex items-center justify-center">
+                            <FileText size={24} className="text-muted" />
                           </div>
                         )}
                         <div className="flex-1 min-w-0">
                           <div className="font-medium text-sm truncate">{file.originalName}</div>
-                          <div className="text-xs text-slate-400 mt-1 flex flex-col gap-1">
+                          <div className="text-xs text-secondary mt-1 flex flex-col gap-1">
                             <div className="flex items-center gap-3">
                               <span className="flex items-center gap-1">
                                 <Calendar size={12} />
                                 {formatDate(file.deletedAt)}
                               </span>
                               <span>{formatSize(file.size)}</span>
-                              <span className="text-slate-500">{file.daysOld} dagar gammal</span>
+                              <span className="text-muted">{file.daysOld} dagar gammal</span>
                             </div>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleOpenInExplorer(file);
                               }}
-                              className="flex items-center gap-1 text-slate-500 hover:text-blue-400 transition-colors group text-left"
+                              className="flex items-center gap-1 text-muted hover:text-accent transition-colors group text-left"
                               title="Öppna i Explorer"
                             >
-                              <FolderOpen size={12} className="group-hover:text-blue-400 shrink-0" />
+                              <FolderOpen size={12} className="group-hover:text-accent shrink-0" />
                               <span className="truncate max-w-md">media/{file.path}</span>
                             </button>
                           </div>
@@ -316,7 +316,7 @@ export default function TrashModal({ isOpen, onClose, onRestore, onEmptyTrash })
                         <div className="flex items-center gap-2 ml-4 shrink-0">
                           <button
                             onClick={() => handleRestore(file)}
-                            className="px-2 py-1 bg-blue-900/30 border border-blue-700/50 text-blue-300 text-xs rounded hover:bg-blue-900/50 transition-colors flex items-center gap-1"
+                            className="px-2 py-1 bg-accent-soft border border-strong text-accent text-xs rounded hover:bg-accent-soft transition-colors flex items-center gap-1"
                             title="Återställ"
                           >
                             <RotateCcw size={14} />

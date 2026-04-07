@@ -55,17 +55,10 @@ export default function PersonContextMenu({ x, y, onClose, onPersonSelect }) {
   return (
     <div
       ref={ref}
+      className="absolute z-[1000] bg-surface-2 rounded-lg shadow-lg p-3 min-w-[320px] text-primary border border-subtle"
       style={{
-        position: "absolute",
         left: x,
-        top: y,
-        zIndex: 1000,
-        background: "#222",
-        borderRadius: 8,
-        boxShadow: "0 4px 24px #0008",
-        padding: 12,
-        minWidth: 320,
-        color: "#fff"
+        top: y
       }}
     >
       <input
@@ -74,13 +67,13 @@ export default function PersonContextMenu({ x, y, onClose, onPersonSelect }) {
         value={search}
         onChange={e => setSearch(e.target.value)}
         placeholder="Sök person..."
-        style={{ width: "100%", marginBottom: 10, padding: 6, borderRadius: 4, border: "none" }}
+        className="w-full mb-2.5 px-2 py-1.5 rounded border border-subtle bg-background text-primary outline-none focus:border-strong"
       />
       <div>
         {results.map(person => (
           <div
             key={person.id}
-            style={{ display: "flex", alignItems: "center", gap: 10, padding: 6, borderRadius: 6, cursor: "pointer", background: "#333", marginBottom: 4 }}
+            className="flex items-center gap-2.5 p-1.5 rounded-md cursor-pointer bg-background mb-1 hover:bg-surface"
             title={`(${person.ref}) ${person.lastName}, ${person.firstName}\n* ${person.birth.date}, ${person.birth.place}\n+ ${person.death.date}, ${person.death.place}`}
             onClick={() => {
               if (onPersonSelect) onPersonSelect(person.id);
@@ -90,22 +83,22 @@ export default function PersonContextMenu({ x, y, onClose, onPersonSelect }) {
             <img
               src={person.image || defaultProfile}
               alt="Profil"
-              style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover", background: "#444" }}
+              className="w-9 h-9 rounded-full object-cover bg-surface"
             />
             <div>
-              <div style={{ fontWeight: 600 }}>
+              <div className="font-semibold">
                 ({person.ref}) {person.lastName}, {person.firstName}
               </div>
-              <div style={{ fontSize: 13, color: "#ccc" }}>
+              <div className="text-[13px] text-muted">
                 * {person.birth.date}, {person.birth.place}
               </div>
-              <div style={{ fontSize: 13, color: "#ccc" }}>
+              <div className="text-[13px] text-muted">
                 + {person.death.date}, {person.death.place}
               </div>
             </div>
           </div>
         ))}
-        {results.length === 0 && <div style={{ color: "#aaa", padding: 8 }}>Inga träffar</div>}
+        {results.length === 0 && <div className="text-muted p-2">Inga träffar</div>}
       </div>
     </div>
   );

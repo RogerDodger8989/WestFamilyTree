@@ -557,41 +557,41 @@ const ImageEditorModal = ({
       initialWidth={Math.min(1400, window.innerWidth * 0.9)}
       initialHeight={Math.min(900, window.innerHeight * 0.9)}
     >
-      <div className="flex flex-col h-full bg-slate-900 select-none">
+      <div className="flex flex-col h-full bg-background select-none">
         {/* Toolbar */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700 bg-slate-800 shrink-0 select-none">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-subtle bg-surface shrink-0 select-none">
           <div className="flex items-center gap-2 flex-wrap">
                         <button
-                          className={`p-2 ${isFaceTagMode ? 'bg-amber-700 hover:bg-amber-800' : 'bg-slate-700 hover:bg-slate-600'} text-white rounded transition-colors flex items-center gap-1`}
+                          className={`p-2 ${isFaceTagMode ? 'bg-amber-700 hover:bg-amber-800' : 'bg-surface-2 hover:bg-surface-2'} text-white rounded transition-colors flex items-center gap-1`}
                           title="Face-tagging"
                           onClick={() => setIsFaceTagMode(v => !v)}
                         >
                           <ScanFace size={18} />
                         </button>
-            <button onClick={handleZoomIn} className="p-2 bg-slate-700 hover:bg-slate-600 text-white rounded transition-colors" title="Zooma in (Z)"><ZoomIn size={18} /></button>
-            <button onClick={handleZoomOut} className="p-2 bg-slate-700 hover:bg-slate-600 text-white rounded transition-colors" title="Zooma ut (X)"><ZoomOut size={18} /></button>
-            <button onClick={handleFitToWindow} className="p-2 bg-slate-700 hover:bg-slate-600 text-white rounded transition-colors" title="Anpassa till fönster (F)"><Maximize2 size={18} /></button>
-            <button onClick={handleRotate} className="p-2 bg-slate-700 hover:bg-slate-600 text-white rounded transition-colors" title="Rotera 90° (R)"><RotateCw size={18} /></button>
-            <button onClick={() => { pushHistory(); setFlipH(f => !f); }} className="p-2 bg-slate-700 hover:bg-slate-600 text-white rounded transition-colors" title="Spegla horisontellt"><FlipHorizontal size={18} /></button>
-            <button onClick={() => { pushHistory(); setFlipV(f => !f); }} className="p-2 bg-slate-700 hover:bg-slate-600 text-white rounded transition-colors" title="Spegla vertikalt"><FlipVertical size={18} /></button>
-            <button onClick={toggleCropMode} className={`p-2 rounded transition-colors text-white ${isCropMode ? 'bg-amber-700 hover:bg-amber-800' : 'bg-slate-700 hover:bg-slate-600'}`} title="Beskär (C)"><Crop size={18} /></button>
-            <button onClick={() => setShowGrid(g => !g)} className={`p-2 rounded transition-colors text-white ${showGrid ? 'bg-green-700 hover:bg-green-800' : 'bg-slate-700 hover:bg-slate-600'}`} title="Rutnät"><Grid size={18} /></button>
-            <button onClick={resetTransforms} className="p-2 bg-slate-700 hover:bg-slate-600 text-white rounded transition-colors" title="Återställ (H)"><Repeat size={18} /></button>
-            <button onClick={handleUndo} className="p-2 bg-slate-700 hover:bg-slate-600 text-white rounded transition-colors" title="Ångra (Ctrl+Z)"><RotateCcw size={18} /></button>
-            <button onClick={handleRedo} className="p-2 bg-slate-700 hover:bg-slate-600 text-white rounded transition-colors" title="Gör om (Ctrl+Y)"><RotateCw size={18} /></button>
+            <button onClick={handleZoomIn} className="p-2 bg-surface-2 hover:bg-surface-2 text-white rounded transition-colors" title="Zooma in (Z)"><ZoomIn size={18} /></button>
+            <button onClick={handleZoomOut} className="p-2 bg-surface-2 hover:bg-surface-2 text-white rounded transition-colors" title="Zooma ut (X)"><ZoomOut size={18} /></button>
+            <button onClick={handleFitToWindow} className="p-2 bg-surface-2 hover:bg-surface-2 text-white rounded transition-colors" title="Anpassa till fönster (F)"><Maximize2 size={18} /></button>
+            <button onClick={handleRotate} className="p-2 bg-surface-2 hover:bg-surface-2 text-white rounded transition-colors" title="Rotera 90° (R)"><RotateCw size={18} /></button>
+            <button onClick={() => { pushHistory(); setFlipH(f => !f); }} className="p-2 bg-surface-2 hover:bg-surface-2 text-white rounded transition-colors" title="Spegla horisontellt"><FlipHorizontal size={18} /></button>
+            <button onClick={() => { pushHistory(); setFlipV(f => !f); }} className="p-2 bg-surface-2 hover:bg-surface-2 text-white rounded transition-colors" title="Spegla vertikalt"><FlipVertical size={18} /></button>
+            <button onClick={toggleCropMode} className={`p-2 rounded transition-colors text-white ${isCropMode ? 'bg-amber-700 hover:bg-amber-800' : 'bg-surface-2 hover:bg-surface-2'}`} title="Beskär (C)"><Crop size={18} /></button>
+            <button onClick={() => setShowGrid(g => !g)} className={`p-2 rounded transition-colors text-white ${showGrid ? 'bg-green-700 hover:bg-green-800' : 'bg-surface-2 hover:bg-surface-2'}`} title="Rutnät"><Grid size={18} /></button>
+            <button onClick={resetTransforms} className="p-2 bg-surface-2 hover:bg-surface-2 text-white rounded transition-colors" title="Återställ (H)"><Repeat size={18} /></button>
+            <button onClick={handleUndo} className="p-2 bg-surface-2 hover:bg-surface-2 text-white rounded transition-colors" title="Ångra (Ctrl+Z)"><RotateCcw size={18} /></button>
+            <button onClick={handleRedo} className="p-2 bg-surface-2 hover:bg-surface-2 text-white rounded transition-colors" title="Gör om (Ctrl+Y)"><RotateCw size={18} /></button>
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 text-slate-300 text-xs">
+            <div className="flex items-center gap-2 text-primary text-xs">
               <span>Finvinkel</span>
               <input type="range" min={-5} max={5} step={0.1} value={fineRotation} onChange={(e) => { pushHistory(); setFineRotation(parseFloat(e.target.value)); }} className="w-32" />
               <span className="w-10 text-right">{fineRotation.toFixed(1)}°</span>
             </div>
-            <div className="flex items-center gap-2 text-slate-300 text-xs">
+            <div className="flex items-center gap-2 text-primary text-xs">
               <Sun size={14} />
               <input type="range" min={0.5} max={1.5} step={0.05} value={brightness} onChange={(e) => { pushHistory(); setBrightness(parseFloat(e.target.value)); }} className="w-24" />
               <span className="w-10 text-right">{Math.round(brightness * 100)}%</span>
             </div>
-            <div className="flex items-center gap-2 text-slate-300 text-xs">
+            <div className="flex items-center gap-2 text-primary text-xs">
               <Contrast size={14} />
               <input type="range" min={0.5} max={1.5} step={0.05} value={contrastLevel} onChange={(e) => { pushHistory(); setContrastLevel(parseFloat(e.target.value)); }} className="w-24" />
               <span className="w-10 text-right">{Math.round(contrastLevel * 100)}%</span>
@@ -600,7 +600,7 @@ const ImageEditorModal = ({
         </div>
 
         {/* Secondary toolbar */}
-        <div className="flex items-center justify-between px-4 py-2 border-b border-slate-700 bg-slate-800 shrink-0 select-none text-slate-300 text-sm">
+        <div className="flex items-center justify-between px-4 py-2 border-b border-subtle bg-surface shrink-0 select-none text-primary text-sm">
           <div className="flex items-center gap-4">
             <span>Zoom: {Math.round(scale * 100)}%</span>
             <span>Rotation: {(rotation + fineRotation).toFixed(1)}°</span>
@@ -611,7 +611,7 @@ const ImageEditorModal = ({
             <button
               onClick={() => onPrev && onPrev()}
               disabled={!hasPrev}
-              className="flex items-center gap-2 px-3 py-2 bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 text-white rounded transition-colors font-medium"
+              className="flex items-center gap-2 px-3 py-2 bg-surface-2 hover:bg-surface-2 disabled:bg-surface text-white rounded transition-colors font-medium"
               title="Föregående (vänsterpil)"
             >
               <ArrowLeft size={16} />
@@ -623,7 +623,7 @@ const ImageEditorModal = ({
         {/* Canvas Area */}
         <div 
           ref={containerRef}
-          className="flex-1 overflow-hidden bg-slate-950 relative cursor-move flex items-center justify-center select-none"
+          className="flex-1 overflow-hidden bg-background relative cursor-move flex items-center justify-center select-none"
           style={{ cursor: isCropMode ? 'crosshair' : isFaceTagMode ? 'crosshair' : 'move' }}
           onWheel={handleWheel}
           onMouseDown={isFaceTagMode ? undefined : handleMouseDown}
@@ -665,7 +665,7 @@ const ImageEditorModal = ({
         </div>
 
         {/* Info bar */}
-        <div className="px-4 py-2 border-t border-slate-700 bg-slate-800 text-slate-400 text-xs shrink-0">
+        <div className="px-4 py-2 border-t border-subtle bg-surface text-secondary text-xs shrink-0">
           Tips: Scrolla för zoom, dubbelklick för zoom in, dra för att flytta. Kortkommandon: Z/X zoom, R 90°, F fit, C beskär, H reset, Del ta bort, Ctrl+Z/Y ångra/gör om.
         </div>
       </div>

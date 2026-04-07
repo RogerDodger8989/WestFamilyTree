@@ -61,7 +61,7 @@ const ALL_PERSON_EVENT_TYPES = [
 function GenderIcon({ gender, className = '' }) {
   if (gender === 'M') {
     return (
-      <svg className={`w-5 h-5 text-blue-200 fill-current ${className}`} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <svg className={`w-5 h-5 text-accent fill-current ${className}`} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path d="M12 2a5 5 0 0 0-5 5c0 2.47 1.8 4.5 4.1 4.92L11 13H9v2h2v7h2v-7h2v-2h-2l-.1-1.08A5 5 0 0 0 12 2zm0 2a3 3 0 0 1 3 3a3 3 0 0 1-3 3a3 3 0 0 1-3-3a3 3 0 0 1 3-3z" />
       </svg>
     );
@@ -873,7 +873,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
   };
 
   const renderPersonCell = (person, columnId) => {
-    if (columnId === 'ref') return <span className="font-mono text-xs text-slate-400">{person.refNumber || '-'}</span>;
+    if (columnId === 'ref') return <span className="font-mono text-xs text-muted">{person.refNumber || '-'}</span>;
 
     if (columnId === 'name') {
       return (
@@ -884,7 +884,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
               forceHideHover();
               onSetFocusPair('primary', person.id);
             }}
-            className={`cursor-pointer text-base leading-none ${person.id === focusPair.primary ? 'text-yellow-400' : 'text-slate-500 hover:text-yellow-300'}`}
+            className={`cursor-pointer text-base leading-none ${person.id === focusPair.primary ? 'text-warning' : 'text-muted hover:text-warning'}`}
             title="Sätt som Primär Fokus"
           >★</span>
           <span
@@ -893,21 +893,21 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
               forceHideHover();
               onSetFocusPair('secondary', person.id);
             }}
-            className={`cursor-pointer text-base leading-none ${person.id === focusPair.secondary ? 'text-blue-400' : 'text-slate-500 hover:text-blue-300'}`}
+            className={`cursor-pointer text-base leading-none ${person.id === focusPair.secondary ? 'text-accent' : 'text-muted hover:text-accent'}`}
             title="Sätt som Sekundär Fokus"
           >★</span>
           <GenderIcon gender={person.gender} className="flex-shrink-0" />
-          <span className="truncate font-semibold text-slate-100">{person.firstName} {person.lastName}</span>
+          <span className="truncate font-semibold text-primary">{person.firstName} {person.lastName}</span>
         </div>
       );
     }
 
-    if (columnId === 'gender') return <span className="text-slate-300">{person.gender || person.sex || '-'}</span>;
-    if (columnId === 'birth') return <span className="text-slate-300">{getDatePlaceText(getBirthEvent(person))}</span>;
-    if (columnId === 'death') return <span className="text-slate-300">{getDatePlaceText(getDeathEvent(person))}</span>;
-    if (columnId === 'occupation') return <span className="text-slate-300">{getOccupationText(person) || '-'}</span>;
+    if (columnId === 'gender') return <span className="text-secondary">{person.gender || person.sex || '-'}</span>;
+    if (columnId === 'birth') return <span className="text-secondary">{getDatePlaceText(getBirthEvent(person))}</span>;
+    if (columnId === 'death') return <span className="text-secondary">{getDatePlaceText(getDeathEvent(person))}</span>;
+    if (columnId === 'occupation') return <span className="text-secondary">{getOccupationText(person) || '-'}</span>;
 
-    return <span className="text-slate-500">-</span>;
+    return <span className="text-muted">-</span>;
   };
 
   const toIsoDate = (timestamp) => {
@@ -1202,8 +1202,8 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
 
   const StatusIndicators = ({ person }) => (
     <div className="flex items-center gap-1.5 ml-2">
-      {personHasMedia(person) && <ImageIcon className="w-3.5 h-3.5 text-slate-400" title="Har media" />}
-      {personHasSources(person) && <BookOpen className="w-3.5 h-3.5 text-blue-300" title="Har källor" />}
+      {personHasMedia(person) && <ImageIcon className="w-3.5 h-3.5 text-muted" title="Har media" />}
+      {personHasSources(person) && <BookOpen className="w-3.5 h-3.5 text-accent" title="Har källor" />}
       {personHasWarnings(person) && <AlertTriangle className="w-3.5 h-3.5 text-amber-300" title="Har varningar" />}
     </div>
   );
@@ -1239,33 +1239,33 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
       <div
         key={person.id}
         onContextMenu={(e) => handleContextMenu(e, person.id)}
-        className="relative flex justify-between items-center gap-3 p-3 hover:bg-slate-700 transition border-b border-slate-700 last:border-0"
+        className="relative flex justify-between items-center gap-3 p-3 hover:bg-surface-2 transition border-b border-subtle last:border-0"
         style={person?.color ? { borderLeft: `4px solid ${person.color}`, paddingLeft: '0.5rem' } : undefined}
       >
         <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-500 font-mono mr-2">REF: {person.refNumber}</span>
+          <span className="text-xs text-muted font-mono mr-2">REF: {person.refNumber}</span>
           <span
             onClick={(e) => { e.stopPropagation(); forceHideHover(); onSetFocusPair('primary', person.id); }}
-            className={`cursor-pointer text-xl ${person.id === focusPair.primary ? 'text-yellow-400' : 'text-slate-500 hover:text-yellow-300'}`}
+            className={`cursor-pointer text-xl ${person.id === focusPair.primary ? 'text-warning' : 'text-muted hover:text-warning'}`}
             title="Sätt som Primär Fokus"
           >★</span>
           <span
             onClick={(e) => { e.stopPropagation(); forceHideHover(); onSetFocusPair('secondary', person.id); }}
-            className={`cursor-pointer text-xl ${person.id === focusPair.secondary ? 'text-blue-500' : 'text-slate-500 hover:text-blue-400'}`}
+            className={`cursor-pointer text-xl ${person.id === focusPair.secondary ? 'text-accent' : 'text-muted hover:text-accent'}`}
             title="Sätt som Sekundär Fokus"
           >★</span>
           <GenderIcon gender={person.gender} className="mr-2 flex-shrink-0" />
-          <span className="cursor-pointer hover:text-blue-400" onClick={() => { forceHideHover(); onOpenEditModal(person.id); }}>
-            <span className="font-bold text-slate-200">{person.firstName} {person.lastName}</span>
-            {person._archived && <span className="text-red-500 font-semibold ml-2">ARKIVERAD</span>}
+          <span className="cursor-pointer hover:text-accent" onClick={() => { forceHideHover(); onOpenEditModal(person.id); }}>
+            <span className="font-bold text-primary">{person.firstName} {person.lastName}</span>
+            {person._archived && <span className="text-danger font-semibold ml-2">ARKIVERAD</span>}
             {person._archived && (
-              <button onClick={(e) => handleRestore(e)} className="ml-2 px-2 py-0.5 bg-red-600 text-white rounded text-xs hover:bg-red-700">Återställ</button>
+              <button onClick={(e) => handleRestore(e)} className="ml-2 px-2 py-0.5 bg-danger text-on-accent rounded text-xs hover:bg-danger">Återställ</button>
             )}
-            <span className="text-slate-400 text-sm font-normal ml-1">{getLifeSpanString(person)}</span>
+            <span className="text-muted text-sm font-normal ml-1">{getLifeSpanString(person)}</span>
           </span>
           {person?.color && (
             <span
-              className="inline-flex w-2.5 h-2.5 rounded-full border border-white/30"
+              className="inline-flex w-2.5 h-2.5 rounded-full border border-subtle"
               style={{ backgroundColor: person.color }}
               title={`Grenfärg: ${person.color}`}
             />
@@ -1282,7 +1282,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
           showStatus('Huvudperson sparad!');
         }}
             title="Huvudperson - sätt som fokus i trädvyn"
-            className={`px-2 py-0.5 text-xs border rounded ${familyTreeFocusPersonId === person.id ? 'bg-yellow-600 border-yellow-500 text-yellow-100' : 'bg-slate-700 border-slate-600 text-slate-300 hover:bg-slate-600'}`}
+            className={`px-2 py-0.5 text-xs border rounded ${familyTreeFocusPersonId === person.id ? 'bg-warning border-warning text-on-accent' : 'bg-surface-2 border-subtle text-secondary hover:bg-surface'}`}
           >
             Huvudperson
           </button>
@@ -1291,7 +1291,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
             onClick={() => { forceHideHover(); onOpenEditModal(person.id); }}
             title="Redigera person"
             aria-label="Redigera person"
-            className="inline-flex items-center justify-center px-2 py-0.5 text-xs bg-slate-700 border border-slate-600 text-slate-200 rounded hover:bg-slate-600"
+            className="inline-flex items-center justify-center px-2 py-0.5 text-xs bg-surface-2 border border-subtle text-primary rounded hover:bg-surface"
           >
             <Edit3 className="w-3.5 h-3.5" />
           </button>
@@ -1301,7 +1301,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
             onClick={() => { forceHideHover(); onOpenRelationModal(person.id); }}
             title="Visa i släktträd"
             aria-label="Visa i släktträd"
-            className="inline-flex items-center gap-1 px-2 py-0.5 text-xs border border-cyan-600 text-cyan-300 rounded hover:bg-cyan-900/40"
+            className="inline-flex items-center gap-1 px-2 py-0.5 text-xs border border-accent text-accent rounded hover:bg-accent-soft"
           >
             <Network className="w-3.5 h-3.5" />
           </button>
@@ -1310,7 +1310,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
             onClick={() => { forceHideHover(); onDeletePerson(person.id); }}
             title="Ta bort person"
             aria-label="Ta bort person"
-            className="inline-flex items-center justify-center px-2 py-0.5 text-xs border border-red-600 text-red-400 rounded hover:bg-red-900 font-semibold"
+            className="inline-flex items-center justify-center px-2 py-0.5 text-xs border border-danger text-danger rounded hover:bg-danger-soft font-semibold"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
@@ -1355,12 +1355,12 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
       <article
         key={person.id}
         onContextMenu={(e) => handleContextMenu(e, person.id)}
-        className="relative bg-slate-900 border border-slate-700 rounded-lg p-3 hover:border-slate-500 transition"
+        className="relative bg-background border border-subtle rounded-lg p-3 hover:border-strong transition"
         style={person?.color ? { borderLeft: `4px solid ${person.color}` } : undefined}
       >
         <div className="flex items-start gap-3">
           {portraitImage ? (
-            <div className="w-10 h-10 rounded-full border border-slate-600 bg-slate-800 overflow-hidden">
+            <div className="w-10 h-10 rounded-full border border-subtle bg-surface overflow-hidden">
               <MediaImage
                 url={portraitImage}
                 alt={`${person.firstName || ''} ${person.lastName || ''}`.trim() || 'Porträtt'}
@@ -1370,31 +1370,31 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
               />
             </div>
           ) : (
-            <div className="w-10 h-10 rounded-full border border-slate-600 bg-slate-800 text-slate-200 flex items-center justify-center font-semibold text-sm">
+            <div className="w-10 h-10 rounded-full border border-subtle bg-surface text-primary flex items-center justify-center font-semibold text-sm">
               {getPersonInitials(person)}
             </div>
           )}
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs text-slate-500 font-mono">REF: {person.refNumber}</span>
+              <span className="text-xs text-muted font-mono">REF: {person.refNumber}</span>
               <GenderIcon gender={person.gender} className="flex-shrink-0" />
               {person?.color && (
                 <span
-                  className="inline-flex w-2.5 h-2.5 rounded-full border border-white/30"
+                  className="inline-flex w-2.5 h-2.5 rounded-full border border-subtle"
                   style={{ backgroundColor: person.color }}
                   title={`Grenfärg: ${person.color}`}
                 />
               )}
               <StatusIndicators person={person} />
             </div>
-            <button type="button" onClick={() => { forceHideHover(); onOpenEditModal(person.id); }} className="text-left hover:text-blue-300">
-              <div className="font-semibold text-slate-200 truncate">{person.firstName} {person.lastName}</div>
-              <div className="text-xs text-slate-400 truncate">{getLifeSpanString(person) || 'Okänt livsspann'}</div>
+            <button type="button" onClick={() => { forceHideHover(); onOpenEditModal(person.id); }} className="text-left hover:text-accent">
+              <div className="font-semibold text-primary truncate">{person.firstName} {person.lastName}</div>
+              <div className="text-xs text-muted truncate">{getLifeSpanString(person) || 'Okänt livsspann'}</div>
             </button>
             {person._archived && (
               <div className="mt-2 flex items-center gap-2">
-                <span className="text-red-400 text-xs font-semibold">ARKIVERAD</span>
-                <button onClick={(e) => handleRestore(e)} className="px-2 py-0.5 bg-red-600 text-white rounded text-xs hover:bg-red-700">Återställ</button>
+                <span className="text-danger text-xs font-semibold">ARKIVERAD</span>
+                <button onClick={(e) => handleRestore(e)} className="px-2 py-0.5 bg-danger text-on-accent rounded text-xs hover:bg-danger">Återställ</button>
               </div>
             )}
           </div>
@@ -1408,7 +1408,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
               showStatus('Huvudperson sparad!');
             }}
             title="Huvudperson - sätt som fokus i trädvyn"
-            className={`px-2 py-0.5 text-xs border rounded ${familyTreeFocusPersonId === person.id ? 'bg-yellow-600 border-yellow-500 text-yellow-100' : 'bg-slate-700 border-slate-600 text-slate-300 hover:bg-slate-600'}`}
+            className={`px-2 py-0.5 text-xs border rounded ${familyTreeFocusPersonId === person.id ? 'bg-warning border-warning text-on-accent' : 'bg-surface-2 border-subtle text-secondary hover:bg-surface'}`}
           >
             Huvudperson
           </button>
@@ -1416,7 +1416,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
             onClick={() => { forceHideHover(); onOpenEditModal(person.id); }}
             title="Redigera person"
             aria-label="Redigera person"
-            className="inline-flex items-center justify-center px-2 py-0.5 text-xs bg-slate-700 border border-slate-600 text-slate-200 rounded hover:bg-slate-600"
+            className="inline-flex items-center justify-center px-2 py-0.5 text-xs bg-surface-2 border border-subtle text-primary rounded hover:bg-surface"
           >
             <Edit3 className="w-3.5 h-3.5" />
           </button>
@@ -1425,7 +1425,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
             onClick={() => { forceHideHover(); onOpenRelationModal(person.id); }}
             title="Visa i släktträd"
             aria-label="Visa i släktträd"
-            className="inline-flex items-center gap-1 px-2 py-0.5 text-xs border border-cyan-600 text-cyan-300 rounded hover:bg-cyan-900/40"
+            className="inline-flex items-center gap-1 px-2 py-0.5 text-xs border border-accent text-accent rounded hover:bg-accent-soft"
           >
             <Network className="w-3.5 h-3.5" />
           </button>
@@ -1434,7 +1434,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
             onClick={() => { forceHideHover(); onDeletePerson(person.id); }}
             title="Ta bort person"
             aria-label="Ta bort person"
-            className="inline-flex items-center justify-center px-2 py-0.5 text-xs border border-red-600 text-red-400 rounded hover:bg-red-900 font-semibold"
+            className="inline-flex items-center justify-center px-2 py-0.5 text-xs border border-danger text-danger rounded hover:bg-danger-soft font-semibold"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
@@ -1445,7 +1445,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
               forceHideHover();
               onSetFocusPair('primary', person.id);
             }}
-            className={`px-2 py-0.5 text-xs border rounded ${person.id === focusPair.primary ? 'border-yellow-500 text-yellow-300 bg-yellow-900/20' : 'border-slate-600 text-slate-300 hover:bg-slate-700'}`}
+            className={`px-2 py-0.5 text-xs border rounded ${person.id === focusPair.primary ? 'border-warning text-warning bg-warning-soft' : 'border-subtle text-secondary hover:bg-surface-2'}`}
           >
             Primär
           </button>
@@ -1456,7 +1456,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
               forceHideHover();
               onSetFocusPair('secondary', person.id);
             }}
-            className={`px-2 py-0.5 text-xs border rounded ${person.id === focusPair.secondary ? 'border-blue-500 text-blue-300 bg-blue-900/20' : 'border-slate-600 text-slate-300 hover:bg-slate-700'}`}
+            className={`px-2 py-0.5 text-xs border rounded ${person.id === focusPair.secondary ? 'border-accent text-accent bg-accent-soft' : 'border-subtle text-secondary hover:bg-surface-2'}`}
           >
             Sekundär
           </button>
@@ -1469,29 +1469,29 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
   return (
     <div className="h-full min-h-0 flex flex-col">
       <div className="card h-full min-h-0 flex flex-col">
-        <div className="p-4 border-b border-slate-700 bg-slate-900 flex justify-between items-center rounded-t-lg">
+        <div className="p-4 border-b border-subtle bg-background flex justify-between items-center rounded-t-lg">
           <div>
-            <h2 className="font-semibold text-slate-200">Människor i databasen</h2>
+            <h2 className="font-semibold text-primary">Människor i databasen</h2>
           </div>
-          <span className="text-xs bg-slate-700 px-2 py-1 rounded-full text-slate-300">{filteredPeople.length} / {people.length}</span>
+          <span className="text-xs bg-surface-2 px-2 py-1 rounded-full text-secondary">{filteredPeople.length} / {people.length}</span>
         </div>
 
-        <div className="p-3 border-b border-slate-700 bg-slate-900/80 space-y-3">
+        <div className="p-3 border-b border-subtle bg-background space-y-3">
           <div className="flex items-center gap-2">
             <div className="relative flex-1 min-w-0">
-              <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Search className="w-4 h-4 text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Sök namn, datum, ort..."
-                className="w-full bg-slate-900 border border-slate-700 rounded pl-9 pr-8 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-background border border-subtle rounded pl-9 pr-8 py-2 text-sm text-primary focus:outline-none focus:border-accent"
               />
               {query && (
                 <button
                   type="button"
                   onClick={() => setQuery('')}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted hover:text-secondary"
                   aria-label="Rensa sök"
                 >
                   <X className="w-4 h-4" />
@@ -1502,7 +1502,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
             <button
               type="button"
               onClick={() => onCreatePerson && onCreatePerson()}
-              className="px-3 py-2 rounded bg-green-600 hover:bg-green-500 text-white text-sm font-semibold flex items-center gap-1"
+              className="px-3 py-2 rounded bg-success hover:bg-success text-on-accent text-sm font-semibold flex items-center gap-1"
               title="Skapa ny person"
             >
               <Plus className="w-4 h-4" />
@@ -1513,16 +1513,16 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
               <button
                 type="button"
                 onClick={() => setIsColumnMenuOpen((prev) => !prev)}
-                className="px-3 py-2 rounded border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm flex items-center gap-1"
+                className="px-3 py-2 rounded border border-subtle bg-surface hover:bg-surface-2 text-primary text-sm flex items-center gap-1"
                 title="Visa eller dölj kolumner"
               >
                 <SlidersHorizontal className="w-4 h-4" />
                 Kolumner
               </button>
               {isColumnMenuOpen && (
-                <div className="absolute right-0 mt-2 w-64 bg-slate-900 border border-slate-700 rounded shadow-xl z-20 p-2 space-y-1">
+                <div className="absolute right-0 mt-2 w-64 bg-background border border-subtle rounded shadow-xl z-20 p-2 space-y-1">
                   {personColumns.map((column) => (
-                    <label key={column.id} className="flex items-center gap-2 text-sm text-slate-200 px-2 py-1 rounded hover:bg-slate-800 cursor-pointer">
+                    <label key={column.id} className="flex items-center gap-2 text-sm text-primary px-2 py-1 rounded hover:bg-surface cursor-pointer">
                       <input
                         type="checkbox"
                         checked={Boolean(visibleColumns[column.id])}
@@ -1531,18 +1531,18 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
                       <span>{column.label}</span>
                     </label>
                   ))}
-                  <p className="text-[11px] text-slate-500 px-2 pt-1">Dra kolumnrubriker i tabellen för att ändra ordning.</p>
+                  <p className="text-[11px] text-muted px-2 pt-1">Dra kolumnrubriker i tabellen för att ändra ordning.</p>
                 </div>
               )}
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 bg-slate-800 border border-slate-700 rounded p-1">
+            <div className="flex items-center gap-1 bg-surface border border-subtle rounded p-1">
               <button
                 type="button"
                 onClick={() => setIsAdvancedFilterOpen(true)}
-                className="px-2 py-1 rounded text-xs flex items-center gap-1 text-slate-300 hover:bg-slate-700"
+                className="px-2 py-1 rounded text-xs flex items-center gap-1 text-secondary hover:bg-surface-2"
                 title="Avancerad filtrering"
               >
                 <SlidersHorizontal className="w-3.5 h-3.5" />
@@ -1559,7 +1559,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
                   const preset = savedPresets.find((entry) => entry.id === nextId);
                   applyFilterPreset(preset);
                 }}
-                className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-300 focus:outline-none focus:border-blue-500 max-w-[180px]"
+                className="bg-background border border-subtle rounded px-2 py-1 text-xs text-secondary focus:outline-none focus:border-accent max-w-[180px]"
                 title="Filterprofiler"
               >
                 <option value="">Profil: ingen</option>
@@ -1570,7 +1570,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
               <button
                 type="button"
                 onClick={saveCurrentPreset}
-                className="px-2 py-1 rounded text-xs flex items-center gap-1 text-slate-300 hover:bg-slate-700"
+                className="px-2 py-1 rounded text-xs flex items-center gap-1 text-secondary hover:bg-surface-2"
                 title="Spara aktuell filterprofil"
               >
                 <Save className="w-3.5 h-3.5" />
@@ -1579,7 +1579,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
               <button
                 type="button"
                 onClick={exportFilteredPeopleToCsv}
-                className="px-2 py-1 rounded text-xs flex items-center gap-1 text-slate-300 hover:bg-slate-700"
+                className="px-2 py-1 rounded text-xs flex items-center gap-1 text-secondary hover:bg-surface-2"
                 title="Exportera filtrerad lista till CSV"
               >
                 <Download className="w-3.5 h-3.5" />
@@ -1588,7 +1588,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-300 focus:outline-none focus:border-blue-500"
+                className="bg-background border border-subtle rounded px-2 py-1 text-xs text-secondary focus:outline-none focus:border-accent"
                 title="Sortera"
               >
                 <option value="ref">Sortera: REF</option>
@@ -1599,7 +1599,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
               <button
                 type="button"
                 onClick={() => setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
-                className="px-2 py-1 rounded text-xs flex items-center gap-1 text-slate-300 hover:bg-slate-700"
+                className="px-2 py-1 rounded text-xs flex items-center gap-1 text-secondary hover:bg-surface-2"
                 title="Växla sorteringsriktning"
               >
                 <ArrowUpDown className="w-3.5 h-3.5" />
@@ -1608,7 +1608,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
               <button
                 type="button"
                 onClick={() => setViewMode('list')}
-                className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${viewMode === 'list' ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-700'}`}
+                className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${viewMode === 'list' ? 'bg-accent text-on-accent' : 'text-secondary hover:bg-surface-2'}`}
                 title="Kompakt listvy"
               >
                 <List className="w-3.5 h-3.5" />
@@ -1617,7 +1617,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
               <button
                 type="button"
                 onClick={() => setViewMode('grid')}
-                className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${viewMode === 'grid' ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-700'}`}
+                className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${viewMode === 'grid' ? 'bg-accent text-on-accent' : 'text-secondary hover:bg-surface-2'}`}
                 title="Visuell porträttvy"
               >
                 <LayoutGrid className="w-3.5 h-3.5" />
@@ -1630,46 +1630,46 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
             <button
               type="button"
               onClick={() => setQuickFilter('all')}
-              className={`px-2.5 py-1 rounded-full text-xs border ${quickFilter === 'all' ? 'bg-blue-600 border-blue-500 text-white' : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'}`}
+              className={`px-2.5 py-1 rounded-full text-xs border ${quickFilter === 'all' ? 'bg-accent border-accent text-on-accent' : 'bg-surface border-subtle text-secondary hover:bg-surface-2'}`}
             >
               Alla
             </button>
             <button
               type="button"
               onClick={() => setQuickFilter('missing-sources')}
-              className={`px-2.5 py-1 rounded-full text-xs border ${quickFilter === 'missing-sources' ? 'bg-amber-600 border-amber-500 text-white' : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'}`}
+              className={`px-2.5 py-1 rounded-full text-xs border ${quickFilter === 'missing-sources' ? 'bg-warning border-warning text-on-accent' : 'bg-surface border-subtle text-secondary hover:bg-surface-2'}`}
             >
               Saknar källor ({quickFilterCounts['missing-sources']})
             </button>
             <button
               type="button"
               onClick={() => setQuickFilter('emigrants')}
-              className={`px-2.5 py-1 rounded-full text-xs border ${quickFilter === 'emigrants' ? 'bg-green-600 border-green-500 text-white' : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'}`}
+              className={`px-2.5 py-1 rounded-full text-xs border ${quickFilter === 'emigrants' ? 'bg-success border-success text-on-accent' : 'bg-surface border-subtle text-secondary hover:bg-surface-2'}`}
             >
               Emigranter ({quickFilterCounts.emigrants})
             </button>
             <button
               type="button"
               onClick={() => setQuickFilter('warnings')}
-              className={`px-2.5 py-1 rounded-full text-xs border ${quickFilter === 'warnings' ? 'bg-red-600 border-red-500 text-white' : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'}`}
+              className={`px-2.5 py-1 rounded-full text-xs border ${quickFilter === 'warnings' ? 'bg-danger border-danger text-on-accent' : 'bg-surface border-subtle text-secondary hover:bg-surface-2'}`}
             >
               Varningar ({quickFilterCounts.warnings})
             </button>
             <button
               type="button"
               onClick={() => setQuickFilter('bookmarked')}
-              className={`px-2.5 py-1 rounded-full text-xs border ${quickFilter === 'bookmarked' ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'}`}
+              className={`px-2.5 py-1 rounded-full text-xs border ${quickFilter === 'bookmarked' ? 'bg-accent border-accent text-on-accent' : 'bg-surface border-subtle text-secondary hover:bg-surface-2'}`}
             >
               Bokmärkta ({quickFilterCounts.bookmarked})
             </button>
 
             {activeFilterChips.map((chip) => (
-              <span key={chip.id} className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-slate-700/80 border border-slate-600 text-slate-200">
+              <span key={chip.id} className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-surface-2 border border-subtle text-primary">
                 <span className="max-w-[220px] truncate" title={chip.label}>{chip.label}</span>
                 <button
                   type="button"
                   onClick={chip.clear}
-                  className="text-slate-300 hover:text-white"
+                  className="text-secondary hover:text-primary"
                   aria-label={`Rensa ${chip.label}`}
                 >
                   <X className="w-3 h-3" />
@@ -1679,17 +1679,17 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
           </div>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar bg-slate-800">
+        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar bg-surface">
           {filteredPeople.length === 0 ? (
-            <div className="p-8 text-center text-slate-500">Registret är tomt.</div>
+            <div className="p-8 text-center text-muted">Registret är tomt.</div>
           ) : (
             <>
               {viewMode === 'list' && (
                 <div className="max-w-full overflow-x-auto overflow-y-visible custom-scrollbar">
                   <table className="w-full min-w-[980px] text-sm text-left border-separate border-spacing-0">
-                    <thead className="sticky top-0 z-10 bg-slate-900 text-slate-300 text-xs uppercase">
+                    <thead className="sticky top-0 z-10 bg-background text-secondary text-xs uppercase">
                       <tr>
-                        <th className="w-1 px-0 py-0 border-b border-slate-700" aria-hidden="true" />
+                        <th className="w-1 px-0 py-0 border-b border-subtle" aria-hidden="true" />
                         {renderedColumnOrder.map((columnId) => {
                           const column = personColumns.find((entry) => entry.id === columnId);
                           const isDragged = draggedColumnId === columnId;
@@ -1703,14 +1703,14 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
                               onDragLeave={(event) => handleColumnDragLeave(event, columnId)}
                               onDragEnd={handleColumnDragEnd}
                               onDrop={() => handleColumnDrop(columnId)}
-                              className={`px-3 py-2 border-b border-slate-700 cursor-move select-none transition-colors ${isDragged ? 'opacity-50' : ''} ${isDropTarget ? 'border-l-4 border-l-blue-500 bg-blue-900/40' : ''}`}
+                              className={`px-3 py-2 border-b border-subtle cursor-move select-none transition-colors ${isDragged ? 'opacity-50' : ''} ${isDropTarget ? 'border-l-4 border-l-accent bg-accent-soft' : ''}`}
                               title="Dra för att flytta kolumn"
                             >
                               {column?.label || columnId}
                             </th>
                           );
                         })}
-                        <th className="px-3 py-2 border-b border-slate-700 text-right">Åtgärder</th>
+                        <th className="px-3 py-2 border-b border-subtle text-right">Åtgärder</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1722,7 +1722,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
                             forceHideHover();
                             onOpenEditModal(person.id);
                           }}
-                          className="border-b border-slate-700 hover:bg-slate-700/60 cursor-pointer"
+                          className="border-b border-subtle hover:bg-surface-2 cursor-pointer"
                         >
                           <td
                             className="w-1 px-0 py-0"
@@ -1745,7 +1745,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
                                 }}
                                 title="Redigera person"
                                 aria-label="Redigera person"
-                                className="inline-flex items-center justify-center px-2 py-0.5 text-xs bg-slate-700 border border-slate-600 text-slate-200 rounded hover:bg-slate-600"
+                                className="inline-flex items-center justify-center px-2 py-0.5 text-xs bg-surface-2 border border-subtle text-primary rounded hover:bg-surface"
                               >
                                 <Edit3 className="w-3.5 h-3.5" />
                               </button>
@@ -1756,7 +1756,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
                                   forceHideHover();
                                   onOpenRelationModal(person.id);
                                 }}
-                                className="inline-flex items-center gap-1 px-2 py-0.5 text-xs border border-cyan-600 text-cyan-300 rounded hover:bg-cyan-900/40"
+                                className="inline-flex items-center gap-1 px-2 py-0.5 text-xs border border-accent text-accent rounded hover:bg-accent-soft"
                                 title="Visa i släktträd"
                                 aria-label="Visa i släktträd"
                               >
@@ -1771,7 +1771,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
                                 }}
                                 title="Ta bort person"
                                 aria-label="Ta bort person"
-                                className="inline-flex items-center justify-center px-2 py-0.5 text-xs border border-red-600 text-red-400 rounded hover:bg-red-900 font-semibold"
+                                className="inline-flex items-center justify-center px-2 py-0.5 text-xs border border-danger text-danger rounded hover:bg-danger-soft font-semibold"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
@@ -1792,7 +1792,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
               )}
 
               {bookmarkedPeople.length > 0 && otherPeople.length > 0 && (
-                <div className="px-4 pb-2 text-xs text-slate-500">Bokmärken visas först.</div>
+                <div className="px-4 pb-2 text-xs text-muted">Bokmärken visas först.</div>
               )}
             </>
           )}
@@ -1800,7 +1800,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
 
         {contextMenu.isOpen && contextMenuPerson && (
           <div
-            className="fixed z-[7000] w-64 bg-slate-900 border border-slate-700 rounded-lg shadow-2xl py-1 overflow-y-auto"
+            className="fixed z-[7000] w-64 bg-background border border-subtle rounded-lg shadow-2xl py-1 overflow-y-auto"
             style={{
               left: contextMenu.x,
               top: contextMenu.y,
@@ -1808,41 +1808,41 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
             }}
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="px-3 py-1.5 text-[11px] uppercase tracking-wide text-slate-500">Huvudåtgärder</div>
-            <button onClick={() => executePersonAction('edit', contextMenu.personId)} className="w-full px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-800 flex items-center justify-between">
-              <span>Redigera person</span><span className="text-slate-500 text-[11px]">Enter</span>
+            <div className="px-3 py-1.5 text-[11px] uppercase tracking-wide text-muted">Huvudåtgärder</div>
+            <button onClick={() => executePersonAction('edit', contextMenu.personId)} className="w-full px-3 py-2 text-left text-sm text-primary hover:bg-surface flex items-center justify-between">
+              <span>Redigera person</span><span className="text-muted text-[11px]">Enter</span>
             </button>
-            <button onClick={() => executePersonAction('tree', contextMenu.personId)} className="w-full px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-800 flex items-center justify-between">
-              <span>Visa i släktträd</span><span className="text-slate-500 text-[11px]">T</span>
-            </button>
-
-            <hr className="border-slate-700 my-1" />
-            <div className="px-3 py-1.5 text-[11px] uppercase tracking-wide text-slate-500">Fokus</div>
-            <button onClick={() => executePersonAction('primary', contextMenu.personId)} className="w-full px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-800 flex items-center justify-between">
-              <span>Sätt som primär</span><span className="text-slate-500 text-[11px]">P</span>
-            </button>
-            <button onClick={() => executePersonAction('secondary', contextMenu.personId)} className="w-full px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-800 flex items-center justify-between">
-              <span>Sätt som sekundär</span><span className="text-slate-500 text-[11px]">S</span>
+            <button onClick={() => executePersonAction('tree', contextMenu.personId)} className="w-full px-3 py-2 text-left text-sm text-primary hover:bg-surface flex items-center justify-between">
+              <span>Visa i släktträd</span><span className="text-muted text-[11px]">T</span>
             </button>
 
-            <hr className="border-slate-700 my-1" />
-            <div className="px-3 py-1.5 text-[11px] uppercase tracking-wide text-slate-500">Data</div>
-            <button onClick={() => executePersonAction('copy-ref', contextMenu.personId)} className="w-full px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-800">
+            <hr className="border-subtle my-1" />
+            <div className="px-3 py-1.5 text-[11px] uppercase tracking-wide text-muted">Fokus</div>
+            <button onClick={() => executePersonAction('primary', contextMenu.personId)} className="w-full px-3 py-2 text-left text-sm text-primary hover:bg-surface flex items-center justify-between">
+              <span>Sätt som primär</span><span className="text-muted text-[11px]">P</span>
+            </button>
+            <button onClick={() => executePersonAction('secondary', contextMenu.personId)} className="w-full px-3 py-2 text-left text-sm text-primary hover:bg-surface flex items-center justify-between">
+              <span>Sätt som sekundär</span><span className="text-muted text-[11px]">S</span>
+            </button>
+
+            <hr className="border-subtle my-1" />
+            <div className="px-3 py-1.5 text-[11px] uppercase tracking-wide text-muted">Data</div>
+            <button onClick={() => executePersonAction('copy-ref', contextMenu.personId)} className="w-full px-3 py-2 text-left text-sm text-primary hover:bg-surface">
               Kopiera REF-nummer
             </button>
-            <button onClick={() => executePersonAction('copy-name', contextMenu.personId)} className="w-full px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-800">
+            <button onClick={() => executePersonAction('copy-name', contextMenu.personId)} className="w-full px-3 py-2 text-left text-sm text-primary hover:bg-surface">
               Kopiera fullständigt namn
             </button>
 
-            <hr className="border-slate-700 my-1" />
-            <div className="px-3 py-1.5 text-[11px] uppercase tracking-wide text-slate-500">Grenfärg</div>
+            <hr className="border-subtle my-1" />
+            <div className="px-3 py-1.5 text-[11px] uppercase tracking-wide text-muted">Grenfärg</div>
             <button
               onClick={() => setColorMenu((prev) => ({
                 isOpen: !(prev.isOpen && prev.personId === contextMenu.personId),
                 personId: contextMenu.personId,
                 color: prev.personId === contextMenu.personId ? prev.color : (contextMenuPerson?.color || BRANCH_COLOR_PRESETS[0])
               }))}
-              className="w-full px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-800 flex items-center gap-2"
+              className="w-full px-3 py-2 text-left text-sm text-primary hover:bg-surface flex items-center gap-2"
             >
               <Palette className="w-4 h-4" />
               Färgkoda gren...
@@ -1856,7 +1856,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
                       key={swatch}
                       type="button"
                       onClick={() => setColorMenu((prev) => ({ ...prev, color: swatch }))}
-                      className={`w-5 h-5 rounded-full border ${colorMenu.color === swatch ? 'border-white' : 'border-slate-500'}`}
+                      className={`w-5 h-5 rounded-full border ${colorMenu.color === swatch ? 'border-strong' : 'border-strong'}`}
                       style={{ backgroundColor: swatch }}
                       title={swatch}
                     />
@@ -1866,21 +1866,21 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
                   <button
                     type="button"
                     onClick={() => executePersonAction('color-self', contextMenu.personId)}
-                    className="w-full px-2 py-1.5 text-left text-xs text-slate-200 bg-slate-800 border border-slate-700 rounded hover:bg-slate-700"
+                    className="w-full px-2 py-1.5 text-left text-xs text-primary bg-surface border border-subtle rounded hover:bg-surface-2"
                   >
                     Bara denna person
                   </button>
                   <button
                     type="button"
                     onClick={() => executePersonAction('color-ancestors', contextMenu.personId)}
-                    className="w-full px-2 py-1.5 text-left text-xs text-slate-200 bg-slate-800 border border-slate-700 rounded hover:bg-slate-700"
+                    className="w-full px-2 py-1.5 text-left text-xs text-primary bg-surface border border-subtle rounded hover:bg-surface-2"
                   >
                     Alla anor (bakåt)
                   </button>
                   <button
                     type="button"
                     onClick={() => executePersonAction('color-descendants', contextMenu.personId)}
-                    className="w-full px-2 py-1.5 text-left text-xs text-slate-200 bg-slate-800 border border-slate-700 rounded hover:bg-slate-700"
+                    className="w-full px-2 py-1.5 text-left text-xs text-primary bg-surface border border-subtle rounded hover:bg-surface-2"
                   >
                     Alla ättlingar (framåt)
                   </button>
@@ -1888,27 +1888,27 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
               </div>
             )}
 
-            <hr className="border-slate-700 my-1" />
-            <button onClick={() => executePersonAction('delete', contextMenu.personId)} className="w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-red-900/20 flex items-center justify-between">
-              <span>Ta bort person</span><span className="text-red-300 text-[11px]">Del</span>
+            <hr className="border-subtle my-1" />
+            <button onClick={() => executePersonAction('delete', contextMenu.personId)} className="w-full px-3 py-2 text-left text-sm text-danger hover:bg-danger-soft/20 flex items-center justify-between">
+              <span>Ta bort person</span><span className="text-danger text-[11px]">Del</span>
             </button>
           </div>
         )}
 
         {isAdvancedFilterOpen && (
-          <div className="fixed inset-0 z-[7200] bg-black/50 flex items-center justify-center p-4">
-            <div className="w-full max-w-4xl bg-slate-800 border border-slate-700 rounded-lg shadow-2xl overflow-hidden">
-              <div className="px-4 py-3 border-b border-slate-700 bg-slate-900 flex items-center justify-between">
+          <div className="fixed inset-0 z-[7200] bg-background/50 flex items-center justify-center p-4">
+            <div className="w-full max-w-4xl bg-surface border border-subtle rounded-lg shadow-2xl overflow-hidden">
+              <div className="px-4 py-3 border-b border-subtle bg-background flex items-center justify-between">
                 <div>
-                  <h3 className="text-slate-100 font-semibold">Avancerad filtrering</h3>
-                  <p className="text-xs text-slate-400 mt-1">Bygg IF/OR-villkor för namn, händelser, datum, skapad och mer.</p>
+                  <h3 className="text-primary font-semibold">Avancerad filtrering</h3>
+                  <p className="text-xs text-muted mt-1">Bygg IF/OR-villkor för namn, händelser, datum, skapad och mer.</p>
                 </div>
                 <div className="flex items-center gap-2">
                   {activePresetId && (
                     <button
                       type="button"
                       onClick={deleteActivePreset}
-                      className="px-3 py-1.5 text-xs border border-red-700 text-red-300 rounded hover:bg-red-900/30"
+                      className="px-3 py-1.5 text-xs border border-danger text-danger rounded hover:bg-danger-soft"
                     >
                       Ta bort profil
                     </button>
@@ -1916,14 +1916,14 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
                   <button
                     type="button"
                     onClick={clearAdvancedFilters}
-                    className="px-3 py-1.5 text-xs border border-slate-600 rounded text-slate-300 hover:bg-slate-700"
+                    className="px-3 py-1.5 text-xs border border-subtle rounded text-secondary hover:bg-surface-2"
                   >
                     Nollställ
                   </button>
                   <button
                     type="button"
                     onClick={() => setIsAdvancedFilterOpen(false)}
-                    className="px-3 py-1.5 text-xs bg-blue-600 rounded text-white hover:bg-blue-500"
+                    className="px-3 py-1.5 text-xs bg-accent rounded text-on-accent hover:bg-accent"
                   >
                     Klar
                   </button>
@@ -1933,29 +1933,29 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
               <div className="p-4 space-y-4 max-h-[70vh] overflow-y-auto">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs text-slate-400 mb-1">Fritext (global)</label>
+                    <label className="block text-xs text-muted mb-1">Fritext (global)</label>
                     <input
                       type="text"
                       value={advancedFilterText}
                       onChange={(e) => setAdvancedFilterText(e.target.value)}
                       placeholder="Ex: stockholm 1890 vigsel"
-                      className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
+                      className="w-full bg-background border border-subtle rounded px-3 py-2 text-sm text-primary focus:outline-none focus:border-accent"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-slate-400 mb-1">Regellogik</label>
+                    <label className="block text-xs text-muted mb-1">Regellogik</label>
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
                         onClick={() => setAdvancedFilterMode('AND')}
-                        className={`px-3 py-2 rounded text-xs border ${advancedFilterMode === 'AND' ? 'bg-blue-600 border-blue-500 text-white' : 'bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-700'}`}
+                        className={`px-3 py-2 rounded text-xs border ${advancedFilterMode === 'AND' ? 'bg-accent border-accent text-on-accent' : 'bg-background border-subtle text-secondary hover:bg-surface-2'}`}
                       >
                         IF + AND (alla)
                       </button>
                       <button
                         type="button"
                         onClick={() => setAdvancedFilterMode('OR')}
-                        className={`px-3 py-2 rounded text-xs border ${advancedFilterMode === 'OR' ? 'bg-blue-600 border-blue-500 text-white' : 'bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-700'}`}
+                        className={`px-3 py-2 rounded text-xs border ${advancedFilterMode === 'OR' ? 'bg-accent border-accent text-on-accent' : 'bg-background border-subtle text-secondary hover:bg-surface-2'}`}
                       >
                         IF + OR (minst en)
                       </button>
@@ -1973,13 +1973,13 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
                     const isEventTypeField = rule.field === 'eventType';
 
                     return (
-                      <div key={rule.id} className="border border-slate-700 rounded bg-slate-900/50 p-3">
+                      <div key={rule.id} className="border border-subtle rounded bg-background p-3">
                         <div className="flex items-center justify-between mb-2">
-                          <div className="text-xs text-slate-400">{index === 0 ? 'IF' : advancedFilterMode}</div>
+                          <div className="text-xs text-muted">{index === 0 ? 'IF' : advancedFilterMode}</div>
                           <button
                             type="button"
                             onClick={() => removeAdvancedFilterRule(rule.id)}
-                            className="text-slate-400 hover:text-red-400"
+                            className="text-muted hover:text-danger"
                             title="Ta bort villkor"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -1990,7 +1990,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
                           <select
                             value={rule.field}
                             onChange={(e) => updateAdvancedFilterRule(rule.id, { field: e.target.value })}
-                            className="bg-slate-900 border border-slate-700 rounded px-2 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+                            className="bg-background border border-subtle rounded px-2 py-2 text-xs text-primary focus:outline-none focus:border-accent"
                           >
                             {advancedFilterFields.map((field) => (
                               <option key={field.value} value={field.value}>{field.label}</option>
@@ -2001,7 +2001,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
                             <select
                               value={rule.value}
                               onChange={(e) => updateAdvancedFilterRule(rule.id, { value: e.target.value })}
-                              className="bg-slate-900 border border-slate-700 rounded px-2 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+                              className="bg-background border border-subtle rounded px-2 py-2 text-xs text-primary focus:outline-none focus:border-accent"
                             >
                               <option value="">Välj händelse...</option>
                               {valueOptions.map((valueOption) => (
@@ -2009,14 +2009,14 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
                               ))}
                             </select>
                           ) : isBooleanField ? (
-                            <div className="flex items-center text-xs text-slate-400 px-2 py-2 border border-slate-700 rounded bg-slate-900">
+                            <div className="flex items-center text-xs text-muted px-2 py-2 border border-subtle rounded bg-background">
                               Booleskt villkor
                             </div>
                           ) : (
                             <select
                               value={rule.operator}
                               onChange={(e) => updateAdvancedFilterRule(rule.id, { operator: e.target.value })}
-                              className="bg-slate-900 border border-slate-700 rounded px-2 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+                              className="bg-background border border-subtle rounded px-2 py-2 text-xs text-primary focus:outline-none focus:border-accent"
                             >
                               {operators.map((operator) => (
                                 <option key={operator.value} value={operator.value}>{operator.label}</option>
@@ -2025,35 +2025,35 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
                           )}
 
                           {isEventTypeField ? (
-                            <div className="flex items-center gap-2 bg-slate-900 border border-slate-700 rounded p-1">
+                            <div className="flex items-center gap-2 bg-background border border-subtle rounded p-1">
                               <button
                                 type="button"
                                 onClick={() => updateAdvancedFilterRule(rule.id, { operator: 'has_event_type' })}
-                                className={`px-2 py-1 rounded text-xs ${rule.operator === 'has_event_type' ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-700'}`}
+                                className={`px-2 py-1 rounded text-xs ${rule.operator === 'has_event_type' ? 'bg-accent text-on-accent' : 'text-secondary hover:bg-surface-2'}`}
                               >
                                 Har
                               </button>
                               <button
                                 type="button"
                                 onClick={() => updateAdvancedFilterRule(rule.id, { operator: 'not_has_event_type' })}
-                                className={`px-2 py-1 rounded text-xs ${rule.operator === 'not_has_event_type' ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-700'}`}
+                                className={`px-2 py-1 rounded text-xs ${rule.operator === 'not_has_event_type' ? 'bg-accent text-on-accent' : 'text-secondary hover:bg-surface-2'}`}
                               >
                                 Har inte
                               </button>
                             </div>
                           ) : isBooleanField ? (
-                            <div className="flex items-center gap-2 bg-slate-900 border border-slate-700 rounded p-1">
+                            <div className="flex items-center gap-2 bg-background border border-subtle rounded p-1">
                               <button
                                 type="button"
                                 onClick={() => updateAdvancedFilterRule(rule.id, { operator: 'is_true' })}
-                                className={`px-2 py-1 rounded text-xs ${rule.operator === 'is_true' ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-700'}`}
+                                className={`px-2 py-1 rounded text-xs ${rule.operator === 'is_true' ? 'bg-accent text-on-accent' : 'text-secondary hover:bg-surface-2'}`}
                               >
                                 Ja
                               </button>
                               <button
                                 type="button"
                                 onClick={() => updateAdvancedFilterRule(rule.id, { operator: 'is_false' })}
-                                className={`px-2 py-1 rounded text-xs ${rule.operator === 'is_false' ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-700'}`}
+                                className={`px-2 py-1 rounded text-xs ${rule.operator === 'is_false' ? 'bg-accent text-on-accent' : 'text-secondary hover:bg-surface-2'}`}
                               >
                                 Nej
                               </button>
@@ -2063,7 +2063,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
                               <select
                                 value={rule.value}
                                 onChange={(e) => updateAdvancedFilterRule(rule.id, { value: e.target.value })}
-                                className="bg-slate-900 border border-slate-700 rounded px-2 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+                                className="bg-background border border-subtle rounded px-2 py-2 text-xs text-primary focus:outline-none focus:border-accent"
                               >
                                 <option value="">Välj värde...</option>
                                 {valueOptions.map((valueOption) => (
@@ -2076,11 +2076,11 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
                                 value={rule.value}
                                 onChange={(e) => updateAdvancedFilterRule(rule.id, { value: e.target.value })}
                                 placeholder="Värde"
-                                className="bg-slate-900 border border-slate-700 rounded px-2 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+                                className="bg-background border border-subtle rounded px-2 py-2 text-xs text-primary focus:outline-none focus:border-accent"
                               />
                             )
                           ) : (
-                            <div className="flex items-center text-xs text-slate-500 px-2 py-2 border border-slate-700 rounded bg-slate-900">Boolean-villkor utan värde</div>
+                            <div className="flex items-center text-xs text-muted px-2 py-2 border border-subtle rounded bg-background">Boolean-villkor utan värde</div>
                           )}
                         </div>
                       </div>
@@ -2091,7 +2091,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
                 <button
                   type="button"
                   onClick={addAdvancedFilterRule}
-                  className="px-3 py-2 rounded text-xs border border-slate-600 text-slate-300 hover:bg-slate-700 flex items-center gap-1"
+                  className="px-3 py-2 rounded text-xs border border-subtle text-secondary hover:bg-surface-2 flex items-center gap-1"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   Lägg till IF-regel

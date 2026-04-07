@@ -40,32 +40,32 @@ export default function PlaceCreateModal({ parentNode, onClose, onCreate }) {
   return (
     <form onSubmit={handleSubmit} className="p-6 space-y-4 flex flex-col h-full">
           <div>
-            <label className="block text-sm font-semibold text-slate-300">Namn</label>
-            <input type="text" name="name" value={form.name} onChange={handleChange} required autoComplete="off" className="w-full border border-slate-600 bg-slate-900 text-slate-200 rounded px-3 py-2" />
+            <label className="block text-sm font-semibold text-secondary">Namn</label>
+            <input type="text" name="name" value={form.name} onChange={handleChange} required autoComplete="off" className="w-full border border-subtle bg-background text-primary rounded px-3 py-2" />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-slate-300">Typ</label>
-            <select name="type" value={form.type} onChange={handleChange} className="w-full border border-slate-600 bg-slate-900 text-slate-200 rounded px-3 py-2">
+            <label className="block text-sm font-semibold text-secondary">Typ</label>
+            <select name="type" value={form.type} onChange={handleChange} className="w-full border border-subtle bg-background text-primary rounded px-3 py-2">
               {PLACE_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.icon} {o.label}</option>)}
             </select>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-semibold text-slate-300">Latitud</label>
-              <input type="text" name="latitude" value={form.latitude} onChange={handleChange} autoComplete="off" className="w-full border border-slate-600 bg-slate-900 text-slate-200 rounded px-3 py-2" />
+              <label className="block text-sm font-semibold text-secondary">Latitud</label>
+              <input type="text" name="latitude" value={form.latitude} onChange={handleChange} autoComplete="off" className="w-full border border-subtle bg-background text-primary rounded px-3 py-2" />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-slate-300">Longitud</label>
-              <input type="text" name="longitude" value={form.longitude} onChange={handleChange} autoComplete="off" className="w-full border border-slate-600 bg-slate-900 text-slate-200 rounded px-3 py-2" />
+              <label className="block text-sm font-semibold text-secondary">Longitud</label>
+              <input type="text" name="longitude" value={form.longitude} onChange={handleChange} autoComplete="off" className="w-full border border-subtle bg-background text-primary rounded px-3 py-2" />
             </div>
           </div>
           <div>
-            <label className="block text-sm font-semibold text-slate-300">Notering</label>
-            <textarea name="note" value={form.note} onChange={handleChange} rows={3} className="w-full border border-slate-600 bg-slate-900 text-slate-200 rounded px-3 py-2" />
+            <label className="block text-sm font-semibold text-secondary">Notering</label>
+            <textarea name="note" value={form.note} onChange={handleChange} rows={3} className="w-full border border-subtle bg-background text-primary rounded px-3 py-2" />
           </div>
           <div className="flex gap-2 pt-2">
-            <button type="submit" disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded">{saving ? 'Skapar...' : 'Skapa'}</button>
-            <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-700 text-slate-200 rounded">Avbryt</button>
+            <button type="submit" disabled={saving} className="px-4 py-2 bg-accent text-on-accent rounded">{saving ? 'Skapar...' : 'Skapa'}</button>
+            <button type="button" onClick={onClose} className="px-4 py-2 bg-surface-2 text-primary rounded">Avbryt</button>
           </div>
     </form>
   );

@@ -16,12 +16,12 @@ const LibraryButton = ({ lib, isActive, onClick }) => {
     return (
         <div 
             className={`group flex items-center gap-1 rounded px-2 py-1 transition-colors relative 
-                ${isActive ? 'bg-blue-600/20 text-blue-100' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}
+                ${isActive ? 'bg-accent-soft text-on-accent' : 'text-muted hover:bg-surface hover:text-on-accent'}
             `}
             onClick={onClick}
         >
             <button className="flex-1 flex items-center gap-3 text-sm truncate w-full text-left py-1.5">
-                <LibraryIcon size={16} className={isActive ? 'text-blue-400' : 'text-slate-500'} /> 
+                <LibraryIcon size={16} className={isActive ? 'text-accent' : 'text-muted'} /> 
                 {lib.label}
             </button>
         </div>
@@ -205,7 +205,7 @@ export function WindowFrame({ windowId, children, title, icon: Icon = Layers, in
     <div className={`fixed z-[5000] inset-0`} style={{ zIndex: effectiveZIndex }} onMouseDown={handleOverlayClick} >
         
         {/* WINDOW CONTAINER */}
-        <div className={`bg-slate-900 border border-slate-700 shadow-2xl flex flex-col overflow-hidden transition-all duration-200 ease-out 
+        <div className={`bg-background border border-subtle shadow-2xl flex flex-col overflow-hidden transition-all duration-200 ease-out 
              ${(winState.isMaximized || isDockedRight) ? '' : 'rounded-xl'}`}
              style={{ ...windowStyle, position: 'fixed' }}
              onMouseDown={(e) => {
@@ -217,30 +217,30 @@ export function WindowFrame({ windowId, children, title, icon: Icon = Layers, in
         
             {/* WINDOW HEADER */}
             <div 
-              className={`bg-slate-900 border-b border-slate-800 p-2 flex justify-between items-center select-none ${isDockedRight ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'}`}
+              className={`bg-background border-b border-subtle p-2 flex justify-between items-center select-none ${isDockedRight ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'}`}
                 onMouseDown={startDrag}
               onDoubleClick={() => {
                 if (!isDockedRight) toggleMaximize();
               }} 
             >
-                <div className="flex items-center gap-2 text-slate-300 text-sm font-bold pl-2">
+                <div className="flex items-center gap-2 text-secondary text-sm font-bold pl-2">
                     <Icon size={16}/> {title}
                 </div>
                 <div className="flex items-center gap-1">
                     {(showDockButton || typeof onToggleDock === 'function') && (
                       <button
                         onClick={toggleDockRight}
-                        className={`p-1.5 rounded transition-colors ${isDockedRight ? 'bg-blue-600/30 text-blue-300' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}
+                        className={`p-1.5 rounded transition-colors ${isDockedRight ? 'bg-accent-soft text-accent' : 'hover:bg-surface text-muted hover:text-on-accent'}`}
                         title={isDockedRight ? 'Frigör från dockning' : 'Docka till höger'}
                       >
                         <PanelRight size={16} />
                       </button>
                     )}
-                    <button onClick={toggleMinimize} className="p-1.5 hover:bg-slate-800 rounded text-slate-400 hover:text-white" title="Minimera"><Minus size={16}/></button>
-                    <button onClick={() => { if (!isDockedRight) toggleMaximize(); }} className="p-1.5 hover:bg-slate-800 rounded text-slate-400 hover:text-white" title={winState.isMaximized ? "Återställ" : "Maximera"}>
+                    <button onClick={toggleMinimize} className="p-1.5 hover:bg-surface rounded text-muted hover:text-on-accent" title="Minimera"><Minus size={16}/></button>
+                    <button onClick={() => { if (!isDockedRight) toggleMaximize(); }} className="p-1.5 hover:bg-surface rounded text-muted hover:text-on-accent" title={winState.isMaximized ? "Återställ" : "Maximera"}>
                         {winState.isMaximized ? <Minimize2 size={16}/> : <Maximize2 size={16}/>}
                     </button>
-                    <button onClick={onClose} className="p-1.5 hover:bg-red-900/50 rounded text-slate-400 hover:text-red-400" title="Stäng"><X size={16}/></button>
+                    <button onClick={onClose} className="p-1.5 hover:bg-red-900/50 rounded text-muted hover:text-red-400" title="Stäng"><X size={16}/></button>
                 </div>
             </div>
 
@@ -256,12 +256,12 @@ export function WindowFrame({ windowId, children, title, icon: Icon = Layers, in
                     </div>
 
                     {/* FOOTER - DYNAMISKT BLOCK */}
-                    <div className="h-8 bg-slate-900 border-t border-slate-700 flex items-center px-4 text-xs text-slate-400 justify-between shrink-0">
+                    <div className="h-8 bg-background border-t border-subtle flex items-center px-4 text-xs text-muted justify-between shrink-0">
                         {footerContent ? (
                             footerContent
                         ) : (
                             <span className="flex items-center gap-2">
-                                <Settings size={12} className="text-slate-500"/>
+                                <Settings size={12} className="text-muted"/>
                                 Redo.
                             </span>
                         )}

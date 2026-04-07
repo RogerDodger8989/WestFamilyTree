@@ -943,7 +943,7 @@ export default function FamilyTreeView({
         {/* Context Menu */}
         {contextMenu && (
           <div
-            className="fixed bg-slate-800 text-slate-100 rounded-lg shadow-2xl border border-slate-700 py-2 z-[9999]"
+            className="fixed bg-surface text-primary rounded-lg shadow-2xl border border-subtle py-2 z-[9999]"
             style={{
               left: contextMenu.x,
               top: contextMenu.y,
@@ -956,7 +956,7 @@ export default function FamilyTreeView({
                 if (onOpenEditModal) onOpenEditModal(contextMenu.person.id);
                 closeContextMenu();
               }}
-              className="w-full px-4 py-2 text-left hover:bg-slate-700 flex items-center gap-2"
+              className="w-full px-4 py-2 text-left hover:bg-surface-2 flex items-center gap-2"
             >
               <Edit2 size={16} />
               Redigera
@@ -967,7 +967,7 @@ export default function FamilyTreeView({
                 if (onSetFocus) onSetFocus(contextMenu.person.id);
                 closeContextMenu();
               }}
-              className="w-full px-4 py-2 text-left hover:bg-slate-700 flex items-center gap-2"
+              className="w-full px-4 py-2 text-left hover:bg-surface-2 flex items-center gap-2"
             >
               <Network size={16} />
               Sätt som fokus
@@ -979,7 +979,7 @@ export default function FamilyTreeView({
                 }
                 closeContextMenu();
               }}
-              className="w-full px-4 py-2 text-left hover:bg-slate-700 flex items-center gap-2"
+              className="w-full px-4 py-2 text-left hover:bg-surface-2 flex items-center gap-2"
             >
               <Baby size={16} />
               Lägg till barn
@@ -991,7 +991,7 @@ export default function FamilyTreeView({
                 }
                 closeContextMenu();
               }}
-              className="w-full px-4 py-2 text-left hover:bg-slate-700 flex items-center gap-2"
+              className="w-full px-4 py-2 text-left hover:bg-surface-2 flex items-center gap-2"
             >
               <Heart size={16} />
               Lägg till partner
@@ -1003,12 +1003,12 @@ export default function FamilyTreeView({
                 }
                 closeContextMenu();
               }}
-              className="w-full px-4 py-2 text-left hover:bg-slate-700 flex items-center gap-2"
+              className="w-full px-4 py-2 text-left hover:bg-surface-2 flex items-center gap-2"
             >
               <UserPlus size={16} />
               Lägg till förälder
             </button>
-            <div className="border-t border-slate-700 my-1"></div>
+            <div className="border-t border-subtle my-1"></div>
             <button
               onClick={() => {
                 if (onDeletePerson) {

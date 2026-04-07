@@ -13,8 +13,8 @@ export default function SmartDateField({ value, onChange, placeholder, className
         onChange(parsed);
     };
 
-    const baseClass = className ? className : 'w-full p-2 border border-slate-600 bg-slate-900 text-slate-200 rounded';
-    const combinedClass = `${baseClass} focus:border-blue-500 focus:outline-none`;
+    const baseClass = className ? className : 'w-full p-2 border border-subtle bg-surface text-primary rounded';
+    const combinedClass = `${baseClass} focus:border-accent focus:outline-none`;
 
     return (
         <input

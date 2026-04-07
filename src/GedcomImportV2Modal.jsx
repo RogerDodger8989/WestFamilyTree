@@ -103,17 +103,17 @@ export default function GedcomImportV2Modal({ open, onClose }) {
 
   return (
     <div className="modal" style={{ display: 'block' }}>
-      <div className="modal-content card bg-slate-800 shadow-2xl rounded-xl border border-slate-700 max-w-3xl">
-        <div className="flex justify-between items-center border-b p-4 bg-slate-700 border-slate-600 rounded-t-xl">
-          <h3 className="text-lg font-bold text-slate-200">GEDCOM Import V2</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-300 text-2xl">&times;</button>
+      <div className="modal-content card bg-surface-2 shadow-2xl rounded-xl border border-subtle max-w-3xl">
+        <div className="flex justify-between items-center border-b p-4 bg-surface border-subtle rounded-t-xl">
+          <h3 className="text-lg font-bold text-primary">GEDCOM Import V2</h3>
+          <button onClick={onClose} className="text-muted hover:text-secondary text-2xl">&times;</button>
         </div>
         <div className="p-6">
           <GedcomImportV2Panel onImport={handleImport} />
           {importResult && (
             <div className="mt-6">
               <h4 className="font-bold mb-2">Importresultat (sammanfattning):</h4>
-              <pre style={{ maxHeight: 300, overflow: 'auto', background: '#0f172a', color: '#e2e8f0', padding: 8, borderRadius: 4 }}>
+              <pre className="max-h-[300px] overflow-auto bg-background text-secondary p-2 rounded">
                 {JSON.stringify(importResult, null, 2)}
               </pre>
             </div>
