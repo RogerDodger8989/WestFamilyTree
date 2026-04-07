@@ -1543,6 +1543,7 @@ export default function MediaSelector({
           onClose={() => setIsImageViewerOpen(false)}
           imageSrc={media[selectedImageIndex].url}
           imageTitle={media[selectedImageIndex].name}
+          imageMeta={media[selectedImageIndex]}
           regions={media[selectedImageIndex].regions || []}
           onSaveRegions={(newRegions) => {
             const updatedMedia = [...media];
@@ -1558,6 +1559,43 @@ export default function MediaSelector({
               const nextAllMedia = (allMediaItems || []).map((item) =>
                 String(item?.id) === String(selectedItemId)
                   ? { ...item, regions: newRegions, faces: newRegions }
+                  : item
+              );
+              onUpdateAllMedia(nextAllMedia);
+            }
+          }}
+          onSaveImageMeta={(metaPatch) => {
+            if (!metaPatch) return;
+
+            const updatedMedia = [...media];
+            const current = updatedMedia[selectedImageIndex];
+            if (!current) return;
+
+            updatedMedia[selectedImageIndex] = {
+              ...current,
+              name: metaPatch.name ?? current.name,
+              description: metaPatch.description ?? current.description,
+              note: metaPatch.note ?? current.note,
+              tags: metaPatch.tags ?? current.tags,
+              photographer: metaPatch.photographer ?? current.photographer,
+              creator: metaPatch.creator ?? current.creator
+            };
+
+            onMediaChange(updatedMedia);
+
+            if (typeof onUpdateAllMedia === 'function') {
+              const selectedItemId = updatedMedia[selectedImageIndex]?.id;
+              const nextAllMedia = (allMediaItems || []).map((item) =>
+                String(item?.id) === String(selectedItemId)
+                  ? {
+                      ...item,
+                      name: metaPatch.name ?? item.name,
+                      description: metaPatch.description ?? item.description,
+                      note: metaPatch.note ?? item.note,
+                      tags: metaPatch.tags ?? item.tags,
+                      photographer: metaPatch.photographer ?? item.photographer,
+                      creator: metaPatch.creator ?? item.creator
+                    }
                   : item
               );
               onUpdateAllMedia(nextAllMedia);

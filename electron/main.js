@@ -1118,22 +1118,45 @@ ipcMain.handle('read-exif', async (event, filePath) => {
   }
 });
 
-ipcMain.handle('write-exif-keywords', async (event, filePath, keywords, backup = true) => {
+ipcMain.handle('write-exif-keywords', async (event, filePath, keywords, backup = true, photographer = '') => {
   try {
     const fullPath = forceImageRoot(filePath);
-    console.log('[write-exif-keywords] Writing to:', fullPath, 'Keywords:', keywords);
+    console.log('[write-exif-keywords] Writing to:', fullPath, 'Keywords:', keywords, 'Photographer:', photographer);
     
     const fetch = require('node-fetch');
     const response = await fetch('http://localhost:5005/exif/write_keywords', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image_path: fullPath, keywords, backup })
+      body: JSON.stringify({ image_path: fullPath, keywords, photographer, backup })
     });
     
     const data = await response.json();
     return data;
   } catch (error) {
     console.error('[write-exif-keywords] Error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('write-exif-metadata', async (event, filePath, metadata = {}, backup = true) => {
+  try {
+    const fullPath = forceImageRoot(filePath);
+    const keywords = Array.isArray(metadata?.keywords) ? metadata.keywords : [];
+    const photographer = typeof metadata?.photographer === 'string' ? metadata.photographer : '';
+
+    console.log('[write-exif-metadata] Writing to:', fullPath, 'Keywords:', keywords.length, 'Photographer:', photographer);
+
+    const fetch = require('node-fetch');
+    const response = await fetch('http://localhost:5005/exif/write_metadata', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image_path: fullPath, keywords, photographer, backup })
+    });
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('[write-exif-metadata] Error:', error);
     return { success: false, error: error.message };
   }
 });

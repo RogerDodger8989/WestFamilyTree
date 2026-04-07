@@ -4,6 +4,7 @@ import Button from './Button';
 import LinkPersonModal from './LinkPersonModal';
 import MediaImage from './components/MediaImage.jsx';
 import { getAvatarImageStyle } from './imageUtils.js';
+import { useApp } from './AppContext';
 import {
   Search,
   Pencil,
@@ -301,6 +302,7 @@ export default function ImageViewer({
   const [editingRegion, setEditingRegion] = useState(null);
   const [editingTagIndex, setEditingTagIndex] = useState(null);
   const [showLinkModal, setShowLinkModal] = useState(false);
+  const [linkModalMode, setLinkModalMode] = useState('tag');
 
   const [mode, setMode] = useState(initialMode);
   const isCropMode = mode === 'crop';
@@ -334,6 +336,20 @@ export default function ImageViewer({
   const [personSearchTerm, setPersonSearchTerm] = useState('');
   const [metaTitle, setMetaTitle] = useState('');
   const [metaDescription, setMetaDescription] = useState('');
+
+  // Högerpanelens tab-system
+  const [activeTab, setActiveTab] = useState('info'); // 'info', 'metadata', 'labels'
+  const [photographer, setPhotographer] = useState('');
+  const [imageTags, setImageTags] = useState([]);
+  const [labelSearchTerm, setLabelSearchTerm] = useState('');
+  const [showAllLabels, setShowAllLabels] = useState(true);
+  const [exifData, setExifData] = useState({ camera: {}, metadata: {}, face_tags: [], keywords: [] });
+  const [isEditLabelsModalOpen, setIsEditLabelsModalOpen] = useState(false);
+  const [renameLabelTarget, setRenameLabelTarget] = useState(null);
+  const [renameLabelValue, setRenameLabelValue] = useState('');
+
+  const appContext = useApp();
+  const appShowStatus = appContext?.showStatus;
 
   const [saveStatus, setSaveStatus] = useState('');
   const saveStatusTimeoutRef = useRef(null);
@@ -488,7 +504,15 @@ export default function ImageViewer({
     if (!isOpen) return;
     setMetaTitle(String(imageMeta?.name || imageTitle || ''));
     setMetaDescription(String(imageMeta?.description || imageMeta?.note || ''));
-  }, [isOpen, imageMeta?.id, imageMeta?.name, imageMeta?.description, imageMeta?.note, imageTitle]);
+    setPhotographer(String(imageMeta?.photographer || imageMeta?.creator || imageMeta?.artist || ''));
+
+    const incomingTags = Array.isArray(imageMeta?.tags)
+      ? imageMeta.tags
+      : typeof imageMeta?.tags === 'string'
+        ? imageMeta.tags.split(',').map((tag) => tag.trim()).filter(Boolean)
+        : [];
+    setImageTags(Array.from(new Set(incomingTags.map((tag) => String(tag).trim()).filter(Boolean))));
+  }, [isOpen, imageMeta?.id, imageMeta?.name, imageMeta?.description, imageMeta?.note, imageMeta?.photographer, imageMeta?.creator, imageMeta?.artist, imageMeta?.tags, imageTitle]);
 
   useEffect(() => {
     return () => {
@@ -506,22 +530,27 @@ export default function ImageViewer({
 
     const loadExif = async () => {
       try {
-        const exifData = await window.electronAPI.readExif(resolvedFilePath);
-        if (cancelled || !exifData || exifData.error) return;
+        const nextExifData = await window.electronAPI.readExif(resolvedFilePath);
+        if (cancelled || !nextExifData || nextExifData.error) return;
+        setExifData(nextExifData);
 
-        if (Array.isArray(exifData.face_tags) && exifData.face_tags.length && (!localRegions || localRegions.length === 0)) {
-          const parsed = exifData.face_tags
+        if (Array.isArray(nextExifData.face_tags) && nextExifData.face_tags.length && (!localRegions || localRegions.length === 0)) {
+          const parsed = nextExifData.face_tags
             .map(normalizeFaceTagFromExif)
             .filter(Boolean);
           if (parsed.length) persistRegions(parsed);
         }
 
-        if (!metaDescription && exifData.metadata?.description) {
-          setMetaDescription(String(exifData.metadata.description));
+        if (!metaDescription && nextExifData.metadata?.description) {
+          setMetaDescription(String(nextExifData.metadata.description));
         }
 
-        if (!metaTitle && (exifData.metadata?.title || exifData.metadata?.document_name)) {
-          setMetaTitle(String(exifData.metadata?.title || exifData.metadata?.document_name || ''));
+        if (!metaTitle && (nextExifData.metadata?.title || nextExifData.metadata?.document_name)) {
+          setMetaTitle(String(nextExifData.metadata?.title || nextExifData.metadata?.document_name || ''));
+        }
+
+        if (!photographer && (nextExifData.metadata?.artist || nextExifData.metadata?.creator || nextExifData.metadata?.photographer)) {
+          setPhotographer(String(nextExifData.metadata?.artist || nextExifData.metadata?.creator || nextExifData.metadata?.photographer || ''));
         }
       } catch (exifError) {
         console.warn('[ImageViewer] EXIF read failed:', exifError);
@@ -533,7 +562,7 @@ export default function ImageViewer({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, resolvedFilePath]);
+  }, [isOpen, resolvedFilePath, localRegions, metaDescription, metaTitle, photographer]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -755,6 +784,169 @@ export default function ImageViewer({
     });
   }, [localRegions, people, samePersonId]);
 
+  // Extrahera filnamn och sökväg från resolvedFilePath
+  const fileInfo = useMemo(() => {
+    if (!resolvedFilePath) {
+      return { fileName: 'Okänd', dirPath: '' };
+    }
+    const normalizedPath = String(resolvedFilePath).replace(/\\/g, '/');
+    const parts = normalizedPath.split('/');
+    const fileName = parts[parts.length - 1] || 'Okänd';
+    const dirPath = parts.slice(0, -1).join('/') || '/';
+    return { fileName, dirPath };
+  }, [resolvedFilePath]);
+
+  // Filtrera etiketter baserat på aktuell bilds taggar
+  const filteredLabels = useMemo(() => {
+    const baseTags = Array.isArray(imageTags) ? imageTags : [];
+    let items = baseTags.map((tag, index) => ({
+      id: `${tag}_${index}`,
+      name: tag,
+      count: 1,
+      applied: true
+    }));
+
+    if (!showAllLabels) {
+      items = items.filter((label) => label.applied);
+    }
+    if (labelSearchTerm.trim()) {
+      const query = labelSearchTerm.trim().toLowerCase();
+      items = items.filter((label) => label.name.toLowerCase().includes(query));
+    }
+    return items;
+  }, [imageTags, showAllLabels, labelSearchTerm]);
+
+  const cameraInfo = useMemo(() => {
+    const camera = exifData?.camera || {};
+    return {
+      makeModel: [camera.make, camera.model].filter(Boolean).join(' ').trim(),
+      lens: camera.lens || '',
+      aperture: camera.aperture || '',
+      shutterSpeed: camera.shutter_speed || '',
+      iso: camera.iso ?? '',
+      focalLength: camera.focal_length || ''
+    };
+  }, [exifData?.camera]);
+
+  const gpsInfo = useMemo(() => {
+    const gps = exifData?.gps || null;
+    const latitude = Number(gps?.latitude);
+    const longitude = Number(gps?.longitude);
+    const altitude = Number(gps?.altitude);
+
+    return {
+      hasCoordinates: Number.isFinite(latitude) && Number.isFinite(longitude),
+      latitude,
+      longitude,
+      altitude: Number.isFinite(altitude) ? altitude : null
+    };
+  }, [exifData?.gps]);
+
+  const labelTree = useMemo(() => {
+    const root = [];
+    const byPath = new Map();
+
+    filteredLabels.forEach((label) => {
+      const parts = String(label.name || '').split(/[\/|]/).map((part) => part.trim()).filter(Boolean);
+      if (parts.length === 0) return;
+
+      let siblings = root;
+      let pathParts = [];
+
+      parts.forEach((part, index) => {
+        pathParts = [...pathParts, part];
+        const path = pathParts.join('/');
+        let node = byPath.get(path);
+
+        if (!node) {
+          node = {
+            id: path,
+            name: part,
+            fullName: pathParts.join('/'),
+            count: index === parts.length - 1 ? label.count : 0,
+            applied: index === parts.length - 1 ? label.applied : false,
+            children: []
+          };
+          byPath.set(path, node);
+          siblings.push(node);
+        }
+
+        if (index === parts.length - 1) {
+          node.count = label.count;
+          node.applied = label.applied;
+          node.fullName = label.name;
+        }
+
+        siblings = node.children;
+      });
+    });
+
+    return root;
+  }, [filteredLabels]);
+
+  const saveMetaPatch = useCallback((patch) => {
+    if (typeof onSaveImageMeta !== 'function') return;
+    onSaveImageMeta({
+      name: metaTitle,
+      description: metaDescription,
+      note: metaDescription,
+      tags: imageTags,
+      photographer,
+      creator: photographer,
+      ...patch
+    });
+  }, [onSaveImageMeta, metaTitle, metaDescription, imageTags, photographer]);
+
+  const toggleImageTag = useCallback((tagName, checked) => {
+    const normalizedTag = String(tagName || '').trim();
+    if (!normalizedTag) return;
+
+    setImageTags((prev) => {
+      const next = checked
+        ? Array.from(new Set([...prev, normalizedTag]))
+        : prev.filter((tag) => tag !== normalizedTag);
+      saveMetaPatch({ tags: next });
+      return next;
+    });
+  }, [saveMetaPatch]);
+
+  const handlePhotographerPicked = useCallback((personId) => {
+    const selectedPerson = people.find((person) => samePersonId(person.id, personId));
+    if (!selectedPerson) return;
+    const fullName = `${selectedPerson.firstName || ''} ${selectedPerson.lastName || ''}`.trim();
+    setPhotographer(fullName);
+    saveMetaPatch({ photographer: fullName, creator: fullName });
+  }, [people, samePersonId, saveMetaPatch]);
+
+  const handleOpenRenameLabel = useCallback((label) => {
+    setRenameLabelTarget(label);
+    setRenameLabelValue(String(label?.fullName || label?.name || ''));
+  }, []);
+
+  const handleLogRenameLabel = useCallback(async () => {
+    if (!renameLabelTarget) return;
+    const oldName = String(renameLabelTarget.fullName || renameLabelTarget.name || '').trim();
+    const newName = String(renameLabelValue || '').trim();
+    if (!newName || newName === oldName) return;
+
+    console.log(`Ska döpa om '${oldName}' till '${newName}'`);
+
+    setRenameLabelTarget(null);
+    setRenameLabelValue('');
+  }, [renameLabelTarget, renameLabelValue]);
+
+  const handleLogDeleteLabel = useCallback(async (label) => {
+    if (!label) return;
+    const labelName = String(label.fullName || label.name || '').trim();
+    const count = Number(label.count || 0);
+    if (!labelName) return;
+
+    const confirmed = window.confirm(`Vill du verkligen ta bort etiketten '${labelName}' från ${count} bilder?`);
+    if (!confirmed) return;
+
+    console.log(`Ska radera '${labelName}' från ${count} bilder`);
+  }, []);
+
   const filteredPeople = useMemo(() => {
     const query = personSearchTerm.trim().toLowerCase();
     const base = people.filter((p) => {
@@ -872,14 +1064,19 @@ export default function ImageViewer({
       .slice(0, 500);
 
     const existingKeywords = Array.isArray(imageMeta?.tags) ? imageMeta.tags : [];
-    const mergedKeywords = [...new Set([...existingKeywords, ...faceNames])].filter(Boolean);
+    const mergedKeywords = [...new Set([...existingKeywords, ...imageTags, ...faceNames])].filter(Boolean);
 
     try {
       if (typeof electron.writeExifFaceTags === 'function') {
         await electron.writeExifFaceTags(pathToWrite, faceTags, true);
       }
-      if (typeof electron.writeExifKeywords === 'function') {
-        await electron.writeExifKeywords(pathToWrite, mergedKeywords, true);
+      if (typeof electron.writeExifMetadata === 'function') {
+        await electron.writeExifMetadata(pathToWrite, {
+          keywords: mergedKeywords,
+          photographer: photographer || ''
+        }, true);
+      } else if (typeof electron.writeExifKeywords === 'function') {
+        await electron.writeExifKeywords(pathToWrite, mergedKeywords, true, photographer || '');
       }
     } catch (writeError) {
       console.warn('[ImageViewer] EXIF write failed:', writeError);
@@ -937,13 +1134,14 @@ export default function ImageViewer({
         }
       }
 
-      if (typeof onSaveImageMeta === 'function') {
-        onSaveImageMeta({
-          name: saveMode === 'copy' ? savedName : metaTitle,
-          description: metaDescription,
-          note: metaDescription
-        });
-      }
+      saveMetaPatch({
+        name: saveMode === 'copy' ? savedName : metaTitle,
+        description: metaDescription,
+        note: metaDescription,
+        tags: imageTags,
+        photographer,
+        creator: photographer
+      });
 
       await persistExifMetadata(savedPath);
 
@@ -978,13 +1176,14 @@ export default function ImageViewer({
       return;
     }
 
-    if (typeof onSaveImageMeta === 'function') {
-      onSaveImageMeta({
-        name: metaTitle,
-        description: metaDescription,
-        note: metaDescription
-      });
-    }
+    saveMetaPatch({
+      name: metaTitle,
+      description: metaDescription,
+      note: metaDescription,
+      tags: imageTags,
+      photographer,
+      creator: photographer
+    });
 
     await persistExifMetadata();
     setSaveStatus('saved');
@@ -1003,10 +1202,19 @@ export default function ImageViewer({
         onClose={() => {
           setShowLinkModal(false);
           setEditingTagIndex(null);
+          setLinkModalMode('tag');
           if (editingTagIndex === null) setCurrentBox(null);
         }}
         people={people}
-        onLink={handlePersonSelected}
+        onLink={(personId) => {
+          if (linkModalMode === 'photographer') {
+            handlePhotographerPicked(personId);
+            setShowLinkModal(false);
+            setLinkModalMode('tag');
+            return;
+          }
+          handlePersonSelected(personId);
+        }}
         skipEventSelection={true}
         excludePersonIds={editingTagIndex !== null ? [] : localRegions.map((r) => r.personId).filter(Boolean)}
         zIndex={6000}
@@ -1204,176 +1412,376 @@ export default function ImageViewer({
               )}
             </div>
 
-            <div className="w-80 bg-surface p-4 shrink-0 overflow-y-auto custom-scrollbar text-primary border-l border-subtle">
-              <div className="mb-4 pb-3 border-b border-subtle">
-                <h4 className="text-sm font-bold text-primary mb-2">Bildinformation</h4>
-                <div className="space-y-2">
-                  <div>
-                    <label className="block text-[10px] uppercase tracking-wide text-secondary mb-1">Rubrik</label>
-                    <input
-                      type="text"
-                      value={metaTitle}
-                      onChange={(e) => setMetaTitle(e.target.value)}
-                      className="w-full bg-background border border-subtle rounded px-2 py-1.5 text-xs text-primary focus:outline-none focus:border-strong"
-                      placeholder="Ange rubrik..."
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] uppercase tracking-wide text-secondary mb-1">Beskrivning / Notis</label>
-                    <textarea
-                      value={metaDescription}
-                      onChange={(e) => setMetaDescription(e.target.value)}
-                      className="w-full h-20 bg-background border border-subtle rounded px-2 py-1.5 text-xs text-primary resize-none focus:outline-none focus:border-strong"
-                      placeholder="Skriv notis..."
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <h4 className="text-sm font-bold border-b border-subtle pb-2 mb-2">Personregister (ny tagg)</h4>
-              <div className="mb-3">
-                <label className="block text-[11px] uppercase tracking-wide text-secondary mb-1">Sök person</label>
-                <div className="relative">
-                  <Search size={13} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted" />
-                  <input
-                    type="text"
-                    value={personSearchTerm}
-                    onChange={(e) => setPersonSearchTerm(e.target.value)}
-                    placeholder="Namn eller ref..."
-                    className="w-full bg-background border border-subtle rounded pl-7 pr-2 py-1.5 text-xs text-primary focus:outline-none focus:border-strong"
-                  />
-                </div>
-              </div>
-
-              {currentBox ? (
-                <div className="mb-3 p-2 rounded border border-success bg-success/20 text-[10px] text-secondary flex items-center justify-between gap-2">
-                  <span>Ny ruta ritad. Välj person nedan.</span>
+            <div className="w-80 bg-surface p-0 shrink-0 overflow-hidden custom-scrollbar text-primary border-l border-subtle flex flex-col">
+              {/* ===== TAB NAVIGATION ===== */}
+              <div className="flex border-b border-subtle bg-surface">
+                {[
+                  { id: 'info', label: 'Info' },
+                  { id: 'metadata', label: 'Metadata' },
+                  { id: 'labels', label: 'Etiketter' }
+                ].map(tab => (
                   <button
-                    type="button"
-                    onClick={() => {
-                      setCurrentBox(null);
-                      setStartPos(null);
-                    }}
-                    className="inline-flex items-center justify-center w-5 h-5 rounded border border-success hover:border-success hover:bg-success/40"
-                    title="Avbryt ny tagg"
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`flex-1 px-3 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                      activeTab === tab.id
+                        ? 'text-primary border-b-accent bg-surface-2'
+                        : 'text-secondary border-b-transparent hover:text-primary'
+                    }`}
                   >
-                    <X size={11} />
+                    {tab.label}
                   </button>
-                </div>
-              ) : (
-                <p className="mb-3 text-[10px] text-muted">Sätt mode till Tagga och rita en ruta på bilden för att skapa ny tagg.</p>
-              )}
-
-              <div className="max-h-36 overflow-y-auto custom-scrollbar space-y-1 mb-4 border border-subtle rounded p-1.5 bg-surface-2">
-                {filteredPeople.slice(0, 60).map((candidate) => {
-                  const candidateName = getPersonDisplayName(candidate) || `${candidate.firstName || ''} ${candidate.lastName || ''}`.trim();
-                  const candidateYears = getPersonLifeYears(candidate);
-                  const candidatePrimaryMedia = Array.isArray(candidate.media) ? candidate.media[0] : null;
-                  const candidateImageUrl = candidatePrimaryMedia ? candidatePrimaryMedia.url || candidatePrimaryMedia.path : '';
-                  return (
-                    <button
-                      key={candidate.id}
-                      type="button"
-                      disabled={!currentBox}
-                      onClick={() => handlePersonSelected(candidate.id)}
-                      className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded border border-subtle hover:border-strong hover:bg-surface disabled:opacity-50 disabled:cursor-not-allowed"
-                      title={currentBox ? 'Lägg till som ny tagg' : 'Rita först en ruta på bilden'}
-                    >
-                      <div className="w-7 h-7 rounded-full overflow-hidden border border-subtle bg-surface shrink-0">
-                        {candidateImageUrl ? (
-                          <MediaImage
-                            url={candidateImageUrl}
-                            alt={candidateName}
-                            className="w-full h-full object-cover"
-                            style={getAvatarImageStyle(candidatePrimaryMedia, candidate.id)}
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-[10px] text-muted">?</div>
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-[10px] text-secondary">Ref {candidate.refNumber || '-'}</div>
-                        <div className="text-[11px] text-primary truncate">{candidateName}</div>
-                        {candidateYears && <div className="text-[10px] text-muted">{candidateYears}</div>}
-                      </div>
-                      <UserPlus size={12} className="ml-auto text-accent" />
-                    </button>
-                  );
-                })}
+                ))}
               </div>
 
-              <h4 className="text-sm font-bold border-b border-subtle pb-2 mb-2">Taggade personer ({regionsWithDetails.length})</h4>
-              <ul className="space-y-3 text-xs">
-                {regionsWithDetails.map((tagRegion) => (
-                  <li
-                    key={`${tagRegion.personId || 'unknown'}_${tagRegion.index}`}
-                    className={`pb-3 border-b border-subtle rounded ${
-                      hoveredRegionIndex === tagRegion.index ? 'bg-success/20 border-success' : ''
-                    }`}
-                    onMouseEnter={() => setHoveredRegionIndex(tagRegion.index)}
-                    onMouseLeave={() => setHoveredRegionIndex(null)}
-                  >
-                    <div className="flex items-start gap-2">
-                      <div className="w-7 h-7 rounded-full overflow-hidden border border-subtle bg-surface shrink-0 mt-0.5">
-                        {tagRegion.person?.media?.[0] ? (
-                          <MediaImage
-                            url={tagRegion.person.media[0].url || tagRegion.person.media[0].path}
-                            alt={tagRegion.personName}
-                            className="w-full h-full object-cover"
-                            style={getAvatarImageStyle(tagRegion.person.media[0], tagRegion.person.id)}
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-[10px] text-muted">?</div>
-                        )}
+              {/* ===== TAB CONTENT ===== */}
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-4">
+                
+                {/* TAB 1: INFO */}
+                {activeTab === 'info' && (
+                  <div className="space-y-4">
+                    {/* Filnamn */}
+                    <div>
+                      <label className="block text-[10px] uppercase tracking-wide text-secondary mb-1">Filnamn</label>
+                      <div className="w-full bg-background border border-subtle rounded px-2 py-1.5 text-xs text-primary truncate">
+                        {fileInfo.fileName}
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-secondary">{tagRegion.refNumber ? `Ref ${tagRegion.refNumber}` : 'Ref saknas'}</div>
+                    </div>
+
+                    {/* Katalog/Sökväg */}
+                    <div>
+                      <label className="block text-[10px] uppercase tracking-wide text-secondary mb-1">Katalog</label>
+                      <div className="w-full bg-background border border-subtle rounded px-2 py-1.5 text-xs text-primary break-all max-h-12 overflow-y-auto">
+                        {fileInfo.dirPath}
+                      </div>
+                    </div>
+
+                    {/* Datum */}
+                    <div>
+                      <label className="block text-[10px] uppercase tracking-wide text-secondary mb-1">Datum</label>
+                      <input
+                        type="text"
+                        placeholder="YYYY-MM-DD"
+                        className="w-full bg-background border border-subtle rounded px-2 py-1.5 text-xs text-primary focus:outline-none focus:border-strong"
+                      />
+                    </div>
+
+                    {/* Fotograf / Ägare */}
+                    <div>
+                      <label className="block text-[10px] uppercase tracking-wide text-secondary mb-1 flex items-center gap-1">
+                        Fotograf / Ägare
                         <button
-                          className="text-accent hover:text-primary hover:underline font-bold text-left block truncate"
-                          onClick={() => tagRegion.person && onOpenEditModal?.(tagRegion.person.id)}
-                          title={`Öppna redigering för ${tagRegion.personName}`}
+                          type="button"
+                          onClick={() => {
+                            setLinkModalMode('photographer');
+                            setShowLinkModal(true);
+                          }}
+                          className="inline-flex items-center justify-center w-5 h-5 rounded border border-subtle text-primary hover:text-accent hover:border-strong"
+                          title="Koppla person"
                         >
-                          {tagRegion.personName}
+                          <UserPlus size={11} />
                         </button>
-                        {tagRegion.lifeRange && <div className="text-secondary">{tagRegion.lifeRange}</div>}
+                      </label>
+                      <input
+                        type="text"
+                        value={photographer}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setPhotographer(value);
+                          saveMetaPatch({ photographer: value, creator: value });
+                        }}
+                        placeholder="T.ex. Anders Nilsson..."
+                        className="w-full bg-background border border-subtle rounded px-2 py-1.5 text-xs text-primary focus:outline-none focus:border-strong"
+                      />
+                    </div>
+
+                    <div className="border-t border-subtle pt-3 mt-3">
+                      <h4 className="text-sm font-bold border-b border-subtle pb-2 mb-3">Sök & Koppla Person (ny tagg)</h4>
+                      <div className="mb-3">
+                        <label className="block text-[11px] uppercase tracking-wide text-secondary mb-1">Sök person</label>
+                        <div className="relative">
+                          <Search size={13} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted" />
+                          <input
+                            type="text"
+                            value={personSearchTerm}
+                            onChange={(e) => setPersonSearchTerm(e.target.value)}
+                            placeholder="Namn eller ref..."
+                            className="w-full bg-background border border-subtle rounded pl-7 pr-2 py-1.5 text-xs text-primary focus:outline-none focus:border-strong"
+                          />
+                        </div>
+                      </div>
+
+                      {currentBox ? (
+                        <div className="mb-3 p-2 rounded border border-success bg-success/20 text-[10px] text-secondary flex items-center justify-between gap-2">
+                          <span>Ny ruta ritad. Välj person nedan.</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCurrentBox(null);
+                              setStartPos(null);
+                            }}
+                            className="inline-flex items-center justify-center w-5 h-5 rounded border border-success hover:border-success hover:bg-success/40"
+                            title="Avbryt ny tagg"
+                          >
+                            <X size={11} />
+                          </button>
+                        </div>
+                      ) : (
+                        <p className="mb-3 text-[10px] text-muted">Sätt mode till Tagga och rita en ruta på bilden för att skapa ny tagg.</p>
+                      )}
+
+                      <div className="max-h-40 overflow-y-auto custom-scrollbar space-y-1 mb-3 border border-subtle rounded p-1.5 bg-surface-2">
+                        {filteredPeople.slice(0, 60).map((candidate) => {
+                          const candidateName = getPersonDisplayName(candidate) || `${candidate.firstName || ''} ${candidate.lastName || ''}`.trim();
+                          const candidateYears = getPersonLifeYears(candidate);
+                          const candidatePrimaryMedia = Array.isArray(candidate.media) ? candidate.media[0] : null;
+                          const candidateImageUrl = candidatePrimaryMedia ? candidatePrimaryMedia.url || candidatePrimaryMedia.path : '';
+                          return (
+                            <button
+                              key={candidate.id}
+                              type="button"
+                              disabled={!currentBox}
+                              onClick={() => handlePersonSelected(candidate.id)}
+                              className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded border border-subtle hover:border-strong hover:bg-surface disabled:opacity-50 disabled:cursor-not-allowed text-xs"
+                              title={currentBox ? 'Lägg till som ny tagg' : 'Rita först en ruta på bilden'}
+                            >
+                              <div className="w-6 h-6 rounded-full overflow-hidden border border-subtle bg-surface shrink-0">
+                                {candidateImageUrl ? (
+                                  <MediaImage
+                                    url={candidateImageUrl}
+                                    alt={candidateName}
+                                    className="w-full h-full object-cover"
+                                    style={getAvatarImageStyle(candidatePrimaryMedia, candidate.id)}
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-[10px] text-muted">?</div>
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="text-[10px] text-secondary">Ref {candidate.refNumber || '-'}</div>
+                                <div className="text-[10px] text-primary truncate">{candidateName}</div>
+                                {candidateYears && <div className="text-[9px] text-muted">{candidateYears}</div>}
+                              </div>
+                              <UserPlus size={11} className="text-accent shrink-0" />
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <h4 className="text-sm font-bold border-b border-subtle pb-2 mb-2">Taggade personer ({regionsWithDetails.length})</h4>
+                      <ul className="space-y-2 text-xs">
+                        {regionsWithDetails.map((tagRegion) => (
+                          <li
+                            key={`${tagRegion.personId || 'unknown'}_${tagRegion.index}`}
+                            className={`pb-2 border-b border-subtle rounded transition-colors ${
+                              hoveredRegionIndex === tagRegion.index ? 'bg-success/20 border-success' : ''
+                            }`}
+                            onMouseEnter={() => setHoveredRegionIndex(tagRegion.index)}
+                            onMouseLeave={() => setHoveredRegionIndex(null)}
+                          >
+                            <div className="flex items-start gap-2">
+                              <div className="w-6 h-6 rounded-full overflow-hidden border border-subtle bg-surface shrink-0 mt-0.5">
+                                {tagRegion.person?.media?.[0] ? (
+                                  <MediaImage
+                                    url={tagRegion.person.media[0].url || tagRegion.person.media[0].path}
+                                    alt={tagRegion.personName}
+                                    className="w-full h-full object-cover"
+                                    style={getAvatarImageStyle(tagRegion.person.media[0], tagRegion.person.id)}
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-[9px] text-muted">?</div>
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="text-[9px] text-secondary">{tagRegion.refNumber ? `Ref ${tagRegion.refNumber}` : 'Ref saknas'}</div>
+                                <button
+                                  className="text-accent hover:text-primary hover:underline font-bold text-left block truncate text-[10px]"
+                                  onClick={() => tagRegion.person && onOpenEditModal?.(tagRegion.person.id)}
+                                  title={`Öppna redigering för ${tagRegion.personName}`}
+                                >
+                                  {tagRegion.personName}
+                                </button>
+                                {tagRegion.lifeRange && <div className="text-[9px] text-secondary">{tagRegion.lifeRange}</div>}
+                              </div>
+                            </div>
+                            <div className="mt-1.5 grid grid-cols-[1fr_auto_auto] gap-0.5 items-center">
+                              <select
+                                value={tagRegion.personId || ''}
+                                onChange={(e) => handleReassignRegionPerson(tagRegion.index, e.target.value)}
+                                className="bg-background border border-subtle rounded px-1.5 py-0.5 text-[10px] text-primary"
+                              >
+                                <option value="">Välj person...</option>
+                                {filteredPeople.map((person) => (
+                                  <option key={person.id} value={person.id}>
+                                    Ref {person.refNumber || '-'} - {`${person.firstName || ''} ${person.lastName || ''}`.trim() || person.id}
+                                  </option>
+                                ))}
+                              </select>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingTagIndex(tagRegion.index);
+                                  setShowLinkModal(true);
+                                }}
+                                className="inline-flex items-center justify-center w-6 h-6 rounded border border-subtle text-primary hover:text-accent hover:border-strong"
+                                title="Byt person med sökdialog"
+                              >
+                                <Pencil size={11} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteRegion(tagRegion.index)}
+                                className="inline-flex items-center justify-center w-6 h-6 rounded border border-strong bg-warning-soft text-warning hover:text-warning hover:border-strong"
+                                title="Ta bort tagg"
+                              >
+                                <Trash2 size={11} />
+                              </button>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB 2: METADATA */}
+                {activeTab === 'metadata' && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-[10px] uppercase tracking-wide text-secondary mb-1">Titel</label>
+                      <input
+                        type="text"
+                        value={metaTitle}
+                        onChange={(e) => setMetaTitle(e.target.value)}
+                        className="w-full bg-background border border-subtle rounded px-2 py-1.5 text-xs text-primary focus:outline-none focus:border-strong"
+                        placeholder="Ange titel..."
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] uppercase tracking-wide text-secondary mb-1">Beskrivning / Rubrik</label>
+                      <textarea
+                        value={metaDescription}
+                        onChange={(e) => setMetaDescription(e.target.value)}
+                        className="w-full h-32 bg-background border border-subtle rounded px-2 py-1.5 text-xs text-primary resize-none focus:outline-none focus:border-strong"
+                        placeholder="Skriv beskrivning..."
+                      />
+                    </div>
+
+                    <div className="p-3 rounded border border-subtle bg-surface-2 text-[11px] text-secondary">
+                      <p className="font-semibold text-primary mb-3">Kamerauppgifter</p>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="rounded border border-subtle bg-background px-2 py-1.5">
+                          <div className="text-[10px] uppercase text-muted">Kameramodell</div>
+                          <div className="text-primary truncate">{cameraInfo.makeModel || 'Saknas'}</div>
+                        </div>
+                        <div className="rounded border border-subtle bg-background px-2 py-1.5">
+                          <div className="text-[10px] uppercase text-muted">Objektiv</div>
+                          <div className="text-primary truncate">{cameraInfo.lens || 'Saknas'}</div>
+                        </div>
+                        <div className="rounded border border-subtle bg-background px-2 py-1.5">
+                          <div className="text-[10px] uppercase text-muted">Bländare</div>
+                          <div className="text-primary">{cameraInfo.aperture || 'Saknas'}</div>
+                        </div>
+                        <div className="rounded border border-subtle bg-background px-2 py-1.5">
+                          <div className="text-[10px] uppercase text-muted">Slutartid</div>
+                          <div className="text-primary">{cameraInfo.shutterSpeed || 'Saknas'}</div>
+                        </div>
+                        <div className="rounded border border-subtle bg-background px-2 py-1.5">
+                          <div className="text-[10px] uppercase text-muted">ISO</div>
+                          <div className="text-primary">{cameraInfo.iso || 'Saknas'}</div>
+                        </div>
+                        <div className="rounded border border-subtle bg-background px-2 py-1.5">
+                          <div className="text-[10px] uppercase text-muted">Brännvidd</div>
+                          <div className="text-primary">{cameraInfo.focalLength || 'Saknas'}</div>
+                        </div>
                       </div>
                     </div>
-                    <div className="mt-2 grid grid-cols-[1fr_auto_auto] gap-1 items-center">
-                      <select
-                        value={tagRegion.personId || ''}
-                        onChange={(e) => handleReassignRegionPerson(tagRegion.index, e.target.value)}
-                        className="bg-background border border-subtle rounded px-2 py-1 text-[11px] text-primary"
-                      >
-                        <option value="">Välj person...</option>
-                        {filteredPeople.map((person) => (
-                          <option key={person.id} value={person.id}>
-                            Ref {person.refNumber || '-'} - {`${person.firstName || ''} ${person.lastName || ''}`.trim() || person.id}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditingTagIndex(tagRegion.index);
-                          setShowLinkModal(true);
-                        }}
-                        className="inline-flex items-center justify-center w-7 h-7 rounded border border-subtle text-primary hover:text-accent hover:border-strong"
-                        title="Byt person med sökdialog"
-                      >
-                        <Pencil size={12} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteRegion(tagRegion.index)}
-                        className="inline-flex items-center justify-center w-7 h-7 rounded border border-strong bg-warning-soft text-warning hover:text-warning hover:border-strong"
-                        title="Ta bort tagg"
-                      >
-                        <Trash2 size={12} />
-                      </button>
+
+                    <div className="p-3 rounded border border-subtle bg-surface-2 text-[11px] text-secondary">
+                      <p className="font-semibold text-primary mb-2">GPS</p>
+                      {gpsInfo.hasCoordinates ? (
+                        <div className="space-y-1 text-xs">
+                          <div className="text-primary">Latitud: {gpsInfo.latitude.toFixed(6)}</div>
+                          <div className="text-primary">Longitud: {gpsInfo.longitude.toFixed(6)}</div>
+                          {gpsInfo.altitude !== null && (
+                            <div className="text-secondary">Höjd: {gpsInfo.altitude.toFixed(1)} m</div>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-[10px] text-muted">Ingen GPS-data hittades i EXIF-metadata.</p>
+                      )}
                     </div>
-                  </li>
-                ))}
-              </ul>
+                  </div>
+                )}
+
+                {/* TAB 3: ETIKETTER */}
+                {activeTab === 'labels' && (
+                  <div className="space-y-3">
+                    {/* Sökfält för etiketter */}
+                    <div>
+                      <label className="block text-[10px] uppercase tracking-wide text-secondary mb-1">Sök etikett</label>
+                      <div className="relative">
+                        <Search size={13} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted" />
+                        <input
+                          type="text"
+                          value={labelSearchTerm}
+                          onChange={(e) => setLabelSearchTerm(e.target.value)}
+                          placeholder="Namn på etikett..."
+                          className="w-full bg-background border border-subtle rounded pl-7 pr-2 py-1.5 text-xs text-primary focus:outline-none focus:border-strong"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Toggle: Visa alla / Endast applicerade */}
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={showAllLabels}
+                        onChange={(e) => setShowAllLabels(e.target.checked)}
+                        className="w-4 h-4 rounded border-subtle"
+                      />
+                      <span className="text-xs text-secondary">{showAllLabels ? 'Visa alla' : 'Endast applicerade'}</span>
+                    </label>
+
+                    {/* Lista över etiketter */}
+                    <div className="space-y-1.5 max-h-64 overflow-y-auto custom-scrollbar border border-subtle rounded p-2 bg-surface-2">
+                      {filteredLabels.map(label => (
+                        <label
+                          key={label.id}
+                          className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-surface-3 cursor-pointer group"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={label.applied}
+                            onChange={(e) => {
+                              toggleImageTag(label.name, e.target.checked);
+                            }}
+                            className="w-4 h-4 rounded border-subtle accent-accent"
+                          />
+                          <span className="flex-1 text-xs text-primary">{label.name}</span>
+                          <span className="text-[10px] text-muted bg-subtle rounded px-1.5 py-0.5 group-hover:bg-background">
+                            {label.count}
+                          </span>
+                        </label>
+                      ))}
+                      {filteredLabels.length === 0 && (
+                        <p className="text-xs text-muted text-center py-4">Inga etiketter hittades</p>
+                      )}
+                    </div>
+
+                    {/* Redigera Etiketter knapp */}
+                    <button
+                      type="button"
+                      onClick={() => console.log('Öppna redigera etiketter')}
+                      className="w-full py-2 px-3 rounded border border-subtle text-primary hover:text-accent hover:border-strong text-xs font-medium transition-colors"
+                    >
+                      ⚙️ Redigera Etiketter
+                    </button>
+                  </div>
+                )}
+
+              </div>
             </div>
           </div>
 
@@ -1420,8 +1828,97 @@ export default function ImageViewer({
               </div>
             </div>
           )}
+
+          {isEditLabelsModalOpen && (
+            <div className="absolute inset-0 z-[7100] bg-black/60 flex items-center justify-center p-4">
+              <div className="w-full max-w-2xl max-h-[80vh] bg-surface border border-subtle rounded-xl shadow-2xl flex flex-col overflow-hidden">
+                <div className="px-4 py-3 border-b border-subtle flex items-center justify-between bg-surface-2">
+                  <div>
+                    <h3 className="text-base font-semibold text-primary">Redigera Etiketter</h3>
+                    <p className="text-xs text-secondary">Byt namn eller markera för radering. Åtgärderna loggas tills global ersättningslogik byggs.</p>
+                  </div>
+                  <Button onClick={() => setIsEditLabelsModalOpen(false)} variant="secondary" size="sm">Stäng</Button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-3">
+                  {labelTree.length === 0 ? (
+                    <p className="text-sm text-muted">Inga etiketter hittades.</p>
+                  ) : (
+                    labelTree.map((node) => (
+                      <LabelTreeRow
+                        key={node.id}
+                        node={node}
+                        depth={0}
+                        onRename={handleOpenRenameLabel}
+                        onDelete={handleLogDeleteLabel}
+                      />
+                    ))
+                  )}
+                </div>
+
+                {renameLabelTarget && (
+                  <div className="px-4 py-3 border-t border-subtle bg-surface-2 flex flex-col gap-2">
+                    <div className="text-xs text-secondary">
+                      Ska byta namn på <span className="text-primary font-semibold">{renameLabelTarget.fullName}</span> på {renameLabelTarget.count} bilder.
+                    </div>
+                    <input
+                      type="text"
+                      value={renameLabelValue}
+                      onChange={(e) => setRenameLabelValue(e.target.value)}
+                      className="w-full bg-background border border-subtle rounded px-2 py-1.5 text-xs text-primary focus:outline-none focus:border-strong"
+                      placeholder="Nytt namn..."
+                    />
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        onClick={() => {
+                          setRenameLabelTarget(null);
+                          setRenameLabelValue('');
+                        }}
+                        variant="secondary"
+                        size="sm"
+                      >
+                        Avbryt
+                      </Button>
+                      <Button onClick={handleLogRenameLabel} variant="primary" size="sm">
+                        Spara namnändring
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </WindowFrame>
     </>
+  );
+}
+
+function LabelTreeRow({ node, depth, onRename, onDelete }) {
+  return (
+    <div className="space-y-1">
+      <div
+        className="flex items-center gap-2 rounded border border-subtle bg-background px-2 py-1.5"
+        style={{ marginLeft: `${depth * 14}px` }}
+      >
+        <div className="flex-1 min-w-0">
+          <div className="text-sm text-primary truncate">{node.name}</div>
+          <div className="text-[10px] text-muted">{node.count} bilder</div>
+        </div>
+        <Button onClick={() => onRename(node)} variant="secondary" size="sm">
+          Byt namn
+        </Button>
+        <Button onClick={() => onDelete(node)} variant="danger" size="sm">
+          Radera
+        </Button>
+      </div>
+      {Array.isArray(node.children) && node.children.length > 0 && (
+        <div className="space-y-1">
+          {node.children.map((child) => (
+            <LabelTreeRow key={child.id} node={child} depth={depth + 1} onRename={onRename} onDelete={onDelete} />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

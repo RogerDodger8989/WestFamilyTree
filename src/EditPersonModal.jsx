@@ -5669,6 +5669,34 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                 }
               }
             }}
+            onSaveImageMeta={(metaPatch) => {
+              if (!currentImage || !metaPatch) return;
+
+              const applyMetaPatch = (item) => ({
+                ...item,
+                name: metaPatch.name ?? item.name,
+                description: metaPatch.description ?? item.description,
+                note: metaPatch.note ?? item.note,
+                tags: metaPatch.tags ?? item.tags,
+                photographer: metaPatch.photographer ?? item.photographer,
+                creator: metaPatch.creator ?? item.creator
+              });
+
+              if (imageEditorContext === 'person') {
+                const personMedia = Array.isArray(person.media) ? [...person.media] : [];
+                if (editingImageIndex !== null && personMedia[editingImageIndex]) {
+                  personMedia[editingImageIndex] = applyMetaPatch(personMedia[editingImageIndex]);
+                  setPerson({ ...person, media: personMedia });
+                }
+              }
+
+              if (typeof onUpdateAllMedia === 'function') {
+                const nextAllMedia = (allMediaItems || []).map((item) =>
+                  String(item?.id) === String(currentImage?.id) ? applyMetaPatch(item) : item
+                );
+                onUpdateAllMedia(nextAllMedia);
+              }
+            }}
             onPrev={() => {
               if (editingImageIndex !== null && editingImageIndex > 0) {
                 setEditingImageIndex(editingImageIndex - 1);

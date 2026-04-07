@@ -42,11 +42,12 @@ class ExifManager:
         try:
             exif_dict = piexif.load(image_path)
             xmp_data = self._extract_xmp_bytes(image_path)
+            exiftool_fields = self._read_exiftool_fields(image_path)
             
             result = {
                 'face_tags': self._extract_face_tags(exif_dict, xmp_data),
-                'keywords': self._extract_keywords(exif_dict, xmp_data),
-                'metadata': self._extract_metadata(exif_dict, xmp_data),
+                'keywords': self._extract_keywords(exif_dict, xmp_data, exiftool_fields),
+                'metadata': self._extract_metadata(exif_dict, xmp_data, exiftool_fields),
                 'camera': self._extract_camera_info(exif_dict),
                 'gps': self._extract_gps(exif_dict),
                 'raw_exif': self._safe_exif_dict(exif_dict)
@@ -96,6 +97,36 @@ class ExifManager:
         
         # Sista utväg: ersätt ogiltiga tecken
         return raw_bytes.decode('utf-8', errors='replace')
+
+    def _read_exiftool_fields(self, image_path: str) -> Dict:
+        """Läser utvalda metadatafält via exiftool (för bättre XMP/IPTC-täckning)."""
+        if not self._has_exiftool():
+            return {}
+
+        tags = [
+            '-XMP:Creator',
+            '-IPTC:By-line',
+            '-XMP:Subject',
+            '-IPTC:Keywords',
+            '-XMP-lr:HierarchicalSubject'
+        ]
+
+        try:
+            result = subprocess.run(
+                ['exiftool', '-j', *tags, image_path],
+                capture_output=True,
+                text=True,
+                check=False
+            )
+            if result.returncode != 0 or not result.stdout:
+                return {}
+
+            payload = json.loads(result.stdout)
+            if not isinstance(payload, list) or not payload:
+                return {}
+            return payload[0] if isinstance(payload[0], dict) else {}
+        except Exception:
+            return {}
     
     def _extract_face_tags(self, exif_dict: Dict, xmp_bytes: bytes = b"") -> List[Dict]:
         """
@@ -233,7 +264,7 @@ class ExifManager:
         
         return face_tags
     
-    def _extract_keywords(self, exif_dict: Dict, xmp_bytes: bytes = b"") -> List[str]:
+    def _extract_keywords(self, exif_dict: Dict, xmp_bytes: bytes = b"", exiftool_fields: Dict = None) -> List[str]:
         """Extraherar keywords/taggar från EXIF/XMP."""
         keywords: List[str] = []
         try:
@@ -261,6 +292,22 @@ class ExifManager:
                     for raw_kw in re.findall(br'<rdf:li>([^<]+)</rdf:li>', block):
                         kw = self._decode_xmp_string(raw_kw)
                         keywords.append(kw)
+
+                # Lightroom/DigiKam hierarkiska etiketter
+                hierarchical_blocks = re.findall(br'<lr:hierarchicalSubject>\s*<rdf:Bag>(.*?)</rdf:Bag>', xmp_bytes, re.DOTALL)
+                for block in hierarchical_blocks:
+                    for raw_kw in re.findall(br'<rdf:li>([^<]+)</rdf:li>', block):
+                        kw = self._decode_xmp_string(raw_kw)
+                        keywords.append(kw)
+
+            # ExifTool-fält som fallback/komplement
+            exiftool_fields = exiftool_fields or {}
+            for key in ('Subject', 'Keywords', 'HierarchicalSubject', 'XMP:Subject', 'IPTC:Keywords', 'XMP-lr:HierarchicalSubject'):
+                value = exiftool_fields.get(key)
+                if isinstance(value, list):
+                    keywords.extend([str(v) for v in value if str(v).strip()])
+                elif isinstance(value, str) and value.strip():
+                    keywords.append(value.strip())
         except Exception as e:
             print(f"Error extracting keywords: {e}")
 
@@ -269,16 +316,12 @@ class ExifManager:
         seen = set()
         for k in keywords:
             nk = k.strip()
-            if '|' in nk:
-                nk = nk.split('|')[-1].strip()
-            if '/' in nk:
-                nk = nk.split('/')[-1].strip()
             if nk and nk not in seen:
                 seen.add(nk)
                 cleaned.append(nk)
         return cleaned
     
-    def _extract_metadata(self, exif_dict: Dict, xmp_bytes: bytes = b"") -> Dict:
+    def _extract_metadata(self, exif_dict: Dict, xmp_bytes: bytes = b"", exiftool_fields: Dict = None) -> Dict:
         """Extraherar generell metadata"""
         metadata = {}
         try:
@@ -309,6 +352,8 @@ class ExifManager:
             if piexif.ImageIFD.Artist in zeroth:
                 artist = zeroth[piexif.ImageIFD.Artist]
                 metadata['artist'] = artist.decode('utf-8', errors='ignore')
+                if not metadata.get('photographer'):
+                    metadata['photographer'] = metadata['artist']
             
             if piexif.ImageIFD.Copyright in zeroth:
                 copyright_text = zeroth[piexif.ImageIFD.Copyright]
@@ -318,6 +363,29 @@ class ExifManager:
             if piexif.ImageIFD.DocumentName in zeroth:
                 title = zeroth[piexif.ImageIFD.DocumentName]
                 metadata['title'] = title.decode('utf-8', errors='ignore')
+
+            if xmp_bytes:
+                xmp_creator_match = re.search(br'<dc:creator>\s*<rdf:Seq>\s*<rdf:li>([^<]+)</rdf:li>', xmp_bytes, re.DOTALL)
+                if xmp_creator_match:
+                    creator_value = self._decode_xmp_string(xmp_creator_match.group(1)).strip()
+                    if creator_value:
+                        metadata['creator'] = creator_value
+                        metadata['photographer'] = creator_value
+
+            exiftool_fields = exiftool_fields or {}
+            creator_value = exiftool_fields.get('Creator') or exiftool_fields.get('XMP:Creator')
+            if isinstance(creator_value, list):
+                creator_value = creator_value[0] if creator_value else ''
+            if isinstance(creator_value, str) and creator_value.strip():
+                metadata['creator'] = creator_value.strip()
+                metadata['photographer'] = creator_value.strip()
+
+            byline_value = exiftool_fields.get('By-line') or exiftool_fields.get('IPTC:By-line')
+            if isinstance(byline_value, list):
+                byline_value = byline_value[0] if byline_value else ''
+            if isinstance(byline_value, str) and byline_value.strip() and not metadata.get('photographer'):
+                metadata['photographer'] = byline_value.strip()
+                metadata['creator'] = byline_value.strip()
                 
         except Exception as e:
             print(f"Error extracting metadata: {e}")
@@ -428,7 +496,7 @@ class ExifManager:
                         safe[ifd_name][str(tag)] = "<binary>"
         return safe
     
-    def write_keywords(self, image_path: str, keywords: List[str], backup: bool = True) -> bool:
+    def write_keywords(self, image_path: str, keywords: List[str], backup: bool = True, photographer: str = "") -> bool:
         """
         Skriver keywords till bild via exiftool eller piexif fallback
         
@@ -443,29 +511,50 @@ class ExifManager:
             
             # Försök med exiftool först (bättre XMP support)
             if self._has_exiftool():
-                return self._write_keywords_exiftool(image_path, keywords)
+                return self._write_keywords_exiftool(image_path, keywords, photographer)
             else:
                 print(f"exiftool not found, using piexif fallback...")
-                return self._write_keywords_piexif(image_path, keywords)
+                return self._write_keywords_piexif(image_path, keywords, photographer)
             
         except Exception as e:
             print(f"Error writing keywords to {image_path}: {e}")
             return False
     
-    def _write_keywords_exiftool(self, image_path: str, keywords: List[str]) -> bool:
+    def _write_keywords_exiftool(self, image_path: str, keywords: List[str], photographer: str = "") -> bool:
         """Write keywords using exiftool (better XMP support)"""
         try:
-            # Build XMP keywords structure (dc:subject/rdf:Bag)
-            keywords_xmp = ''.join([f'<rdf:li>{kw}</rdf:li>' for kw in keywords])
-            
-            cmd = [
-                'exiftool',
-                '-overwrite_original',
-                f'-XMP:Subject=<rdf:Bag>{keywords_xmp}</rdf:Bag>',
-                # Also set IPTC Keywords for compatibility
-                f'-IPTC:Keywords={";".join(keywords)}',
-                image_path
-            ]
+            normalized_keywords = []
+            seen = set()
+            for keyword in keywords or []:
+                value = str(keyword).strip()
+                if value and value not in seen:
+                    seen.add(value)
+                    normalized_keywords.append(value)
+
+            cmd = ['exiftool', '-overwrite_original']
+
+            # Rensa befintliga fält innan skrivning
+            cmd.extend([
+                '-XMP:Subject=',
+                '-IPTC:Keywords=',
+                '-XMP-lr:HierarchicalSubject='
+            ])
+
+            for keyword in normalized_keywords:
+                cmd.append(f'-XMP:Subject+={keyword}')
+                cmd.append(f'-IPTC:Keywords+={keyword}')
+                cmd.append(f'-XMP-lr:HierarchicalSubject+={keyword}')
+
+            photographer_value = str(photographer or '').strip()
+            if photographer_value:
+                cmd.extend([
+                    '-XMP:Creator=',
+                    '-IPTC:By-line=',
+                    f'-XMP:Creator={photographer_value}',
+                    f'-IPTC:By-line={photographer_value}'
+                ])
+
+            cmd.append(image_path)
             
             result = subprocess.run(cmd, capture_output=True, text=True)
             return result.returncode == 0
@@ -474,7 +563,7 @@ class ExifManager:
             print(f"exiftool keywords write failed: {e}")
             return False
     
-    def _write_keywords_piexif(self, image_path: str, keywords: List[str]) -> bool:
+    def _write_keywords_piexif(self, image_path: str, keywords: List[str], photographer: str = "") -> bool:
         """Write keywords using piexif (fallback)"""
         try:
             # Läs befintlig EXIF
@@ -489,8 +578,15 @@ class ExifManager:
             
             if "Exif" not in exif_dict:
                 exif_dict["Exif"] = {}
+
+            if "0th" not in exif_dict:
+                exif_dict["0th"] = {}
             
             exif_dict["Exif"][piexif.ExifIFD.UserComment] = xmp_keywords.encode('utf-8')
+
+            photographer_value = str(photographer or '').strip()
+            if photographer_value:
+                exif_dict["0th"][piexif.ImageIFD.Artist] = photographer_value.encode('utf-8')
             
             # Skriv tillbaka
             exif_bytes = piexif.dump(exif_dict)
@@ -701,7 +797,19 @@ class ExifManager:
                 if operation == 'read':
                     results[image_path] = self.read_exif(image_path)
                 elif operation == 'write_keywords':
-                    results[image_path] = self.write_keywords(image_path, kwargs.get('keywords', []))
+                    results[image_path] = self.write_keywords(
+                        image_path,
+                        kwargs.get('keywords', []),
+                        kwargs.get('backup', True),
+                        kwargs.get('photographer', '')
+                    )
+                elif operation == 'write_metadata':
+                    results[image_path] = self.write_keywords(
+                        image_path,
+                        kwargs.get('keywords', []),
+                        kwargs.get('backup', True),
+                        kwargs.get('photographer', '')
+                    )
                 elif operation == 'write_face_tags':
                     results[image_path] = self.write_face_tags(image_path, kwargs.get('face_tags', []))
                 elif operation == 'remove_metadata':

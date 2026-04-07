@@ -2257,6 +2257,167 @@ export default function useAppContext() {
         };
     };
 
+    const resolveMediaPathForExif = useCallback((mediaItem) => {
+        if (!mediaItem) return '';
+        if (mediaItem.filePath) return String(mediaItem.filePath);
+        if (mediaItem.path) return String(mediaItem.path);
+        if (mediaItem.id && String(mediaItem.id).includes('/')) return String(mediaItem.id);
+
+        const url = String(mediaItem.url || '');
+        if (url.startsWith('media://')) {
+            const encoded = url.replace('media://', '');
+            try {
+                return decodeURIComponent(encoded).replace(/%2F/g, '/');
+            } catch (error) {
+                return encoded.replace(/%2F/g, '/').replace(/%20/g, ' ');
+            }
+        }
+
+        return '';
+    }, []);
+
+    const renameGlobalTag = useCallback(async (oldName, newName) => {
+        const oldTag = String(oldName || '').trim();
+        const newTag = String(newName || '').trim();
+        if (!oldTag || !newTag || oldTag === newTag) {
+            return { success: false, affectedCount: 0, error: 'Ogiltiga etiketter för namnbyte.' };
+        }
+
+        const mediaList = Array.isArray(dbData?.media) ? dbData.media : [];
+        const affected = [];
+
+        const updatedMedia = mediaList.map((item) => {
+            const tags = Array.isArray(item?.tags)
+                ? item.tags.map((tag) => String(tag).trim()).filter(Boolean)
+                : typeof item?.tags === 'string'
+                    ? item.tags.split(',').map((tag) => tag.trim()).filter(Boolean)
+                    : [];
+
+            if (!tags.includes(oldTag)) return item;
+
+            const replaced = tags.map((tag) => (tag === oldTag ? newTag : tag));
+            const deduped = Array.from(new Set(replaced));
+
+            const nextItem = { ...item, tags: deduped };
+            affected.push(nextItem);
+            return nextItem;
+        });
+
+        if (affected.length === 0) {
+            return { success: true, affectedCount: 0 };
+        }
+
+        setDbData((prev) => ({
+            ...prev,
+            media: updatedMedia
+        }));
+
+        const electron = (typeof window !== 'undefined' && window.electronAPI) ? window.electronAPI : null;
+        if (electron && typeof electron.writeExifMetadata === 'function') {
+            for (const item of affected) {
+                const imagePath = resolveMediaPathForExif(item);
+                if (!imagePath) continue;
+
+                const tags = Array.isArray(item.tags) ? item.tags : [];
+                const photographer = String(item.photographer || item.creator || '').trim();
+
+                try {
+                    await electron.writeExifMetadata(imagePath, { keywords: tags, photographer }, true);
+                } catch (error) {
+                    console.warn('[renameGlobalTag] Kunde inte skriva metadata för', imagePath, error);
+                }
+            }
+        }
+
+        return { success: true, affectedCount: affected.length };
+    }, [dbData?.media, setDbData, resolveMediaPathForExif]);
+
+    const deleteGlobalTag = useCallback(async (tagName) => {
+        const targetTag = String(tagName || '').trim();
+        if (!targetTag) {
+            return { success: false, affectedCount: 0, error: 'Ogiltig etikett för radering.' };
+        }
+
+        const mediaList = Array.isArray(dbData?.media) ? dbData.media : [];
+        const affected = [];
+
+        const updatedMedia = mediaList.map((item) => {
+            const tags = Array.isArray(item?.tags)
+                ? item.tags.map((tag) => String(tag).trim()).filter(Boolean)
+                : typeof item?.tags === 'string'
+                    ? item.tags.split(',').map((tag) => tag.trim()).filter(Boolean)
+                    : [];
+
+            if (!tags.includes(targetTag)) return item;
+
+            const filtered = tags.filter((tag) => tag !== targetTag);
+            const deduped = Array.from(new Set(filtered));
+
+            const nextItem = { ...item, tags: deduped };
+            affected.push(nextItem);
+            return nextItem;
+        });
+
+        if (affected.length === 0) {
+            return { success: true, affectedCount: 0 };
+        }
+
+        setDbData((prev) => ({
+            ...prev,
+            media: updatedMedia
+        }));
+
+        const electron = (typeof window !== 'undefined' && window.electronAPI) ? window.electronAPI : null;
+        if (electron && typeof electron.writeExifMetadata === 'function') {
+            for (const item of affected) {
+                const imagePath = resolveMediaPathForExif(item);
+                if (!imagePath) continue;
+
+                const tags = Array.isArray(item.tags) ? item.tags : [];
+                const photographer = String(item.photographer || item.creator || '').trim();
+
+                try {
+                    await electron.writeExifMetadata(imagePath, { keywords: tags, photographer }, true);
+                } catch (error) {
+                    console.warn('[deleteGlobalTag] Kunde inte skriva metadata för', imagePath, error);
+                }
+            }
+        }
+
+        return { success: true, affectedCount: affected.length };
+    }, [dbData?.media, setDbData, resolveMediaPathForExif]);
+
+    const getTagStats = useCallback(() => {
+        if (!Array.isArray(dbData?.media)) return [];
+
+        const counter = new Map();
+
+        dbData.media.forEach((item) => {
+            let tags = item?.tags;
+            if (typeof tags === 'string') {
+                tags = tags
+                    .split(',')
+                    .map((tag) => tag.trim())
+                    .filter(Boolean);
+            }
+
+            if (!Array.isArray(tags)) return;
+
+            const uniqueForImage = new Set(tags.map((tag) => String(tag).trim()).filter(Boolean));
+            uniqueForImage.forEach((tag) => {
+                counter.set(tag, (counter.get(tag) || 0) + 1);
+            });
+        });
+
+        return Array.from(counter.entries())
+            .map(([name, count]) => ({
+                id: String(name),
+                name: String(name),
+                count
+            }))
+            .sort((a, b) => a.name.localeCompare(b.name, 'sv'));
+    }, [dbData?.media]);
+
     return {
         dbData, setDbData, fileHandle, isDirty, setIsDirty, newFirstName, setNewFirstName, newLastName, setNewLastName,
         showSettings, setShowSettings, editingPerson, activeTab, focusPair, bookmarks,
@@ -2292,6 +2453,9 @@ export default function useAppContext() {
         cleanupAuditLog,
         cleanupMergeLog,
         getMetaSize,
+        getTagStats,
+        renameGlobalTag,
+        deleteGlobalTag,
         // bulk warnings modal state & controls
         bulkWarningsModal, openBulkWarningsModal, closeBulkWarningsModal,
         // expose undo toast helper so UI can show an inline Ångra action

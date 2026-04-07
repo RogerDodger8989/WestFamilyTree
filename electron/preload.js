@@ -44,7 +44,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // EXIF operations
   readExif: (filePath) => ipcRenderer.invoke('read-exif', filePath),
-  writeExifKeywords: (filePath, keywords, backup) => ipcRenderer.invoke('write-exif-keywords', filePath, keywords, backup),
+  writeExifKeywords: (filePath, keywords, backup, photographer) => ipcRenderer.invoke('write-exif-keywords', filePath, keywords, backup, photographer),
+  writeExifMetadata: (filePath, metadata, backup) => ipcRenderer.invoke('write-exif-metadata', filePath, metadata, backup),
   writeExifFaceTags: (filePath, faceTags, backup) => ipcRenderer.invoke('write-exif-face-tags', filePath, faceTags, backup),
 
   // Media operations

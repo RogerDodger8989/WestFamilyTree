@@ -3686,7 +3686,10 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
                   ...item,
                   name: metaPatch.name ?? item.name,
                   description: metaPatch.description ?? item.description,
-                  note: metaPatch.note ?? item.note
+                  note: metaPatch.note ?? item.note,
+                  tags: metaPatch.tags ?? item.tags,
+                  photographer: metaPatch.photographer ?? item.photographer,
+                  creator: metaPatch.creator ?? item.creator
                 }
               : item
           ));
@@ -3694,7 +3697,10 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
             ...prev,
             name: metaPatch.name ?? prev.name,
             description: metaPatch.description ?? prev.description,
-            note: metaPatch.note ?? prev.note
+            note: metaPatch.note ?? prev.note,
+            tags: metaPatch.tags ?? prev.tags,
+            photographer: metaPatch.photographer ?? prev.photographer,
+            creator: metaPatch.creator ?? prev.creator
           } : prev);
         }}
         people={allPeople}
