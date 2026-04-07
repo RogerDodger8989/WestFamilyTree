@@ -1,5 +1,17 @@
 """
-EXIF Manager - Hanterar EXIF-metadata, face tags och keywords med piexif
+EXIF Manager - Hanterar EXIF-metadata, face tags och keywords med piexif och exiftool
+
+MWG-Regions (Metadata Working Group) format:
+  Xmp.mwg-rs.Regions/mwg-rs:RegionList
+    - mwg-rs:Name: Person name
+    - mwg-rs:Type: "Face"
+    - mwg-rs:Area:
+      - stArea:x: 0-1 (normalized)
+      - stArea:y: 0-1 (normalized)
+      - stArea:w: 0-1 (normalized, width)
+      - stArea:h: 0-1 (normalized, height)
+
+Frontend uses 0-100% format, we convert between formats.
 """
 
 import piexif
@@ -10,6 +22,7 @@ from typing import Dict, List, Optional, Tuple
 import shutil
 from datetime import datetime
 import re
+import subprocess
 
 
 class ExifManager:
@@ -89,25 +102,98 @@ class ExifManager:
         Extraherar face tags från XMP-data
         
         Söker efter:
-        - MWG Regions (mwg-rs:Name)
-        - Microsoft Photo RegionInfo (MPReg:PersonDisplayName)
-        - XMP PersonInImage
+        1. MWG Regions (mwg-rs:Name + mwg-rs:Area/stArea:x,y,w,h) - Lightroom, DigiKam
+        2. Microsoft Photo RegionInfo (MPReg:PersonDisplayName)
+        3. XMP PersonInImage (names without coordinates)
+        
+        Returns list of dicts with:
+          - name: Person name
+          - x, y, width, height: Normalized 0-100 (frontend format)
+          - source: "XMP:MWG-Regions" | "XMP:Microsoft-RegionInfo" | "XMP:PersonInImage"
         """
         face_tags = []
         
         # Kolla XMP-data
         try:
             if xmp_bytes:
-                # 1. MWG Regions: mwg-rs:Name="Person Name" (Lightroom, digiKam)
-                for match in re.finditer(br'mwg-rs:Name="([^"]+)"', xmp_bytes):
-                    name_bytes = match.group(1)
-                    person = self._decode_xmp_string(name_bytes)
-                    face_tags.append({
-                        'name': person.strip(),
-                        'source': 'XMP:MWG-Regions'
-                    })
+                xmp_str = self._decode_xmp_string(xmp_bytes)
                 
-                # 2. Microsoft Photo: MPReg:PersonDisplayName="Person Name"
+                # 1. MWG Regions: Extract region entries with structure
+                # <mwg-rs:RegionList>
+                #   <rdf:Bag>
+                #     <rdf:li>
+                #       <mwg-rs:Region>
+                #         <mwg-rs:Name>Person Name</mwg-rs:Name>
+                #         <mwg-rs:Type>Face</mwg-rs:Type>
+                #         <mwg-rs:Area stArea:x="0.4" stArea:y="0.3" stArea:w="0.2" stArea:h="0.2" stArea:unit="normalized"/>
+                #       </mwg-rs:Region>
+                #     </rdf:li>
+                #   </rdf:Bag>
+                # </mwg-rs:RegionList>
+                
+                # Find all mwg-rs:Region entries
+                region_pattern = r'<mwg-rs:Region>\s*(.*?)\s*</mwg-rs:Region>'
+                for region_match in re.finditer(region_pattern, xmp_str, re.DOTALL):
+                    region_content = region_match.group(1)
+                    
+                    # Extract Name
+                    name_match = re.search(r'<mwg-rs:Name>([^<]+)</mwg-rs:Name>', region_content)
+                    name = name_match.group(1) if name_match else None
+                    
+                    # Extract Type (should be "Face")
+                    type_match = re.search(r'<mwg-rs:Type>([^<]+)</mwg-rs:Type>', region_content)
+                    region_type = type_match.group(1) if type_match else ""
+                    
+                    # Extract Area coordinates (normalized 0-1)
+                    area_match = re.search(
+                        r'<mwg-rs:Area\s+stArea:x="([^"]+)"\s+stArea:y="([^"]+)"\s+stArea:w="([^"]+)"\s+stArea:h="([^"]+)"',
+                        region_content
+                    )
+                    
+                    # Also handle different attribute order (more robust)
+                    if not area_match:
+                        # Alternative regex that's more flexible
+                        x_match = re.search(r'stArea:x="([^"]+)"', region_content)
+                        y_match = re.search(r'stArea:y="([^"]+)"', region_content)
+                        w_match = re.search(r'stArea:w="([^"]+)"', region_content)
+                        h_match = re.search(r'stArea:h="([^"]+)"', region_content)
+                        
+                        if x_match and y_match and w_match and h_match:
+                            try:
+                                x_norm = float(x_match.group(1))
+                                y_norm = float(y_match.group(1))
+                                w_norm = float(w_match.group(1))
+                                h_norm = float(h_match.group(1))
+                            except ValueError:
+                                continue
+                        else:
+                            x_norm, y_norm, w_norm, h_norm = None, None, None, None
+                    else:
+                        try:
+                            x_norm = float(area_match.group(1))
+                            y_norm = float(area_match.group(2))
+                            w_norm = float(area_match.group(3))
+                            h_norm = float(area_match.group(4))
+                        except ValueError:
+                            x_norm, y_norm, w_norm, h_norm = None, None, None, None
+                    
+                    # Only add if we have a name and it's actually a Face region
+                    if name and region_type == "Face":
+                        tag = {
+                            'name': name.strip(),
+                            'source': 'XMP:MWG-Regions'
+                        }
+                        
+                        # Add coordinates if available (already normalized 0-1, convert to 0-100)
+                        if x_norm is not None and y_norm is not None and w_norm is not None and h_norm is not None:
+                            tag['x'] = x_norm * 100
+                            tag['y'] = y_norm * 100
+                            tag['width'] = w_norm * 100
+                            tag['height'] = h_norm * 100
+                        
+                        face_tags.append(tag)
+                
+                # 2. Microsoft Photo: MPReg:PersonDisplayName="Person Name" (legacy, without coordinates)
                 for match in re.finditer(br'MPReg:PersonDisplayName="([^"]+)"', xmp_bytes):
                     name_bytes = match.group(1)
                     person = self._decode_xmp_string(name_bytes)
@@ -116,13 +202,16 @@ class ExifManager:
                         'source': 'XMP:Microsoft-RegionInfo'
                     })
                 
-                # 3. Fallback: XMP PersonInImage <rdf:li>Person Name</rdf:li>
-                pi_blocks = re.findall(br'<rdf:Description[^>]*?PersonInImage[^>]*?>(.*?)</rdf:Description>', xmp_bytes, re.DOTALL)
+                # 3. Fallback: XMP PersonInImage <rdf:li>Person Name</rdf:li> (legacy, without coordinates)
+                pi_blocks = re.findall(
+                    r'<rdf:Description[^>]*?PersonInImage[^>]*?>(.*?)</rdf:Description>',
+                    xmp_str,
+                    re.DOTALL
+                )
                 for block in pi_blocks:
-                    for pb in re.findall(br'<rdf:li>([^<]+)</rdf:li>', block):
-                        person = self._decode_xmp_string(pb)
+                    for name_match in re.findall(r'<rdf:li>([^<]+)</rdf:li>', block):
                         face_tags.append({
-                            'name': person.strip(),
+                            'name': name_match.strip(),
                             'source': 'XMP:PersonInImage'
                         })
 
@@ -132,12 +221,12 @@ class ExifManager:
             for ft in face_tags:
                 name = ft['name']
                 # Ta bort tagg/kategori-prefix (Personer/, etc.)
-                if '|' in name or '/' in name:
+                if '|' in name or (('/' in name) and 'PersonInImage' not in ft.get('source', '')):
                     continue
                 name = name.strip()
                 if name and name not in seen:
                     seen.add(name)
-                    normalized.append({ 'name': name, 'source': ft['source'] })
+                    normalized.append(ft)
             face_tags = normalized
         except Exception as e:
             print(f"Error extracting face tags: {e}")
@@ -341,7 +430,7 @@ class ExifManager:
     
     def write_keywords(self, image_path: str, keywords: List[str], backup: bool = True) -> bool:
         """
-        Skriver keywords till bild
+        Skriver keywords till bild via exiftool eller piexif fallback
         
         Args:
             image_path: Sökväg till bildfil
@@ -352,6 +441,42 @@ class ExifManager:
             if backup:
                 self._create_backup(image_path)
             
+            # Försök med exiftool först (bättre XMP support)
+            if self._has_exiftool():
+                return self._write_keywords_exiftool(image_path, keywords)
+            else:
+                print(f"exiftool not found, using piexif fallback...")
+                return self._write_keywords_piexif(image_path, keywords)
+            
+        except Exception as e:
+            print(f"Error writing keywords to {image_path}: {e}")
+            return False
+    
+    def _write_keywords_exiftool(self, image_path: str, keywords: List[str]) -> bool:
+        """Write keywords using exiftool (better XMP support)"""
+        try:
+            # Build XMP keywords structure (dc:subject/rdf:Bag)
+            keywords_xmp = ''.join([f'<rdf:li>{kw}</rdf:li>' for kw in keywords])
+            
+            cmd = [
+                'exiftool',
+                '-overwrite_original',
+                f'-XMP:Subject=<rdf:Bag>{keywords_xmp}</rdf:Bag>',
+                # Also set IPTC Keywords for compatibility
+                f'-IPTC:Keywords={";".join(keywords)}',
+                image_path
+            ]
+            
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            return result.returncode == 0
+            
+        except Exception as e:
+            print(f"exiftool keywords write failed: {e}")
+            return False
+    
+    def _write_keywords_piexif(self, image_path: str, keywords: List[str]) -> bool:
+        """Write keywords using piexif (fallback)"""
+        try:
             # Läs befintlig EXIF
             exif_dict = piexif.load(image_path)
             
@@ -374,17 +499,105 @@ class ExifManager:
             return True
             
         except Exception as e:
-            print(f"Error writing keywords to {image_path}: {e}")
+            print(f"piexif keywords write failed: {e}")
             return False
     
     def write_face_tags(self, image_path: str, face_tags: List[Dict], backup: bool = True) -> bool:
         """
-        Skriver face tags till bild
+        Skriver face tags till bild via exiftool för MWG-Regions support
         
         Args:
             image_path: Sökväg till bildfil
             face_tags: Lista med {'name': str, 'x': float, 'y': float, 'width': float, 'height': float}
+                      Coordinates in 0-100 format (frontend), we convert to 0-1 for XMP
             backup: Om backup ska skapas
+        
+        Returns:
+            bool: Success status
+        """
+        try:
+            if backup:
+                self._create_backup(image_path)
+            
+            # Kolla om exiftool finns
+            if not self._has_exiftool():
+                print(f"Warning: exiftool not found. Falling back to piexif for keywords only.")
+                return self._write_face_tags_piexif_fallback(image_path, face_tags, backup=False)
+            
+            # Konvertera face_tags från 0-100 frontend-format till 0-1 XMP-format
+            regions = []
+            for i, tag in enumerate(face_tags):
+                name = tag.get('name', '')
+                if not name:
+                    continue
+                
+                # Get coordinates in 0-100, convert to 0-1
+                x = tag.get('x', 0) / 100.0
+                y = tag.get('y', 0) / 100.0
+                width = tag.get('width', 20) / 100.0
+                height = tag.get('height', 20) / 100.0
+                
+                # Build XMP structure for this region
+                # mwg-rs:Region index and content
+                regions.append({
+                    'index': i + 1,
+                    'name': name,
+                    'type': 'Face',
+                    'x': f"{x:.4f}",
+                    'y': f"{y:.4f}",
+                    'w': f"{width:.4f}",
+                    'h': f"{height:.4f}"
+                })
+            
+            # Build exiftool command to write MWG-Regions
+            cmd = ['exiftool', '-overwrite_original']
+            
+            # 1. Clear old regions first
+            cmd.append('-Xmp.mwg-rs.Regions=')
+            
+            # 2. Add new regions
+            for region in regions:
+                idx = region['index']
+                # Each region entry in the bag
+                base = f'Xmp.mwg-rs.Regions'
+                cmd.append(f'-{base}[{idx}]/mwg-rs:Region/mwg-rs:Name={region["name"]}')
+                cmd.append(f'-{base}[{idx}]/mwg-rs:Region/mwg-rs:Type={region["type"]}')
+                cmd.append(f'-{base}[{idx}]/mwg-rs:Region/mwg-rs:Area/stArea:x={region["x"]}')
+                cmd.append(f'-{base}[{idx}]/mwg-rs:Region/mwg-rs:Area/stArea:y={region["y"]}')
+                cmd.append(f'-{base}[{idx}]/mwg-rs:Region/mwg-rs:Area/stArea:w={region["w"]}')
+                cmd.append(f'-{base}[{idx}]/mwg-rs:Region/mwg-rs:Area/stArea:h={region["h"]}')
+                cmd.append(f'-{base}[{idx}]/mwg-rs:Region/mwg-rs:Area/stArea:unit=normalized')
+            
+            # 3. Also add PersonInImage for compatibility (names only, no coordinates)
+            # This is for apps that only read PersonInImage
+            person_names = [tag['name'] for tag in face_tags if tag.get('name')]
+            if person_names:
+                # Clear old PersonInImage
+                cmd.append('-XMP:PersonInImage=')
+                # Add new ones
+                person_xmp = ''.join([f'<rdf:li>{name}</rdf:li>' for name in person_names])
+                cmd.append(f'-XMP:PersonInImage=<rdf:Bag>{person_xmp}</rdf:Bag>')
+            
+            # 4. Image file path
+            cmd.append(image_path)
+            
+            # Execute exiftool
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            
+            if result.returncode == 0:
+                return True
+            else:
+                print(f"exiftool error: {result.stderr}")
+                return False
+            
+        except Exception as e:
+            print(f"Error writing face tags to {image_path}: {e}")
+            return False
+    
+    def _write_face_tags_piexif_fallback(self, image_path: str, face_tags: List[Dict], backup: bool = True) -> bool:
+        """
+        Fallback to piexif if exiftool not available.
+        Only writes PersonInImage (no coordinates via MWG-Regions).
         """
         try:
             if backup:
@@ -392,17 +605,14 @@ class ExifManager:
             
             exif_dict = piexif.load(image_path)
             
-            # Skapa XMP PersonInImage
-            persons_xmp = '<PersonInImage><rdf:Bag>' + ''.join([f'<rdf:li>{ft["name"]}</rdf:li>' for ft in face_tags]) + '</rdf:Bag></PersonInImage>'
-            
-            # Lägg även till region info (Microsoft Photo format)
-            # Detta är mer komplext och kräver XML-generering
-            # För nu, använd bara PersonInImage
+            # Create XMP PersonInImage
+            person_names = [tag['name'] for tag in face_tags if tag.get('name')]
+            persons_xmp = '<XMP:PersonInImage><rdf:Bag>' + ''.join([f'<rdf:li>{name}</rdf:li>' for name in person_names]) + '</rdf:Bag></XMP:PersonInImage>'
             
             if "Exif" not in exif_dict:
                 exif_dict["Exif"] = {}
             
-            # Kombinera med befintlig UserComment om det finns
+            # Combine with existing UserComment if it exists
             existing = exif_dict["Exif"].get(piexif.ExifIFD.UserComment, b"").decode('utf-8', errors='ignore')
             new_comment = existing + persons_xmp
             
@@ -414,7 +624,15 @@ class ExifManager:
             return True
             
         except Exception as e:
-            print(f"Error writing face tags to {image_path}: {e}")
+            print(f"Error in piexif fallback: {e}")
+            return False
+    
+    def _has_exiftool(self) -> bool:
+        """Check if exiftool is available in PATH"""
+        try:
+            subprocess.run(['exiftool', '-ver'], capture_output=True, timeout=2)
+            return True
+        except (FileNotFoundError, subprocess.TimeoutExpired):
             return False
     
     def remove_all_metadata(self, image_path: str, backup: bool = True) -> bool:
@@ -495,6 +713,36 @@ class ExifManager:
                 results[image_path] = False
         
         return results
+    
+    def verify_mwg_regions(self, image_path: str) -> Dict:
+        """
+        Verifiera att MWG-regioner skrevs korrekt
+        
+        Läser metadata igen och returnerar regions med human-readable format
+        """
+        exif_data = self.read_exif(image_path)
+        face_tags = exif_data.get('face_tags', [])
+        
+        result = {
+            'file': image_path,
+            'total_regions': len(face_tags),
+            'regions': []
+        }
+        
+        for tag in face_tags:
+            region = {
+                'name': tag.get('name', 'Unknown'),
+                'source': tag.get('source', 'Unknown'),
+                'has_coordinates': 'x' in tag and 'y' in tag,
+            }
+            if 'x' in tag:
+                region['x'] = f"{tag['x']:.1f}%"
+                region['y'] = f"{tag['y']:.1f}%"
+                region['width'] = f"{tag['width']:.1f}%"
+                region['height'] = f"{tag['height']:.1f}%"
+            result['regions'].append(region)
+        
+        return result
 
 
 # Test-funktioner
@@ -502,12 +750,25 @@ if __name__ == "__main__":
     manager = ExifManager()
     
     # Exempel på användning:
+    # 1. Läs EXIF med MWG-regioner
     # exif_data = manager.read_exif("test_image.jpg")
+    # print("Face tags with coordinates:")
+    # for tag in exif_data.get('face_tags', []):
+    #     print(f"  {tag['name']}: ({tag.get('x', 'N/A')}, {tag.get('y', 'N/A')}) - {tag.get('width', 'N/A')}x{tag.get('height', 'N/A')}")
     # print(json.dumps(exif_data, indent=2))
     
-    # manager.write_keywords("test_image.jpg", ["Porträtt", "1910", "Studio"])
+    # 2. Skriv face tags med MWG-regioner
     # manager.write_face_tags("test_image.jpg", [
-    #     {"name": "Anders Nilsson", "x": 40, "y": 30, "width": 20, "height": 20}
+    #     {"name": "Anders Nilsson", "x": 40, "y": 30, "width": 20, "height": 20},
+    #     {"name": "Brita Johansson", "x": 60, "y": 35, "width": 18, "height": 22}
     # ])
     
+    # 3. Skriv keywords
+    # manager.write_keywords("test_image.jpg", ["Porträtt", "1910", "Studio"])
+    
     print("EXIF Manager loaded. Ready to use.")
+    print("Features:")
+    print("  - MWG-Regions support (Lightroom/DigiKam compatible)")
+    print("  - Face tag coordinates (0-100 format)")
+    print("  - Keywords via XMP/IPTC")
+    print("  - Full round-trip compatibility")

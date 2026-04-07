@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ImageViewer from './ImageViewer.jsx';
-import ImageEditorModal from './ImageEditorModal.jsx';
 import LinkPersonModal from './LinkPersonModal.jsx';
 import TrashModal from './TrashModal.jsx';
 import WindowFrame from './WindowFrame.jsx';
@@ -684,13 +683,7 @@ export function MediaManager({ allPeople = [], allSources = [], onOpenEditModal 
   const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
   const [contextMenuItemId, setContextMenuItemId] = useState(null);
   
-  // Image Editor State
-  const [isImageEditorOpen, setIsImageEditorOpen] = useState(false);
-  
   // EXIF State - moved to selection state
-  const [editingImage, setEditingImage] = useState(null);
-  const [pendingDeleteId, setPendingDeleteId] = useState(null);
-  const pendingDeleteTimeout = useRef(null);
   
   // Data State - Use media from database, fallback to INITIAL_MEDIA for demo
   const [mediaItems, setMediaItems] = useState(initialMedia.length > 0 ? initialMedia : INITIAL_MEDIA);
@@ -777,15 +770,14 @@ export function MediaManager({ allPeople = [], allSources = [], onOpenEditModal 
         setImageViewerOpen(true);
         break;
       case 'edit':
-        setEditingImage(item);
-        setIsImageEditorOpen(true);
+        setSelectedImage(item);
+        setImageViewerOpen(true);
         break;
       case 'rotate':
-        // Open image editor for rotation
         const rotateItem = mediaItems.find(m => m.id === contextMenuItemId);
         if (rotateItem) {
-          setEditingImage(rotateItem);
-          setIsImageEditorOpen(true);
+          setSelectedImage(rotateItem);
+          setImageViewerOpen(true);
         }
         break;
       case 'delete':
@@ -797,71 +789,11 @@ export function MediaManager({ allPeople = [], allSources = [], onOpenEditModal 
     setContextMenuOpen(false);
   };
 
-  // Open image editor on double click
+  // Open unified image viewer on double click
   const handleImageDoubleClick = (item, e) => {
     e.stopPropagation();
-    setEditingImage(item);
-    setIsImageEditorOpen(true);
-  };
-
-  // Handle saving edited image
-  const handleSaveEditedImage = (blob, createCopy) => {
-    if (!editingImage) return;
-
-    // Convert blob to data URL
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const newImageUrl = reader.result;
-
-      if (createCopy) {
-        // Create new copy with new ID
-        const newId = Date.now();
-        const newImage = {
-          ...editingImage,
-          id: newId,
-          url: newImageUrl,
-          name: `${editingImage.name.replace(/\.[^/.]+$/, '')}_redigerad.jpg`
-        };
-        updateMedia([...mediaItems, newImage]);
-      } else {
-        // Overwrite original
-        updateMedia(mediaItems.map(m => 
-          m.id === editingImage.id 
-            ? { ...m, url: newImageUrl }
-            : m
-        ));
-      }
-
-      setEditingImage(null);
-      setIsImageEditorOpen(false);
-    };
-    reader.readAsDataURL(blob);
-  };
-
-  const handleRequestDeleteEditingImage = () => {
-    if (!editingImage) return;
-
-    // First click: ask for confirmation via status toast
-    if (pendingDeleteId !== editingImage.id) {
-      setPendingDeleteId(editingImage.id);
-      if (pendingDeleteTimeout.current) clearTimeout(pendingDeleteTimeout.current);
-      pendingDeleteTimeout.current = setTimeout(() => setPendingDeleteId(null), 4000);
-      if (typeof showStatus === 'function') showStatus('Klicka "Ta bort" igen för att bekräfta.', 'warn');
-      return;
-    }
-
-    // Confirmed: remove image and offer undo
-    if (pendingDeleteTimeout.current) {
-      clearTimeout(pendingDeleteTimeout.current);
-      pendingDeleteTimeout.current = null;
-    }
-    setPendingDeleteId(null);
-
-    const removedImage = editingImage;
-    handleDeleteImage(removedImage);
-    setIsImageEditorOpen(false);
-    setEditingImage(null);
-    setSelectedImage(current => (current && current.id === removedImage.id ? null : current));
+    setSelectedImage(item);
+    setImageViewerOpen(true);
   };
   
   // Hantera radering av bild (flytta till papperskorg)
@@ -1461,22 +1393,6 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
     }
   });
 
-  const editingIndex = editingImage ? sortedMedia.findIndex(m => m.id === editingImage.id) : -1;
-  const prevEditingImage = editingIndex > 0 ? sortedMedia[editingIndex - 1] : null;
-  const nextEditingImage = editingIndex >= 0 && editingIndex < sortedMedia.length - 1 ? sortedMedia[editingIndex + 1] : null;
-
-  const handlePrevEditing = () => {
-    if (!prevEditingImage) return;
-    setEditingImage(prevEditingImage);
-    setSelectedImage(prevEditingImage);
-  };
-
-  const handleNextEditing = () => {
-    if (!nextEditingImage) return;
-    setEditingImage(nextEditingImage);
-    setSelectedImage(nextEditingImage);
-  };
-
   // Context menu close handlers
   useEffect(() => {
     if (!contextMenuOpen) return;
@@ -1499,13 +1415,6 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
       document.removeEventListener('keydown', handleEscape);
     };
   }, [contextMenuOpen]);
-
-  // Cleanup pending delete timer
-  useEffect(() => () => {
-    if (pendingDeleteTimeout.current) {
-      clearTimeout(pendingDeleteTimeout.current);
-    }
-  }, []);
 
   const handleStartCreateLibrary = () => {
     const newId = `lib_${Date.now()}`;
@@ -3790,25 +3699,41 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
         }}
         people={allPeople}
         onOpenEditModal={onOpenEditModal}
-      />
+        onSaveEditedImage={({ mode, url, name, filePath }) => {
+          if (!selectedImage) return;
 
-      {/* IMAGE EDITOR MODAL */}
-      <ImageEditorModal
-        isOpen={isImageEditorOpen}
-        onClose={() => {
-          setIsImageEditorOpen(false);
-          setEditingImage(null);
-          setPendingDeleteId(null);
+          if (mode === 'overwrite') {
+            updateMedia((prev) => prev.map((item) =>
+              item.id === selectedImage.id
+                ? {
+                    ...item,
+                    ...(url ? { url } : {}),
+                    ...(name ? { name } : {}),
+                    ...(filePath ? { filePath } : {})
+                  }
+                : item
+            ));
+
+            setSelectedImage((prev) => prev ? {
+              ...prev,
+              ...(url ? { url } : {}),
+              ...(name ? { name } : {}),
+              ...(filePath ? { filePath } : {})
+            } : prev);
+            return;
+          }
+
+          const newId = Date.now();
+          const copied = {
+            ...selectedImage,
+            id: newId,
+            url: url || selectedImage.url,
+            name: name || `${selectedImage.name || 'bild'}_redigerad.jpg`,
+            filePath: filePath || selectedImage.filePath,
+            date: new Date().toISOString().split('T')[0]
+          };
+          updateMedia((prev) => [...prev, copied]);
         }}
-        imageUrl={editingImage?.url}
-        imageName={editingImage?.name}
-        onSave={handleSaveEditedImage}
-        onPrev={handlePrevEditing}
-        onNext={handleNextEditing}
-        hasPrev={!!prevEditingImage}
-        hasNext={!!nextEditingImage}
-        onDelete={handleRequestDeleteEditingImage}
-        isConfirmingDelete={pendingDeleteId === editingImage?.id}
       />
 
       {/* Context Menu */}

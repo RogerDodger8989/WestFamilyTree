@@ -16,7 +16,6 @@ import PlacePicker from './PlacePicker.jsx';
 import ImageViewer from './ImageViewer.jsx';
 import Editor from './MaybeEditor.jsx';
 import MediaSelector from './MediaSelector.jsx';
-import ImageEditorModal from './ImageEditorModal.jsx';
 import MediaImage from './components/MediaImage.jsx';
 import { getAvatarImageStyle } from './imageUtils.js';
 import { useApp } from './AppContext';
@@ -5627,7 +5626,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
         </WindowFrame>
       )}
 
-      {/* --- IMAGE EDITOR MODAL --- */}
+      {/* --- IMAGE VIEWER (UNIFIED EDITOR) --- */}
       {isImageEditorOpen && (() => {
         const mediaObjects = imageEditorContext === 'person'
           ? (Array.isArray(person.media) ? person.media : [])
@@ -5645,17 +5644,30 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
         const nextImage = editingImageIndex !== null && editingImageIndex < mediaObjects.length - 1 ? mediaObjects[editingImageIndex + 1] : null;
 
         return (
-          <ImageEditorModal
+          <ImageViewer
             isOpen={isImageEditorOpen}
             onClose={() => {
               setIsImageEditorOpen(false);
               setEditingImageIndex(null);
               setImageEditorContext('event');
             }}
-            imageUrl={currentImage?.url || currentImage?.path}
-            imageName={currentImage?.name}
-            onSave={() => {
-              // Ingen sparning behövs här eftersom bilderna redan är kopplade
+            imageSrc={currentImage?.url || currentImage?.path}
+            imageTitle={currentImage?.name}
+            imageMeta={currentImage}
+            regions={currentImage?.regions || currentImage?.faces || []}
+            onSaveRegions={(newRegions) => {
+              if (!currentImage) return;
+              if (imageEditorContext === 'person') {
+                const personMedia = Array.isArray(person.media) ? [...person.media] : [];
+                if (editingImageIndex !== null && personMedia[editingImageIndex]) {
+                  personMedia[editingImageIndex] = {
+                    ...personMedia[editingImageIndex],
+                    regions: newRegions,
+                    faces: newRegions
+                  };
+                  setPerson({ ...person, media: personMedia });
+                }
+              }
             }}
             onPrev={() => {
               if (editingImageIndex !== null && editingImageIndex > 0) {
@@ -5669,6 +5681,8 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
             }}
             hasPrev={!!prevImage}
             hasNext={!!nextImage}
+            people={Array.isArray(allPeople) ? allPeople : []}
+            onOpenEditModal={onOpenEditModal}
           />
         );
       })()}

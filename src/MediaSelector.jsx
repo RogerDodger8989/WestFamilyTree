@@ -7,7 +7,6 @@ import {
   ChevronRight, ChevronDown
 } from 'lucide-react';
 import ImageViewer from './ImageViewer.jsx';
-import ImageEditorModal from './ImageEditorModal.jsx';
 import WindowFrame from './WindowFrame.jsx';
 import Editor from './MaybeEditor.jsx';
 import { MediaManager } from './MediaManager.jsx';
@@ -47,8 +46,6 @@ export default function MediaSelector({
   const [selectedImageIndex, setSelectedImageIndex] = useState(null);
   const [isMediaManagerOpen, setIsMediaManagerOpen] = useState(false);
   const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
-  const [isImageEditorOpen, setIsImageEditorOpen] = useState(false);
-  const [editingImageIndex, setEditingImageIndex] = useState(null);
   const [viewMode, setViewMode] = useState('grid'); // 'grid' eller 'list'
   const [searchTerm, setSearchTerm] = useState('');
   const [draggedIndex, setDraggedIndex] = useState(null);
@@ -851,8 +848,8 @@ export default function MediaSelector({
                       }}
                       onDoubleClick={(e) => {
                         e.stopPropagation();
-                        setEditingImageIndex(originalIndex);
-                        setIsImageEditorOpen(true);
+                        setSelectedImageIndex(originalIndex);
+                        setIsImageViewerOpen(true);
                       }}
                       onContextMenu={(e) => handleContextMenu(e, originalIndex)}
                     >
@@ -942,8 +939,8 @@ export default function MediaSelector({
                     }}
                     onDoubleClick={(e) => {
                       e.stopPropagation();
-                      setEditingImageIndex(originalIndex);
-                      setIsImageEditorOpen(true);
+                      setSelectedImageIndex(originalIndex);
+                      setIsImageViewerOpen(true);
                     }}
                     onContextMenu={(e) => handleContextMenu(e, originalIndex)}
                   >
@@ -1569,6 +1566,52 @@ export default function MediaSelector({
           people={allPeople}
           onOpenEditModal={onOpenEditModal}
           connections={media[selectedImageIndex].connections || {}}
+          onSaveEditedImage={({ mode, url, name, filePath }) => {
+            if (!url && mode !== 'overwrite') return;
+
+            if (mode === 'overwrite') {
+              const updatedMedia = [...media];
+              updatedMedia[selectedImageIndex] = {
+                ...updatedMedia[selectedImageIndex],
+                ...(url ? { url } : {}),
+                ...(name ? { name } : {}),
+                ...(filePath ? { filePath } : {})
+              };
+              onMediaChange(updatedMedia);
+
+              if (typeof onUpdateAllMedia === 'function') {
+                const selectedItemId = updatedMedia[selectedImageIndex]?.id;
+                const nextAllMedia = (allMediaItems || []).map((item) =>
+                  String(item?.id) === String(selectedItemId)
+                    ? {
+                        ...item,
+                        ...(url ? { url } : {}),
+                        ...(name ? { name } : {}),
+                        ...(filePath ? { filePath } : {})
+                      }
+                    : item
+                );
+                onUpdateAllMedia(nextAllMedia);
+              }
+              return;
+            }
+
+            const copiedItem = {
+              ...media[selectedImageIndex],
+              id: `img_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+              url: url || media[selectedImageIndex].url,
+              name: name || `${media[selectedImageIndex].name || 'bild'}_redigerad`,
+              filePath: filePath || media[selectedImageIndex].filePath,
+              date: new Date().toISOString().split('T')[0]
+            };
+
+            const updatedMedia = [...media, copiedItem];
+            onMediaChange(updatedMedia);
+
+            if (typeof onUpdateAllMedia === 'function') {
+              onUpdateAllMedia([...(allMediaItems || []), copiedItem]);
+            }
+          }}
         />
       )}
 
@@ -1624,8 +1667,8 @@ export default function MediaSelector({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              setEditingImageIndex(contextMenu.itemIndex);
-              setIsImageEditorOpen(true);
+              setSelectedImageIndex(contextMenu.itemIndex);
+              setIsImageViewerOpen(true);
               setContextMenu({ open: false, x: 0, y: 0, itemIndex: null });
             }}
             className="w-full px-4 py-2 text-left text-sm text-on-accent hover:bg-surface-2 flex items-center gap-2"
@@ -1834,89 +1877,6 @@ export default function MediaSelector({
         </WindowFrame>
       )}
 
-      {/* IMAGE EDITOR MODAL */}
-      {isImageEditorOpen && editingImageIndex !== null && (() => {
-        const currentEditingImage = media[editingImageIndex];
-        const prevEditingImage = editingImageIndex > 0 ? media[editingImageIndex - 1] : null;
-        const nextEditingImage = editingImageIndex < media.length - 1 ? media[editingImageIndex + 1] : null;
-
-        const handlePrevEditing = () => {
-          if (editingImageIndex > 0) {
-            setEditingImageIndex(editingImageIndex - 1);
-          }
-        };
-
-        const handleNextEditing = () => {
-          if (editingImageIndex < media.length - 1) {
-            setEditingImageIndex(editingImageIndex + 1);
-          }
-        };
-
-        const handleSaveEditedImage = (blob, createCopy) => {
-          if (!currentEditingImage) return;
-
-          // Convert blob to data URL
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            const newImageUrl = reader.result;
-
-            if (createCopy) {
-              // Create new copy with new ID
-              const newId = `img_${Date.now()}_${Math.random()}`;
-              const newImage = {
-                ...currentEditingImage,
-                id: newId,
-                url: newImageUrl,
-                name: `${currentEditingImage.name?.replace(/\.[^/.]+$/, '') || 'bild'}_redigerad.jpg`
-              };
-              onMediaChange([...media, newImage]);
-
-              if (typeof onUpdateAllMedia === 'function') {
-                onUpdateAllMedia([...(allMediaItems || []), newImage]);
-              }
-            } else {
-              // Overwrite original
-              const originalIndex = media.findIndex(m => m.id === currentEditingImage.id);
-              if (originalIndex !== -1) {
-                const updatedMedia = [...media];
-                updatedMedia[originalIndex] = { ...updatedMedia[originalIndex], url: newImageUrl };
-                onMediaChange(updatedMedia);
-
-                if (typeof onUpdateAllMedia === 'function') {
-                  const updatedItemId = updatedMedia[originalIndex]?.id;
-                  const nextAllMedia = (allMediaItems || []).map((item) =>
-                    String(item?.id) === String(updatedItemId)
-                      ? { ...item, url: newImageUrl }
-                      : item
-                  );
-                  onUpdateAllMedia(nextAllMedia);
-                }
-              }
-            }
-
-            setIsImageEditorOpen(false);
-            setEditingImageIndex(null);
-          };
-          reader.readAsDataURL(blob);
-        };
-
-        return (
-          <ImageEditorModal
-            isOpen={isImageEditorOpen}
-            onClose={() => {
-              setIsImageEditorOpen(false);
-              setEditingImageIndex(null);
-            }}
-            imageUrl={currentEditingImage?.url}
-            imageName={currentEditingImage?.name}
-            onSave={handleSaveEditedImage}
-            onPrev={handlePrevEditing}
-            onNext={handleNextEditing}
-            hasPrev={!!prevEditingImage}
-            hasNext={!!nextEditingImage}
-          />
-        );
-      })()}
     </div>
   );
 }
