@@ -28,7 +28,7 @@ function UndoToast({ isVisible, message, onUndo, duration = 10000 }) {
   }
 
   return (
-    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[2000] bg-danger text-on-accent rounded-lg shadow-2xl flex items-center justify-between p-4 min-w-[350px]">
+    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] bg-danger text-on-accent rounded-lg shadow-2xl flex items-center justify-between p-4 min-w-[350px]">
       <span>{message}</span>
       <div className="flex items-center">
         <button onClick={onUndo} className="ml-4 px-3 py-1 bg-surface/20 hover:bg-surface/40 rounded font-bold text-sm">

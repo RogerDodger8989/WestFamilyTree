@@ -5667,6 +5667,15 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                   };
                   setPerson({ ...person, media: personMedia });
                 }
+
+                if (typeof onUpdateAllMedia === 'function') {
+                  const nextAllMedia = (allMediaItems || []).map((item) =>
+                    String(item?.id) === String(currentImage?.id)
+                      ? { ...item, regions: newRegions, faces: newRegions }
+                      : item
+                  );
+                  onUpdateAllMedia(nextAllMedia);
+                }
               }
             }}
             onSaveImageMeta={(metaPatch) => {

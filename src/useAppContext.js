@@ -2504,48 +2504,75 @@ export default function useAppContext() {
         }
     }, [dbData?.meta?.tags, parseMediaTags, resolveMediaPathForExif]);
 
-    const collectAllTagPaths = useCallback(() => {
-        const allPaths = new Set();
-
-        if (Array.isArray(dbData?.meta?.tags)) {
-            dbData.meta.tags.forEach((tag) => {
-                const id = normalizePath(tag?.id || tag?.name);
-                if (id) allPaths.add(id);
-            });
-        }
-
-        if (Array.isArray(dbData?.media)) {
-            dbData.media.forEach((item) => {
-                parseMediaTags(item).forEach((tagPath) => {
-                    allPaths.add(tagPath);
-                });
-            });
-        }
-
-        return allPaths;
-    }, [dbData?.meta?.tags, dbData?.media, parseMediaTags]);
-
-    const applyTagPathMap = useCallback((pathMap, options = {}) => {
+    const applyTagPathMapToState = useCallback((mediaList, metaTagList, pathMap, options = {}) => {
         const forcedIds = options?.forceInheritedIds instanceof Set ? options.forceInheritedIds : new Set();
-        const mediaList = Array.isArray(dbData?.media) ? dbData.media : [];
+        const media = Array.isArray(mediaList) ? mediaList : [];
+        const metaTags = Array.isArray(metaTagList) ? metaTagList : [];
         const affectedMedia = [];
         const mediaBeforeMap = new Map();
 
-        const updatedMedia = mediaList.map((item) => {
+        const faceLabelRenameMap = new Map();
+        pathMap.forEach((newPath, oldPath) => {
+            const oldNormalized = normalizePath(oldPath);
+            const newNormalized = normalizePath(newPath);
+            if (!oldNormalized || !newNormalized) return;
+
+            const touchesFaceRoot = oldNormalized.startsWith(`${FACE_ROOT_ID}/`) ||
+                oldNormalized.startsWith(`${LEGACY_FACE_ROOT_ID}/`) ||
+                newNormalized.startsWith(`${FACE_ROOT_ID}/`) ||
+                newNormalized.startsWith(`${LEGACY_FACE_ROOT_ID}/`);
+            if (!touchesFaceRoot) return;
+
+            const oldLeaf = oldNormalized.split('/').filter(Boolean).pop();
+            const newLeaf = newNormalized.split('/').filter(Boolean).pop();
+            if (!oldLeaf || !newLeaf || oldLeaf === newLeaf) return;
+            faceLabelRenameMap.set(oldLeaf, newLeaf);
+            faceLabelRenameMap.set(oldNormalized, newNormalized);
+        });
+
+        const remapFaceEntries = (entries) => {
+            if (!Array.isArray(entries)) return entries;
+            return entries.map((entry) => {
+                if (!entry || typeof entry !== 'object') return entry;
+                const rawLabel = String(entry.label || entry.name || '').trim();
+                if (!rawLabel) return entry;
+
+                const mapped = faceLabelRenameMap.get(rawLabel) || faceLabelRenameMap.get(normalizePath(rawLabel));
+                if (!mapped || mapped === rawLabel) return entry;
+
+                const mappedLeaf = String(mapped).split('/').filter(Boolean).pop() || mapped;
+                return {
+                    ...entry,
+                    label: mappedLeaf,
+                    name: mappedLeaf
+                };
+            });
+        };
+
+        const updatedMedia = media.map((item) => {
             const beforeTags = parseMediaTags(item);
             const afterTags = Array.from(new Set(beforeTags.map((tag) => pathMap.get(tag) || tag)));
+            const updatedFaces = remapFaceEntries(item?.faces);
+            const updatedRegions = remapFaceEntries(item?.regions);
+
+            const facesChanged = Array.isArray(item?.faces) && JSON.stringify(item.faces) !== JSON.stringify(updatedFaces);
+            const regionsChanged = Array.isArray(item?.regions) && JSON.stringify(item.regions) !== JSON.stringify(updatedRegions);
 
             const changed = beforeTags.length !== afterTags.length || beforeTags.some((tag, index) => tag !== afterTags[index]);
-            if (!changed) return item;
+            if (!changed && !facesChanged && !regionsChanged) return item;
 
             mediaBeforeMap.set(String(item.id), beforeTags);
-            const nextItem = { ...item, tags: afterTags };
+            const nextItem = {
+                ...item,
+                tags: afterTags,
+                ...(facesChanged ? { faces: updatedFaces } : {}),
+                ...(regionsChanged ? { regions: updatedRegions } : {})
+            };
             affectedMedia.push(nextItem);
             return nextItem;
         });
 
-        const existingMetaTags = Array.isArray(dbData?.meta?.tags) ? dbData.meta.tags : [];
-        const updatedMetaTags = applyWriteToMetadataInheritance(existingMetaTags
+        const updatedMetaTags = applyWriteToMetadataInheritance(metaTags
             .map((tag) => {
                 const id = normalizePath(tag?.id || tag?.name);
                 if (!id) return null;
@@ -2564,25 +2591,17 @@ export default function useAppContext() {
             })
             .filter(Boolean), forcedIds);
 
-        setDbData((prev) => ({
-            ...prev,
-            media: updatedMedia,
-            meta: {
-                ...(prev?.meta || {}),
-                tags: updatedMetaTags
-            }
-        }));
-
         return {
+            updatedMedia,
             affectedMedia,
             mediaBeforeMap,
             updatedMetaTags
         };
-    }, [dbData?.media, dbData?.meta?.tags, parseMediaTags, setDbData]);
+    }, [parseMediaTags]);
 
     const renameGlobalTag = useCallback(async (oldName, newName) => {
-        const oldTag = String(oldName || '').trim();
-        const newTag = String(newName || '').trim();
+        const oldTag = normalizePath(oldName);
+        const newTag = normalizePath(newName);
         if (!oldTag || !newTag || oldTag === newTag) {
             return { success: false, affectedCount: 0, error: 'Ogiltiga etiketter för namnbyte.' };
         }
@@ -2593,13 +2612,60 @@ export default function useAppContext() {
             return { success: false, affectedCount: 0, error: 'Målnamnet är reserverat för ansiktsgruppen.' };
         }
 
-        const pathMap = new Map([[oldTag, newTag]]);
-        const allPaths = collectAllTagPaths();
+        let operationError = '';
+
+        const currentDbData = dbDataRef.current || dbData || {};
+        const currentMedia = Array.isArray(currentDbData?.media) ? currentDbData.media : [];
+        const currentMetaTags = Array.isArray(currentDbData?.meta?.tags) ? currentDbData.meta.tags : [];
+
+        const allPaths = new Set();
+        currentMetaTags.forEach((tag) => {
+            const id = normalizePath(tag?.id || tag?.name);
+            if (id) allPaths.add(id);
+        });
+        currentMedia.forEach((item) => {
+            parseMediaTags(item).forEach((tagPath) => allPaths.add(tagPath));
+        });
+
         const subtree = Array.from(allPaths)
             .filter((path) => path === oldTag || path.startsWith(`${oldTag}/`));
-        const forcedIds = new Set(subtree.map((path) => pathMap.get(path) || path));
+        if (subtree.length === 0) {
+            subtree.push(oldTag);
+        }
 
-        const { affectedMedia } = applyTagPathMap(pathMap, { forceInheritedIds: forcedIds });
+        const subtreeSet = new Set(subtree);
+        const pathMap = new Map();
+        subtree.forEach((path) => {
+            pathMap.set(path, `${newTag}${path.slice(oldTag.length)}`);
+        });
+
+        const mappedTargets = Array.from(pathMap.values());
+        if (new Set(mappedTargets).size !== mappedTargets.length) {
+            return { success: false, affectedCount: 0, error: 'Etiketten finns redan i denna grupp' };
+        }
+
+        const hasConflict = mappedTargets.some((path) => allPaths.has(path) && !subtreeSet.has(path));
+        if (hasConflict) {
+            return { success: false, affectedCount: 0, error: 'Etiketten finns redan i denna grupp' };
+        }
+
+        const forcedIds = new Set(mappedTargets);
+        const mapped = applyTagPathMapToState(currentMedia, currentMetaTags, pathMap, { forceInheritedIds: forcedIds });
+
+        setDbData((prev) => ({
+            ...prev,
+            media: mapped.updatedMedia,
+            meta: {
+                ...(prev?.meta || {}),
+                tags: mapped.updatedMetaTags
+            }
+        }));
+
+        if (operationError) {
+            return { success: false, affectedCount: 0, error: operationError };
+        }
+
+        const affectedMedia = mapped.affectedMedia;
         if (affectedMedia.length === 0) {
             return { success: true, affectedCount: 0 };
         }
@@ -2607,7 +2673,7 @@ export default function useAppContext() {
         await writeExifForMediaItems(affectedMedia, 'renameGlobalTag');
 
         return { success: true, affectedCount: affectedMedia.length };
-    }, [applyTagPathMap, collectAllTagPaths, writeExifForMediaItems]);
+    }, [applyTagPathMapToState, parseMediaTags, setDbData, writeExifForMediaItems]);
 
     const moveGlobalTag = useCallback(async (sourceTagName, targetParentTagName) => {
         const sourceTag = normalizePath(sourceTagName);
@@ -2628,7 +2694,19 @@ export default function useAppContext() {
             return { success: false, affectedCount: 0, error: 'Ingen förändring att utföra.' };
         }
 
-        const allPaths = collectAllTagPaths();
+        const currentDbData = dbDataRef.current || dbData || {};
+        const currentMedia = Array.isArray(currentDbData?.media) ? currentDbData.media : [];
+        const currentMetaTags = Array.isArray(currentDbData?.meta?.tags) ? currentDbData.meta.tags : [];
+
+        const allPaths = new Set();
+        currentMetaTags.forEach((tag) => {
+            const id = normalizePath(tag?.id || tag?.name);
+            if (id) allPaths.add(id);
+        });
+        currentMedia.forEach((item) => {
+            parseMediaTags(item).forEach((tagPath) => allPaths.add(tagPath));
+        });
+
         const subtreePaths = Array.from(allPaths)
             .filter((path) => path === sourceTag || path.startsWith(`${sourceTag}/`))
             .sort((a, b) => b.length - a.length);
@@ -2643,7 +2721,19 @@ export default function useAppContext() {
         });
 
         const forcedIds = new Set(Array.from(pathMap.values()));
-        const { affectedMedia } = applyTagPathMap(pathMap, { forceInheritedIds: forcedIds });
+        const mapped = applyTagPathMapToState(currentMedia, currentMetaTags, pathMap, { forceInheritedIds: forcedIds });
+
+        setDbData((prev) => ({
+            ...prev,
+            media: mapped.updatedMedia,
+            meta: {
+                ...(prev?.meta || {}),
+                tags: mapped.updatedMetaTags
+            }
+        }));
+
+        const affectedMedia = mapped.affectedMedia;
+
         await writeExifForMediaItems(affectedMedia, 'moveGlobalTag');
 
         return {
@@ -2652,7 +2742,7 @@ export default function useAppContext() {
             oldPath: sourceTag,
             newPath: newRoot
         };
-    }, [collectAllTagPaths, applyTagPathMap, writeExifForMediaItems]);
+    }, [applyTagPathMapToState, parseMediaTags, setDbData, writeExifForMediaItems]);
 
     const mergeGlobalTags = useCallback(async ({ sourceTagName, targetTagName, keepName } = {}) => {
         const sourceTag = normalizePath(sourceTagName);
@@ -2669,7 +2759,19 @@ export default function useAppContext() {
             return { success: false, affectedCount: 0, error: 'Huvudgruppen för ansikten är skyddad och kan inte slås ihop.' };
         }
 
-        const allPaths = collectAllTagPaths();
+        const currentDbData = dbDataRef.current || dbData || {};
+        const currentMedia = Array.isArray(currentDbData?.media) ? currentDbData.media : [];
+        const currentMetaTags = Array.isArray(currentDbData?.meta?.tags) ? currentDbData.meta.tags : [];
+
+        const allPaths = new Set();
+        currentMetaTags.forEach((tag) => {
+            const id = normalizePath(tag?.id || tag?.name);
+            if (id) allPaths.add(id);
+        });
+        currentMedia.forEach((item) => {
+            parseMediaTags(item).forEach((tagPath) => allPaths.add(tagPath));
+        });
+
         const sourceSubtree = Array.from(allPaths)
             .filter((path) => path === sourceTag || path.startsWith(`${sourceTag}/`))
             .sort((a, b) => b.length - a.length);
@@ -2688,7 +2790,19 @@ export default function useAppContext() {
             });
         }
 
-        const { affectedMedia } = applyTagPathMap(pathMap);
+        const mapped = applyTagPathMapToState(currentMedia, currentMetaTags, pathMap);
+
+        setDbData((prev) => ({
+            ...prev,
+            media: mapped.updatedMedia,
+            meta: {
+                ...(prev?.meta || {}),
+                tags: mapped.updatedMetaTags
+            }
+        }));
+
+        const affectedMedia = mapped.affectedMedia;
+
         await writeExifForMediaItems(affectedMedia, 'mergeGlobalTags');
 
         return {
@@ -2698,7 +2812,7 @@ export default function useAppContext() {
             targetTag,
             finalTag: finalName
         };
-    }, [collectAllTagPaths, applyTagPathMap, writeExifForMediaItems]);
+    }, [applyTagPathMapToState, parseMediaTags, setDbData, writeExifForMediaItems]);
 
     const restoreDeletedGlobalTag = useCallback(async (snapshot) => {
         const removedMetaTags = Array.isArray(snapshot?.removedMetaTags) ? snapshot.removedMetaTags : [];
@@ -2754,7 +2868,7 @@ export default function useAppContext() {
     }, [setDbData, writeExifForMediaItems]);
 
     const deleteGlobalTag = useCallback(async (tagName) => {
-        const targetTag = String(tagName || '').trim();
+        const targetTag = normalizePath(tagName);
         if (!targetTag) {
             return { success: false, affectedCount: 0, error: 'Ogiltig etikett för radering.' };
         }
@@ -2762,27 +2876,67 @@ export default function useAppContext() {
             return { success: false, affectedCount: 0, error: 'Huvudgruppen för ansikten är skyddad och kan inte raderas.' };
         }
 
-        const mediaList = Array.isArray(dbData?.media) ? dbData.media : [];
+        const currentDbData = dbDataRef.current || dbData || {};
+        const currentMedia = Array.isArray(currentDbData?.media) ? currentDbData.media : [];
+        const existingMetaTags = Array.isArray(currentDbData?.meta?.tags) ? currentDbData.meta.tags : [];
         const affected = [];
         const affectedBefore = [];
+        let removedMetaTags = [];
+        const removedFaceLabels = new Set();
 
-        const updatedMedia = mediaList.map((item) => {
+        const collectFaceLabel = (tagPath) => {
+            const normalized = normalizePath(tagPath);
+            if (!normalized) return;
+            const touchesFaceRoot = normalized.startsWith(`${FACE_ROOT_ID}/`) || normalized.startsWith(`${LEGACY_FACE_ROOT_ID}/`);
+            if (!touchesFaceRoot) return;
+            const leaf = normalized.split('/').filter(Boolean).pop();
+            if (!leaf) return;
+            removedFaceLabels.add(leaf);
+            removedFaceLabels.add(normalized);
+        };
+
+        collectFaceLabel(targetTag);
+
+        const updatedMedia = currentMedia.map((item) => {
             const tags = parseMediaTags(item);
+            const removedFromItem = tags.filter((tag) => tag === targetTag || tag.startsWith(`${targetTag}/`));
+            removedFromItem.forEach((tagPath) => collectFaceLabel(tagPath));
 
             const hasTag = tags.some((tag) => tag === targetTag || tag.startsWith(`${targetTag}/`));
-            if (!hasTag) return item;
-
             const filtered = tags.filter((tag) => tag !== targetTag && !tag.startsWith(`${targetTag}/`));
             const deduped = Array.from(new Set(filtered));
 
-            const nextItem = { ...item, tags: deduped };
+            const scrubFaceEntries = (entries) => {
+                if (!Array.isArray(entries)) return entries;
+                return entries.filter((entry) => {
+                    const label = normalizePath(entry?.label || entry?.name || '');
+                    if (!label) return true;
+                    if (removedFaceLabels.has(label)) return false;
+                    const leaf = label.split('/').filter(Boolean).pop();
+                    return !removedFaceLabels.has(leaf);
+                });
+            };
+
+            const nextFaces = scrubFaceEntries(item?.faces);
+            const nextRegions = scrubFaceEntries(item?.regions);
+            const facesChanged = Array.isArray(item?.faces) && nextFaces.length !== item.faces.length;
+            const regionsChanged = Array.isArray(item?.regions) && nextRegions.length !== item.regions.length;
+
+            const changed = hasTag || facesChanged || regionsChanged;
+            if (!changed) return item;
+
+            const nextItem = {
+                ...item,
+                tags: deduped,
+                ...(facesChanged ? { faces: nextFaces } : {}),
+                ...(regionsChanged ? { regions: nextRegions } : {})
+            };
             affected.push(nextItem);
             affectedBefore.push({ id: String(item.id), tags });
             return nextItem;
         });
 
-        const existingMetaTags = Array.isArray(dbData?.meta?.tags) ? dbData.meta.tags : [];
-        const removedMetaTags = existingMetaTags.filter((tag) => {
+        removedMetaTags = existingMetaTags.filter((tag) => {
             const id = normalizePath(tag?.id);
             return id === targetTag || id.startsWith(`${targetTag}/`);
         });
@@ -2811,7 +2965,7 @@ export default function useAppContext() {
                 affectedMediaBefore: affectedBefore
             }
         };
-    }, [dbData?.media, dbData?.meta?.tags, parseMediaTags, setDbData, writeExifForMediaItems]);
+    }, [parseMediaTags, setDbData, writeExifForMediaItems]);
 
     const getTagStats = useCallback(() => {
         const counter = new Map();
@@ -2875,7 +3029,7 @@ export default function useAppContext() {
         const nextId = normalizedParentId ? `${normalizedParentId}/${normalizedName}` : normalizedName;
         const existing = Array.isArray(dbData?.meta?.tags) ? dbData.meta.tags : [];
         if (existing.some((tag) => normalizePath(tag?.id) === nextId)) {
-            return { success: false, error: 'Etiketten finns redan.' };
+            return { success: false, error: 'Etiketten finns redan i denna grupp' };
         }
 
         const nextTag = {
@@ -2910,27 +3064,18 @@ export default function useAppContext() {
             return { success: false, error: 'Ogiltig etikett.' };
         }
 
+        const currentDbData = dbDataRef.current || dbData || {};
+        const existing = Array.isArray(currentDbData?.meta?.tags) ? currentDbData.meta.tags : [];
         let didUpdate = false;
-        setDbData((prev) => {
-            const existing = Array.isArray(prev?.meta?.tags) ? prev.meta.tags : [];
-            const updated = existing.map((tag) => {
-                if (normalizePath(tag?.id) !== normalizedId) return tag;
-                didUpdate = true;
-                const resolvedValue = typeof nextValue === 'boolean'
-                    ? nextValue
-                    : !Boolean(tag.writeToMetadata);
-                return {
-                    ...tag,
-                    writeToMetadata: resolvedValue
-                };
-            });
-
+        const updated = existing.map((tag) => {
+            if (normalizePath(tag?.id) !== normalizedId) return tag;
+            didUpdate = true;
+            const resolvedValue = typeof nextValue === 'boolean'
+                ? nextValue
+                : !Boolean(tag.writeToMetadata);
             return {
-                ...prev,
-                meta: {
-                    ...(prev?.meta || {}),
-                    tags: updated
-                }
+                ...tag,
+                writeToMetadata: resolvedValue
             };
         });
 
@@ -2938,8 +3083,16 @@ export default function useAppContext() {
             return { success: false, error: 'Etiketten hittades inte.' };
         }
 
+        setDbData((prev) => ({
+            ...prev,
+            meta: {
+                ...(prev?.meta || {}),
+                tags: updated
+            }
+        }));
+
         return { success: true };
-    }, [setDbData]);
+    }, [dbData, setDbData]);
 
     const setGlobalTagThumbnail = useCallback((tagId, thumbnailValue) => {
         const normalizedId = normalizePath(tagId);
@@ -2948,32 +3101,31 @@ export default function useAppContext() {
             return { success: false, error: 'Ogiltig etikett.' };
         }
 
+        const currentDbData = dbDataRef.current || dbData || {};
+        const tags = Array.isArray(currentDbData?.meta?.tags) ? currentDbData.meta.tags : [];
         let didUpdate = false;
-        setDbData((prev) => {
-            const tags = Array.isArray(prev?.meta?.tags) ? prev.meta.tags : [];
-            const updated = tags.map((tag) => {
-                if (normalizePath(tag?.id) !== normalizedId) return tag;
-                didUpdate = true;
-                return {
-                    ...tag,
-                    thumbnail
-                };
-            });
-
+        const updated = tags.map((tag) => {
+            if (normalizePath(tag?.id) !== normalizedId) return tag;
+            didUpdate = true;
             return {
-                ...prev,
-                meta: {
-                    ...(prev?.meta || {}),
-                    tags: updated
-                }
+                ...tag,
+                thumbnail
             };
         });
 
         if (!didUpdate) {
             return { success: false, error: 'Etiketten hittades inte.' };
         }
+
+        setDbData((prev) => ({
+            ...prev,
+            meta: {
+                ...(prev?.meta || {}),
+                tags: updated
+            }
+        }));
         return { success: true };
-    }, [setDbData]);
+    }, [dbData, setDbData]);
 
     const resetGlobalTagThumbnail = useCallback((tagId) => {
         return setGlobalTagThumbnail(tagId, '');

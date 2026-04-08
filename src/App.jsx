@@ -29,7 +29,7 @@ import AuditMergesSettingsModal from './AuditMergesSettingsModal.jsx';
 import Button from './Button.jsx'; 
 import MediaImage from './components/MediaImage.jsx';
 import { User, Settings, PanelRight, Minus, Maximize2, X, Network, Star } from 'lucide-react'; 
-import { buildRelationsFromPeople, ensureAllRelations, ensureParentsArePartners } from './relationUtils.js';
+import { buildRelationsFromPeople, ensureParentsArePartners } from './relationUtils.js';
 
 const THEME_STORAGE_KEY = 'westFamilyTreeTheme';
 const THEME_OPTIONS = ['dark', 'light', 'green', 'rust'];

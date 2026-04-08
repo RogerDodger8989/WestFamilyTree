@@ -5,7 +5,7 @@ import TrashModal from './TrashModal.jsx';
 import WindowFrame from './WindowFrame.jsx';
 import { useApp } from './AppContext.jsx';
 import { createWorker } from 'tesseract.js';
-import { pipeline, env } from '@xenova/transformers';
+import { env } from '@xenova/transformers';
 import Editor from './MaybeEditor.jsx';
 
 // Konfigurera transformers för Electron
@@ -25,9 +25,9 @@ if (typeof window !== 'undefined' && window.electronAPI && window.electronAPI.do
 import { 
   Search, Image as ImageIcon, Grid, List, Tag, User, 
   MapPin, Calendar, Plus, Trash2, AlertCircle, UploadCloud, 
-  Crop, RotateCw, ScanFace, ZoomIn, ZoomOut, Maximize,
+  RotateCw, ScanFace, ZoomIn, ZoomOut,
   FolderPlus, Folder, CheckSquare, Square, MoveRight,
-  Check, Edit2, FileWarning, PenTool, Mic, Link,
+  Check, Edit2, FileWarning, PenTool, Link,
   X, Layers, FileText, MoreVertical, Save, Camera,
   Download, Upload, RefreshCw, Database, Info, Trash, FolderOpen,
   ArrowUpDown, Filter, SlidersHorizontal
@@ -1026,7 +1026,6 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
   const [showOcrModal, setShowOcrModal] = useState(false);
   const [ocrResult, setOcrResult] = useState('');
   // OCR-typ: Endast Tesseract (TrOCR fungerar inte i Electron)
-  // const [ocrType, setOcrType] = useState('tesseract'); // Borttagen - använder endast Tesseract
   const [transcriptionContent, setTranscriptionContent] = useState('');
   const [descriptionContent, setDescriptionContent] = useState('');
   
@@ -3723,12 +3722,12 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
         regions={selectedImage?.faces || []}
         onSaveRegions={(newRegions) => {
           if (selectedImage) {
-            updateMedia(mediaItems.map(item => 
-              item.id === selectedImage.id 
-                ? { ...item, faces: newRegions }
-                : item
-            ));
-            setSelectedImage({ ...selectedImage, faces: newRegions });
+              updateMedia((prev) => prev.map(item => 
+                item.id === selectedImage.id 
+                  ? { ...item, faces: newRegions }
+                  : item
+              ));
+              setSelectedImage((prev) => prev ? { ...prev, faces: newRegions } : prev);
           }
         }}
         onSaveImageMeta={(metaPatch) => {
