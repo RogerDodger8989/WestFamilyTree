@@ -9,7 +9,7 @@ function StatusToast({ isVisible, message, severity = 'info' }) {
   if (severity === 'error') bgClass = 'bg-danger';
 
   return (
-    <div className={`fixed bottom-5 left-1/2 -translate-x-1/2 z-[1900] ${bgClass} text-on-accent rounded-lg shadow-xl flex items-center p-3`}>
+    <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-[1900] ${bgClass} text-on-accent rounded-lg shadow-xl flex items-center p-3`}>
       <span>{message}</span>
     </div>
   );

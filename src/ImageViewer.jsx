@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo, useLayoutEffect } from 'react';
 import WindowFrame from './WindowFrame';
 import Button from './Button';
 import LinkPersonModal from './LinkPersonModal';
@@ -89,6 +89,27 @@ function getMimeTypeFromName(fileName = '') {
     tiff: 'image/tiff'
   };
   return types[ext] || 'image/jpeg';
+}
+
+const FACE_ROOT_LABEL = 'Människor';
+const LEGACY_FACE_ROOT_LABEL = 'Faces';
+
+function isFaceTagPath(tagPath) {
+  const path = String(tagPath || '').trim();
+  return path === FACE_ROOT_LABEL || path === LEGACY_FACE_ROOT_LABEL || path.startsWith(`${FACE_ROOT_LABEL}/`) || path.startsWith(`${LEGACY_FACE_ROOT_LABEL}/`);
+}
+
+function resolveMediaPathFromItem(mediaItem) {
+  if (!mediaItem) return '';
+  if (mediaItem.filePath) return String(mediaItem.filePath);
+  if (mediaItem.path) return String(mediaItem.path);
+  if (mediaItem.id && String(mediaItem.id).includes('/')) return String(mediaItem.id);
+
+  const url = String(mediaItem.url || '');
+  if (url.startsWith('media://')) {
+    return decodeMediaUrlToPath(url);
+  }
+  return '';
 }
 
 function normalizeFaceTagFromExif(faceTag) {
@@ -372,7 +393,7 @@ export default function ImageViewer({
   const [photographer, setPhotographer] = useState('');
   const [imageTags, setImageTags] = useState([]);
   const [labelSearchTerm, setLabelSearchTerm] = useState('');
-  const [showAllLabels, setShowAllLabels] = useState(true);
+  const [labelFilterMode, setLabelFilterMode] = useState('all');
   const [exifData, setExifData] = useState({ camera: {}, metadata: {}, face_tags: [], keywords: [] });
   const [isEditLabelsModalOpen, setIsEditLabelsModalOpen] = useState(false);
   const [renameLabelTarget, setRenameLabelTarget] = useState(null);
@@ -382,12 +403,34 @@ export default function ImageViewer({
   const [tagContextMenuIndex, setTagContextMenuIndex] = useState(0);
   const [createLabelParent, setCreateLabelParent] = useState(null);
   const [createLabelValue, setCreateLabelValue] = useState('');
+  const [isRenamingLabel, setIsRenamingLabel] = useState(false);
+  const [renamingLabelValue, setRenamingLabelValue] = useState('');
   const [dragOverLabelId, setDragOverLabelId] = useState(null);
   const [draggingLabelId, setDraggingLabelId] = useState(null);
+  const [treeContextMenu, setTreeContextMenu] = useState(null);
+  const [inlineRenameNodeId, setInlineRenameNodeId] = useState(null);
+  const [inlineRenameValue, setInlineRenameValue] = useState('');
+  const [moveLabelSource, setMoveLabelSource] = useState(null);
+  const [moveLabelTarget, setMoveLabelTarget] = useState('');
+  const [mergeLabelSource, setMergeLabelSource] = useState(null);
+  const [mergeLabelTarget, setMergeLabelTarget] = useState('');
+  const [mergeNameChoice, setMergeNameChoice] = useState('target');
+  const [mergeCustomName, setMergeCustomName] = useState('');
+  const [labelDropMenu, setLabelDropMenu] = useState(null);
+  const [tagThumbnailMenu, setTagThumbnailMenu] = useState(null);
 
   const appContext = useApp();
   const appShowStatus = appContext?.showStatus;
   const appShowUndoToast = appContext?.showUndoToast;
+  const createGlobalTag = appContext?.createGlobalTag;
+  const setGlobalTagWriteToMetadata = appContext?.setGlobalTagWriteToMetadata;
+  const moveGlobalTag = appContext?.moveGlobalTag;
+  const mergeGlobalTags = appContext?.mergeGlobalTags;
+  const restoreDeletedGlobalTag = appContext?.restoreDeletedGlobalTag;
+  const setGlobalTagThumbnail = appContext?.setGlobalTagThumbnail;
+  const resetGlobalTagThumbnail = appContext?.resetGlobalTagThumbnail;
+  const exportGlobalTagTree = appContext?.exportGlobalTagTree;
+  const importGlobalTagTree = appContext?.importGlobalTagTree;
   const renameGlobalTag = appContext?.renameGlobalTag;
   const deleteGlobalTag = appContext?.deleteGlobalTag;
 
@@ -395,11 +438,64 @@ export default function ImageViewer({
   const saveStatusTimeoutRef = useRef(null);
 
   const objectUrlsRef = useRef([]);
+  const tagImportInputRef = useRef(null);
   const imgRef = useRef(null);
   const viewerContainerRef = useRef(null);
   const initialSnapshotRef = useRef(null);
+  const tagContextMenuRef = useRef(null);
+  const tagThumbnailMenuRef = useRef(null);
+  const labelDropMenuRef = useRef(null);
 
   const samePersonId = useCallback((a, b) => String(a ?? '') === String(b ?? ''), []);
+
+  // Smart menu positioning with edge detection
+  useLayoutEffect(() => {
+    const adjustMenuPosition = (menuRef, menuState) => {
+      if (!menuRef?.current || !menuState) return menuState;
+
+      const rect = menuRef.current.getBoundingClientRect();
+      const menuWidth = rect.width;
+      const menuHeight = rect.height;
+      let adjustedX = menuState.x;
+      let adjustedY = menuState.y;
+
+      // If menu extends past right edge, flip to left side of cursor
+      if (menuState.x + menuWidth > window.innerWidth) {
+        adjustedX = Math.max(8, menuState.x - menuWidth);
+      }
+
+      // If menu extends past bottom edge, flip to above cursor
+      if (menuState.y + menuHeight > window.innerHeight) {
+        adjustedY = Math.max(8, menuState.y - menuHeight);
+      }
+
+      return { ...menuState, x: adjustedX, y: adjustedY };
+    };
+
+    // Adjust tagContextMenu
+    if (tagContextMenu && tagContextMenuRef.current) {
+      const adjusted = adjustMenuPosition(tagContextMenuRef, tagContextMenu);
+      if (adjusted.x !== tagContextMenu.x || adjusted.y !== tagContextMenu.y) {
+        setTagContextMenu(adjusted);
+      }
+    }
+
+    // Adjust tagThumbnailMenu
+    if (tagThumbnailMenu && tagThumbnailMenuRef.current) {
+      const adjusted = adjustMenuPosition(tagThumbnailMenuRef, tagThumbnailMenu);
+      if (adjusted.x !== tagThumbnailMenu.x || adjusted.y !== tagThumbnailMenu.y) {
+        setTagThumbnailMenu(adjusted);
+      }
+    }
+
+    // Adjust labelDropMenu
+    if (labelDropMenu && labelDropMenuRef.current) {
+      const adjusted = adjustMenuPosition(labelDropMenuRef, labelDropMenu);
+      if (adjusted.x !== labelDropMenu.x || adjusted.y !== labelDropMenu.y) {
+        setLabelDropMenu(adjusted);
+      }
+    }
+  }, [tagContextMenu, tagThumbnailMenu, labelDropMenu]);
 
   const resolvedFilePath = useMemo(() => {
     if (imageMeta?.filePath) return imageMeta.filePath;
@@ -923,75 +1019,117 @@ export default function ImageViewer({
       id: String(stat?.id || stat?.name || ''),
       name: String(stat?.name || '').trim(),
       count: Number(stat?.count || 0),
-      applied: Array.isArray(imageTags) && imageTags.includes(String(stat?.name || '').trim())
+      applied: Array.isArray(imageTags) && imageTags.includes(String(stat?.name || '').trim()),
+      parentId: stat?.parentId ? String(stat.parentId) : null,
+      thumbnail: String(stat?.thumbnail || ''),
+      writeToMetadata: Boolean(stat?.writeToMetadata),
+      displayName: String(stat?.displayName || ''),
+      protected: Boolean(stat?.protected)
     }));
   }, [tagStats, imageTags]);
+
+  const labelsById = useMemo(() => {
+    return new Map(allLabels.map((label) => [String(label.id), label]));
+  }, [allLabels]);
+
+  const childIdsByParent = useMemo(() => {
+    const map = new Map();
+    allLabels.forEach((label) => {
+      const parentId = label.parentId ? String(label.parentId) : '__root__';
+      if (!map.has(parentId)) {
+        map.set(parentId, []);
+      }
+      map.get(parentId).push(String(label.id));
+    });
+    return map;
+  }, [allLabels]);
+
+  const labelQuickStats = useMemo(() => {
+    const total = allLabels.length;
+    const unused = allLabels.filter((label) => Number(label.count || 0) === 0).length;
+    const people = allLabels.filter((label) => {
+      const id = String(label.id || '');
+      return id.startsWith('Människor/') || id.startsWith('Faces/');
+    }).length;
+    return { total, unused, people };
+  }, [allLabels]);
 
   // Filtrera etiketter baserat på aktuell databasstatistik och bildens taggar
   const filteredLabels = useMemo(() => {
     let items = [...allLabels];
 
-    if (!showAllLabels) {
+    if (labelFilterMode === 'applied') {
       items = items.filter((label) => label.applied);
+    } else if (labelFilterMode === 'unused') {
+      items = items.filter((label) => Number(label.count || 0) === 0);
     }
+
     if (labelSearchTerm.trim()) {
       const query = labelSearchTerm.trim().toLowerCase();
       items = items.filter((label) => label.name.toLowerCase().includes(query));
     }
+
     return items;
-  }, [allLabels, showAllLabels, labelSearchTerm]);
+  }, [allLabels, labelFilterMode, labelSearchTerm]);
 
   const treeSearchQuery = labelSearchTerm.trim().toLowerCase();
 
   const { treeLabels, treeAutoExpandIds } = useMemo(() => {
-    const labelsByName = new Map(allLabels.map((label) => [label.name, label]));
-    const base = showAllLabels ? allLabels : allLabels.filter((label) => label.applied);
+    const base = labelFilterMode === 'applied'
+      ? allLabels.filter((label) => label.applied)
+      : labelFilterMode === 'unused'
+        ? allLabels.filter((label) => Number(label.count || 0) === 0)
+        : allLabels;
 
-    const matches = treeSearchQuery
-      ? base.filter((label) => label.name.toLowerCase().includes(treeSearchQuery))
-      : base;
+    const matchIds = new Set(
+      (treeSearchQuery
+        ? base.filter((label) => {
+            const fullName = String(label.name || '').toLowerCase();
+            const display = String(label.displayName || '').toLowerCase();
+            return fullName.includes(treeSearchQuery) || display.includes(treeSearchQuery);
+          })
+        : base
+      ).map((label) => String(label.id))
+    );
 
-    const visibleNames = new Set(matches.map((label) => label.name));
+    const visibleIds = new Set(matchIds);
     const autoExpandIds = new Set();
 
+    const addAncestors = (id) => {
+      let current = labelsById.get(String(id));
+      while (current?.parentId) {
+        const parentId = String(current.parentId);
+        visibleIds.add(parentId);
+        autoExpandIds.add(parentId);
+        current = labelsById.get(parentId);
+      }
+    };
+
+    const addDescendants = (id) => {
+      const children = childIdsByParent.get(String(id)) || [];
+      children.forEach((childId) => {
+        visibleIds.add(childId);
+        addDescendants(childId);
+      });
+    };
+
     if (treeSearchQuery) {
-      matches.forEach((label) => {
-        const parts = String(label.name || '').split('/').map((part) => part.trim()).filter(Boolean);
-        let path = '';
-        for (let idx = 0; idx < parts.length - 1; idx += 1) {
-          path = path ? `${path}/${parts[idx]}` : parts[idx];
-          visibleNames.add(path);
-          autoExpandIds.add(path);
-        }
+      matchIds.forEach((id) => {
+        addAncestors(id);
+        addDescendants(id);
       });
     }
 
-    if (!showAllLabels && !treeSearchQuery) {
-      matches.forEach((label) => {
-        const parts = String(label.name || '').split('/').map((part) => part.trim()).filter(Boolean);
-        let path = '';
-        for (let idx = 0; idx < parts.length - 1; idx += 1) {
-          path = path ? `${path}/${parts[idx]}` : parts[idx];
-          visibleNames.add(path);
-          autoExpandIds.add(path);
-        }
-      });
+    if (labelFilterMode !== 'all' && !treeSearchQuery) {
+      matchIds.forEach((id) => addAncestors(id));
     }
 
-    const items = Array.from(visibleNames)
-      .filter(Boolean)
-      .map((name) => {
-        const existing = labelsByName.get(name);
-        return {
-          id: existing?.id || name,
-          name,
-          count: Number(existing?.count || 0),
-          applied: Boolean(existing?.applied)
-        };
-      });
+    const items = Array.from(visibleIds)
+      .map((id) => labelsById.get(id))
+      .filter(Boolean);
 
     return { treeLabels: items, treeAutoExpandIds: autoExpandIds };
-  }, [allLabels, showAllLabels, treeSearchQuery]);
+  }, [allLabels, labelFilterMode, treeSearchQuery, labelsById, childIdsByParent]);
 
   const labelSuggestions = useMemo(() => {
     const query = labelSearchTerm.trim();
@@ -1060,45 +1198,50 @@ export default function ImageViewer({
   }, [exifData?.gps]);
 
   const labelTree = useMemo(() => {
-    const root = [];
-    const byPath = new Map();
+    const nodeMap = new Map();
+    const roots = [];
 
     treeLabels.forEach((label) => {
-      const parts = String(label.name || '').split(/[\/|]/).map((part) => part.trim()).filter(Boolean);
-      if (parts.length === 0) return;
-
-      let siblings = root;
-      let pathParts = [];
-
-      parts.forEach((part, index) => {
-        pathParts = [...pathParts, part];
-        const path = pathParts.join('/');
-        let node = byPath.get(path);
-
-        if (!node) {
-          node = {
-            id: path,
-            name: part,
-            fullName: pathParts.join('/'),
-            count: index === parts.length - 1 ? label.count : 0,
-            applied: index === parts.length - 1 ? label.applied : false,
-            children: []
-          };
-          byPath.set(path, node);
-          siblings.push(node);
-        }
-
-        if (index === parts.length - 1) {
-          node.count = label.count;
-          node.applied = label.applied;
-          node.fullName = label.name;
-        }
-
-        siblings = node.children;
+      const id = String(label.id || '').trim();
+      if (!id) return;
+      nodeMap.set(id, {
+        id,
+        name: String(label.displayName || label.name || id.split('/').pop() || '').trim(),
+        fullName: String(label.name || id),
+        count: Number(label.count || 0),
+        applied: Boolean(label.applied),
+        writeToMetadata: Boolean(label.writeToMetadata),
+        thumbnail: String(label.thumbnail || ''),
+        protected: Boolean(label.protected),
+        parentId: label.parentId ? String(label.parentId) : null,
+        children: [],
+        subtreeTagNames: []
       });
     });
 
-    return root;
+    Array.from(nodeMap.values()).forEach((node) => {
+      if (node.parentId && nodeMap.has(node.parentId)) {
+        nodeMap.get(node.parentId).children.push(node);
+      } else {
+        roots.push(node);
+      }
+    });
+
+    const sortTree = (nodes) => {
+      nodes.sort((a, b) => String(a.name).localeCompare(String(b.name), 'sv'));
+      nodes.forEach((node) => sortTree(node.children));
+    };
+
+    const assignSubtreeTags = (node) => {
+      const own = node.fullName ? [node.fullName] : [];
+      const childTags = node.children.flatMap((child) => assignSubtreeTags(child));
+      node.subtreeTagNames = Array.from(new Set([...own, ...childTags]));
+      return node.subtreeTagNames;
+    };
+
+    sortTree(roots);
+    roots.forEach((rootNode) => assignSubtreeTags(rootNode));
+    return roots;
   }, [treeLabels]);
 
   const selectedLabel = useMemo(() => {
@@ -1118,23 +1261,143 @@ export default function ImageViewer({
     return findNode(labelTree);
   }, [labelTree, selectedLabelId]);
 
-  useEffect(() => {
-    if (!tagContextMenu) return undefined;
+  const selectedTagMediaItems = useMemo(() => {
+    const targetTag = String(selectedLabel?.fullName || '').trim();
+    const mediaList = Array.isArray(appContext?.dbData?.media) ? appContext.dbData.media : [];
+    if (!targetTag || mediaList.length === 0) return [];
 
-    const handleOutsideClick = () => setTagContextMenu(null);
-    window.addEventListener('mousedown', handleOutsideClick);
-    window.addEventListener('scroll', handleOutsideClick, true);
-    return () => {
-      window.removeEventListener('mousedown', handleOutsideClick);
-      window.removeEventListener('scroll', handleOutsideClick, true);
+    return mediaList.filter((item) => {
+      const tags = Array.isArray(item?.tags)
+        ? item.tags.map((tag) => String(tag || '').trim()).filter(Boolean)
+        : typeof item?.tags === 'string'
+          ? item.tags.split(',').map((tag) => String(tag || '').trim()).filter(Boolean)
+          : [];
+      return tags.includes(targetTag);
+    });
+  }, [selectedLabel, appContext?.dbData?.media]);
+
+  const moveTargetOptions = useMemo(() => {
+    if (!moveLabelSource?.fullName) return [];
+    const source = String(moveLabelSource.fullName || '');
+    return allLabels
+      .map((label) => String(label.name || '').trim())
+      .filter((name) => name && name !== source && !name.startsWith(`${source}/`))
+      .sort((a, b) => a.localeCompare(b, 'sv'));
+  }, [allLabels, moveLabelSource]);
+
+  const mergeTargetOptions = useMemo(() => {
+    if (!mergeLabelSource?.fullName) return [];
+    const source = String(mergeLabelSource.fullName || '');
+    return allLabels
+      .map((label) => String(label.name || '').trim())
+      .filter((name) => name && name !== source)
+      .sort((a, b) => a.localeCompare(b, 'sv'));
+  }, [allLabels, mergeLabelSource]);
+
+  useEffect(() => {
+    if (!tagContextMenu && !tagThumbnailMenu && !labelDropMenu && !treeContextMenu) return undefined;
+
+    const handleCloseAllMenus = (event) => {
+      const target = event?.target;
+      const insideMenu = target && target.closest && target.closest('[data-popup-menu="true"]');
+      if (insideMenu) return;
+
+      setTagContextMenu(null);
+      setTagThumbnailMenu(null);
+      setLabelDropMenu(null);
+      setTreeContextMenu(null);
     };
-  }, [tagContextMenu]);
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setTagContextMenu(null);
+        setTagThumbnailMenu(null);
+        setLabelDropMenu(null);
+      }
+    };
+
+    window.addEventListener('pointerdown', handleCloseAllMenus, true);
+    window.addEventListener('contextmenu', handleCloseAllMenus, true);
+    window.addEventListener('scroll', handleCloseAllMenus, true);
+    window.addEventListener('keydown', handleEscape, true);
+    return () => {
+      window.removeEventListener('pointerdown', handleCloseAllMenus, true);
+      window.removeEventListener('contextmenu', handleCloseAllMenus, true);
+      window.removeEventListener('scroll', handleCloseAllMenus, true);
+      window.removeEventListener('keydown', handleEscape, true);
+    };
+  }, [tagContextMenu, tagThumbnailMenu, labelDropMenu]);
 
   useEffect(() => {
     if (tagContextMenu) {
       setTagContextMenuIndex(0);
     }
   }, [tagContextMenu]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (typeof createGlobalTag !== 'function') return;
+
+    const nameByPersonId = new Map(
+      (people || []).map((person) => [String(person.id), `${person.firstName || ''} ${person.lastName || ''}`.trim()])
+    );
+
+    const faceNames = Array.from(new Set(
+      (localRegions || [])
+        .map((region) => {
+          const byPerson = nameByPersonId.get(String(region.personId || '')) || '';
+          return String(byPerson || region.label || '').trim();
+        })
+        .filter(Boolean)
+    ));
+
+    createGlobalTag({ name: FACE_ROOT_LABEL, parentId: null, writeToMetadata: false });
+
+    const faceTagPaths = faceNames.map((name) => {
+      createGlobalTag({ name, parentId: FACE_ROOT_LABEL, writeToMetadata: true });
+      return `${FACE_ROOT_LABEL}/${name}`;
+    });
+
+    if (faceTagPaths.length === 0) return;
+
+    setImageTags((prev) => {
+      const merged = Array.from(new Set([...(Array.isArray(prev) ? prev : []), ...faceTagPaths]))
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b, 'sv'));
+
+      if (merged.length !== prev.length || merged.some((tag, index) => tag !== prev[index])) {
+        if (typeof onSaveImageMeta === 'function') {
+          onSaveImageMeta({ tags: merged });
+        }
+      }
+      return merged;
+    });
+  }, [isOpen, localRegions, people, createGlobalTag, onSaveImageMeta]);
+
+  useEffect(() => {
+    if (!isEditLabelsModalOpen) return;
+
+    const onKeyDown = (e) => {
+      if (e.key !== 'F2') return;
+      if (!selectedLabel?.fullName) return;
+
+      const target = e.target;
+      const typingInField = target && (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable
+      );
+      if (typingInField) return;
+
+      e.preventDefault();
+      setInlineRenameNodeId(selectedLabel.id);
+      setInlineRenameValue(String(selectedLabel.fullName || ''));
+      setTagContextMenu(null);
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isEditLabelsModalOpen, selectedLabel]);
 
   const saveMetaPatch = useCallback((patch) => {
     if (typeof onSaveImageMeta !== 'function') return;
@@ -1166,22 +1429,211 @@ export default function ImageViewer({
   const handleCreateAndApplyLabel = useCallback((inputValue) => {
     const newLabel = String(inputValue || '').trim();
     if (!newLabel) return;
+
+    if (typeof createGlobalTag === 'function') {
+      const parts = newLabel.split('/').map((part) => part.trim()).filter(Boolean);
+      let parentId = null;
+      for (const part of parts) {
+        const result = createGlobalTag({ name: part, parentId, writeToMetadata: Boolean(parentId) });
+        if (!result?.success && !String(result?.error || '').toLowerCase().includes('finns redan')) {
+          appShowStatus?.(result?.error || 'Kunde inte skapa etikett.', 'error');
+          return;
+        }
+        parentId = parentId ? `${parentId}/${part}` : part;
+      }
+    }
+
     toggleImageTag(newLabel, true);
     setLabelSearchTerm('');
-  }, [toggleImageTag]);
+  }, [toggleImageTag, createGlobalTag, appShowStatus]);
 
   const handleCreateChildLabel = useCallback(() => {
     const parentName = String(createLabelParent?.fullName || '').trim();
     const childName = String(createLabelValue || '').trim();
-    if (!parentName || !childName) return;
+    if (!childName) return;
 
-    const newFullName = `${parentName}/${childName}`;
+    if (typeof createGlobalTag === 'function') {
+      const createResult = createGlobalTag({
+        name: childName,
+        parentId: parentName || null,
+        writeToMetadata: Boolean(parentName)
+      });
+
+      if (!createResult?.success && !String(createResult?.error || '').toLowerCase().includes('finns redan')) {
+        appShowStatus?.(createResult?.error || 'Kunde inte skapa etikett.', 'error');
+        return;
+      }
+    }
+
+    const newFullName = parentName ? `${parentName}/${childName}` : childName;
     toggleImageTag(newFullName, true);
     setCreateLabelParent(null);
     setCreateLabelValue('');
     setTagContextMenu(null);
     setSelectedLabelId(newFullName);
-  }, [createLabelParent, createLabelValue, toggleImageTag]);
+  }, [createLabelParent, createLabelValue, toggleImageTag, createGlobalTag, appShowStatus]);
+
+  const handleToggleSelectedLabelWriteToMetadata = useCallback((nextChecked) => {
+    if (!selectedLabel?.fullName || typeof setGlobalTagWriteToMetadata !== 'function') return;
+
+    const result = setGlobalTagWriteToMetadata(selectedLabel.fullName, Boolean(nextChecked));
+    if (!result?.success) {
+      appShowStatus?.(result?.error || 'Kunde inte uppdatera metadata-inställning.', 'error');
+      return;
+    }
+
+    appShowStatus?.('Metadata-inställningen uppdaterades.', 'success');
+  }, [selectedLabel, setGlobalTagWriteToMetadata, appShowStatus]);
+
+  const loadImageForThumbnail = useCallback(async (mediaItem) => {
+    const directUrl = String(mediaItem?.url || '').trim();
+    let tempUrl = '';
+    let finalUrl = directUrl;
+
+    if ((!finalUrl || finalUrl.startsWith('media://')) && window.electronAPI?.readFile) {
+      const filePath = resolveMediaPathFromItem(mediaItem);
+      if (filePath) {
+        const data = await window.electronAPI.readFile(filePath);
+        if (data && !data.error) {
+          const blob = new Blob([data], { type: getMimeTypeFromName(mediaItem?.name || mediaItem?.filePath || '') });
+          tempUrl = URL.createObjectURL(blob);
+          finalUrl = tempUrl;
+        }
+      }
+    }
+
+    if (!finalUrl) {
+      throw new Error('Kunde inte läsa bild för miniatyr.');
+    }
+
+    const img = await new Promise((resolve, reject) => {
+      const image = new Image();
+      image.crossOrigin = 'anonymous';
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error('Kunde inte ladda bild för miniatyr.'));
+      image.src = finalUrl;
+    });
+
+    return {
+      image: img,
+      cleanup: () => {
+        if (tempUrl) URL.revokeObjectURL(tempUrl);
+      }
+    };
+  }, []);
+
+  const generateFaceTagThumbnailDataUrl = useCallback(async (tagPath, mediaItem) => {
+    const leaf = String(tagPath || '').split('/').filter(Boolean).pop()?.trim();
+    if (!leaf) return '';
+
+    let regions = Array.isArray(mediaItem?.regions)
+      ? mediaItem.regions
+      : Array.isArray(mediaItem?.faces)
+        ? mediaItem.faces
+        : [];
+
+    if ((!regions || regions.length === 0) && localRegions.length > 0) {
+      const mediaPath = resolveMediaPathFromItem(mediaItem);
+      if (mediaPath && resolvedFilePath && String(mediaPath) === String(resolvedFilePath)) {
+        regions = localRegions;
+      }
+    }
+
+    const matchingRegion = regions.find((region) => String(region?.label || region?.name || '').trim().toLowerCase() === leaf.toLowerCase());
+    if (!matchingRegion) return '';
+
+    const { image, cleanup } = await loadImageForThumbnail(mediaItem);
+    try {
+      const sourceW = image.naturalWidth || image.width;
+      const sourceH = image.naturalHeight || image.height;
+      const sx = Math.max(0, Math.min(sourceW - 1, (Number(matchingRegion.x || 0) / 100) * sourceW));
+      const sy = Math.max(0, Math.min(sourceH - 1, (Number(matchingRegion.y || 0) / 100) * sourceH));
+      const sw = Math.max(1, Math.min(sourceW - sx, (Number(matchingRegion.w || 0) / 100) * sourceW));
+      const sh = Math.max(1, Math.min(sourceH - sy, (Number(matchingRegion.h || 0) / 100) * sourceH));
+
+      const canvas = document.createElement('canvas');
+      canvas.width = 96;
+      canvas.height = 96;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(image, sx, sy, sw, sh, 0, 0, 96, 96);
+      return canvas.toDataURL('image/jpeg', 0.85);
+    } finally {
+      cleanup?.();
+    }
+  }, [loadImageForThumbnail, localRegions, resolvedFilePath]);
+
+  const handleSetTagThumbnailFromMedia = useCallback(async (mediaItem, tagPath) => {
+    const targetTag = String(tagPath || selectedLabel?.fullName || '').trim();
+    if (!targetTag || typeof setGlobalTagThumbnail !== 'function') return;
+
+    try {
+      let thumbnailValue = String(mediaItem?.url || resolveMediaPathFromItem(mediaItem) || '').trim();
+      if (isFaceTagPath(targetTag)) {
+        const faceThumb = await generateFaceTagThumbnailDataUrl(targetTag, mediaItem);
+        if (faceThumb) {
+          thumbnailValue = faceThumb;
+        }
+      }
+
+      const result = setGlobalTagThumbnail(targetTag, thumbnailValue);
+      if (!result?.success) {
+        appShowStatus?.(result?.error || 'Kunde inte spara miniatyr.', 'error');
+      } else {
+        appShowStatus?.('Miniatyren uppdaterades för taggen.', 'success');
+      }
+    } catch (error) {
+      appShowStatus?.(error?.message || 'Kunde inte skapa miniatyr.', 'error');
+    }
+  }, [selectedLabel, setGlobalTagThumbnail, appShowStatus, generateFaceTagThumbnailDataUrl]);
+
+  const handleExportTagTree = useCallback(() => {
+    if (typeof exportGlobalTagTree !== 'function') return;
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      version: 1,
+      tags: exportGlobalTagTree()
+    };
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `taggtrad-backup-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}.json`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
+    appShowStatus?.('Tagg-trädet exporterades.', 'success');
+  }, [exportGlobalTagTree, appShowStatus]);
+
+  const handleImportTagTreeFile = useCallback(async (event) => {
+    const file = event?.target?.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const incomingTags = Array.isArray(parsed)
+        ? parsed
+        : Array.isArray(parsed?.tags)
+          ? parsed.tags
+          : [];
+
+      if (typeof importGlobalTagTree !== 'function') return;
+      const result = importGlobalTagTree(incomingTags);
+      if (result?.success) {
+        appShowStatus?.(`Importerade ${result.importedCount} taggar från backup.`, 'success');
+      } else {
+        appShowStatus?.(result?.error || 'Kunde inte importera tagg-trädet.', 'error');
+      }
+    } catch (error) {
+      appShowStatus?.(`Import misslyckades: ${error?.message || 'okänt fel'}`, 'error');
+    } finally {
+      if (event?.target) {
+        event.target.value = '';
+      }
+    }
+  }, [importGlobalTagTree, appShowStatus]);
 
   const handleOpenItemInFolder = useCallback(() => {
     if (!resolvedFilePath || !window.electronAPI?.showItemInFolder) return;
@@ -1202,9 +1654,15 @@ export default function ImageViewer({
   }, [people, samePersonId, saveMetaPatch]);
 
   const handleOpenRenameLabel = useCallback((label) => {
-    setRenameLabelTarget(label);
-    setRenameLabelValue(String(label?.fullName || label?.name || ''));
-  }, []);
+    if (label?.protected) {
+      appShowStatus?.('Denna huvudgrupp är skyddad och kan inte byta namn.', 'error');
+      return;
+    }
+    setRenameLabelTarget(null);
+    setRenameLabelValue('');
+    setInlineRenameNodeId(label?.id || null);
+    setInlineRenameValue(String(label?.fullName || label?.name || ''));
+  }, [appShowStatus]);
 
   const handleOpenCreateChildLabel = useCallback((label) => {
     setCreateLabelParent(label);
@@ -1229,26 +1687,65 @@ export default function ImageViewer({
 
     setRenameLabelTarget(null);
     setRenameLabelValue('');
+    setInlineRenameNodeId(null);
+    setInlineRenameValue('');
   }, [renameLabelTarget, renameLabelValue, renameGlobalTag, appShowStatus]);
+
+  const handleSubmitInlineRename = useCallback(async (node) => {
+    const oldName = String(node?.fullName || node?.name || '').trim();
+    const newName = String(inlineRenameValue || '').trim();
+    if (!oldName) return;
+
+    if (!newName || newName === oldName) {
+      setInlineRenameNodeId(null);
+      setInlineRenameValue('');
+      return;
+    }
+
+    if (typeof renameGlobalTag === 'function') {
+      const result = await renameGlobalTag(oldName, newName);
+      if (result?.success) {
+        appShowStatus?.(`Bytte namn på etiketten '${oldName}' till '${newName}'.`, 'success');
+        setSelectedLabelId(newName);
+      } else {
+        appShowStatus?.(result?.error || 'Kunde inte byta namn på etikett.', 'error');
+      }
+    }
+
+    setInlineRenameNodeId(null);
+    setInlineRenameValue('');
+  }, [inlineRenameValue, renameGlobalTag, appShowStatus]);
 
   const handleLogDeleteLabel = useCallback(async (label) => {
     if (!label) return;
+    if (label?.protected) {
+      appShowStatus?.('Denna huvudgrupp är skyddad och kan inte raderas.', 'error');
+      return;
+    }
     const labelName = String(label.fullName || label.name || '').trim();
     const count = Number(label.count || 0);
     if (!labelName) return;
 
-    const confirmed = window.confirm(`Vill du verkligen ta bort etiketten '${labelName}' från ${count} bilder?`);
+    const confirmed = window.confirm(`Denna tagg används på ${count} foton. Tar du bort taggen försvinner den från bilderna. Vill du fortsätta?`);
     if (!confirmed) return;
 
     if (typeof deleteGlobalTag === 'function') {
       const result = await deleteGlobalTag(labelName);
       if (result?.success) {
         appShowStatus?.(`Raderade etiketten '${labelName}'.`, 'success');
+        if (result?.snapshot && typeof appShowUndoToast === 'function') {
+          appShowUndoToast('Tagg raderad. Ångra?', async () => {
+            if (typeof restoreDeletedGlobalTag === 'function') {
+              await restoreDeletedGlobalTag(result.snapshot);
+              appShowStatus?.(`Återställde etiketten '${labelName}'.`, 'success');
+            }
+          });
+        }
       } else {
         appShowStatus?.(result?.error || 'Kunde inte radera etikett.', 'error');
       }
     }
-  }, [deleteGlobalTag, appShowStatus]);
+  }, [deleteGlobalTag, restoreDeletedGlobalTag, appShowStatus, appShowUndoToast]);
 
   const handleTagContextMenuAction = useCallback((actionKey) => {
     if (!tagContextMenu?.targetNode) return;
@@ -1263,66 +1760,201 @@ export default function ImageViewer({
       setTagContextMenu(null);
       return;
     }
+    if (actionKey === 'move') {
+      if (targetNode?.protected) {
+        appShowStatus?.('Denna huvudgrupp är skyddad och kan inte flyttas.', 'error');
+        setTagContextMenu(null);
+        return;
+      }
+      setMoveLabelSource(targetNode);
+      setMoveLabelTarget('');
+      setTagContextMenu(null);
+      return;
+    }
+    if (actionKey === 'merge') {
+      if (targetNode?.protected) {
+        appShowStatus?.('Denna huvudgrupp är skyddad och kan inte slås ihop.', 'error');
+        setTagContextMenu(null);
+        return;
+      }
+      setMergeLabelSource(targetNode);
+      setMergeLabelTarget('');
+      setMergeNameChoice('target');
+      setMergeCustomName('');
+      setTagContextMenu(null);
+      return;
+    }
+    if (actionKey === 'reset-thumbnail') {
+      if (!targetNode?.fullName || typeof resetGlobalTagThumbnail !== 'function') {
+        setTagContextMenu(null);
+        return;
+      }
+      const result = resetGlobalTagThumbnail(targetNode.fullName);
+      if (!result?.success) {
+        appShowStatus?.(result?.error || 'Kunde inte återställa miniatyr.', 'error');
+      } else {
+        appShowStatus?.('Miniatyren återställdes till standardikon.', 'success');
+      }
+      setTagContextMenu(null);
+      return;
+    }
     if (actionKey === 'delete') {
       handleLogDeleteLabel(targetNode);
       setTagContextMenu(null);
     }
-  }, [tagContextMenu, handleOpenCreateChildLabel, handleOpenRenameLabel, handleLogDeleteLabel]);
+  }, [tagContextMenu, handleOpenCreateChildLabel, handleOpenRenameLabel, handleLogDeleteLabel, appShowStatus, resetGlobalTagThumbnail]);
 
-  const handleMoveLabelInHierarchy = useCallback(async (draggedNode, targetNode) => {
-    if (!draggedNode || !targetNode || !draggedNode.fullName || !targetNode.fullName) return;
-    if (draggedNode.fullName === targetNode.fullName) return;
-    if (targetNode.fullName.startsWith(`${draggedNode.fullName}/`)) return;
+  const handleTreeSelect = useCallback((labelId) => {
+    setSelectedLabelId(labelId);
+  }, []);
 
-    const leafName = String(draggedNode.fullName).split('/').pop();
-    const oldName = String(draggedNode.fullName);
-    const newName = `${targetNode.fullName}/${leafName}`;
-    const subtreeMoves = filteredLabels
-      .map((label) => String(label.name || '').trim())
-      .filter((labelName) => labelName === oldName || labelName.startsWith(`${oldName}/`))
-      .sort((a, b) => b.length - a.length)
-      .map((labelName) => ({
-        oldPath: labelName,
-        newPath: `${newName}${labelName.slice(oldName.length)}`
-      }));
+  const handleTreeContextMenu = useCallback((event, targetNode) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setTagThumbnailMenu(null);
+    setLabelDropMenu(null);
+    setSelectedLabelId(targetNode.id);
+    setTagContextMenu({ x: event.clientX, y: event.clientY, targetNode });
+  }, []);
 
-    if (subtreeMoves.length === 0) {
-      subtreeMoves.push({ oldPath: oldName, newPath: newName });
-    }
+  const handleTreeDragEnd = useCallback(() => {
+    setDragOverLabelId(null);
+    setDraggingLabelId(null);
+  }, []);
 
-    const affectedCount = Number(draggedNode.count || 0);
-    const confirmed = window.confirm(`Vill du flytta etiketten och uppdatera ${affectedCount} bilder?`);
+  const imageTagSet = useMemo(() => {
+    return new Set(
+      (Array.isArray(imageTags) ? imageTags : [])
+        .map((tag) => String(tag || '').trim())
+        .filter(Boolean)
+    );
+  }, [imageTags]);
+
+  const handleConfirmMoveFromModal = useCallback(async () => {
+    const sourceName = String(moveLabelSource?.fullName || '').trim();
+    const targetName = String(moveLabelTarget || '').trim();
+    if (!sourceName || !targetName) return;
+
+    const confirmed = window.confirm('Vill du flytta denna tagg till vald målgrupp?');
     if (!confirmed) return;
-    if (typeof renameGlobalTag !== 'function') return;
 
-    const failedMoves = [];
-    for (const move of subtreeMoves) {
-      try {
-        const result = await renameGlobalTag(move.oldPath, move.newPath);
-        if (!result?.success) {
-          failedMoves.push(move);
-        }
-      } catch (error) {
-        failedMoves.push(move);
-        console.warn('[ImageViewer] kunde inte uppdatera underetikett:', move, error);
+    if (typeof moveGlobalTag === 'function') {
+      const result = await moveGlobalTag(sourceName, targetName);
+      if (result?.success) {
+        appShowStatus?.(`Flyttade etiketten '${sourceName}' till '${result.newPath}'.`, 'success');
+        setSelectedLabelId(result.newPath);
+      } else {
+        appShowStatus?.(result?.error || 'Kunde inte flytta etiketten.', 'error');
       }
     }
 
-    if (failedMoves.length > 0) {
-      appShowStatus?.(`Flytten blev delvis klar. ${failedMoves.length} etiketter kunde inte uppdateras.`, 'error');
-    } else {
-      appShowStatus?.(`Flyttade etiketten '${oldName}' till '${newName}'.`, 'success');
+    setMoveLabelSource(null);
+    setMoveLabelTarget('');
+  }, [moveLabelSource, moveLabelTarget, moveGlobalTag, appShowStatus]);
+
+  const handleConfirmMergeLabels = useCallback(async () => {
+    const sourceName = String(mergeLabelSource?.fullName || '').trim();
+    const targetName = String(mergeLabelTarget || '').trim();
+    if (!sourceName || !targetName) return;
+
+    const finalName = mergeNameChoice === 'source'
+      ? sourceName
+      : mergeNameChoice === 'custom'
+        ? String(mergeCustomName || '').trim()
+        : targetName;
+
+    if (!finalName) return;
+
+    if (typeof mergeGlobalTags === 'function') {
+      const result = await mergeGlobalTags({
+        sourceTagName: sourceName,
+        targetTagName: targetName,
+        keepName: finalName
+      });
+
+      if (result?.success) {
+        appShowStatus?.(`Slog ihop '${sourceName}' med '${targetName}' till '${result.finalTag}'.`, 'success');
+        setSelectedLabelId(result.finalTag);
+      } else {
+        appShowStatus?.(result?.error || 'Kunde inte slå ihop etiketter.', 'error');
+      }
     }
 
-    if (typeof appShowUndoToast === 'function') {
-      appShowUndoToast('Etikett flyttad. Ångra?', async () => {
-        const reverseMoves = [...subtreeMoves].sort((a, b) => b.newPath.length - a.newPath.length);
-        for (const move of reverseMoves) {
-          await renameGlobalTag(move.newPath, move.oldPath);
-        }
-      });
+    setMergeLabelSource(null);
+    setMergeLabelTarget('');
+    setMergeNameChoice('target');
+    setMergeCustomName('');
+  }, [mergeLabelSource, mergeLabelTarget, mergeNameChoice, mergeCustomName, mergeGlobalTags, appShowStatus]);
+
+  const handleExecuteMoveLabel = useCallback(async (draggedNode, targetNode) => {
+    if (!draggedNode || !targetNode || !draggedNode.fullName || !targetNode.fullName) return;
+    if (draggedNode?.protected) {
+      appShowStatus?.('Denna huvudgrupp är skyddad och kan inte flyttas.', 'error');
+      return;
     }
-  }, [filteredLabels, renameGlobalTag, appShowStatus, appShowUndoToast]);
+    if (draggedNode.fullName === targetNode.fullName) return;
+    if (targetNode.fullName.startsWith(`${draggedNode.fullName}/`)) return;
+
+    if (typeof moveGlobalTag !== 'function') return;
+
+    const result = await moveGlobalTag(draggedNode.fullName, targetNode.fullName);
+    if (result?.success) {
+      appShowStatus?.(`Flyttade etiketten '${result.oldPath}' till '${result.newPath}'.`, 'success');
+      setSelectedLabelId(result.newPath);
+      if (typeof appShowUndoToast === 'function') {
+        appShowUndoToast('Etikett flyttad. Ångra?', async () => {
+          await renameGlobalTag?.(result.newPath, result.oldPath);
+        });
+      }
+    } else {
+      appShowStatus?.(result?.error || 'Kunde inte flytta etiketten.', 'error');
+    }
+  }, [moveGlobalTag, appShowStatus, appShowUndoToast, renameGlobalTag]);
+
+  const handleMoveLabelInHierarchy = useCallback((draggedNode, targetNode, dropPoint) => {
+    if (!draggedNode || !targetNode || !draggedNode.fullName || !targetNode.fullName) return;
+
+    const sameNode = draggedNode.fullName === targetNode.fullName;
+    const invalidMove = targetNode.fullName.startsWith(`${draggedNode.fullName}/`);
+    if (sameNode || invalidMove) return;
+
+    const canMove = !draggedNode?.protected;
+    const canMerge = !draggedNode?.protected && !targetNode?.protected && !sameNode && !invalidMove &&
+      !draggedNode.fullName.startsWith(`${targetNode.fullName}/`);
+
+    setTagContextMenu(null);
+    setTagThumbnailMenu(null);
+    setLabelDropMenu({
+      x: Number(dropPoint?.x || 0),
+      y: Number(dropPoint?.y || 0),
+      draggedNode,
+      targetNode,
+      canMove,
+      canMerge
+    });
+  }, []);
+
+  const handleDropMenuMove = useCallback(async () => {
+    if (!labelDropMenu?.draggedNode || !labelDropMenu?.targetNode) {
+      setLabelDropMenu(null);
+      return;
+    }
+    await handleExecuteMoveLabel(labelDropMenu.draggedNode, labelDropMenu.targetNode);
+    setLabelDropMenu(null);
+  }, [labelDropMenu, handleExecuteMoveLabel]);
+
+  const handleDropMenuMerge = useCallback(() => {
+    if (!labelDropMenu?.draggedNode || !labelDropMenu?.targetNode) {
+      setLabelDropMenu(null);
+      return;
+    }
+
+    setMergeLabelSource(labelDropMenu.draggedNode);
+    setMergeLabelTarget(String(labelDropMenu.targetNode.fullName || ''));
+    setMergeNameChoice('target');
+    setMergeCustomName('');
+    setLabelDropMenu(null);
+  }, [labelDropMenu]);
 
   const filteredPeople = useMemo(() => {
     const query = personSearchTerm.trim().toLowerCase();
@@ -1435,13 +2067,17 @@ export default function ImageViewer({
       height: Number(region.h)
     }));
 
-    const faceNames = faceTags
-      .map((tag) => tag.name)
-      .filter(Boolean)
-      .slice(0, 500);
+    const metadataEnabledTags = new Set(
+      (Array.isArray(tagStats) ? tagStats : [])
+        .filter((tag) => Boolean(tag?.writeToMetadata))
+        .map((tag) => String(tag?.name || '').trim())
+    );
 
-    const existingKeywords = Array.isArray(imageMeta?.tags) ? imageMeta.tags : [];
-    const mergedKeywords = [...new Set([...existingKeywords, ...imageTags, ...faceNames])].filter(Boolean);
+    const mergedKeywords = Array.from(new Set(
+      (Array.isArray(imageTags) ? imageTags : [])
+        .map((tag) => String(tag || '').trim())
+        .filter((tag) => tag && metadataEnabledTags.has(tag))
+    ));
 
     try {
       if (typeof electron.writeExifFaceTags === 'function') {
@@ -2170,16 +2806,22 @@ export default function ImageViewer({
                       </div>
                     </div>
 
-                    {/* Toggle: Visa alla / Endast applicerade */}
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={showAllLabels}
-                        onChange={(e) => setShowAllLabels(e.target.checked)}
-                        className="w-4 h-4 rounded border-subtle"
-                      />
-                      <span className="text-xs text-secondary">{showAllLabels ? 'Visa alla' : 'Endast applicerade'}</span>
-                    </label>
+                    <div>
+                      <label className="block text-[10px] uppercase tracking-wide text-secondary mb-1">Filter</label>
+                      <select
+                        value={labelFilterMode}
+                        onChange={(e) => setLabelFilterMode(e.target.value)}
+                        className="w-full bg-background border border-subtle rounded px-2 py-1 text-xs text-primary focus:outline-none focus:border-strong"
+                      >
+                        <option value="all">Alla taggar</option>
+                        <option value="applied">Taggar på aktuell bild</option>
+                        <option value="unused">Oanvända taggar</option>
+                      </select>
+                    </div>
+
+                    <div className="text-xs text-secondary bg-surface-2 border border-subtle rounded px-2 py-1">
+                      Totalt: {labelQuickStats.total} etiketter | {labelQuickStats.unused} oanvända | {labelQuickStats.people} personer
+                    </div>
 
                     {/* Lista över etiketter */}
                     <div className="space-y-1.5 max-h-64 overflow-y-auto custom-scrollbar border border-subtle rounded p-2 bg-surface-2">
@@ -2295,9 +2937,28 @@ export default function ImageViewer({
                 <div className="px-4 py-3 border-b border-subtle flex items-center justify-between bg-surface-2">
                   <div>
                     <h3 className="text-base font-semibold text-primary">Redigera Etiketter</h3>
-                    <p className="text-xs text-secondary">Byt namn eller markera för radering. Åtgärderna loggas tills global ersättningslogik byggs.</p>
+                    <p className="text-xs text-secondary">Hantera globala etiketter, metadata-export och hierarki.</p>
                   </div>
-                    <Button onClick={() => { setIsEditLabelsModalOpen(false); setSelectedLabelId(null); setTagContextMenu(null); setCreateLabelParent(null); }} variant="secondary" size="sm">Stäng</Button>
+                    <Button
+                      onClick={() => {
+                        setIsEditLabelsModalOpen(false);
+                        setSelectedLabelId(null);
+                        setTagContextMenu(null);
+                        setCreateLabelParent(null);
+                        setInlineRenameNodeId(null);
+                        setInlineRenameValue('');
+                        setMoveLabelSource(null);
+                        setMoveLabelTarget('');
+                        setMergeLabelSource(null);
+                        setMergeLabelTarget('');
+                        setMergeNameChoice('target');
+                        setMergeCustomName('');
+                      }}
+                      variant="secondary"
+                      size="sm"
+                    >
+                      Stäng
+                    </Button>
                 </div>
 
                 <div className="flex-1 min-h-0 overflow-hidden p-4">
@@ -2305,16 +2966,39 @@ export default function ImageViewer({
                     <div className="w-[40%] min-w-[280px] min-h-0 overflow-hidden rounded-lg border border-subtle bg-background">
                       <div className="border-b border-subtle bg-surface-2 px-3 py-2 flex justify-between items-center">
                         <h4 className="text-[10px] font-semibold uppercase tracking-wide text-secondary">Etikett-träd</h4>
-                        <button 
-                          onClick={() => {
-                            setCreateLabelParent({ fullName: '', name: 'Rot' });
-                            setCreateLabelValue('');
-                          }}
-                          className="text-accent hover:text-primary text-[10px] flex items-center gap-1 font-semibold"
-                          title="Skapa ny huvudetikett"
-                        >
-                          <Plus size={12} /> Ny huvudetikett
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={handleExportTagTree}
+                            className="text-accent hover:text-primary text-[10px] font-semibold"
+                            title="Exportera tagg-träd"
+                          >
+                            Exportera
+                          </button>
+                          <button
+                            onClick={() => tagImportInputRef.current?.click()}
+                            className="text-accent hover:text-primary text-[10px] font-semibold"
+                            title="Importera tagg-träd"
+                          >
+                            Importera
+                          </button>
+                          <input
+                            ref={tagImportInputRef}
+                            type="file"
+                            accept="application/json,.json"
+                            className="hidden"
+                            onChange={handleImportTagTreeFile}
+                          />
+                          <button
+                            onClick={() => {
+                              setCreateLabelParent({ fullName: '', name: 'Rot' });
+                              setCreateLabelValue('');
+                            }}
+                            className="text-accent hover:text-primary text-[10px] flex items-center gap-1 font-semibold"
+                            title="Skapa ny huvudetikett"
+                          >
+                            <Plus size={12} /> Ny huvudetikett
+                          </button>
+                        </div>
                       </div>
                       <div className="px-3 py-2 border-b border-subtle bg-surface space-y-2">
                         <div className="relative">
@@ -2327,17 +3011,28 @@ export default function ImageViewer({
                             className="w-full bg-background border border-subtle rounded pl-6 pr-2 py-1 text-xs text-primary focus:outline-none focus:border-strong"
                           />
                         </div>
-                        <label className="flex items-center gap-2 cursor-pointer select-none">
-                          <input
-                            type="checkbox"
-                            checked={!showAllLabels}
-                            onChange={(e) => setShowAllLabels(!e.target.checked)}
-                            className="w-4 h-4 rounded border-subtle accent-accent"
-                          />
-                          <span className="text-xs text-secondary">Endast applicerade</span>
-                        </label>
+                        <select
+                          value={labelFilterMode}
+                          onChange={(e) => setLabelFilterMode(e.target.value)}
+                          className="w-full bg-background border border-subtle rounded px-2 py-1 text-xs text-primary focus:outline-none focus:border-strong"
+                        >
+                          <option value="all">Alla taggar</option>
+                          <option value="applied">Taggar på aktuell bild</option>
+                          <option value="unused">Oanvända taggar</option>
+                        </select>
                       </div>
-                      <div className="h-full max-h-[calc(80vh-11rem)] overflow-y-auto custom-scrollbar p-2 space-y-1">
+                      <div
+                        className="h-full max-h-[calc(80vh-11rem)] overflow-y-auto custom-scrollbar p-2 space-y-1"
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          const isEmptyArea = e.target === e.currentTarget;
+                          if (isEmptyArea) {
+                            setTreeContextMenu({ x: e.clientX, y: e.clientY });
+                          }
+                        }}
+                      >
                         {labelTree.length === 0 ? (
                           <p className="text-sm text-muted p-2">Inga etiketter hittades.</p>
                         ) : (
@@ -2347,28 +3042,28 @@ export default function ImageViewer({
                               node={node}
                               depth={0}
                               selectedLabelId={selectedLabelId}
-                              onSelect={setSelectedLabelId}
+                              onSelect={handleTreeSelect}
                               dragOverLabelId={dragOverLabelId}
                               draggingLabelId={draggingLabelId}
                               onDragOverLabel={setDragOverLabelId}
                               onDragStartLabel={setDraggingLabelId}
-                              onDragEndLabel={() => {
-                                setDragOverLabelId(null);
-                                setDraggingLabelId(null);
-                              }}
-                              imageTags={imageTags}
+                              onDragEndLabel={handleTreeDragEnd}
+                              imageTagSet={imageTagSet}
                               onToggleTag={toggleImageTag}
                               searchQuery={treeSearchQuery}
                               autoExpandIds={treeAutoExpandIds}
-                              onContextMenu={(event, targetNode) => {
-                                event.preventDefault();
-                                event.stopPropagation();
-                                setSelectedLabelId(targetNode.id);
-                                setTagContextMenu({ x: event.clientX, y: event.clientY, targetNode });
-                              }}
+                              onContextMenu={handleTreeContextMenu}
                               onRename={handleOpenRenameLabel}
                               onDelete={handleLogDeleteLabel}
                               onMoveLabel={handleMoveLabelInHierarchy}
+                              inlineRenameNodeId={inlineRenameNodeId}
+                              inlineRenameValue={inlineRenameValue}
+                              onInlineRenameValueChange={setInlineRenameValue}
+                              onInlineRenameCancel={() => {
+                                setInlineRenameNodeId(null);
+                                setInlineRenameValue('');
+                              }}
+                              onInlineRenameSubmit={handleSubmitInlineRename}
                             />
                           ))
                         )}
@@ -2384,11 +3079,48 @@ export default function ImageViewer({
                           <>
                             <div className="rounded border border-subtle bg-background px-3 py-2">
                               <div className="text-[10px] uppercase tracking-wide text-secondary mb-1">Namn</div>
-                              <div className="flex items-center gap-2 text-sm font-semibold text-primary break-all">
-                                {String(selectedLabel.fullName || '').split('/').filter(Boolean)[0]?.match(/^(Personer|Faces)$/i)
-                                  ? <User size={14} className="text-accent" />
-                                  : <Tag size={14} className="text-accent" />}
-                                <span>{selectedLabel.name}</span>
+                              <div className="flex items-center gap-2">
+                                {String(selectedLabel.fullName || '').split('/').filter(Boolean)[0]?.match(/^(Person|Faces)$/i)
+                                  ? <User size={14} className="text-accent flex-shrink-0" />
+                                  : <Tag size={14} className="text-accent flex-shrink-0" />}
+                                <input
+                                  type="text"
+                                  value={isRenamingLabel ? renamingLabelValue : selectedLabel.name}
+                                  onChange={(e) => setRenamingLabelValue(e.target.value)}
+                                  onFocus={() => { setIsRenamingLabel(true); setRenamingLabelValue(selectedLabel.name); }}
+                                  onBlur={async () => {
+                                    if (renamingLabelValue && renamingLabelValue !== selectedLabel.name && typeof renameGlobalTag === 'function') {
+                                      try {
+                                        const oldFullPath = selectedLabel.fullName;
+                                        const newName = String(renamingLabelValue || '').trim();
+                                        const parentPath = oldFullPath.substring(0, oldFullPath.lastIndexOf('/')) || '';
+                                        const newFullPath = parentPath ? `${parentPath}/${newName}` : newName;
+                                        const result = await renameGlobalTag(oldFullPath, newFullPath);
+                                        if (result?.success) {
+                                          appShowStatus?.(`Etikett döptes om till '${newName}'.`, 'success');
+                                          setSelectedLabelId(newFullPath);
+                                        } else {
+                                          appShowStatus?.(result?.error || 'Kunde inte döpa om etiketten.', 'error');
+                                          setRenamingLabelValue(selectedLabel.name);
+                                        }
+                                      } catch (err) {
+                                        appShowStatus?.('Ett fel uppstod vid namnändring.', 'error');
+                                        setRenamingLabelValue(selectedLabel.name);
+                                      }
+                                    }
+                                    setIsRenamingLabel(false);
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      e.currentTarget.blur();
+                                    } else if (e.key === 'Escape') {
+                                      setRenamingLabelValue(selectedLabel.name);
+                                      setIsRenamingLabel(false);
+                                    }
+                                  }}
+                                  className="text-sm font-semibold text-primary break-all flex-1 bg-background border border-subtle rounded px-2 py-1 focus:outline-none focus:border-strong"
+                                  placeholder="Namn"
+                                />
                               </div>
                             </div>
                             <div className="rounded border border-subtle bg-background px-3 py-2">
@@ -2401,19 +3133,59 @@ export default function ImageViewer({
                               <div className="text-[10px] uppercase tracking-wide text-secondary mb-1">Används på</div>
                               <div className="text-sm font-semibold text-primary">{selectedLabel.count} bilder</div>
                             </div>
-                            <Button
-                              onClick={() => {
-                                if (!selectedLabel?.fullName) return;
-                                toggleImageTag(selectedLabel.fullName, true);
-                              }}
-                              variant="primary"
-                              size="lg"
-                              className="w-full"
-                              disabled={Boolean(selectedLabel?.applied)}
-                              title={selectedLabel?.applied ? 'Redan applicerad på aktuell bild' : 'Applicera etiketten på aktuell bild'}
-                            >
-                              Applicera på aktuell bild
-                            </Button>
+                            <label className="rounded border border-subtle bg-background px-3 py-2 flex items-center justify-between gap-3 cursor-pointer select-none">
+                              <div>
+                                <div className="text-[10px] uppercase tracking-wide text-secondary mb-1">Skriv till metadata</div>
+                                <div className="text-xs text-secondary">Om påslagen inkluderas etiketten vid EXIF/XMP-skrivning.</div>
+                              </div>
+                              <input
+                                type="checkbox"
+                                checked={Boolean(selectedLabel?.writeToMetadata)}
+                                onChange={(e) => handleToggleSelectedLabelWriteToMetadata(e.target.checked)}
+                                className="w-4 h-4 rounded border-subtle accent-accent"
+                              />
+                            </label>
+
+                            <div className="rounded border border-subtle bg-background px-3 py-3 flex flex-col">
+                              <div className="text-[10px] uppercase tracking-wide text-secondary mb-2">
+                                Kopplade bilder {selectedTagMediaItems.length > 0 && `(${selectedTagMediaItems.length} st)`}
+                              </div>
+                              {selectedTagMediaItems.length === 0 ? (
+                                <div className="text-xs text-muted">Inga bilder har denna tagg ännu.</div>
+                              ) : (
+                                <div className="max-h-96 overflow-y-auto custom-scrollbar">
+                                  <div className="grid grid-cols-3 gap-2 pr-1">
+                                  {selectedTagMediaItems.map((mediaItem) => (
+                                    <button
+                                      key={String(mediaItem.id || mediaItem.url || mediaItem.name)}
+                                      type="button"
+                                      onContextMenu={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setTagContextMenu(null);
+                                        setLabelDropMenu(null);
+                                        setTagThumbnailMenu({
+                                          x: e.clientX,
+                                          y: e.clientY,
+                                          mediaItem,
+                                          tagPath: String(selectedLabel.fullName || '')
+                                        });
+                                      }}
+                                      className="group relative w-full aspect-square overflow-hidden rounded border border-subtle bg-surface-2 hover:border-strong"
+                                      title={String(mediaItem.name || mediaItem.filePath || mediaItem.url || 'Bild')}
+                                    >
+                                      <MediaImage
+                                        url={String(mediaItem.url || '')}
+                                        alt={String(mediaItem.name || 'Bild')}
+                                        className="w-full h-full object-cover"
+                                        loading="lazy"
+                                      />
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                              )}
+                            </div>
                           </>
                         ) : (
                           <div className="rounded border border-dashed border-subtle bg-background px-3 py-4 text-sm text-muted">
@@ -2427,12 +3199,14 @@ export default function ImageViewer({
 
                 {tagContextMenu && (
                   <div
-                    className="fixed z-[7200] min-w-56 rounded-xl border border-strong bg-surface shadow-2xl p-1 outline-none"
+                    ref={tagContextMenuRef}
+                    data-popup-menu="true"
+                    className="fixed z-[7200] w-72 max-w-[90vw] rounded-xl border border-strong bg-surface shadow-2xl p-1 outline-none"
                     style={{ left: `${tagContextMenu.x}px`, top: `${tagContextMenu.y}px` }}
                     onMouseDown={(e) => e.stopPropagation()}
                     tabIndex={-1}
                     onKeyDown={(e) => {
-                      const menuItems = ['create-child', 'rename', 'delete'];
+                      const menuItems = ['create-child', 'rename', 'move', 'merge', 'reset-thumbnail', 'delete'];
                       if (e.key === 'Escape') {
                         e.preventDefault();
                         setTagContextMenu(null);
@@ -2460,7 +3234,7 @@ export default function ImageViewer({
                       onMouseEnter={() => setTagContextMenuIndex(0)}
                       onClick={() => handleTagContextMenuAction('create-child')}
                     >
-                      Ny underetikett...
+                      Skapa etikett i {tagContextMenu?.targetNode?.name}
                     </button>
                     <button
                       type="button"
@@ -2472,11 +3246,131 @@ export default function ImageViewer({
                     </button>
                     <button
                       type="button"
-                      className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${tagContextMenuIndex === 2 ? 'bg-warning-soft text-warning' : 'text-warning hover:bg-warning-soft'}`}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${tagContextMenuIndex === 2 ? 'bg-accent-soft text-primary' : 'text-primary hover:bg-surface-2'}`}
                       onMouseEnter={() => setTagContextMenuIndex(2)}
+                      onClick={() => handleTagContextMenuAction('move')}
+                    >
+                      Flytta...
+                    </button>
+                    <button
+                      type="button"
+                      className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${tagContextMenuIndex === 3 ? 'bg-accent-soft text-primary' : 'text-primary hover:bg-surface-2'}`}
+                      onMouseEnter={() => setTagContextMenuIndex(3)}
+                      onClick={() => handleTagContextMenuAction('merge')}
+                    >
+                      Slå ihop...
+                    </button>
+                    <button
+                      type="button"
+                      className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${tagContextMenuIndex === 4 ? 'bg-accent-soft text-primary' : 'text-primary hover:bg-surface-2'}`}
+                      onMouseEnter={() => setTagContextMenuIndex(4)}
+                      onClick={() => handleTagContextMenuAction('reset-thumbnail')}
+                    >
+                      Återställ miniatyr till standardikon
+                    </button>
+                    <button
+                      type="button"
+                      className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${tagContextMenuIndex === 5 ? 'bg-warning-soft text-warning' : 'text-warning hover:bg-warning-soft'}`}
+                      onMouseEnter={() => setTagContextMenuIndex(5)}
                       onClick={() => handleTagContextMenuAction('delete')}
                     >
                       Radera etikett...
+                    </button>
+                  </div>
+                )}
+
+                {tagThumbnailMenu && (
+                  <div
+                    ref={tagThumbnailMenuRef}
+                    data-popup-menu="true"
+                    className="fixed z-[7300] w-64 max-w-[90vw] rounded-xl border border-strong bg-surface shadow-2xl p-1"
+                    style={{ left: `${tagThumbnailMenu.x}px`, top: `${tagThumbnailMenu.y}px` }}
+                    onMouseDown={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      type="button"
+                      className="w-full text-left px-3 py-2 rounded-lg text-sm text-primary hover:bg-surface-2"
+                      onClick={async () => {
+                        await handleSetTagThumbnailFromMedia(tagThumbnailMenu.mediaItem, tagThumbnailMenu.tagPath);
+                        setTagThumbnailMenu(null);
+                      }}
+                    >
+                      Sätt som miniatyr för tagg
+                    </button>
+                  </div>
+                )}
+
+                {labelDropMenu && (
+                  <div
+                    ref={labelDropMenuRef}
+                    data-popup-menu="true"
+                    className="fixed z-[7250] w-72 max-w-[90vw] rounded-xl border border-strong bg-surface shadow-2xl p-1"
+                    style={{ left: `${labelDropMenu.x}px`, top: `${labelDropMenu.y}px` }}
+                    onMouseDown={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      type="button"
+                      className="w-full text-left px-3 py-2 rounded-lg text-sm text-primary hover:bg-surface-2 disabled:opacity-50 disabled:cursor-not-allowed whitespace-normal break-words"
+                      disabled={!labelDropMenu.canMove}
+                      onClick={handleDropMenuMove}
+                    >
+                      Flytta in under {labelDropMenu.targetNode?.name}
+                    </button>
+                    {labelDropMenu.canMerge && (
+                      <button
+                        type="button"
+                        className="w-full text-left px-3 py-2 rounded-lg text-sm text-primary hover:bg-surface-2 whitespace-normal break-words"
+                        onClick={handleDropMenuMerge}
+                      >
+                        Slå ihop med {labelDropMenu.targetNode?.name}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="w-full text-left px-3 py-2 rounded-lg text-sm text-secondary hover:bg-surface-2"
+                      onClick={() => setLabelDropMenu(null)}
+                    >
+                      Avbryt
+                    </button>
+                  </div>
+                )}
+
+                {treeContextMenu && (
+                  <div
+                    ref={tagContextMenuRef}
+                    data-popup-menu="true"
+                    className="fixed z-[7200] w-72 max-w-[90vw] rounded-xl border border-strong bg-surface shadow-2xl p-1 outline-none"
+                    style={{ left: `${treeContextMenu.x}px`, top: `${treeContextMenu.y}px` }}
+                    onMouseDown={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      type="button"
+                      className="w-full text-left px-3 py-2 rounded-lg text-sm text-primary hover:bg-surface-2 transition-colors"
+                      onClick={() => {
+                        setCreateLabelParent({ fullName: '', name: 'Rot' });
+                        setCreateLabelValue('');
+                        setTreeContextMenu(null);
+                      }}
+                    >
+                      Ny Huvudetikett
+                    </button>
+                    <button
+                      type="button"
+                      className="w-full text-left px-3 py-2 rounded-lg text-sm text-primary hover:bg-surface-2 transition-colors"
+                      onClick={() => {
+                        setCreateLabelParent({ fullName: '', name: 'Rot' });
+                        setCreateLabelValue('');
+                        setTreeContextMenu(null);
+                      }}
+                    >
+                      Ny Etikett
+                    </button>
+                    <button
+                      type="button"
+                      className="w-full text-left px-3 py-2 rounded-lg text-sm text-secondary hover:bg-surface-2 transition-colors"
+                      onClick={() => setTreeContextMenu(null)}
+                    >
+                      Avbryt
                     </button>
                   </div>
                 )}
@@ -2552,6 +3446,137 @@ export default function ImageViewer({
                     </div>
                   </div>
                 )}
+
+                {moveLabelSource && (
+                  <div className="absolute inset-0 z-[7150] bg-black/35 flex items-center justify-center p-4">
+                    <div className="w-full max-w-md rounded-xl border border-subtle bg-surface shadow-2xl p-4">
+                      <h3 className="text-base font-semibold text-primary mb-2">Flytta etikett</h3>
+                      <p className="text-xs text-secondary mb-3 break-all">Etikett: {moveLabelSource.fullName}</p>
+                      <label className="text-xs text-secondary block mb-1">Målgrupp</label>
+                      <select
+                        value={moveLabelTarget}
+                        onChange={(e) => setMoveLabelTarget(e.target.value)}
+                        className="w-full bg-background border border-subtle rounded px-2 py-1.5 text-xs text-primary focus:outline-none focus:border-strong"
+                      >
+                        <option value="">Välj mål...</option>
+                        {moveTargetOptions.map((option) => (
+                          <option key={option} value={option}>{option}</option>
+                        ))}
+                      </select>
+                      <div className="flex justify-end gap-2 mt-4">
+                        <Button
+                          onClick={() => {
+                            setMoveLabelSource(null);
+                            setMoveLabelTarget('');
+                          }}
+                          variant="secondary"
+                          size="sm"
+                        >
+                          Avbryt
+                        </Button>
+                        <Button onClick={handleConfirmMoveFromModal} variant="primary" size="sm" disabled={!moveLabelTarget}>
+                          Flytta
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {mergeLabelSource && (
+                  <div className="absolute inset-0 z-[7150] bg-black/35 flex items-center justify-center p-4">
+                    <div className="w-full max-w-lg rounded-xl border border-subtle bg-surface shadow-2xl p-4 space-y-3">
+                      <h3 className="text-base font-semibold text-primary">Slå ihop etiketter</h3>
+                      <p className="text-xs text-secondary break-all">Källa: {mergeLabelSource.fullName}</p>
+
+                      <div className="rounded border border-subtle bg-surface-2 p-3">
+                        <label className="text-xs text-secondary block mb-1">Mål-tagg</label>
+                        <select
+                          value={mergeLabelTarget}
+                          onChange={(e) => setMergeLabelTarget(e.target.value)}
+                          className="w-full bg-background border border-subtle rounded px-2 py-1.5 text-xs text-primary focus:outline-none focus:border-strong"
+                        >
+                          <option value="">Välj mål...</option>
+                          {mergeTargetOptions.map((option) => (
+                            <option key={option} value={option}>{option}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="rounded border border-subtle bg-surface-2 p-3">
+                        <label className="text-xs text-secondary block mb-1">Vilket namn vill du behålla?</label>
+                        <div className="space-y-1 text-xs text-primary">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="radio"
+                              name="merge-name-choice"
+                              checked={mergeNameChoice === 'target'}
+                              onChange={() => setMergeNameChoice('target')}
+                              className="accent-accent"
+                            />
+                            Behåll mål-taggens namn
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="radio"
+                              name="merge-name-choice"
+                              checked={mergeNameChoice === 'source'}
+                              onChange={() => setMergeNameChoice('source')}
+                              className="accent-accent"
+                            />
+                            Behåll källans namn
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="radio"
+                              name="merge-name-choice"
+                              checked={mergeNameChoice === 'custom'}
+                              onChange={() => setMergeNameChoice('custom')}
+                              className="accent-accent"
+                            />
+                            Ange ett nytt namn
+                          </label>
+                        </div>
+                      </div>
+
+                      {mergeNameChoice === 'custom' && (
+                        <div className="rounded border border-subtle bg-surface-2 p-3">
+                          <label className="text-xs text-secondary block mb-1">Ange ett nytt namn</label>
+                          <input
+                            type="text"
+                            value={mergeCustomName}
+                            onChange={(e) => setMergeCustomName(e.target.value)}
+                            className="w-full bg-background border border-subtle rounded px-2 py-1.5 text-xs text-primary focus:outline-none focus:border-strong"
+                            placeholder="Nytt namn..."
+                          />
+                        </div>
+                      )}
+
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          onClick={() => {
+                            setMergeLabelSource(null);
+                            setMergeLabelTarget('');
+                            setMergeNameChoice('target');
+                            setMergeCustomName('');
+                            setLabelDropMenu(null);
+                          }}
+                          variant="secondary"
+                          size="sm"
+                        >
+                          Avbryt
+                        </Button>
+                        <Button
+                          onClick={handleConfirmMergeLabels}
+                          variant="primary"
+                          size="sm"
+                          disabled={!mergeLabelTarget || (mergeNameChoice === 'custom' && !String(mergeCustomName || '').trim())}
+                        >
+                          Slå ihop
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -2561,7 +3586,7 @@ export default function ImageViewer({
   );
 }
 
-function LabelTreeRow({
+const LabelTreeRow = React.memo(function LabelTreeRow({
   node,
   depth,
   selectedLabelId,
@@ -2575,43 +3600,33 @@ function LabelTreeRow({
   onDragOverLabel,
   onDragStartLabel,
   onDragEndLabel,
-  imageTags,
+  imageTagSet,
   onToggleTag,
   searchQuery,
-  autoExpandIds
+  autoExpandIds,
+  inlineRenameNodeId,
+  inlineRenameValue,
+  onInlineRenameValueChange,
+  onInlineRenameCancel,
+  onInlineRenameSubmit
 }) {
   const [isExpanded, setIsExpanded] = useState(depth === 0);
   const hasChildren = Array.isArray(node.children) && node.children.length > 0;
   const isSelected = selectedLabelId === node.id;
   const isDropTarget = draggingLabelId && dragOverLabelId === node.id && draggingLabelId !== node.id;
   const pathSegments = String(node.fullName || '').split('/').filter(Boolean);
-  const showUserIcon = /^(Personer|Faces)$/i.test(pathSegments[0] || '');
+  const showUserIcon = /^(Personer|Människor|Faces)$/i.test(pathSegments[0] || '');
   const checkboxRef = useRef(null);
 
-  const normalizedImageTagSet = useMemo(() => {
-    return new Set(
-      (Array.isArray(imageTags) ? imageTags : [])
-        .map((tag) => String(tag || '').trim())
-        .filter(Boolean)
-    );
-  }, [imageTags]);
-
   const subtreeTagNames = useMemo(() => {
-    const collected = [];
-    const walk = (current) => {
-      const fullName = String(current?.fullName || '').trim();
-      if (fullName) collected.push(fullName);
-      if (Array.isArray(current?.children) && current.children.length > 0) {
-        current.children.forEach(walk);
-      }
-    };
-    walk(node);
-    return Array.from(new Set(collected));
+    return Array.isArray(node?.subtreeTagNames)
+      ? node.subtreeTagNames
+      : (node?.fullName ? [String(node.fullName)] : []);
   }, [node]);
 
   const appliedCount = useMemo(() => {
-    return subtreeTagNames.reduce((count, tagName) => count + (normalizedImageTagSet.has(tagName) ? 1 : 0), 0);
-  }, [subtreeTagNames, normalizedImageTagSet]);
+    return subtreeTagNames.reduce((count, tagName) => count + (imageTagSet?.has(tagName) ? 1 : 0), 0);
+  }, [subtreeTagNames, imageTagSet]);
 
   const isTagApplied = subtreeTagNames.length > 0 && appliedCount === subtreeTagNames.length;
   const isIndeterminate = appliedCount > 0 && appliedCount < subtreeTagNames.length;
@@ -2649,7 +3664,8 @@ function LabelTreeRow({
             id: node.id,
             name: node.name,
             fullName: node.fullName,
-            count: node.count
+            count: node.count,
+            protected: Boolean(node.protected)
           }));
           e.dataTransfer.effectAllowed = 'move';
         }}
@@ -2674,7 +3690,7 @@ function LabelTreeRow({
             const raw = e.dataTransfer.getData('application/json');
             if (!raw) return;
             const dragged = JSON.parse(raw);
-            onMoveLabel?.(dragged, node);
+            onMoveLabel?.(dragged, node, { x: e.clientX, y: e.clientY });
           } catch (error) {
             console.warn('[ImageViewer] label drop failed', error);
           }
@@ -2704,8 +3720,36 @@ function LabelTreeRow({
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 min-w-0">
-            {showUserIcon ? <User size={13} className="shrink-0 text-accent" /> : <Tag size={13} className="shrink-0 text-accent" />}
-            <div className="text-sm text-primary truncate">{node.name}</div>
+            {node.thumbnail ? (
+              <img
+                src={node.thumbnail}
+                alt={node.name}
+                className="w-4 h-4 rounded object-cover shrink-0 border border-subtle"
+              />
+            ) : showUserIcon ? <User size={13} className="shrink-0 text-accent" /> : <Tag size={13} className="shrink-0 text-accent" />}
+            {inlineRenameNodeId === node.id ? (
+              <input
+                type="text"
+                value={inlineRenameValue}
+                onChange={(e) => onInlineRenameValueChange?.(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    onInlineRenameSubmit?.(node);
+                  }
+                  if (e.key === 'Escape') {
+                    e.preventDefault();
+                    onInlineRenameCancel?.();
+                  }
+                }}
+                onBlur={() => onInlineRenameSubmit?.(node)}
+                className="w-full bg-surface border border-strong rounded px-1.5 py-0.5 text-xs text-primary focus:outline-none"
+                autoFocus
+              />
+            ) : (
+              <div className="text-sm text-primary truncate">{node.name}</div>
+            )}
           </div>
           <div className="text-[10px] text-muted">{node.count} bilder</div>
         </div>
@@ -2724,10 +3768,15 @@ function LabelTreeRow({
               onDragOverLabel={onDragOverLabel}
               onDragStartLabel={onDragStartLabel}
               onDragEndLabel={onDragEndLabel}
-              imageTags={imageTags}
+              imageTagSet={imageTagSet}
               onToggleTag={onToggleTag}
               searchQuery={searchQuery}
               autoExpandIds={autoExpandIds}
+              inlineRenameNodeId={inlineRenameNodeId}
+              inlineRenameValue={inlineRenameValue}
+              onInlineRenameValueChange={onInlineRenameValueChange}
+              onInlineRenameCancel={onInlineRenameCancel}
+              onInlineRenameSubmit={onInlineRenameSubmit}
               onContextMenu={onContextMenu}
               onRename={onRename}
               onDelete={onDelete}
@@ -2738,4 +3787,40 @@ function LabelTreeRow({
       )}
     </div>
   );
-}
+}, (prev, next) => {
+  const prevSelected = prev.selectedLabelId === prev.node.id;
+  const nextSelected = next.selectedLabelId === next.node.id;
+  if (prevSelected !== nextSelected) return false;
+
+  const prevDropTarget = prev.draggingLabelId && prev.dragOverLabelId === prev.node.id && prev.draggingLabelId !== prev.node.id;
+  const nextDropTarget = next.draggingLabelId && next.dragOverLabelId === next.node.id && next.draggingLabelId !== next.node.id;
+  if (Boolean(prevDropTarget) !== Boolean(nextDropTarget)) return false;
+
+  const prevInline = prev.inlineRenameNodeId === prev.node.id;
+  const nextInline = next.inlineRenameNodeId === next.node.id;
+  if (prevInline !== nextInline) return false;
+  if (nextInline && prev.inlineRenameValue !== next.inlineRenameValue) return false;
+
+  const prevExpandedBySearch = Boolean(prev.searchQuery) && prev.autoExpandIds?.has(prev.node.id);
+  const nextExpandedBySearch = Boolean(next.searchQuery) && next.autoExpandIds?.has(next.node.id);
+  if (prevExpandedBySearch !== nextExpandedBySearch) return false;
+
+  const prevTags = Array.isArray(prev.node?.subtreeTagNames) ? prev.node.subtreeTagNames : [];
+  const nextTags = Array.isArray(next.node?.subtreeTagNames) ? next.node.subtreeTagNames : [];
+  const prevApplied = prevTags.reduce((count, tagName) => count + (prev.imageTagSet?.has(tagName) ? 1 : 0), 0);
+  const nextApplied = nextTags.reduce((count, tagName) => count + (next.imageTagSet?.has(tagName) ? 1 : 0), 0);
+  if (prevApplied !== nextApplied) return false;
+
+  const prevTotal = prevTags.length;
+  const nextTotal = nextTags.length;
+  if (prevTotal !== nextTotal) return false;
+
+  return (
+    prev.node.id === next.node.id &&
+    prev.node.name === next.node.name &&
+    prev.node.thumbnail === next.node.thumbnail &&
+    prev.node.count === next.node.count &&
+    prev.node.children.length === next.node.children.length &&
+    prev.depth === next.depth
+  );
+});

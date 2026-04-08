@@ -5,6 +5,192 @@ import { simulateMerge } from './mergeUtils.js';
 import { remapAndDedupeRelations, transferEventsAndLinks } from './mergeHelpers.js';
 import { buildRelationsFromPeople, ensureAllRelations } from './relationUtils.js';
 
+const normalizePath = (value) => String(value || '').replace(/\\+/g, '/').trim();
+const FACE_ROOT_ID = 'Människor';
+const LEGACY_FACE_ROOT_ID = 'Faces';
+
+const isFaceRootPath = (pathValue) => {
+    const path = normalizePath(pathValue);
+    return path === FACE_ROOT_ID || path === LEGACY_FACE_ROOT_ID;
+};
+
+const buildNormalizedGlobalTags = (rawTags, mediaList) => {
+    const byPath = new Map();
+    const existingById = new Map();
+    const media = Array.isArray(mediaList) ? mediaList : [];
+
+    const addPathNode = (path, overrides = {}) => {
+        const normalized = normalizePath(path);
+        if (!normalized) return;
+
+        const parts = normalized.split('/').map((part) => part.trim()).filter(Boolean);
+        let currentPath = '';
+
+        parts.forEach((part, index) => {
+            currentPath = currentPath ? `${currentPath}/${part}` : part;
+            const parentPath = index > 0 ? currentPath.slice(0, currentPath.lastIndexOf('/')) : null;
+            const existing = byPath.get(currentPath) || {};
+            const isLeaf = index === parts.length - 1;
+            const writeToMetadata = typeof (isLeaf ? overrides.writeToMetadata : undefined) === 'boolean'
+                ? Boolean(overrides.writeToMetadata)
+                : (typeof existing.writeToMetadata === 'boolean' ? existing.writeToMetadata : Boolean(parentPath));
+
+            byPath.set(currentPath, {
+                id: currentPath,
+                parentId: parentPath || null,
+                name: part,
+                thumbnail: isLeaf && typeof overrides.thumbnail === 'string'
+                    ? overrides.thumbnail
+                    : (existing.thumbnail || ''),
+                writeToMetadata,
+                protected: Boolean(existing.protected) || isFaceRootPath(currentPath)
+            });
+        });
+    };
+
+    const tags = Array.isArray(rawTags) ? rawTags : [];
+    tags.forEach((tag) => {
+        if (!tag || typeof tag !== 'object') return;
+        if (tag.id) {
+            existingById.set(String(tag.id), tag);
+        }
+    });
+
+    const resolving = new Set();
+    const resolvedPathById = new Map();
+
+    const resolveTagPath = (tag) => {
+        if (!tag || typeof tag !== 'object') return '';
+        const rawName = String(tag.name || '').trim();
+        const fallbackPath = normalizePath(tag.fullName || tag.path || rawName);
+        const tagId = tag.id ? String(tag.id) : '';
+
+        if (!tagId) return fallbackPath;
+        if (resolvedPathById.has(tagId)) return resolvedPathById.get(tagId);
+        if (resolving.has(tagId)) return fallbackPath;
+
+        resolving.add(tagId);
+        let parentPath = '';
+        if (tag.parentId && existingById.has(String(tag.parentId))) {
+            parentPath = resolveTagPath(existingById.get(String(tag.parentId)));
+        }
+        resolving.delete(tagId);
+
+        const path = parentPath && rawName
+            ? `${parentPath}/${rawName}`
+            : (fallbackPath || rawName);
+        const normalized = normalizePath(path);
+        resolvedPathById.set(tagId, normalized);
+        return normalized;
+    };
+
+    tags.forEach((tag) => {
+        if (!tag || typeof tag !== 'object') return;
+        const tagPath = resolveTagPath(tag);
+        addPathNode(tagPath, {
+            thumbnail: String(tag.thumbnail || ''),
+            writeToMetadata: typeof tag.writeToMetadata === 'boolean' ? tag.writeToMetadata : undefined
+        });
+
+        const normalizedPath = normalizePath(tagPath);
+        if (normalizedPath && byPath.has(normalizedPath) && (tag.protected || isFaceRootPath(normalizedPath))) {
+            const current = byPath.get(normalizedPath);
+            byPath.set(normalizedPath, {
+                ...current,
+                protected: true
+            });
+        }
+    });
+
+    media.forEach((item) => {
+        const tagsForMedia = Array.isArray(item?.tags)
+            ? item.tags
+            : typeof item?.tags === 'string'
+                ? item.tags.split(',').map((tag) => tag.trim()).filter(Boolean)
+                : [];
+
+        tagsForMedia.forEach((tagPath) => addPathNode(tagPath));
+    });
+
+    if (!byPath.has(FACE_ROOT_ID)) {
+        byPath.set(FACE_ROOT_ID, {
+            id: FACE_ROOT_ID,
+            parentId: null,
+            name: FACE_ROOT_ID,
+            thumbnail: '',
+            writeToMetadata: false,
+            protected: true
+        });
+    } else {
+        const root = byPath.get(FACE_ROOT_ID);
+        byPath.set(FACE_ROOT_ID, {
+            ...root,
+            id: FACE_ROOT_ID,
+            parentId: null,
+            name: FACE_ROOT_ID,
+            writeToMetadata: false,
+            protected: true
+        });
+    }
+
+    return Array.from(byPath.values())
+        .sort((a, b) => String(a.id).localeCompare(String(b.id), 'sv'));
+};
+
+const ensureDbDataStructure = (data) => {
+    if (!data || typeof data !== 'object') return data;
+
+    const meta = data.meta && typeof data.meta === 'object' ? data.meta : {};
+    return {
+        ...data,
+        meta: {
+            ...meta,
+            tags: buildNormalizedGlobalTags(meta.tags, data.media)
+        }
+    };
+};
+
+const applyWriteToMetadataInheritance = (tags, forcedIds = new Set()) => {
+    const list = Array.isArray(tags) ? tags : [];
+    const byId = new Map(list.map((tag) => [normalizePath(tag?.id), { ...tag }]));
+
+    const getDepth = (id) => {
+        const seen = new Set();
+        let current = byId.get(id);
+        let depth = 0;
+        while (current?.parentId && byId.has(normalizePath(current.parentId)) && !seen.has(current.parentId)) {
+            seen.add(current.parentId);
+            depth += 1;
+            current = byId.get(normalizePath(current.parentId));
+        }
+        return depth;
+    };
+
+    const ids = Array.from(byId.keys()).sort((a, b) => getDepth(a) - getDepth(b));
+
+    ids.forEach((id) => {
+        const tag = byId.get(id);
+        const parentId = normalizePath(tag?.parentId);
+        const parentTag = parentId ? byId.get(parentId) : null;
+        const parentValue = parentTag ? Boolean(parentTag.writeToMetadata) : false;
+
+        let nextWrite = typeof tag.writeToMetadata === 'boolean' ? tag.writeToMetadata : parentValue;
+        if (forcedIds.has(id) && parentId) {
+            nextWrite = parentValue;
+        }
+        if (isFaceRootPath(id)) {
+            nextWrite = false;
+        }
+
+        byId.set(id, {
+            ...tag,
+            writeToMetadata: nextWrite
+        });
+    });
+
+    return Array.from(byId.values()).sort((a, b) => String(a.id).localeCompare(String(b.id), 'sv'));
+};
+
 export default function useAppContext() {
     // ...state hooks och refs deklareras här...
     // ==========================================
@@ -20,7 +206,7 @@ export default function useAppContext() {
     // Detta säkerställer att ALLA ändringar automatiskt sparas
     const setDbData = useCallback((updater) => {
         setDbDataRaw(prev => {
-            const newData = typeof updater === 'function' ? updater(prev) : updater;
+            const newData = ensureDbDataStructure(typeof updater === 'function' ? updater(prev) : updater);
             // Om det är första laddningen, sätt inte isDirty
             if (isInitialLoadRef.current) {
                 isInitialLoadRef.current = false;
@@ -162,12 +348,12 @@ export default function useAppContext() {
                         });
                         
                         // Vid första laddningen, använd setDbDataRaw direkt för att undvika att trigga isDirty
-                        setDbDataRaw({ 
+                        setDbDataRaw(ensureDbDataStructure({ 
                             ...result, 
                             people: processedPeople,
                             meta: result.meta || {},
                             media: parsedMedia // Använd parsade media med korrekt connections-format
-                        });
+                        }));
                         isInitialLoadRef.current = true; // Markera som initial load
                         
                         // Om ensureAllRelations gjorde ändringar, sätt isDirty så att de sparas
@@ -191,7 +377,7 @@ export default function useAppContext() {
                 }
                 // Om ingen fil, skapa ny
                 const db = await createNewDatabase();
-                setDbDataRaw(db);
+                setDbDataRaw(ensureDbDataStructure(db));
                 isInitialLoadRef.current = true; // Markera som initial load
                 setFileHandle(null);
             } catch (err) {
@@ -547,7 +733,7 @@ export default function useAppContext() {
         if (window.electronAPI && window.electronAPI.onInitialData) {
             window.electronAPI.onInitialData(({ data, filePath }) => {
                 console.log("Mottog initial data från senast öppnade fil:", filePath);
-                setDbDataRaw(data);
+                setDbDataRaw(ensureDbDataStructure(data));
                 isInitialLoadRef.current = true; // Markera som initial load
                 setBookmarksRaw(data.meta?.bookmarks || []);
                 setFocusPairRaw(data.meta?.focusPair || { primary: null, secondary: null });
@@ -580,7 +766,7 @@ export default function useAppContext() {
             showStatus("Skapande avbrutet.");
             return;
         }
-        setDbDataRaw({ people: [], relations: [] });
+        setDbDataRaw(ensureDbDataStructure({ people: [], relations: [] }));
         isInitialLoadRef.current = true; // Markera som initial load
         setFileHandle({ name: result.dbPath ? result.dbPath.split(/[\\/]/).pop() : 'namnlös.db', path: result.dbPath });
         setIsDirty(false);
@@ -637,12 +823,12 @@ export default function useAppContext() {
                 }
             });
             
-            setDbDataRaw(result.people ? { 
+            setDbDataRaw(ensureDbDataStructure(result.people ? { 
                 ...result, 
                 people: processedPeople,
                 meta: result.meta || {},
                 media: result.media || [] // Lägg till media från filsystemet
-            } : result.data);
+            } : result.data));
             isInitialLoadRef.current = true; // Markera som initial load
             
             // Om ensureAllRelations gjorde ändringar, sätt isDirty så att de sparas
@@ -2276,147 +2462,581 @@ export default function useAppContext() {
         return '';
     }, []);
 
+    const parseMediaTags = useCallback((item) => {
+        const tags = Array.isArray(item?.tags)
+            ? item.tags.map((tag) => normalizePath(tag)).filter(Boolean)
+            : typeof item?.tags === 'string'
+                ? item.tags.split(',').map((tag) => normalizePath(tag)).filter(Boolean)
+                : [];
+        return Array.from(new Set(tags));
+    }, []);
+
+    const writeExifForMediaItems = useCallback(async (mediaItems = [], sourceLabel = 'globalTagOperation') => {
+        const electron = (typeof window !== 'undefined' && window.electronAPI) ? window.electronAPI : null;
+        if (!electron || typeof electron.writeExifMetadata !== 'function') {
+            return;
+        }
+
+        const tagsById = new Map(
+            (Array.isArray(dbData?.meta?.tags) ? dbData.meta.tags : [])
+                .map((tag) => [normalizePath(tag?.id), tag])
+        );
+
+        const filterTagsForMetadata = (tagList) => {
+            return tagList.filter((tagPath) => {
+                const tag = tagsById.get(normalizePath(tagPath));
+                return Boolean(tag?.writeToMetadata);
+            });
+        };
+
+        for (const item of mediaItems) {
+            const imagePath = resolveMediaPathForExif(item);
+            if (!imagePath) continue;
+
+            const tags = filterTagsForMetadata(parseMediaTags(item));
+            const photographer = String(item.photographer || item.creator || '').trim();
+
+            try {
+                await electron.writeExifMetadata(imagePath, { keywords: tags, photographer }, true);
+            } catch (error) {
+                console.warn(`[${sourceLabel}] Kunde inte skriva metadata för`, imagePath, error);
+            }
+        }
+    }, [dbData?.meta?.tags, parseMediaTags, resolveMediaPathForExif]);
+
+    const collectAllTagPaths = useCallback(() => {
+        const allPaths = new Set();
+
+        if (Array.isArray(dbData?.meta?.tags)) {
+            dbData.meta.tags.forEach((tag) => {
+                const id = normalizePath(tag?.id || tag?.name);
+                if (id) allPaths.add(id);
+            });
+        }
+
+        if (Array.isArray(dbData?.media)) {
+            dbData.media.forEach((item) => {
+                parseMediaTags(item).forEach((tagPath) => {
+                    allPaths.add(tagPath);
+                });
+            });
+        }
+
+        return allPaths;
+    }, [dbData?.meta?.tags, dbData?.media, parseMediaTags]);
+
+    const applyTagPathMap = useCallback((pathMap, options = {}) => {
+        const forcedIds = options?.forceInheritedIds instanceof Set ? options.forceInheritedIds : new Set();
+        const mediaList = Array.isArray(dbData?.media) ? dbData.media : [];
+        const affectedMedia = [];
+        const mediaBeforeMap = new Map();
+
+        const updatedMedia = mediaList.map((item) => {
+            const beforeTags = parseMediaTags(item);
+            const afterTags = Array.from(new Set(beforeTags.map((tag) => pathMap.get(tag) || tag)));
+
+            const changed = beforeTags.length !== afterTags.length || beforeTags.some((tag, index) => tag !== afterTags[index]);
+            if (!changed) return item;
+
+            mediaBeforeMap.set(String(item.id), beforeTags);
+            const nextItem = { ...item, tags: afterTags };
+            affectedMedia.push(nextItem);
+            return nextItem;
+        });
+
+        const existingMetaTags = Array.isArray(dbData?.meta?.tags) ? dbData.meta.tags : [];
+        const updatedMetaTags = applyWriteToMetadataInheritance(existingMetaTags
+            .map((tag) => {
+                const id = normalizePath(tag?.id || tag?.name);
+                if (!id) return null;
+
+                const nextId = pathMap.get(id) || id;
+                const rawParentId = normalizePath(tag?.parentId);
+                const parentId = rawParentId ? (pathMap.get(rawParentId) || rawParentId) : null;
+                const nextName = String(nextId).split('/').filter(Boolean).pop() || String(tag?.name || '').trim();
+
+                return {
+                    ...tag,
+                    id: nextId,
+                    parentId: parentId || null,
+                    name: nextName
+                };
+            })
+            .filter(Boolean), forcedIds);
+
+        setDbData((prev) => ({
+            ...prev,
+            media: updatedMedia,
+            meta: {
+                ...(prev?.meta || {}),
+                tags: updatedMetaTags
+            }
+        }));
+
+        return {
+            affectedMedia,
+            mediaBeforeMap,
+            updatedMetaTags
+        };
+    }, [dbData?.media, dbData?.meta?.tags, parseMediaTags, setDbData]);
+
     const renameGlobalTag = useCallback(async (oldName, newName) => {
         const oldTag = String(oldName || '').trim();
         const newTag = String(newName || '').trim();
         if (!oldTag || !newTag || oldTag === newTag) {
             return { success: false, affectedCount: 0, error: 'Ogiltiga etiketter för namnbyte.' };
         }
+        if (isFaceRootPath(oldTag)) {
+            return { success: false, affectedCount: 0, error: 'Huvudgruppen för ansikten är skyddad och kan inte byta namn.' };
+        }
+        if (isFaceRootPath(newTag)) {
+            return { success: false, affectedCount: 0, error: 'Målnamnet är reserverat för ansiktsgruppen.' };
+        }
 
-        const mediaList = Array.isArray(dbData?.media) ? dbData.media : [];
-        const affected = [];
+        const pathMap = new Map([[oldTag, newTag]]);
+        const allPaths = collectAllTagPaths();
+        const subtree = Array.from(allPaths)
+            .filter((path) => path === oldTag || path.startsWith(`${oldTag}/`));
+        const forcedIds = new Set(subtree.map((path) => pathMap.get(path) || path));
 
-        const updatedMedia = mediaList.map((item) => {
-            const tags = Array.isArray(item?.tags)
-                ? item.tags.map((tag) => String(tag).trim()).filter(Boolean)
-                : typeof item?.tags === 'string'
-                    ? item.tags.split(',').map((tag) => tag.trim()).filter(Boolean)
-                    : [];
-
-            if (!tags.includes(oldTag)) return item;
-
-            const replaced = tags.map((tag) => (tag === oldTag ? newTag : tag));
-            const deduped = Array.from(new Set(replaced));
-
-            const nextItem = { ...item, tags: deduped };
-            affected.push(nextItem);
-            return nextItem;
-        });
-
-        if (affected.length === 0) {
+        const { affectedMedia } = applyTagPathMap(pathMap, { forceInheritedIds: forcedIds });
+        if (affectedMedia.length === 0) {
             return { success: true, affectedCount: 0 };
         }
 
-        setDbData((prev) => ({
-            ...prev,
-            media: updatedMedia
-        }));
+        await writeExifForMediaItems(affectedMedia, 'renameGlobalTag');
 
-        const electron = (typeof window !== 'undefined' && window.electronAPI) ? window.electronAPI : null;
-        if (electron && typeof electron.writeExifMetadata === 'function') {
-            for (const item of affected) {
-                const imagePath = resolveMediaPathForExif(item);
-                if (!imagePath) continue;
+        return { success: true, affectedCount: affectedMedia.length };
+    }, [applyTagPathMap, collectAllTagPaths, writeExifForMediaItems]);
 
-                const tags = Array.isArray(item.tags) ? item.tags : [];
-                const photographer = String(item.photographer || item.creator || '').trim();
-
-                try {
-                    await electron.writeExifMetadata(imagePath, { keywords: tags, photographer }, true);
-                } catch (error) {
-                    console.warn('[renameGlobalTag] Kunde inte skriva metadata för', imagePath, error);
-                }
-            }
+    const moveGlobalTag = useCallback(async (sourceTagName, targetParentTagName) => {
+        const sourceTag = normalizePath(sourceTagName);
+        const targetParentTag = normalizePath(targetParentTagName);
+        if (!sourceTag || !targetParentTag) {
+            return { success: false, affectedCount: 0, error: 'Ogiltig källa eller mål för flytt.' };
+        }
+        if (sourceTag === targetParentTag || targetParentTag.startsWith(`${sourceTag}/`)) {
+            return { success: false, affectedCount: 0, error: 'Kan inte flytta en tagg till sig själv eller sin egen undergren.' };
+        }
+        if (isFaceRootPath(sourceTag)) {
+            return { success: false, affectedCount: 0, error: 'Huvudgruppen för ansikten är skyddad och kan inte flyttas.' };
         }
 
-        return { success: true, affectedCount: affected.length };
-    }, [dbData?.media, setDbData, resolveMediaPathForExif]);
+        const leaf = sourceTag.split('/').filter(Boolean).pop();
+        const newRoot = `${targetParentTag}/${leaf}`;
+        if (newRoot === sourceTag) {
+            return { success: false, affectedCount: 0, error: 'Ingen förändring att utföra.' };
+        }
+
+        const allPaths = collectAllTagPaths();
+        const subtreePaths = Array.from(allPaths)
+            .filter((path) => path === sourceTag || path.startsWith(`${sourceTag}/`))
+            .sort((a, b) => b.length - a.length);
+
+        if (subtreePaths.length === 0) {
+            subtreePaths.push(sourceTag);
+        }
+
+        const pathMap = new Map();
+        subtreePaths.forEach((path) => {
+            pathMap.set(path, `${newRoot}${path.slice(sourceTag.length)}`);
+        });
+
+        const forcedIds = new Set(Array.from(pathMap.values()));
+        const { affectedMedia } = applyTagPathMap(pathMap, { forceInheritedIds: forcedIds });
+        await writeExifForMediaItems(affectedMedia, 'moveGlobalTag');
+
+        return {
+            success: true,
+            affectedCount: affectedMedia.length,
+            oldPath: sourceTag,
+            newPath: newRoot
+        };
+    }, [collectAllTagPaths, applyTagPathMap, writeExifForMediaItems]);
+
+    const mergeGlobalTags = useCallback(async ({ sourceTagName, targetTagName, keepName } = {}) => {
+        const sourceTag = normalizePath(sourceTagName);
+        const targetTag = normalizePath(targetTagName);
+        const finalName = normalizePath(keepName || targetTag);
+
+        if (!sourceTag || !targetTag || !finalName) {
+            return { success: false, affectedCount: 0, error: 'Ogiltiga värden för merge.' };
+        }
+        if (sourceTag === targetTag && targetTag === finalName) {
+            return { success: false, affectedCount: 0, error: 'Ingen merge behövs.' };
+        }
+        if (isFaceRootPath(sourceTag) || isFaceRootPath(targetTag) || isFaceRootPath(finalName)) {
+            return { success: false, affectedCount: 0, error: 'Huvudgruppen för ansikten är skyddad och kan inte slås ihop.' };
+        }
+
+        const allPaths = collectAllTagPaths();
+        const sourceSubtree = Array.from(allPaths)
+            .filter((path) => path === sourceTag || path.startsWith(`${sourceTag}/`))
+            .sort((a, b) => b.length - a.length);
+        const targetSubtree = Array.from(allPaths)
+            .filter((path) => path === targetTag || path.startsWith(`${targetTag}/`))
+            .sort((a, b) => b.length - a.length);
+
+        const pathMap = new Map();
+        sourceSubtree.forEach((path) => {
+            pathMap.set(path, `${finalName}${path.slice(sourceTag.length)}`);
+        });
+
+        if (targetTag !== finalName) {
+            targetSubtree.forEach((path) => {
+                pathMap.set(path, `${finalName}${path.slice(targetTag.length)}`);
+            });
+        }
+
+        const { affectedMedia } = applyTagPathMap(pathMap);
+        await writeExifForMediaItems(affectedMedia, 'mergeGlobalTags');
+
+        return {
+            success: true,
+            affectedCount: affectedMedia.length,
+            sourceTag,
+            targetTag,
+            finalTag: finalName
+        };
+    }, [collectAllTagPaths, applyTagPathMap, writeExifForMediaItems]);
+
+    const restoreDeletedGlobalTag = useCallback(async (snapshot) => {
+        const removedMetaTags = Array.isArray(snapshot?.removedMetaTags) ? snapshot.removedMetaTags : [];
+        const affectedBefore = Array.isArray(snapshot?.affectedMediaBefore) ? snapshot.affectedMediaBefore : [];
+
+        if (removedMetaTags.length === 0 && affectedBefore.length === 0) {
+            return { success: false, error: 'Ingen data att återställa.' };
+        }
+
+        const beforeMap = new Map(affectedBefore.map((entry) => [String(entry.id), Array.isArray(entry.tags) ? entry.tags : []]));
+        let restoredMedia = [];
+
+        setDbData((prev) => {
+            const media = Array.isArray(prev?.media) ? prev.media : [];
+            const updatedMedia = media.map((item) => {
+                const key = String(item.id);
+                if (!beforeMap.has(key)) return item;
+                const tags = Array.from(new Set(beforeMap.get(key).map((tag) => normalizePath(tag)).filter(Boolean)));
+                const nextItem = { ...item, tags };
+                restoredMedia.push(nextItem);
+                return nextItem;
+            });
+
+            const existingMetaTags = Array.isArray(prev?.meta?.tags) ? prev.meta.tags : [];
+            const byId = new Map(existingMetaTags.map((tag) => [normalizePath(tag?.id), tag]));
+            removedMetaTags.forEach((tag) => {
+                const id = normalizePath(tag?.id || tag?.name);
+                if (!id) return;
+                if (!byId.has(id)) {
+                    byId.set(id, {
+                        ...tag,
+                        id,
+                        parentId: normalizePath(tag?.parentId) || null,
+                        name: String(tag?.name || id.split('/').pop() || '').trim()
+                    });
+                }
+            });
+
+            const tags = Array.from(byId.values()).sort((a, b) => String(a.id).localeCompare(String(b.id), 'sv'));
+
+            return {
+                ...prev,
+                media: updatedMedia,
+                meta: {
+                    ...(prev?.meta || {}),
+                    tags
+                }
+            };
+        });
+
+        await writeExifForMediaItems(restoredMedia, 'restoreDeletedGlobalTag');
+        return { success: true, restoredCount: restoredMedia.length };
+    }, [setDbData, writeExifForMediaItems]);
 
     const deleteGlobalTag = useCallback(async (tagName) => {
         const targetTag = String(tagName || '').trim();
         if (!targetTag) {
             return { success: false, affectedCount: 0, error: 'Ogiltig etikett för radering.' };
         }
+        if (isFaceRootPath(targetTag)) {
+            return { success: false, affectedCount: 0, error: 'Huvudgruppen för ansikten är skyddad och kan inte raderas.' };
+        }
 
         const mediaList = Array.isArray(dbData?.media) ? dbData.media : [];
         const affected = [];
+        const affectedBefore = [];
 
         const updatedMedia = mediaList.map((item) => {
-            const tags = Array.isArray(item?.tags)
-                ? item.tags.map((tag) => String(tag).trim()).filter(Boolean)
-                : typeof item?.tags === 'string'
-                    ? item.tags.split(',').map((tag) => tag.trim()).filter(Boolean)
-                    : [];
+            const tags = parseMediaTags(item);
 
-            if (!tags.includes(targetTag)) return item;
+            const hasTag = tags.some((tag) => tag === targetTag || tag.startsWith(`${targetTag}/`));
+            if (!hasTag) return item;
 
-            const filtered = tags.filter((tag) => tag !== targetTag);
+            const filtered = tags.filter((tag) => tag !== targetTag && !tag.startsWith(`${targetTag}/`));
             const deduped = Array.from(new Set(filtered));
 
             const nextItem = { ...item, tags: deduped };
             affected.push(nextItem);
+            affectedBefore.push({ id: String(item.id), tags });
             return nextItem;
         });
 
-        if (affected.length === 0) {
-            return { success: true, affectedCount: 0 };
-        }
+        const existingMetaTags = Array.isArray(dbData?.meta?.tags) ? dbData.meta.tags : [];
+        const removedMetaTags = existingMetaTags.filter((tag) => {
+            const id = normalizePath(tag?.id);
+            return id === targetTag || id.startsWith(`${targetTag}/`);
+        });
+        const updatedMetaTags = existingMetaTags.filter((tag) => {
+            const id = normalizePath(tag?.id);
+            return id !== targetTag && !id.startsWith(`${targetTag}/`);
+        });
 
         setDbData((prev) => ({
             ...prev,
-            media: updatedMedia
+            media: updatedMedia,
+            meta: {
+                ...(prev?.meta || {}),
+                tags: updatedMetaTags
+            }
         }));
 
-        const electron = (typeof window !== 'undefined' && window.electronAPI) ? window.electronAPI : null;
-        if (electron && typeof electron.writeExifMetadata === 'function') {
-            for (const item of affected) {
-                const imagePath = resolveMediaPathForExif(item);
-                if (!imagePath) continue;
+        await writeExifForMediaItems(affected, 'deleteGlobalTag');
 
-                const tags = Array.isArray(item.tags) ? item.tags : [];
-                const photographer = String(item.photographer || item.creator || '').trim();
-
-                try {
-                    await electron.writeExifMetadata(imagePath, { keywords: tags, photographer }, true);
-                } catch (error) {
-                    console.warn('[deleteGlobalTag] Kunde inte skriva metadata för', imagePath, error);
-                }
+        return {
+            success: true,
+            affectedCount: affected.length,
+            snapshot: {
+                targetTag,
+                removedMetaTags,
+                affectedMediaBefore: affectedBefore
             }
-        }
-
-        return { success: true, affectedCount: affected.length };
-    }, [dbData?.media, setDbData, resolveMediaPathForExif]);
+        };
+    }, [dbData?.media, dbData?.meta?.tags, parseMediaTags, setDbData, writeExifForMediaItems]);
 
     const getTagStats = useCallback(() => {
-        if (!Array.isArray(dbData?.media)) return [];
-
         const counter = new Map();
 
-        dbData.media.forEach((item) => {
-            let tags = item?.tags;
-            if (typeof tags === 'string') {
-                tags = tags
-                    .split(',')
-                    .map((tag) => tag.trim())
-                    .filter(Boolean);
-            }
+        if (Array.isArray(dbData?.media)) {
+            dbData.media.forEach((item) => {
+                let tags = item?.tags;
+                if (typeof tags === 'string') {
+                    tags = tags
+                        .split(',')
+                        .map((tag) => tag.trim())
+                        .filter(Boolean);
+                }
 
-            if (!Array.isArray(tags)) return;
+                if (!Array.isArray(tags)) return;
 
-            const uniqueForImage = new Set(tags.map((tag) => String(tag).trim()).filter(Boolean));
-            uniqueForImage.forEach((tag) => {
-                counter.set(tag, (counter.get(tag) || 0) + 1);
+                const uniqueForImage = new Set(tags.map((tag) => normalizePath(tag)).filter(Boolean));
+                uniqueForImage.forEach((tag) => {
+                    counter.set(tag, (counter.get(tag) || 0) + 1);
+                });
             });
+        }
+
+        const metaTags = Array.isArray(dbData?.meta?.tags) ? dbData.meta.tags : [];
+        metaTags.forEach((tag) => {
+            const id = normalizePath(tag?.id || tag?.name);
+            if (!id) return;
+            if (!counter.has(id)) {
+                counter.set(id, 0);
+            }
         });
 
+        const tagsById = new Map(metaTags.map((tag) => [normalizePath(tag?.id), tag]));
+
         return Array.from(counter.entries())
-            .map(([name, count]) => ({
-                id: String(name),
-                name: String(name),
-                count
-            }))
+            .map(([path, count]) => {
+                const metaTag = tagsById.get(path);
+                return {
+                    id: String(path),
+                    name: String(path),
+                    count,
+                    parentId: metaTag?.parentId ? String(metaTag.parentId) : null,
+                    thumbnail: String(metaTag?.thumbnail || ''),
+                    writeToMetadata: typeof metaTag?.writeToMetadata === 'boolean'
+                        ? metaTag.writeToMetadata
+                        : path.includes('/'),
+                    displayName: String(metaTag?.name || String(path).split('/').pop() || ''),
+                    protected: Boolean(metaTag?.protected || isFaceRootPath(path))
+                };
+            })
             .sort((a, b) => a.name.localeCompare(b.name, 'sv'));
-    }, [dbData?.media]);
+    }, [dbData?.media, dbData?.meta?.tags]);
+
+    const createGlobalTag = useCallback(({ name, parentId = null, thumbnail = '', writeToMetadata } = {}) => {
+        const normalizedName = String(name || '').trim();
+        const normalizedParentId = normalizePath(parentId);
+        if (!normalizedName) {
+            return { success: false, error: 'Etikettnamn saknas.' };
+        }
+
+        const nextId = normalizedParentId ? `${normalizedParentId}/${normalizedName}` : normalizedName;
+        const existing = Array.isArray(dbData?.meta?.tags) ? dbData.meta.tags : [];
+        if (existing.some((tag) => normalizePath(tag?.id) === nextId)) {
+            return { success: false, error: 'Etiketten finns redan.' };
+        }
+
+        const nextTag = {
+            id: nextId,
+            parentId: normalizedParentId || null,
+            name: normalizedName,
+            thumbnail: String(thumbnail || ''),
+            writeToMetadata: typeof writeToMetadata === 'boolean'
+                ? writeToMetadata
+                : (() => {
+                    if (!normalizedParentId) return false;
+                    const parent = existing.find((tag) => normalizePath(tag?.id) === normalizedParentId);
+                    return typeof parent?.writeToMetadata === 'boolean' ? parent.writeToMetadata : true;
+                })(),
+            protected: isFaceRootPath(nextId)
+        };
+
+        setDbData((prev) => ({
+            ...prev,
+            meta: {
+                ...(prev?.meta || {}),
+                tags: [...(Array.isArray(prev?.meta?.tags) ? prev.meta.tags : []), nextTag]
+            }
+        }));
+
+        return { success: true, tag: nextTag };
+    }, [dbData?.meta?.tags, setDbData]);
+
+    const setGlobalTagWriteToMetadata = useCallback((tagId, nextValue) => {
+        const normalizedId = normalizePath(tagId);
+        if (!normalizedId) {
+            return { success: false, error: 'Ogiltig etikett.' };
+        }
+
+        let didUpdate = false;
+        setDbData((prev) => {
+            const existing = Array.isArray(prev?.meta?.tags) ? prev.meta.tags : [];
+            const updated = existing.map((tag) => {
+                if (normalizePath(tag?.id) !== normalizedId) return tag;
+                didUpdate = true;
+                const resolvedValue = typeof nextValue === 'boolean'
+                    ? nextValue
+                    : !Boolean(tag.writeToMetadata);
+                return {
+                    ...tag,
+                    writeToMetadata: resolvedValue
+                };
+            });
+
+            return {
+                ...prev,
+                meta: {
+                    ...(prev?.meta || {}),
+                    tags: updated
+                }
+            };
+        });
+
+        if (!didUpdate) {
+            return { success: false, error: 'Etiketten hittades inte.' };
+        }
+
+        return { success: true };
+    }, [setDbData]);
+
+    const setGlobalTagThumbnail = useCallback((tagId, thumbnailValue) => {
+        const normalizedId = normalizePath(tagId);
+        const thumbnail = String(thumbnailValue || '').trim();
+        if (!normalizedId) {
+            return { success: false, error: 'Ogiltig etikett.' };
+        }
+
+        let didUpdate = false;
+        setDbData((prev) => {
+            const tags = Array.isArray(prev?.meta?.tags) ? prev.meta.tags : [];
+            const updated = tags.map((tag) => {
+                if (normalizePath(tag?.id) !== normalizedId) return tag;
+                didUpdate = true;
+                return {
+                    ...tag,
+                    thumbnail
+                };
+            });
+
+            return {
+                ...prev,
+                meta: {
+                    ...(prev?.meta || {}),
+                    tags: updated
+                }
+            };
+        });
+
+        if (!didUpdate) {
+            return { success: false, error: 'Etiketten hittades inte.' };
+        }
+        return { success: true };
+    }, [setDbData]);
+
+    const resetGlobalTagThumbnail = useCallback((tagId) => {
+        return setGlobalTagThumbnail(tagId, '');
+    }, [setGlobalTagThumbnail]);
+
+    const exportGlobalTagTree = useCallback(() => {
+        const tags = Array.isArray(dbData?.meta?.tags) ? dbData.meta.tags : [];
+        return tags
+            .map((tag) => ({
+                id: normalizePath(tag?.id),
+                parentId: normalizePath(tag?.parentId) || null,
+                name: String(tag?.name || '').trim(),
+                thumbnail: String(tag?.thumbnail || ''),
+                writeToMetadata: Boolean(tag?.writeToMetadata),
+                protected: Boolean(tag?.protected)
+            }))
+            .filter((tag) => tag.id)
+            .sort((a, b) => String(a.id).localeCompare(String(b.id), 'sv'));
+    }, [dbData?.meta?.tags]);
+
+    const importGlobalTagTree = useCallback((incomingTags = []) => {
+        if (!Array.isArray(incomingTags)) {
+            return { success: false, importedCount: 0, error: 'Importfilen måste innehålla en lista med taggobjekt.' };
+        }
+
+        const normalizedIncoming = buildNormalizedGlobalTags(incomingTags, []);
+        if (normalizedIncoming.length === 0) {
+            return { success: false, importedCount: 0, error: 'Importfilen innehåller inga giltiga taggar.' };
+        }
+
+        setDbData((prev) => {
+            const existing = Array.isArray(prev?.meta?.tags) ? prev.meta.tags : [];
+            const mergedById = new Map(existing.map((tag) => [normalizePath(tag?.id), tag]));
+
+            normalizedIncoming.forEach((tag) => {
+                const id = normalizePath(tag?.id);
+                if (!id) return;
+
+                const current = mergedById.get(id);
+                mergedById.set(id, {
+                    ...(current || {}),
+                    ...tag,
+                    id,
+                    parentId: normalizePath(tag?.parentId) || null,
+                    protected: Boolean(current?.protected || tag?.protected || isFaceRootPath(id))
+                });
+            });
+
+            const merged = Array.from(mergedById.values())
+                .filter((tag) => normalizePath(tag?.id))
+                .sort((a, b) => String(a.id).localeCompare(String(b.id), 'sv'));
+
+            return {
+                ...prev,
+                meta: {
+                    ...(prev?.meta || {}),
+                    tags: merged
+                }
+            };
+        });
+
+        return { success: true, importedCount: normalizedIncoming.length };
+    }, [setDbData]);
 
     return {
         dbData, setDbData, fileHandle, isDirty, setIsDirty, newFirstName, setNewFirstName, newLastName, setNewLastName,
@@ -2454,6 +3074,15 @@ export default function useAppContext() {
         cleanupMergeLog,
         getMetaSize,
         getTagStats,
+        createGlobalTag,
+        setGlobalTagWriteToMetadata,
+        setGlobalTagThumbnail,
+        resetGlobalTagThumbnail,
+        exportGlobalTagTree,
+        importGlobalTagTree,
+        moveGlobalTag,
+        mergeGlobalTags,
+        restoreDeletedGlobalTag,
         renameGlobalTag,
         deleteGlobalTag,
         // bulk warnings modal state & controls
