@@ -416,5 +416,59 @@
     "timestamp": "2026-04-12T12:32:00.588Z",
     "details": null,
     "sourceIds": []
+  },
+  {
+    "id": "audit_1776001134533_wckyy6x",
+    "type": "edit",
+    "entityType": "person",
+    "entityId": "p_1775324699529",
+    "actor": "local",
+    "timestamp": "2026-04-12T13:38:54.533Z",
+    "details": {
+      "before": {
+        "firstName": "Anna Stina \"Ann\"",
+        "lastName": "Svensson",
+        "refNumber": 1
+      },
+      "after": {
+        "firstName": "Anna Stina \"Ann\"",
+        "lastName": "Svensson",
+        "refNumber": "2"
+      },
+      "changes": {
+        "refNumber": {
+          "before": 1,
+          "after": "2"
+        }
+      }
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776001140371_zbms1i5",
+    "type": "edit",
+    "entityType": "person",
+    "entityId": "p_1775324699529",
+    "actor": "local",
+    "timestamp": "2026-04-12T13:39:00.371Z",
+    "details": {
+      "before": {
+        "firstName": "Anna Stina \"Ann\"",
+        "lastName": "Svensson",
+        "refNumber": "2"
+      },
+      "after": {
+        "firstName": "Anna Stina \"Ann\"",
+        "lastName": "Svensson",
+        "refNumber": "1"
+      },
+      "changes": {
+        "refNumber": {
+          "before": "2",
+          "after": "1"
+        }
+      }
+    },
+    "sourceIds": []
   }
 ]

@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import SmartDateField from './SmartDateField.jsx';
 import PlacePicker from './PlacePicker.jsx';
+import {
+    EVENT_TYPE_CONFIGS,
+    buildEventSummary,
+    getEventTypeConfig
+} from './eventFieldConfig.js';
 
 const ATTRIBUTE_VALUE_LABELS = {
     'Yrke': 'Yrke / Titel',
@@ -29,6 +34,7 @@ export default function EventEditor({ event, index, onEventChange, allPeople, al
     const [selectedLinkedPersonId, setSelectedLinkedPersonId] = useState('');
     const availableEventTypes = useMemo(() => {
         if (Array.isArray(eventTypes) && eventTypes.length > 0) return eventTypes;
+        if (Array.isArray(EVENT_TYPE_CONFIGS) && EVENT_TYPE_CONFIGS.length > 0) return EVENT_TYPE_CONFIGS;
         if (event?.type) {
             return [{ value: event.type, label: event.type, gedcomType: event.gedcomType || (event.type === 'Egen händelse' ? 'custom' : 'event') }];
         }
@@ -36,7 +42,8 @@ export default function EventEditor({ event, index, onEventChange, allPeople, al
     }, [eventTypes, event?.type, event?.gedcomType]);
     const resolvedGedcomType = event.gedcomType || (event.type === 'Egen händelse' ? 'custom' : 'event');
     const isAttributeEvent = resolvedGedcomType === 'attribute';
-    const selectedEventTypeConfig = useMemo(() => availableEventTypes.find((item) => item.value === event.type) || null, [availableEventTypes, event.type]);
+    const selectedEventTypeConfig = useMemo(() => getEventTypeConfig(event.type) || availableEventTypes.find((item) => item.value === event.type) || null, [availableEventTypes, event.type]);
+    const eventSummary = useMemo(() => buildEventSummary(event), [event]);
 
     const gedcomTypeBadgeClass = useMemo(() => {
         if (resolvedGedcomType === 'attribute') return 'bg-warning-soft text-warning border-strong';
@@ -354,6 +361,11 @@ export default function EventEditor({ event, index, onEventChange, allPeople, al
                             {resolvedGedcomType}
                         </span>
                     </div>
+                    {eventSummary && (
+                        <div className="text-[11px] text-secondary truncate">
+                            {eventSummary}
+                        </div>
+                    )}
 
                     <div className="relative">
                         <select

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import WindowFrame from './WindowFrame.jsx';
 import PlacePicker from './PlacePicker.jsx';
+import SmartDateField from './SmartDateField.jsx';
 import ImageViewer from './ImageViewer.jsx';
 import Editor from './MaybeEditor.jsx';
 import MediaSelector from './MediaSelector.jsx';
@@ -22,6 +23,15 @@ import { useApp } from './AppContext';
 import { calculateRelationship, getAncestryPath } from './relationshipUtils';
 import { ensureParentsArePartners } from './relationUtils.js';
 import { syncRelations } from './syncRelations.js';
+import {
+  EVENT_TYPE_CONFIGS as EVENT_TYPES,
+  EVENT_TYPE_CATEGORIES,
+  buildEventSummary,
+  createEmptyEvent,
+  getEventFieldsForType,
+  getEventTypeConfig,
+  normalizeEventForType
+} from './eventFieldConfig.js';
 
 // --- KONSTANTER ---
 
@@ -47,66 +57,6 @@ const TASK_STATUS = [
   { value: 'completed', label: 'Klar', color: 'text-success', bgColor: 'bg-success-soft' },
   { value: 'on-hold', label: 'Pausad', color: 'text-warning', bgColor: 'bg-warning-soft' },
 ];
-
-const EVENT_TYPES = [
-  { value: 'Adoption', label: 'Adoption', icon: '❤️', unique: false, category: 'Familj', gedcomType: 'event' },
-  { value: 'Alternativt namn', label: 'Alternativt namn', icon: '💬', unique: false, category: 'Fakta & Egenskaper', gedcomType: 'attribute' },
-  { value: 'Annulering av vigsel', label: 'Annulering av vigsel', icon: '💔', unique: false, category: 'Familj', gedcomType: 'event' },
-  { value: 'Antal barn', label: 'Antal barn', icon: '👶', unique: false, category: 'Familj', gedcomType: 'attribute' },
-  { value: 'Antal äktenskap', label: 'Antal äktenskap', icon: '💍', unique: false, category: 'Familj', gedcomType: 'attribute' },
-  { value: 'Arkivering av skilsmässa', label: 'Arkivering av skilsmässa', icon: '📁', unique: false, category: 'Familj', gedcomType: 'event' },
-  { value: 'Bar mitzvah', label: 'Bar mitzvah', icon: '🕎', unique: true, category: 'Religiöst', gedcomType: 'event' },
-  { value: 'Begravning', label: 'Begravning', icon: '⚰️', unique: true, category: 'Livshändelser', gedcomType: 'event' },
-  { value: 'Bosatt', label: 'Bosatt', icon: '🏠', unique: false, category: 'Livshändelser', gedcomType: 'event' },
-  { value: 'Bouppteckning', label: 'Bouppteckning', icon: '✍️', unique: false, category: 'Livshändelser', gedcomType: 'event' },
-  { value: 'Dop', label: 'Dop', icon: '💧', unique: true, category: 'Religiöst', gedcomType: 'event' },
-  { value: 'Dop som vuxen', label: 'Dop som vuxen', icon: '💧', unique: true, category: 'Religiöst', gedcomType: 'event' },
-  { value: 'Död', label: 'Död', icon: '✝️', unique: true, category: 'Livshändelser', gedcomType: 'event' },
-  { value: 'Egen händelse', label: 'Egen händelse', icon: '📅', unique: false, category: 'Fakta & Egenskaper', gedcomType: 'custom' },
-  { value: 'Egendom', label: 'Egendom', icon: '📋', unique: false, category: 'Fakta & Egenskaper', gedcomType: 'attribute' },
-  { value: 'Emigration', label: 'Emigration', icon: '➡️', unique: false, category: 'Livshändelser', gedcomType: 'event' },
-  { value: 'Examen', label: 'Examen', icon: '🎓', unique: false, category: 'Livshändelser', gedcomType: 'event' },
-  { value: 'Faktauppgift', label: 'Faktauppgift', icon: '✝️', unique: false, category: 'Fakta & Egenskaper', gedcomType: 'attribute' },
-  { value: 'Folkräkning', label: 'Folkräkning', icon: '📋', unique: false, category: 'Livshändelser', gedcomType: 'event' },
-  { value: 'Fysisk status', label: 'Fysisk status', icon: '✓', unique: false, category: 'Fakta & Egenskaper', gedcomType: 'attribute' },
-  { value: 'Födelse', label: 'Födelse', icon: '👶', unique: true, category: 'Livshändelser', gedcomType: 'event' },
-  { value: 'Förlovning', label: 'Förlovning', icon: '💐', unique: false, category: 'Familj', gedcomType: 'event' },
-  { value: 'Första nattvarden', label: 'Första nattvarden', icon: '🍞', unique: true, category: 'Religiöst', gedcomType: 'event' },
-  { value: 'Immigration', label: 'Immigration', icon: '⬅️', unique: false, category: 'Livshändelser', gedcomType: 'event' },
-  { value: 'Kast', label: 'Kast', icon: '👤', unique: false, category: 'Fakta & Egenskaper', gedcomType: 'attribute' },
-  { value: 'Konfirmation', label: 'Konfirmation', icon: '🙏', unique: true, category: 'Religiöst', gedcomType: 'event' },
-  { value: 'Kremering', label: 'Kremering', icon: '🔥', unique: true, category: 'Livshändelser', gedcomType: 'event' },
-  { value: 'Lysning', label: 'Lysning', icon: '📢', unique: false, category: 'Familj', gedcomType: 'event' },
-  { value: 'Militärtjänst', label: 'Militärtjänst', icon: '⚔️', unique: false, category: 'Livshändelser', gedcomType: 'event' },
-  { value: 'Nationalitet', label: 'Nationalitet', icon: '🏴', unique: false, category: 'Fakta & Egenskaper', gedcomType: 'attribute' },
-  { value: 'Naturalisering', label: 'Naturalisering', icon: '🤝', unique: false, category: 'Livshändelser', gedcomType: 'event' },
-  { value: 'Notering', label: 'Notering', icon: '📝', unique: false, category: 'Fakta & Egenskaper', gedcomType: 'attribute' },
-  { value: 'Pensionering', label: 'Pensionering', icon: '💰', unique: false, category: 'Livshändelser', gedcomType: 'event' },
-  { value: 'Personnummer', label: 'Personnummer', icon: '📋', unique: false, category: 'Fakta & Egenskaper', gedcomType: 'attribute' },
-  { value: 'Prästvigling', label: 'Prästvigling', icon: '⛪', unique: false, category: 'Religiöst', gedcomType: 'event' },
-  { value: 'Religionstillhörighet', label: 'Religionstillhörighet', icon: '⚙️', unique: false, category: 'Fakta & Egenskaper', gedcomType: 'attribute' },
-  { value: 'Samlevnad', label: 'Samlevnad', icon: '🤝', unique: false, category: 'Familj', gedcomType: 'event' },
-  { value: 'Samvetsäktenskap', label: 'Samvetsäktenskap', icon: '💕', unique: false, category: 'Familj', gedcomType: 'event' },
-  { value: 'Skilsmässa', label: 'Skilsmässa', icon: '💔', unique: false, category: 'Familj', gedcomType: 'event' },
-  { value: 'Socialförsäkringsnummer', label: 'Socialförsäkringsnummer', icon: '📋', unique: false, category: 'Fakta & Egenskaper', gedcomType: 'attribute' },
-  { value: 'Testamente', label: 'Testamente', icon: '📜', unique: false, category: 'Fakta & Egenskaper', gedcomType: 'attribute' },
-  { value: 'Titel', label: 'Titel', icon: '💬', unique: false, category: 'Fakta & Egenskaper', gedcomType: 'attribute' },
-  { value: 'Troendedop', label: 'Troendedop', icon: '💧', unique: true, category: 'Religiöst', gedcomType: 'event' },
-  { value: 'Utbildning', label: 'Utbildning', icon: '📚', unique: false, category: 'Livshändelser', gedcomType: 'event' },
-  { value: 'Vigsel', label: 'Vigsel', icon: '💒', unique: false, category: 'Familj', gedcomType: 'event' },
-  { value: 'Välsignelse', label: 'Välsignelse', icon: '🙏', unique: false, category: 'Religiöst', gedcomType: 'event' },
-  { value: 'Yrke', label: 'Yrke', icon: '💼', unique: false, category: 'Fakta & Egenskaper', gedcomType: 'attribute' }
-];
-
-const EVENT_TYPE_CATEGORIES = ['Livshändelser', 'Familj', 'Fakta & Egenskaper', 'Religiöst'];
-
-const ATTRIBUTE_VALUE_LABELS = {
-  'Yrke': 'Yrke / Titel',
-  'Titel': 'Titel / Benämning',
-  'Personnummer': 'Personnummer / ID',
-  'Socialförsäkringsnummer': 'Socialförsäkringsnummer / ID',
-  'Alternativt namn': 'Alternativt namn / Variant'
-};
 
 const GENERIC_WITNESS_ROLE_OPTIONS = [
   'Vittne',
@@ -1518,17 +1468,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
   const eventDateInputRef = useRef(null);
   const [eventTypeSearch, setEventTypeSearch] = useState('');
   const [eventTypeActiveIndex, setEventTypeActiveIndex] = useState(-1);
-  const [newEvent, setNewEvent] = useState({
-    id: `evt_${Date.now()}`,
-    type: 'Födelse',
-    date: '',
-    place: '',
-    placeId: '',
-    sources: [],
-    images: [], // Ändrat från siffra till array av media-IDs
-    notes: '',
-    linkedPersons: []
-  });
+  const [newEvent, setNewEvent] = useState(() => createEmptyEvent('Födelse'));
   const [isWitnessModalOpen, setWitnessModalOpen] = useState(false);
   const [selectedWitnessId, setSelectedWitnessId] = useState(null);
   const [witnessMode, setWitnessMode] = useState('existing');
@@ -1754,7 +1694,6 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
   const hasBirthEvent = Array.isArray(person.events) && person.events.some((eventItem) => eventItem?.type === 'Födelse');
   const hasDeathEvent = Array.isArray(person.events) && person.events.some((eventItem) => eventItem?.type === 'Död');
   const selectedEventTypeConfig = EVENT_TYPES.find((eventType) => eventType.value === newEvent.type);
-  const selectedEventGedcomType = selectedEventTypeConfig?.gedcomType || newEvent.gedcomType || 'event';
   const witnessRoleOptionsForType = useMemo(
     () => getWitnessRolesForEventType(newEvent.type, witnessDraft.role),
     [newEvent.type, witnessDraft.role]
@@ -1831,9 +1770,90 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
       .slice(0, 60);
   }, [witnessSearch, sortedPeopleForWitnesses]);
 
-  const getAttributeValueLabel = (eventType) => {
-    if (!eventType) return 'Värde / Beskrivning';
-    return ATTRIBUTE_VALUE_LABELS[eventType] || `${eventType} / Beskrivning`;
+  const selectedEventFields = useMemo(() => getEventFieldsForType(newEvent.type), [newEvent.type]);
+
+  const updateNewEventField = (fieldKey, value) => {
+    setNewEvent((prev) => ({
+      ...prev,
+      [fieldKey]: value
+    }));
+  };
+
+  const renderEventTypeField = (field) => {
+    const fieldValue = newEvent[field.key] ?? '';
+    const inputClassName = 'w-full bg-background border border-subtle rounded p-2 text-primary focus:border-accent focus:outline-none';
+
+    if (field.inputType === 'select') {
+      return (
+        <div key={field.key} className={field.span === 2 ? 'col-span-2' : ''}>
+          <label className="block text-xs font-bold text-secondary uppercase mb-1">{field.label}</label>
+          <select
+            value={fieldValue}
+            onChange={(e) => updateNewEventField(field.key, e.target.value)}
+            onKeyDown={handleEventModalInputKeyDown}
+            className={inputClassName}
+          >
+            {(field.options || []).map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      );
+    }
+
+    if (field.inputType === 'date') {
+      return (
+        <div key={field.key} className={field.span === 2 ? 'col-span-2' : ''}>
+          <label className="block text-xs font-bold text-secondary uppercase mb-1">{field.label}</label>
+          <SmartDateField
+            value={fieldValue}
+            onChange={(value) => updateNewEventField(field.key, value)}
+            placeholder={field.placeholder || field.label}
+          />
+        </div>
+      );
+    }
+
+    if (field.inputType === 'textarea') {
+      return (
+        <div key={field.key} className={field.span === 2 ? 'col-span-2' : ''}>
+          <label className="block text-xs font-bold text-secondary uppercase mb-1">{field.label}</label>
+          <div className="bg-background border border-subtle rounded p-2 min-h-[80px]">
+            <Editor
+              value={fieldValue}
+              onChange={(e) => updateNewEventField(field.key, e.target.value)}
+              placeholder={field.placeholder || field.label}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div key={field.key} className={field.span === 2 ? 'col-span-2' : ''}>
+        <label className="block text-xs font-bold text-secondary uppercase mb-1">{field.label}</label>
+        <input
+          type={field.inputType === 'number' ? 'number' : 'text'}
+          value={fieldValue}
+          onChange={(e) => updateNewEventField(field.key, e.target.value)}
+          onKeyDown={handleEventModalInputKeyDown}
+          className={inputClassName}
+          placeholder={field.placeholder || field.label}
+        />
+      </div>
+    );
+  };
+
+  const renderEventTypeFields = () => {
+    if (!selectedEventFields.length) return null;
+
+    return (
+      <div className="grid grid-cols-2 gap-3">
+        {selectedEventFields.map((field) => renderEventTypeField(field))}
+      </div>
+    );
   };
 
   const resetWitnessDraft = (mode = 'existing') => {
@@ -2291,25 +2311,8 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
       return;
     }
 
-    const eventConfig = EVENT_TYPES.find((item) => item.value === eventType);
-
     setEditingEventIndex(null);
-    setNewEvent({
-      id: `evt_${Date.now()}_${eventType}`,
-      type: eventType,
-      gedcomType: eventConfig?.gedcomType || 'event',
-      customType: eventConfig?.gedcomType === 'custom' ? '' : undefined,
-      description: '',
-      value: '',
-      date: '',
-      place: '',
-      placeId: '',
-      placeData: null,
-      sources: [],
-      images: [],
-      notes: '',
-      linkedPersons: []
-    });
+    setNewEvent(createEmptyEvent(eventType, { id: `evt_${Date.now()}_${eventType}` }));
     resetWitnessDraft('existing');
     setWitnessModalOpen(false);
     setEventTypeMenuOpen(false);
@@ -2371,16 +2374,8 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
     }
     setEditingEventIndex(actualIndex);
     const existingEvent = person.events[actualIndex] || {};
-    const eventConfig = EVENT_TYPES.find((eventType) => eventType.value === existingEvent.type);
-    const resolvedGedcomType = eventConfig?.gedcomType || existingEvent.gedcomType || 'event';
-    setNewEvent({
-      ...existingEvent,
-      gedcomType: resolvedGedcomType,
-      customType: resolvedGedcomType === 'custom' ? (existingEvent.customType || '') : existingEvent.customType,
-      description: existingEvent.description ?? existingEvent.value ?? '',
-      value: existingEvent.value ?? existingEvent.description ?? '',
-      linkedPersons: Array.isArray(existingEvent.linkedPersons) ? existingEvent.linkedPersons : []
-    });
+    const normalizedExistingEvent = normalizeEventForType(existingEvent);
+    setNewEvent(normalizedExistingEvent);
     resetWitnessDraft('existing');
     setWitnessModalOpen(false);
     setEventModalOpen(true);
@@ -2431,18 +2426,8 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
     }
 
     const existingEvent = person.events[actualIndex] || {};
-    const eventConfig = EVENT_TYPES.find((eventType) => eventType.value === existingEvent.type);
-    const resolvedGedcomType = eventConfig?.gedcomType || existingEvent.gedcomType || 'event';
-
     setEditingEventIndex(actualIndex);
-    setNewEvent({
-      ...existingEvent,
-      gedcomType: resolvedGedcomType,
-      customType: resolvedGedcomType === 'custom' ? (existingEvent.customType || '') : existingEvent.customType,
-      description: existingEvent.description ?? existingEvent.value ?? '',
-      value: existingEvent.value ?? existingEvent.description ?? '',
-      linkedPersons: Array.isArray(existingEvent.linkedPersons) ? existingEvent.linkedPersons : []
-    });
+    setNewEvent(normalizeEventForType(existingEvent));
 
     setEventModalOpen(false);
 
@@ -2596,32 +2581,27 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
       if (!confirmed) return;
     }
 
-    const nextTypeConfig = EVENT_TYPES.find((eventType) => eventType.value === nextType);
+    const nextTypeConfig = getEventTypeConfig(nextType);
     const nextGedcomType = nextTypeConfig?.gedcomType || 'event';
 
-    setNewEvent((prev) => ({
+    setNewEvent((prev) => normalizeEventForType({
       ...prev,
       type: nextType,
       gedcomType: nextGedcomType,
       linkedPersons: [],
       cause: '',
-      customType: nextType === 'Egen händelse' ? (String(prev.customType || '').trim()) : ''
+      customType: nextType === 'Egen händelse' ? String(prev.customType || '').trim() : ''
     }));
 
     resetWitnessDraft('existing');
   };
 
   const handleSaveEvent = () => {
-    const eventConfig = EVENT_TYPES.find((eventType) => eventType.value === newEvent.type);
+    const eventConfig = getEventTypeConfig(newEvent.type);
     const resolvedGedcomType = eventConfig?.gedcomType || newEvent.gedcomType || 'event';
-    const normalizedDescription = (newEvent.description ?? newEvent.value ?? '').trim();
-    const normalizedCustomType = (newEvent.customType || '').trim();
-
-    const normalizedEvent = {
+    const normalizedEvent = normalizeEventForType({
       ...newEvent,
       gedcomType: resolvedGedcomType,
-      description: normalizedDescription,
-      value: resolvedGedcomType === 'attribute' ? normalizedDescription : (newEvent.value || ''),
       linkedPersons: linkedPersonsForEvent.map((entry) => ({
         id: entry.id,
         personId: entry.personId || '',
@@ -2630,10 +2610,10 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
         note: String(entry.note || '').trim()
       }))
       .filter((entry) => entry.personId || entry.name)
-    };
+    });
 
     if (resolvedGedcomType === 'custom') {
-      normalizedEvent.customType = normalizedCustomType;
+      normalizedEvent.customType = String(newEvent.customType || normalizedEvent.customType || '').trim();
     }
 
     // Validera: om det är en ny händelse (inte redigering) och händelsen är unique, kolla om den redan finns
@@ -2654,22 +2634,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
     setEditingEventIndex(null);
     setWitnessModalOpen(false);
     resetWitnessDraft('existing');
-    setNewEvent({
-      id: `evt_${Date.now()}`,
-      type: 'Födelse',
-      gedcomType: 'event',
-      customType: '',
-      description: '',
-      value: '',
-      date: '',
-      place: '',
-      placeId: '',
-      placeData: null,
-      sources: [],
-      images: [], // Ändrat från siffra till array
-      notes: '',
-      linkedPersons: []
-    });
+    setNewEvent(createEmptyEvent('Födelse'));
   };
 
   const handleEventModalInputKeyDown = (e) => {
@@ -2686,22 +2651,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
     setEditingEventIndex(null);
     setWitnessModalOpen(false);
     resetWitnessDraft('existing');
-    setNewEvent({
-      id: `evt_${Date.now()}`,
-      type: 'Födelse',
-      gedcomType: 'event',
-      customType: '',
-      description: '',
-      value: '',
-      date: '',
-      place: '',
-      placeId: '',
-      placeData: null,
-      sources: [],
-      images: [], // Ändrat från siffra till array
-      notes: '',
-      linkedPersons: []
-    });
+    setNewEvent(createEmptyEvent('Födelse'));
   };
 
   const readClipboardText = useCallback(async () => {
@@ -3476,6 +3426,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                             const canDragEvent = editingEventIndex === null && !String(evt?.date || '').trim();
                             const age = calculateAgeAtEvent(person.events?.find(e => e.type === 'Födelse')?.date, evt.date);
                             const witnessCount = getEventWitnessCount(evt);
+                            const eventSummary = buildEventSummary(evt);
                             let partnerName = '';
                             // Hitta partner-namn för vigsel, lysning, samlevnad, skilsmässa, förlovning
                             if (['Vigsel', 'Lysning', 'Samlevnad', 'Skilsmässa', 'Förlovning'].includes(evt.type) && evt.partnerId && person.relations?.partners?.length > 0) {
@@ -3557,14 +3508,14 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                       {partnerName || '-'}
                                     </span>
                                   ) : (
-                                    /* För andra händelser: visa noteringar (trunkerat till 15 tecken, strip HTML, klickbar) */
-                                    getMeaningfulNoteText(evt.notes) ? (() => {
-                                      const textContent = getMeaningfulNoteText(evt.notes);
-                                      const displayText = textContent.length > 15 ? `${textContent.substring(0, 15)}...` : textContent;
+                                    /* För andra händelser: visa konfigdriven sammanfattning eller notering */
+                                    (eventSummary || getMeaningfulNoteText(evt.notes)) ? (() => {
+                                      const textContent = eventSummary || getMeaningfulNoteText(evt.notes);
+                                      const displayText = textContent.length > 28 ? `${textContent.substring(0, 28)}...` : textContent;
                                       return (
                                         <span
                                           className="truncate block max-w-[80px] cursor-pointer hover:text-accent hover:underline"
-                                          title={textContent.length > 15 ? textContent : ''}
+                                          title={textContent.length > 28 ? textContent : ''}
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             handleEditEvent(evt.id);
@@ -4896,10 +4847,17 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
         {!isCollapsed && selectedEventIndex !== null && person.events?.[selectedEventIndex] && (
           <div className="bg-surface border-t border-subtle p-4 max-h-40 overflow-y-auto">
             <div className="flex items-center justify-between mb-3 pb-2 border-b border-subtle">
-              <h4 className="text-sm font-bold text-primary">
-                {person.events[selectedEventIndex].type}
-                {person.events[selectedEventIndex].date && ` - ${person.events[selectedEventIndex].date}`}
-              </h4>
+              <div className="min-w-0">
+                <h4 className="text-sm font-bold text-primary truncate">
+                  {person.events[selectedEventIndex].type}
+                  {person.events[selectedEventIndex].date && ` - ${person.events[selectedEventIndex].date}`}
+                </h4>
+                {buildEventSummary(person.events[selectedEventIndex]) && (
+                  <p className="text-[11px] text-secondary truncate mt-0.5">
+                    {buildEventSummary(person.events[selectedEventIndex])}
+                  </p>
+                )}
+              </div>
               {/* INFO-rad kopiad från livshändelser */}
               <div className="flex gap-3 text-xs text-muted">
                 <span
@@ -5374,36 +5332,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                   </div>
                 )}
 
-                {selectedEventGedcomType === 'custom' && (
-                  <div>
-                    <label className="block text-xs font-bold text-secondary uppercase mb-1">Egen händelsetyp</label>
-                    <input
-                      type="text"
-                      value={newEvent.customType || ''}
-                      onChange={(e) => setNewEvent({ ...newEvent, customType: e.target.value })}
-                      onKeyDown={handleEventModalInputKeyDown}
-                      className="w-full bg-background border border-subtle rounded p-2 text-primary focus:border-accent focus:outline-none"
-                      placeholder="t.ex. Kontraktsskrivning, Flytt till gård..."
-                    />
-                  </div>
-                )}
-
-                {selectedEventGedcomType === 'attribute' && (
-                  <div>
-                    <label className="block text-xs font-bold text-secondary uppercase mb-1">{getAttributeValueLabel(newEvent.type)}</label>
-                    <input
-                      type="text"
-                      value={newEvent.description ?? newEvent.value ?? ''}
-                      onChange={(e) => {
-                        const nextValue = e.target.value;
-                        setNewEvent({ ...newEvent, description: nextValue, value: nextValue });
-                      }}
-                      onKeyDown={handleEventModalInputKeyDown}
-                      className="w-full bg-background border border-subtle rounded p-2 text-primary focus:border-accent focus:outline-none"
-                      placeholder={`Ange ${newEvent.type?.toLowerCase() || 'värde'}...`}
-                    />
-                  </div>
-                )}
+                {renderEventTypeFields()}
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -5622,16 +5551,18 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
               </div>
 
               {/* Noteringar */}
-              <div>
-                <label className="block text-xs font-bold text-secondary uppercase mb-1">Noteringar</label>
-                <div className="bg-background border border-subtle rounded p-2 min-h-[80px]">
-                  <Editor
-                    value={newEvent.notes || ''}
-                    onChange={(e) => setNewEvent({ ...newEvent, notes: e.target.value })}
-                    placeholder="Lägg till noter för denna händelse..."
-                  />
+              {(!selectedEventFields.some((field) => field.key === 'note')) && (
+                <div>
+                  <label className="block text-xs font-bold text-secondary uppercase mb-1">Noteringar</label>
+                  <div className="bg-background border border-subtle rounded p-2 min-h-[80px]">
+                    <Editor
+                      value={newEvent.notes || ''}
+                      onChange={(e) => setNewEvent({ ...newEvent, notes: e.target.value })}
+                      placeholder="Lägg till noter för denna händelse..."
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
             <div className="bg-background px-4 py-3 border-t border-subtle flex justify-end gap-3 shrink-0">
               <button onClick={closeEventModal} className="px-4 py-2 text-sm text-muted hover:text-on-accent rounded-md transition-colors">Avbryt</button>

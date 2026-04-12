@@ -191,7 +191,7 @@ const applyWriteToMetadataInheritance = (tags, forcedIds = new Set()) => {
     return Array.from(byId.values()).sort((a, b) => String(a.id).localeCompare(String(b.id), 'sv'));
 };
 
-export default function useAppContext() {
+function useAppContext() {
     // ...state hooks och refs deklareras här...
     // ==========================================
     // 1. REACT STATE (Applikationens minne)
@@ -3454,3 +3454,5 @@ export default function useAppContext() {
         }, [dbData])
     };
 }
+
+export default useAppContext;
