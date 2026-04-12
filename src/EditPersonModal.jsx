@@ -515,7 +515,7 @@ const SecondParentSelector = ({ isOpen, onClose, candidates, onSelect, onSelectO
 // --- HUVUDKOMPONENT ---
 
 export default function EditPersonModal({ person: initialPerson, allPlaces, onSave, onClose, onChange, onOpenSourceDrawer, allSources, allPeople, onOpenEditModal, allMediaItems = [], onUpdateAllMedia = () => { }, isDocked = false, onNavigateToPlace, onTogglePlaceDrawer, onViewInFamilyTree, isCollapsed = false, onToggleCollapse }) {
-  const { getAllTags, setDbData, dbData, bookmarks = [], handleToggleBookmark, showStatus = () => { }, showUndoToast } = useApp();
+  const { getAllTags, setDbData, dbData, bookmarks = [], handleToggleBookmark, showStatus = () => { }, showUndoToast, handleQuickPasteSource, handleNavigateToSource } = useApp();
 
   const extractNicknameFromQuotedName = (nameText) => {
     const text = String(nameText || '');
@@ -1558,6 +1558,8 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
   const [imageEditorContext, setImageEditorContext] = useState('event');
   const [isRefCopied, setIsRefCopied] = useState(false);
   const refCopyTimeoutRef = useRef(null);
+  const [hasClipboardSourceText, setHasClipboardSourceText] = useState(false);
+  const [isPastingSourceFromClipboard, setIsPastingSourceFromClipboard] = useState(false);
 
   // State för noteringar-fliken
   const [noteSearch, setNoteSearch] = useState('');
@@ -1587,6 +1589,39 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
       };
     }
   }, [eventContextMenu.isOpen]);
+
+  useEffect(() => {
+    if (!eventContextMenu.isOpen) return;
+
+    const clampMenuPosition = () => {
+      if (!eventContextMenuRef.current) return;
+      const rect = eventContextMenuRef.current.getBoundingClientRect();
+      const margin = 8;
+      const maxX = Math.max(margin, window.innerWidth - rect.width - margin);
+      const maxY = Math.max(margin, window.innerHeight - rect.height - margin);
+      const clampedX = Math.min(Math.max(eventContextMenu.x, margin), maxX);
+      const clampedY = Math.min(Math.max(eventContextMenu.y, margin), maxY);
+
+      if (clampedX !== eventContextMenu.x || clampedY !== eventContextMenu.y) {
+        setEventContextMenu((prev) => ({
+          ...prev,
+          x: clampedX,
+          y: clampedY
+        }));
+      }
+    };
+
+    const rafId = requestAnimationFrame(clampMenuPosition);
+    const handleResize = () => clampMenuPosition();
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('scroll', handleResize, true);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('scroll', handleResize, true);
+    };
+  }, [eventContextMenu.isOpen, eventContextMenu.x, eventContextMenu.y]);
 
   // State för forskning-fliken
   const [newQuestionInput, setNewQuestionInput] = useState('');
@@ -2669,6 +2704,21 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
     });
   };
 
+  const readClipboardText = useCallback(async () => {
+    if (!navigator?.clipboard?.readText) return '';
+    try {
+      return String(await navigator.clipboard.readText() || '').trim();
+    } catch (err) {
+      return '';
+    }
+  }, []);
+
+  const refreshClipboardSourceAvailability = useCallback(async () => {
+    const text = await readClipboardText();
+    setHasClipboardSourceText(Boolean(text));
+    return text;
+  }, [readClipboardText]);
+
   // Högerklicksmeny handler för händelser
   const handleEventContextMenu = (e, eventIndex, eventId) => {
     e.preventDefault();
@@ -2679,6 +2729,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
       eventIndex,
       eventId
     });
+    refreshClipboardSourceAvailability();
   };
 
   // Kopiera händelse (utan ID) till localStorage
@@ -2694,51 +2745,111 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
     setEventContextMenu({ isOpen: false, x: 0, y: 0, eventIndex: null, eventId: null });
   };
 
-  // Kopiera källorna från en händelse
-  const handleCopyEventSources = (eventIndex) => {
+  // Kopiera källtexten från en händelse till systemets clipboard
+  const handleCopyEventSources = async (eventIndex) => {
     const evt = person.events[eventIndex];
-    if (!evt || !evt.sources) return;
-    
-    localStorage.setItem('copiedSources', JSON.stringify(evt.sources));
-    showStatus('Källa kopierad');
-    setEventContextMenu({ isOpen: false, x: 0, y: 0, eventIndex: null, eventId: null });
-  };
+    const sourceIds = Array.isArray(evt?.sources) ? evt.sources : [];
+    if (sourceIds.length === 0) {
+      showStatus('Händelsen saknar källor att kopiera.', 'warning');
+      return;
+    }
 
-  // Klistra in tidigare kopierade källor
-  const handlePasteEventSources = (eventIndex) => {
-    const copiedStr = localStorage.getItem('copiedSources');
-    if (!copiedStr) {
-      showStatus('Ingen källa att klistra in');
+    const sourcesToCopy = sourceIds
+      .map((id) => allSources?.find((source) => String(source?.id) === String(id)))
+      .filter(Boolean);
+
+    if (sourcesToCopy.length === 0) {
+      showStatus('Källor hittades inte i källkatalogen.', 'error');
+      return;
+    }
+
+    const textToCopy = sourcesToCopy
+      .map((source) => String(source.sourceString || source.title || '').trim())
+      .filter(Boolean)
+      .join('\n');
+
+    if (!textToCopy) {
+      showStatus('Källan saknar kopierbar text.', 'warning');
       return;
     }
 
     try {
-      const copiedSources = JSON.parse(copiedStr);
-      if (!Array.isArray(copiedSources)) return;
-
-      const evt = person.events[eventIndex];
-      if (!evt) return;
-
-      // Slå ihop med befintliga källor (utan dubbletter)
-      const existingIds = new Set(evt.sources?.map(s => s.id) || []);
-      const newSources = copiedSources
-        .filter(s => !existingIds.has(s.id))
-        .map(s => ({ ...s, id: `src_${Date.now()}_${Math.random()}` }));
-
-      const updatedEvent = {
-        ...evt,
-        sources: [...(evt.sources || []), ...newSources]
-      };
-
-      const updatedEvents = person.events.map((e, i) => i === eventIndex ? updatedEvent : e);
-      setPerson({ ...person, events: updatedEvents });
-
-      showStatus('Källa inklistrad');
+      await navigator.clipboard.writeText(textToCopy);
+      setHasClipboardSourceText(true);
+      showStatus('Källtext kopierad till clipboard.');
     } catch (err) {
-      console.error('Fel vid klistring av källor:', err);
+      showStatus('Kunde inte kopiera källtext till clipboard.', 'error');
     }
 
     setEventContextMenu({ isOpen: false, x: 0, y: 0, eventIndex: null, eventId: null });
+  };
+
+  const handlePasteSourceToSavedEvent = async (eventIndex) => {
+    const evt = person.events[eventIndex];
+    if (!evt?.id) {
+      showStatus('Händelsen hittades inte.', 'error');
+      return;
+    }
+
+    const clipboardText = await refreshClipboardSourceAvailability();
+    if (!clipboardText) {
+      showStatus('Clipboard saknar text att klistra in.', 'warning');
+      return;
+    }
+
+    setIsPastingSourceFromClipboard(true);
+    try {
+      const result = handleQuickPasteSource(person.id, evt.id, clipboardText);
+      if (!result?.success || !result.sourceId) return;
+
+      const updatedEvents = (Array.isArray(person.events) ? person.events : []).map((eventItem, idx) => {
+        if (idx !== eventIndex) return eventItem;
+        const existingIds = Array.isArray(eventItem?.sources) ? eventItem.sources : [];
+        if (existingIds.includes(result.sourceId)) return eventItem;
+        return {
+          ...eventItem,
+          sources: [...existingIds, result.sourceId]
+        };
+      });
+
+      const updatedPerson = { ...person, events: updatedEvents };
+      setPerson(updatedPerson);
+      if (typeof onChange === 'function') onChange(updatedPerson);
+      setSourceRefreshKey((prev) => prev + 1);
+      setSelectedEventIndex(eventIndex);
+      setEventDetailView('sources');
+    } finally {
+      setIsPastingSourceFromClipboard(false);
+      setEventContextMenu({ isOpen: false, x: 0, y: 0, eventIndex: null, eventId: null });
+    }
+  };
+
+  const handlePasteSourceToEditingEvent = async () => {
+    const clipboardText = await refreshClipboardSourceAvailability();
+    if (!clipboardText) {
+      showStatus('Clipboard saknar text att klistra in.', 'warning');
+      return;
+    }
+
+    setIsPastingSourceFromClipboard(true);
+    try {
+      const result = handleQuickPasteSource(person.id, '__editing__', clipboardText);
+      if (!result?.success || !result.sourceId) return;
+
+      setNewEvent((prev) => {
+        const currentSources = Array.isArray(prev?.sources) ? prev.sources : [];
+        if (currentSources.includes(result.sourceId)) {
+          return prev;
+        }
+        return {
+          ...prev,
+          sources: [...currentSources, result.sourceId]
+        };
+      });
+    } finally {
+      setIsPastingSourceFromClipboard(false);
+      refreshClipboardSourceAvailability();
+    }
   };
 
   // Kopiera händelse som text
@@ -2757,7 +2868,12 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
   };
 
   const hasCopiedEvent = Boolean(typeof window !== 'undefined' && window.localStorage.getItem('copiedEvent'));
-  const hasCopiedSources = Boolean(typeof window !== 'undefined' && window.localStorage.getItem('copiedSources'));
+
+  const contextMenuEvent = eventContextMenu.eventIndex !== null
+    ? person.events?.[eventContextMenu.eventIndex]
+    : null;
+  const hasContextMenuEvent = Boolean(contextMenuEvent);
+  const hasContextMenuSources = Array.isArray(contextMenuEvent?.sources) && contextMenuEvent.sources.length > 0;
 
   // Sök händelse i Riksarkivet
   const handleSearchInArchive = (eventIndex) => {
@@ -2901,6 +3017,21 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
       window.clearTimeout(focusTimer);
     };
   }, [isEventModalOpen, editingEventIndex]);
+
+  useEffect(() => {
+    if (!isEventModalOpen && !eventContextMenu.isOpen) return;
+
+    refreshClipboardSourceAvailability();
+
+    const onWindowFocus = () => {
+      refreshClipboardSourceAvailability();
+    };
+
+    window.addEventListener('focus', onWindowFocus);
+    return () => {
+      window.removeEventListener('focus', onWindowFocus);
+    };
+  }, [isEventModalOpen, eventContextMenu.isOpen, refreshClipboardSourceAvailability]);
 
   useEffect(() => {
     if (!isEventTypeMenuOpen) return;
@@ -3393,6 +3524,10 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                   }
                                 }}
                                 onDoubleClick={() => {
+                                  if (actualIndex !== -1) {
+                                    setSelectedEventIndex(actualIndex);
+                                    setEventDetailView('sources');
+                                  }
                                   handleEditEvent(evt.id);
                                 }}
                                 onContextMenu={(e) => handleEventContextMenu(e, actualIndex === -1 ? idx : actualIndex, evt.id)}
@@ -4758,7 +4893,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
         )}
 
         {/* DETAIL BLOCK - visa källa-info för vald händelse */}
-        {!isCollapsed && selectedEventIndex !== null && editingEventIndex === null && person.events?.[selectedEventIndex] && (
+        {!isCollapsed && selectedEventIndex !== null && person.events?.[selectedEventIndex] && (
           <div className="bg-surface border-t border-subtle p-4 max-h-40 overflow-y-auto">
             <div className="flex items-center justify-between mb-3 pb-2 border-b border-subtle">
               <h4 className="text-sm font-bold text-primary">
@@ -4809,8 +4944,15 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                         ...source,
                         year: source.date || source.year,
                         image: source.imagePage || source.image,
+                        bildId: source.bildId || source.bildid || source.raId,
                         credibility: source.trust || source.credibility
                       };
+                      const sourceTitleLine = [
+                        displaySource.title || displaySource.archive || 'Ingen titel',
+                        displaySource.volume ? `vol. ${displaySource.volume}` : '',
+                        displaySource.year ? `(${displaySource.year})` : ''
+                      ].filter(Boolean).join(' ');
+                      const sourceReferenceText = displaySource.bildId ? `bildid: ${displaySource.bildId}` : '';
 
                       console.log('🔍 SOURCE FOR DISPLAY (mapped):', {
                         sourceId,
@@ -4853,13 +4995,35 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
 
                           {/* Source info */}
                           <div className="flex-1 text-xs">
-                            <div className="font-semibold text-primary mb-1">
-                              {displaySource.title || 'Ingen titel'}
-                              {displaySource.location && ` (${displaySource.location})`}
-                              {displaySource.volume && ` vol. ${displaySource.volume}`}
-                              {displaySource.year && ` (${displaySource.year})`}
-                              {displaySource.image && ` Bild ${displaySource.image}`}
-                              {displaySource.page && ` / Sida ${displaySource.page}`}
+                            <div className="font-semibold text-primary mb-1 flex flex-wrap items-center gap-1">
+                              <button
+                                type="button"
+                                className="text-left hover:text-accent hover:underline"
+                                title={sourceTitleLine}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (typeof handleNavigateToSource === 'function') {
+                                    handleNavigateToSource(source.id);
+                                  }
+                                }}
+                              >
+                                {`${displaySource.title || displaySource.archive || 'Ingen titel'}${displaySource.volume ? ` vol. ${displaySource.volume}` : ''}${displaySource.year ? ` (${displaySource.year})` : ''}`}
+                              </button>
+                              {sourceReferenceText && (
+                                <button
+                                  type="button"
+                                  className="text-muted hover:text-accent hover:underline text-left"
+                                  title={`Öppna RA: ${displaySource.bildId}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (displaySource.bildId) {
+                                      window.open(`https://sok.riksarkivet.se/bildvisning/${displaySource.bildId}`, '_blank');
+                                    }
+                                  }}
+                                >
+                                  {`, ${sourceReferenceText}`}
+                                </button>
+                              )}
                             </div>
 
                             {/* Trovärdighet - Stjärnor */}
@@ -4877,7 +5041,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                               <button
                                 className={`px-2 py-0.5 rounded text-xs font-semibold ${displaySource.aid ? 'bg-success-soft text-success hover:bg-success-soft cursor-pointer' : 'bg-surface-2 text-muted cursor-default'}`}
                                 title={displaySource.aid ? `AID: ${displaySource.aid}` : 'Inte länkat till Arkivdigital'}
-                                onClick={() => displaySource.aid && window.open(`https://sok.riksarkivet.se/bildvisning/${displaySource.aid}`, '_blank')}
+                                onClick={() => displaySource.aid && window.open(`https://www.arkivdigital.se/aid/show/${displaySource.aid}`, '_blank')}
                               >
                                 AD
                               </button>
@@ -4886,7 +5050,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                               <button
                                 className={`px-2 py-0.5 rounded text-xs font-semibold ${displaySource.bildId ? 'bg-success-soft text-success hover:bg-success-soft cursor-pointer' : 'bg-surface-2 text-muted cursor-default'}`}
                                 title={displaySource.bildId ? `BILDID: ${displaySource.bildId}` : 'Inte länkat till Riksarkivet'}
-                                onClick={() => displaySource.bildId && window.open(`https://www.riksarkivet.se/bildvisning/${displaySource.bildId}`, '_blank')}
+                                onClick={() => displaySource.bildId && window.open(`https://sok.riksarkivet.se/bildvisning/${displaySource.bildId}`, '_blank')}
                               >
                                 RA
                               </button>
@@ -4895,7 +5059,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                               <button
                                 className={`px-2 py-0.5 rounded text-xs font-semibold ${displaySource.nad ? 'bg-success-soft text-success hover:bg-success-soft cursor-pointer' : 'bg-surface-2 text-muted cursor-default'}`}
                                 title={displaySource.nad ? `NAD: ${displaySource.nad}` : 'Inte länkat till NAD'}
-                                onClick={() => displaySource.nad && window.open(`https://nad.ra.se/${displaySource.nad}`, '_blank')}
+                                onClick={() => displaySource.nad && window.open(`https://sok.riksarkivet.se/?postid=ArkisRef%20${displaySource.nad}`, '_blank')}
                               >
                                 NAD
                               </button>
@@ -5342,24 +5506,62 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                   </button>
                 </div>
 
+                <div className="mb-2 flex justify-end">
+                  <button
+                    type="button"
+                    onMouseEnter={() => refreshClipboardSourceAvailability()}
+                    onClick={handlePasteSourceToEditingEvent}
+                    disabled={!hasClipboardSourceText || isPastingSourceFromClipboard}
+                    className={`text-xs px-2 py-1 rounded flex items-center gap-1 transition-colors ${hasClipboardSourceText && !isPastingSourceFromClipboard ? 'bg-accent-soft hover:bg-accent-soft text-accent' : 'bg-surface-2 text-muted cursor-not-allowed opacity-60'}`}
+                    title={hasClipboardSourceText ? 'Klistra in källa från clipboard' : 'Kopiera en källa först (t.ex. från ArkivDigital/SVAR)'}
+                  >
+                    <ClipboardList size={12} />
+                    {isPastingSourceFromClipboard ? 'Klistrar in...' : 'Klistra in källa'}
+                  </button>
+                </div>
+
                 {newEvent.sources && newEvent.sources.length > 0 ? (
                   <div className="space-y-2">
                     {newEvent.sources.map((sourceId, idx) => {
                       const source = allSources?.find(s => s.id === sourceId);
                       if (!source) return null;
 
+                      const sourceYear = source.date || source.year;
+                      const sourceBildId = source.bildid || source.bildId || source.raId;
+                      const sourceMainText = `${source.title || 'Ingen titel'}${source.volume ? ` vol. ${source.volume}` : ''}${sourceYear ? ` (${sourceYear})` : ''}`;
+
                       return (
                         <div key={sourceId} className="bg-surface p-3 rounded text-sm border border-subtle flex justify-between items-start">
                           <div className="flex-1">
-                            <p className="font-semibold text-primary mb-1">
-                              {source.title || 'Ingen titel'}
-                              {source.location && ` / ${source.location}`}
-                              {source.volume && ` vol. ${source.volume}`}
-                              {source.year && ` (${source.year})`}
-                            </p>
+                            <div className="font-semibold text-primary mb-1 flex flex-wrap items-center gap-1">
+                              <button
+                                type="button"
+                                className="text-left hover:text-accent hover:underline"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (typeof handleNavigateToSource === 'function') {
+                                    handleNavigateToSource(source.id);
+                                  }
+                                }}
+                              >
+                                {sourceMainText}
+                              </button>
+                              {sourceBildId && (
+                                <button
+                                  type="button"
+                                  className="text-muted hover:text-accent hover:underline text-left"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    window.open(`https://sok.riksarkivet.se/bildvisning/${sourceBildId}`, '_blank');
+                                  }}
+                                >
+                                  {`, bildid: ${sourceBildId}`}
+                                </button>
+                              )}
+                            </div>
                             {source.aid && (
                               <a
-                                href={`https://sok.riksarkivet.se/bildvisning/${source.aid}`}
+                                href={`https://www.arkivdigital.se/aid/show/${source.aid}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-accent hover:text-accent underline text-xs"
@@ -5746,10 +5948,12 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
             {/* Redigera händelse */}
             <button
               onClick={() => {
+                if (!hasContextMenuEvent) return;
                 handleEditEvent(eventContextMenu.eventId);
                 setEventContextMenu({ isOpen: false, x: 0, y: 0, eventIndex: null, eventId: null });
               }}
-              className="w-full text-left px-4 py-2 text-sm text-primary hover:bg-surface-2 transition-colors flex items-center gap-2"
+              disabled={!hasContextMenuEvent}
+              className={`w-full text-left px-4 py-2 text-sm transition-colors flex items-center gap-2 ${hasContextMenuEvent ? 'text-primary hover:bg-surface-2' : 'text-muted cursor-not-allowed opacity-50'}`}
             >
               <Edit3 size={14} /> Redigera händelse
             </button>
@@ -5757,10 +5961,12 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
             {/* Byt händelse */}
             <button
               onClick={() => {
+                if (!hasContextMenuEvent) return;
                 handleEditEvent(eventContextMenu.eventId);
                 setEventContextMenu({ isOpen: false, x: 0, y: 0, eventIndex: null, eventId: null });
               }}
-              className="w-full text-left px-4 py-2 text-sm text-primary hover:bg-surface-2 transition-colors flex items-center gap-2"
+              disabled={!hasContextMenuEvent}
+              className={`w-full text-left px-4 py-2 text-sm transition-colors flex items-center gap-2 ${hasContextMenuEvent ? 'text-primary hover:bg-surface-2' : 'text-muted cursor-not-allowed opacity-50'}`}
             >
               <Edit3 size={14} /> Byt händelse
             </button>
@@ -5770,7 +5976,8 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
             {/* Kopiera händelse */}
             <button
               onClick={() => handleCopyEvent(eventContextMenu.eventIndex)}
-              className="w-full text-left px-4 py-2 text-sm text-primary hover:bg-surface-2 transition-colors flex items-center gap-2"
+              disabled={!hasContextMenuEvent}
+              className={`w-full text-left px-4 py-2 text-sm transition-colors flex items-center gap-2 ${hasContextMenuEvent ? 'text-primary hover:bg-surface-2' : 'text-muted cursor-not-allowed opacity-50'}`}
             >
               <Copy size={14} /> Kopiera händelse
             </button>
@@ -5790,27 +5997,27 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
             {/* Kopiera källa */}
             <button
               onClick={() => handleCopyEventSources(eventContextMenu.eventIndex)}
-              className="w-full text-left px-4 py-2 text-sm text-primary hover:bg-surface-2 transition-colors flex items-center gap-2"
+              disabled={!hasContextMenuSources}
+              className={`w-full text-left px-4 py-2 text-sm transition-colors flex items-center gap-2 ${hasContextMenuSources ? 'text-primary hover:bg-surface-2' : 'text-muted cursor-not-allowed opacity-50'}`}
             >
               <Copy size={14} /> Kopiera källa
             </button>
 
             {/* Klistra in källa */}
             <button
-              onClick={() => {
-                if (!hasCopiedSources) return;
-                handlePasteEventSources(eventContextMenu.eventIndex);
-              }}
-              disabled={!hasCopiedSources}
-              className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 transition-colors ${hasCopiedSources ? 'text-primary hover:bg-surface-2' : 'text-muted cursor-not-allowed opacity-50'}`}
+              onClick={() => handlePasteSourceToSavedEvent(eventContextMenu.eventIndex)}
+              onMouseEnter={() => refreshClipboardSourceAvailability()}
+              disabled={!hasClipboardSourceText || isPastingSourceFromClipboard || !hasContextMenuEvent}
+              className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 transition-colors ${hasClipboardSourceText && !isPastingSourceFromClipboard && hasContextMenuEvent ? 'text-primary hover:bg-surface-2' : 'text-muted cursor-not-allowed opacity-50'}`}
             >
-              <ClipboardList size={14} /> Klistra in källa
+              <ClipboardList size={14} /> {isPastingSourceFromClipboard ? 'Klistrar in källa...' : 'Klistra in källa'}
             </button>
 
             {/* Kopiera som text */}
             <button
               onClick={() => handleCopyEventAsText(eventContextMenu.eventIndex)}
-              className="w-full text-left px-4 py-2 text-sm text-primary hover:bg-surface-2 transition-colors flex items-center gap-2"
+              disabled={!hasContextMenuEvent}
+              className={`w-full text-left px-4 py-2 text-sm transition-colors flex items-center gap-2 ${hasContextMenuEvent ? 'text-primary hover:bg-surface-2' : 'text-muted cursor-not-allowed opacity-50'}`}
             >
               <Copy size={14} /> Kopiera som text
             </button>
@@ -5838,7 +6045,8 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
             {/* Sök händelse i arkiv */}
             <button
               onClick={() => handleSearchInArchive(eventContextMenu.eventIndex)}
-              className="w-full text-left px-4 py-2 text-sm text-primary hover:bg-surface-2 transition-colors flex items-center gap-2"
+              disabled={!hasContextMenuEvent}
+              className={`w-full text-left px-4 py-2 text-sm transition-colors flex items-center gap-2 ${hasContextMenuEvent ? 'text-primary hover:bg-surface-2' : 'text-muted cursor-not-allowed opacity-50'}`}
             >
               <Globe size={14} /> Sök händelse i arkiv
             </button>
@@ -5848,12 +6056,14 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
             {/* Radera händelse */}
             <button
               onClick={() => {
+                if (!hasContextMenuEvent) return;
                 if (window.confirm('Är du säker på att du vill ta bort denna händelse?')) {
                   handleDeleteEvent(eventContextMenu.eventIndex);
                   setEventContextMenu({ isOpen: false, x: 0, y: 0, eventIndex: null, eventId: null });
                 }
               }}
-              className="w-full text-left px-4 py-2 text-sm text-danger hover:bg-danger-soft transition-colors flex items-center gap-2"
+              disabled={!hasContextMenuEvent}
+              className={`w-full text-left px-4 py-2 text-sm transition-colors flex items-center gap-2 ${hasContextMenuEvent ? 'text-danger hover:bg-danger-soft' : 'text-muted cursor-not-allowed opacity-50'}`}
             >
               <Trash2 size={14} /> Radera händelse
             </button>

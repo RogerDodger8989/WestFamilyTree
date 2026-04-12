@@ -64,7 +64,7 @@
     return levels;
   }
   // Bygg hierarkisk källsträng av fält
-export function buildSourceString({ archive, volume, imagePage, page, aid, nad, date }) {
+export function buildSourceString({ archive, volume, imagePage, page, aid, nad, raId, bildId, date }) {
   let str = '';
   // Lägg till Arkiv Digital ENDAST om archive är tomt eller inte redan börjar med Arkiv Digital
   if (archive && archive.trim() === 'Arkiv Digital') {
@@ -88,34 +88,44 @@ export function buildSourceString({ archive, volume, imagePage, page, aid, nad, 
     let extra = [];
     if (aid) extra.push(`AID: ${aid}`);
     if (nad) extra.push(`NAD: ${nad}`);
+    if (raId || bildId) extra.push(`BILDID: ${raId || bildId}`);
     if (extra.length) str += ` (${extra.join(', ')})`;
+  } else if (raId || bildId) {
+    str += `${str ? '\n' : ''}BILDID: ${raId || bildId}`;
   }
   return str.trim();
 }
   
 export function parseSourceString(sourceText) {
     const result = {
-        archive: '', volume: '', imagePage: '', page: '', aid: '', nad: '', date: '', raId: '',
+    archiveTop: 'Övrigt',
+    archive: '', volume: '', imagePage: '', page: '', aid: '', nad: '', date: '', raId: '', bildId: '', bildid: '',
         note: '', trust: 0, tags: '', title: ''
     };
     if (!sourceText || typeof sourceText !== 'string') return result;
 
     let text = sourceText.trim();
 
-    // 1. Extrahera AID, NAD, RA-ID. Dessa har tydliga mönster.
+  // 1. Extrahera AID, NAD, RA-ID/BILDID. Dessa har tydliga mönster.
     const aidMatch = text.match(/(?:AID:\s*|www\.arkivdigital\.se\/aid\/show\/)(v\d+\.b\d+\.s\d+|v\d+\.b\d+|v\d+)/i);
     if (aidMatch) {
         result.aid = aidMatch[1].trim();
         text = text.replace(aidMatch[0], '');
     }
-    const nadMatch = text.match(/(SE\/[A-Z]{2,}\/[^\s,]+)/i);
+
+  // NAD kan innehålla mellanslag i serie/volymdelen, t.ex. SE/LLA/13262/A I/14
+  // Viktigt: stoppa före årtalsparentes så (1852-1856) kan parsas separat.
+  const nadMatch = text.match(/\b(SE\/[A-ZÅÄÖ]{2,}\/[^,\n\(]+)/i);
     if (nadMatch) {
-        result.nad = nadMatch[1].trim();
+    result.nad = nadMatch[1].replace(/\s{2,}/g, ' ').trim();
         text = text.replace(nadMatch[0], '');
     }
-    const raIdMatch = text.match(/(?:RA-bildid:\s*|sok\.riksarkivet\.se\/bildvisning\/)([A-Z0-9_]+)/i);
+
+  const raIdMatch = text.match(/(?:RA-bildid\s*:\s*|bild-?id\s*:\s*|sok\.riksarkivet\.se\/bildvisning\/)([A-Z0-9_]+)/i);
     if (raIdMatch) {
         result.raId = raIdMatch[1].trim();
+    result.bildId = result.raId;
+    result.bildid = result.raId;
         text = text.replace(raIdMatch[0], '');
     }
 
@@ -136,16 +146,46 @@ export function parseSourceString(sourceText) {
         text = text.replace(bildSidMatch[0], '');
     }
 
-    // 4. Extrahera Volym och Årtal, t.ex. "CI:9 (1930-1939)"
-    const volMatch = text.match(/([A-Z]{1,4}:\d+[a-z]?)\s*(?:\((\d{4}-\d{4})\))?/);
+    // 4. Extrahera årtal i spann, t.ex. (1852-1856)
+    const yearRangeMatch = text.match(/\((\d{4}\s*-\s*\d{4})\)/);
+    if (yearRangeMatch) {
+      result.date = yearRangeMatch[1].replace(/\s+/g, '');
+      text = text.replace(yearRangeMatch[0], '');
+    }
+
+    // 5. Extrahera volym (stöder både CI:9 och A I/14)
+    const volMatch = text.match(/\b([A-ZÅÄÖ]{1,4}\s*[IVX]{0,4}\s*[:\/]\s*\d+[a-z]?)\b/i);
     if (volMatch) {
-        result.volume = volMatch[1].trim();
-        result.date = volMatch[2] || '';
+      result.volume = volMatch[1].replace(/\s*:\s*/g, ':').replace(/\s*\/\s*/g, '/').replace(/\s{2,}/g, ' ').trim();
         text = text.replace(volMatch[0], '');
     }
 
-    // 5. Det som är kvar är troligen arkiv/församling. Rensa bort skräp.
-    result.archive = text.replace(/Källa:|Källdetalj:|Notes:|Bild:/gi, '').replace(/[,]/g, ' ').trim();
+    // Fallback: plocka volym från NAD om den inte hittades i fritexten
+    if (!result.volume && result.nad) {
+      const nadVolumeMatch = result.nad.match(/\/(?:[^\/]*\/)?([A-ZÅÄÖ]{1,4}\s*[IVX]{0,4}\s*[:\/]\s*\d+[a-z]?)\s*$/i);
+      if (nadVolumeMatch) {
+        result.volume = nadVolumeMatch[1].replace(/\s*:\s*/g, ':').replace(/\s*\/\s*/g, '/').replace(/\s{2,}/g, ' ').trim();
+      }
+    }
+
+    // 6. Det som är kvar är troligen arkiv/församling. Rensa bort skräp.
+    const cleanedArchive = text
+      .replace(/Källa:|Källdetalj:|Notes:|Bild:|bild-?id\s*:/gi, '')
+      .replace(/[\(\)]/g, ' ')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+
+    const archiveParts = cleanedArchive
+      .split(',')
+      .map((part) => part.trim())
+      .filter(Boolean);
+    result.archive = archiveParts.join(', ');
+
+    if (result.aid) {
+      result.archiveTop = 'Arkiv Digital';
+    } else if (result.raId || result.bildId || result.nad) {
+      result.archiveTop = 'Riksarkivet';
+    }
 
     // Gammal regex, kan tas bort eller behållas som fallback om den nya inte täcker allt.
     /* const archiveRegex = /^(.+?)\s+(?=[A-Z]{1,3}:\d+)/;
@@ -165,11 +205,11 @@ export function parseSourceString(sourceText) {
         result.page = mainMatch[4] || ''; // Bara numret för "Sida"
     } */
 
-    // Sätt en generell titel för källan
-    result.title = [result.archive, result.volume, result.date ? `(${result.date})` : ''].filter(Boolean).join(' ').trim();
+    // Legacy-kompatibel titel: endast arkiv/titel för att undvika dubblering med volym/år i UI.
+    result.title = result.archive || '';
 
-    // Om AID finns, sätt trovärdighet till 4 (Förstahandsuppgift)
-    if (result.aid) result.trust = 4;
+    // Om AID/BILDID finns, sätt högre trovärdighet
+    if (result.aid || result.raId) result.trust = 4;
 
     return result;
 }
@@ -219,4 +259,79 @@ export function generateImagePath(sourceParts) {
   if (vol) path += `/${vol}`;
   path += `/${filename}`;
   return { filename, path };
+}
+
+// Mirrors the legacy quick-import parser used in SourceCatalog so all import paths
+// can share identical behavior (AD/RA with special handling for BILDID/NAD/volume/date).
+export function parseSourceQuickImport(sourceText, places = []) {
+  if (!sourceText || !String(sourceText).trim()) return {};
+
+  const text = String(sourceText).trim();
+  const upperText = text.toUpperCase();
+  let updates = { trust: 4 };
+
+  if (upperText.includes('AID:')) {
+    updates.archiveTop = 'Arkiv Digital';
+    updates.archive = 'Arkiv Digital';
+
+    const aidMatch = text.match(/AID:\s*([a-zA-Z0-9\.]+)/i);
+    if (aidMatch) updates.aid = aidMatch[1];
+
+    const nadMatch = text.match(/NAD:\s*([a-zA-Z0-9\/]+)/i) || text.match(/SE\/[A-Z0-9\/]+/);
+    if (nadMatch) updates.nad = nadMatch[0].replace(/NAD:\s*/i, '');
+
+    const bildMatch = text.match(/Bild\s*(\d+)/i);
+    if (bildMatch) updates.imagePage = bildMatch[1];
+
+    const sidMatch = text.match(/sid\s*(\d+)/i);
+    if (sidMatch) updates.page = sidMatch[1];
+
+    const volMatch = text.match(/([A-Z]+\s*[A-Z]*:[a-z0-9]+)/i);
+    if (volMatch) updates.volume = volMatch[1];
+
+    let bestMatch = null;
+    const safePlaces = Array.isArray(places) ? places : [];
+    for (const place of safePlaces) {
+      if (place && place.name && text.startsWith(place.name)) {
+        if (!bestMatch || place.name.length > bestMatch.name.length) {
+          bestMatch = place;
+        }
+      }
+    }
+
+    if (bestMatch) {
+      updates.title = bestMatch.name;
+    } else {
+      const splitPoint = text.indexOf(updates.volume || '(');
+      if (splitPoint > 0) updates.title = text.substring(0, splitPoint).trim();
+      else updates.title = 'Okänd Titel';
+    }
+  } else if (upperText.includes('BILDID:')) {
+    updates.archiveTop = 'Riksarkivet';
+    updates.archive = 'Riksarkivet';
+
+    const bildIdMatch = text.match(/bildid:\s*([A-Z0-9_]+)/i);
+    if (bildIdMatch) {
+      updates.bildid = bildIdMatch[1];
+      updates.bildId = bildIdMatch[1];
+      updates.raId = bildIdMatch[1];
+    }
+
+    const nadMatch = text.match(/(SE\/[\w]+\/\d+)/);
+    if (nadMatch) updates.nad = nadMatch[1];
+
+    const raVolMatch = text.match(/SE\/[\w]+\/\d+\/([^(,]+)/);
+    if (raVolMatch) updates.volume = raVolMatch[1].trim();
+
+    const bildNrMatch = text.match(/_(\d+)$/);
+    if (bildNrMatch) updates.imagePage = bildNrMatch[1];
+
+    const commaParts = text.split(',');
+    if (commaParts.length > 0) updates.title = commaParts[0].trim();
+  }
+
+  const dateMatch = text.match(/\((\d{4}[-–]\d{4})\)/) || text.match(/\((\d{4})\)/);
+  if (dateMatch) updates.date = dateMatch[1];
+
+  return updates;
 }

@@ -376,5 +376,45 @@
     "timestamp": "2026-04-05T14:07:44.897Z",
     "details": {},
     "sourceIds": []
+  },
+  {
+    "id": "audit_1775996542934_dj22uwa",
+    "type": "delete",
+    "entityType": "source",
+    "entityId": "src_1775996353049",
+    "actor": "local",
+    "timestamp": "2026-04-12T12:22:22.934Z",
+    "details": null,
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1775996712450_uf1wd2w",
+    "type": "delete",
+    "entityType": "source",
+    "entityId": "src_1775996559390",
+    "actor": "local",
+    "timestamp": "2026-04-12T12:25:12.450Z",
+    "details": null,
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1775996818017_0swlpd1",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1775996807427",
+    "actor": "local",
+    "timestamp": "2026-04-12T12:26:58.017Z",
+    "details": {},
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1775997120588_f43j5js",
+    "type": "delete",
+    "entityType": "source",
+    "entityId": "src_1775996778149",
+    "actor": "local",
+    "timestamp": "2026-04-12T12:32:00.588Z",
+    "details": null,
+    "sourceIds": []
   }
 ]

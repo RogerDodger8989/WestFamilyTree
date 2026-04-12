@@ -127,11 +127,11 @@ export default function PlacePicker({ value, displayValue, allPlaces, onChange }
                 <div className="flex items-center justify-between">
                     <span className="text-sm text-slate-300 font-medium">{name}</span>
                     {typeLabel && (
-                        <span className="ml-2 text-[11px] px-2 py-0.5 rounded-full bg-slate-700 text-slate-300 border border-slate-600">{typeLabel}</span>
+                        <span className="ml-2 text-[11px] px-2 py-0.5 rounded-full bg-surface-2 text-secondary border border-subtle">{typeLabel}</span>
                     )}
                 </div>
                 {meta && (
-                    <div className="text-[12px] text-slate-400 mt-0.5">{meta}</div>
+                    <div className="text-[12px] text-muted mt-0.5">{meta}</div>
                 )}
             </div>
         );
@@ -194,23 +194,23 @@ export default function PlacePicker({ value, displayValue, allPlaces, onChange }
             {/* Input + Globe */}
             <div className="relative flex items-center">
                 <div className="relative flex-1">
-                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
                     <input
                         type="text"
-                        className="w-full bg-slate-900 border border-slate-700 text-slate-200 text-sm rounded-l-md pl-9 pr-8 py-2 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                        className="w-full bg-background border border-subtle text-primary text-sm rounded-l-md pl-9 pr-8 py-2 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
                         placeholder="Sök plats..."
                         value={searchTerm || displayValue || buildPlaceString(selectedPlace)}
                         onChange={(e) => { setSearchTerm(e.target.value); setIsOpen(true); }}
                         onFocus={() => setIsOpen(true)}
                     />
                     {searchTerm && (
-                        <button onClick={() => { setSearchTerm(''); setIsOpen(false); }} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-400">
+                        <button onClick={() => { setSearchTerm(''); setIsOpen(false); }} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted hover:text-primary">
                             <X size={14} />
                         </button>
                     )}
                 </div>
                 <button
-                    className="bg-slate-700 hover:bg-slate-600 border-y border-r border-slate-700 text-slate-200 p-2 rounded-r-md"
+                    className="bg-surface-2 hover:bg-surface border-y border-r border-subtle text-primary p-2 rounded-r-md"
                     title="Öppna platsregister"
                     onClick={() => setIsModalOpen(true)}
                 >
@@ -220,11 +220,11 @@ export default function PlacePicker({ value, displayValue, allPlaces, onChange }
 
             {/* Dropdown */}
             {isOpen && (
-                <div className="absolute z-50 w-full mt-1 bg-slate-800 border border-slate-700 rounded-md shadow-xl max-h-64 overflow-y-auto">
+                <div className="absolute z-50 w-full mt-1 bg-background border border-subtle rounded-md shadow-xl max-h-64 overflow-y-auto">
                     {/* Visa senaste platser om sökrutan är tom */}
                     {!searchTerm && recentPlaces.length > 0 && (
-                        <div className="border-b border-slate-700">
-                            <div className="px-4 py-2 text-xs text-slate-400">Senaste platser</div>
+                        <div className="border-b border-subtle">
+                            <div className="px-4 py-2 text-xs text-muted">Senaste platser</div>
                             <ul>
                                 {recentPlaces.map(place => (
                                     <li
@@ -234,9 +234,9 @@ export default function PlacePicker({ value, displayValue, allPlaces, onChange }
                                             e.stopPropagation();
                                             handleSelect(place.id, place);
                                         }}
-                                        className="px-4 py-2 hover:bg-slate-700 cursor-pointer flex items-start gap-2 border-b border-slate-700 last:border-0"
+                                        className="px-4 py-2 hover:bg-surface cursor-pointer flex items-start gap-2 border-b border-subtle last:border-0"
                                     >
-                                        <span className="text-sm text-slate-300 font-medium">
+                                        <span className="text-sm text-primary font-medium">
                                             {place.name || place.ortnamn || place.sockenstadnamn || place.kommunnamn || place.lansnamn}
                                             {place.lanskod ? ` (${place.lanskod})` : ''}
                                             {place.sockenstadnamn ? ', Församling' : place.kommunnamn ? ', Kommun' : place.lansnamn ? ', Län' : place.ortnamn ? ', Ort' : ''}
@@ -259,14 +259,14 @@ export default function PlacePicker({ value, displayValue, allPlaces, onChange }
                                         e.stopPropagation();
                                         handleSelect(place.id, place);
                                     }}
-                                    className="px-4 py-2 hover:bg-slate-700 cursor-pointer flex items-start gap-2 border-b border-slate-700 last:border-0"
+                                    className="px-4 py-2 hover:bg-surface cursor-pointer flex items-start gap-2 border-b border-subtle last:border-0"
                                 >
                                     {renderItem(place)}
                                 </li>
                             ))}
                         </ul>
                     ) : (
-                        <div className="p-4 text-center text-slate-400 text-sm italic">
+                        <div className="p-4 text-center text-muted text-sm italic">
                             {searchTerm && searchTerm.length >= 2
                                 ? (serverResults.length === 0
                                     ? 'Inga platser hittades (kontrollera anslutning till officiellt register)'
@@ -280,10 +280,10 @@ export default function PlacePicker({ value, displayValue, allPlaces, onChange }
             {/* Modal: Place Catalog Picker */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center" onClick={() => setIsModalOpen(false)}>
-                    <div className="bg-slate-800 border border-slate-700 rounded-xl shadow-2xl w-[90vw] h-[85vh] max-w-5xl" onClick={(e) => e.stopPropagation()}>
+                    <div className="bg-background border border-subtle rounded-xl shadow-2xl w-[90vw] h-[85vh] max-w-5xl" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-between px-4 py-2 border-b">
                             <h3 className="font-semibold">Platsregister</h3>
-                            <button className="text-xl text-slate-400 hover:text-white" onClick={() => setIsModalOpen(false)}>×</button>
+                            <button className="text-xl text-muted hover:text-primary" onClick={() => setIsModalOpen(false)}>×</button>
                         </div>
                         <div className="h-[calc(100%-40px)]">
                             <PlaceCatalog onPick={(node) => {

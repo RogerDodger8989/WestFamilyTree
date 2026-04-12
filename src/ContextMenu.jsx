@@ -4,6 +4,20 @@ export default function ContextMenu({ visible, x = 0, y = 0, items = [], onClose
   const rootRef = useRef(null);
   const ignoreUntilRef = useRef(0);
 
+  const clampToViewport = () => {
+    if (!rootRef.current) return;
+
+    const rect = rootRef.current.getBoundingClientRect();
+    const margin = 8;
+    const maxLeft = Math.max(margin, window.innerWidth - rect.width - margin);
+    const maxTop = Math.max(margin, window.innerHeight - rect.height - margin);
+    const nextLeft = Math.min(Math.max(x, margin), maxLeft);
+    const nextTop = Math.min(Math.max(y, margin), maxTop);
+
+    rootRef.current.style.left = `${nextLeft}px`;
+    rootRef.current.style.top = `${nextTop}px`;
+  };
+
   useEffect(() => {
     if (!visible) return;
     const mountTime = performance.now();
@@ -22,13 +36,23 @@ export default function ContextMenu({ visible, x = 0, y = 0, items = [], onClose
       onClose();
     };
 
+    const onResize = () => clampToViewport();
+
     window.addEventListener('keydown', onKey);
     window.addEventListener('click', onClick, { capture: true });
+    window.addEventListener('resize', onResize);
+    window.addEventListener('scroll', onResize, true);
+
+    // Clamp right after render so the menu starts inside viewport.
+    requestAnimationFrame(clampToViewport);
+
     return () => {
       window.removeEventListener('keydown', onKey);
       window.removeEventListener('click', onClick, { capture: true });
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('scroll', onResize, true);
     };
-  }, [visible, onClose]);
+  }, [visible, onClose, x, y]);
 
   if (!visible) return null;
 

@@ -123,7 +123,7 @@ export default function SourceCatalog({
   const parseSourceString = () => {
       if (!importString || !importString.trim()) return;
       const text = importString.trim();
-      let updates = { trust: 4 }; 
+      let updates = { trust: 4 };
 
       const upperText = text.toUpperCase();
 
@@ -138,7 +138,7 @@ export default function SourceCatalog({
           if (bildMatch) updates.imagePage = bildMatch[1];
           const sidMatch = text.match(/sid\s*(\d+)/i);
           if (sidMatch) updates.page = sidMatch[1];
-          const volMatch = text.match(/([A-Z]+\s*[A-Z]*:[a-z0-9]+)/i); 
+          const volMatch = text.match(/([A-Z]+\s*[A-Z]*:[a-z0-9]+)/i);
           if (volMatch) updates.volume = volMatch[1];
           let bestMatch = null;
           if (places && places.length > 0) {
@@ -150,7 +150,7 @@ export default function SourceCatalog({
                   }
               }
           }
-          if (bestMatch) updates.title = bestMatch.name; 
+          if (bestMatch) updates.title = bestMatch.name;
           else {
               const splitPoint = text.indexOf(updates.volume || '(');
               if (splitPoint > 0) updates.title = text.substring(0, splitPoint).trim();
@@ -162,7 +162,7 @@ export default function SourceCatalog({
           updates.archive = 'Riksarkivet';
           const bildIdMatch = text.match(/bildid:\s*([A-Z0-9_]+)/i);
           if (bildIdMatch) updates.bildid = bildIdMatch[1];
-          const nadMatch = text.match(/(SE\/[\w]+\/\d+)/); 
+          const nadMatch = text.match(/(SE\/[\w]+\/\d+)/);
           if (nadMatch) updates.nad = nadMatch[1];
           const raVolMatch = text.match(/SE\/[\w]+\/\d+\/([^(,]+)/);
           if (raVolMatch) updates.volume = raVolMatch[1].trim();

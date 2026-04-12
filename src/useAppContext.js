@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createNewDatabase, openFile, saveFile, saveFileAs, openDatabaseDialog, getLastOpenedFile, saveAuditLog, loadAuditLog, saveMergesLog, loadMergesLog, getLogFileSize } from './database.js';
-import { parseSourceString, generateImagePath, buildSourceString } from './parsing.js';
+import { parseSourceString, parseSourceQuickImport, generateImagePath, buildSourceString } from './parsing.js';
 import { simulateMerge } from './mergeUtils.js';
 import { remapAndDedupeRelations, transferEventsAndLinks } from './mergeHelpers.js';
 import { buildRelationsFromPeople, ensureAllRelations } from './relationUtils.js';
@@ -2336,6 +2336,179 @@ export default function useAppContext() {
         } catch (e) {}
     };
 
+    const handleQuickPasteSource = useCallback((personId, eventId, pastedText) => {
+        const rawText = String(pastedText || '').trim();
+        if (!personId || !eventId || !rawText) {
+            showStatus('Kunde inte lägga till källa: saknar person, händelse eller text.', 'error');
+            return { success: false, error: 'Missing required input' };
+        }
+
+        const normalize = (value) => String(value || '').trim().toLowerCase();
+
+        const parsed = parseSourceQuickImport(rawText, dbDataRef.current?.places || dbData?.places || []) || {};
+        const hasStructuredSignal = Boolean(
+            parsed.volume || parsed.imagePage || parsed.page || parsed.aid || parsed.nad || parsed.raId || parsed.bildId || parsed.bildid || parsed.date
+        );
+        if (!hasStructuredSignal) {
+            showStatus('Kunde inte tolka källtexten. Klistra in en källa från ArkivDigital/SVAR-format.', 'error');
+            return { success: false, error: 'Parse failed' };
+        }
+
+        const generatedSourceString = buildSourceString(parsed) || rawText;
+        const tempSource = {
+            id: `src_${Date.now()}`,
+            title: String(parsed.title || parsed.archive || 'Ny källa').trim(),
+            archiveTop: String(parsed.archiveTop || '').trim(),
+            archive: String(parsed.archive || '').trim(),
+            volume: String(parsed.volume || '').trim(),
+            imagePage: String(parsed.imagePage || '').trim(),
+            page: String(parsed.page || '').trim(),
+            date: String(parsed.date || '').trim(),
+            aid: String(parsed.aid || '').trim(),
+            nad: String(parsed.nad || '').trim(),
+            bildid: String(parsed.bildid || parsed.bildId || parsed.raId || '').trim(),
+            bildId: String(parsed.bildId || parsed.raId || '').trim(),
+            raId: String(parsed.raId || '').trim(),
+            note: String(parsed.note || '').trim(),
+            trust: parsed.trust || 0,
+            sourceString: generatedSourceString,
+            dateAdded: new Date().toISOString()
+        };
+
+        let didAttach = false;
+        let didCreateSource = false;
+        let resolvedSourceId = null;
+        let statusError = '';
+
+        setDbData((prev) => {
+            const prevSources = Array.isArray(prev?.sources) ? prev.sources : [];
+            const prevPeople = Array.isArray(prev?.people) ? prev.people : [];
+
+            const tempBildId = normalize(tempSource.bildid || tempSource.bildId || tempSource.raId);
+            const tempAid = normalize(tempSource.aid);
+            const tempNad = normalize(tempSource.nad);
+            const tempVolume = normalize(tempSource.volume);
+            const tempDate = normalize(tempSource.date);
+            const tempTitle = normalize(tempSource.title);
+
+            const existing = prevSources.find((s) => {
+                const sameSourceString = String(s?.sourceString || '').trim() === tempSource.sourceString;
+                if (sameSourceString) return true;
+
+                const sBildId = normalize(s?.bildid || s?.bildId || s?.raId);
+                const sAid = normalize(s?.aid);
+                const sNad = normalize(s?.nad);
+                const sVolume = normalize(s?.volume);
+                const sDate = normalize(s?.date);
+                const sTitle = normalize(s?.title);
+
+                // Strong identity matches first.
+                if (tempBildId && sBildId && tempBildId === sBildId) return true;
+                if (tempAid && sAid && tempAid === sAid) return true;
+
+                // Riksarkivet fallback identity when image id is missing.
+                if (tempNad && sNad && tempVolume && sVolume && tempNad === sNad && tempVolume === sVolume) {
+                    if (!tempDate || !sDate || tempDate === sDate) return true;
+                }
+
+                // Last-resort soft match.
+                if (tempTitle && sTitle && tempTitle === sTitle && tempVolume && sVolume && tempVolume === sVolume && tempDate && sDate && tempDate === sDate) {
+                    return true;
+                }
+
+                return false;
+            });
+
+            const sourceToUse = existing
+                ? {
+                    ...existing,
+                    // Repair legacy malformed fields when we parse a better structure.
+                    title: tempSource.title || existing.title,
+                    archiveTop: tempSource.archiveTop || existing.archiveTop,
+                    archive: tempSource.archive || existing.archive,
+                    volume: tempSource.volume || existing.volume,
+                    date: tempSource.date || existing.date,
+                    imagePage: tempSource.imagePage || existing.imagePage,
+                    page: tempSource.page || existing.page,
+                    aid: tempSource.aid || existing.aid,
+                    nad: tempSource.nad || existing.nad,
+                    raId: tempSource.raId || existing.raId,
+                    bildId: tempSource.bildId || existing.bildId || existing.bildid,
+                    bildid: tempSource.bildid || existing.bildid || existing.bildId
+                }
+                : tempSource;
+            resolvedSourceId = sourceToUse.id;
+            didCreateSource = !existing;
+
+            const nextSources = existing
+                ? prevSources.map((source) => (source?.id === sourceToUse.id ? sourceToUse : source))
+                : [...prevSources, sourceToUse];
+
+            if (eventId === '__editing__') {
+                didAttach = true;
+                return { ...prev, sources: nextSources };
+            }
+
+            const personIndex = prevPeople.findIndex((p) => String(p?.id) === String(personId));
+            if (personIndex === -1) {
+                statusError = 'Person hittades inte.';
+                return prev;
+            }
+
+            const person = prevPeople[personIndex];
+            const events = Array.isArray(person?.events) ? person.events : [];
+            const eventIndex = events.findIndex((e) => String(e?.id) === String(eventId));
+            if (eventIndex === -1) {
+                statusError = 'Händelse hittades inte.';
+                return prev;
+            }
+
+            const targetEvent = events[eventIndex];
+            const existingSourcesOnEvent = Array.isArray(targetEvent?.sources) ? targetEvent.sources : [];
+            if (existingSourcesOnEvent.includes(sourceToUse.id)) {
+                statusError = 'Källan är redan kopplad till händelsen.';
+                return prev;
+            }
+
+            const updatedEvent = {
+                ...targetEvent,
+                sources: [...existingSourcesOnEvent, sourceToUse.id]
+            };
+
+            const updatedEvents = [...events];
+            updatedEvents[eventIndex] = updatedEvent;
+
+            const updatedPerson = {
+                ...person,
+                events: updatedEvents
+            };
+
+            const updatedPeople = [...prevPeople];
+            updatedPeople[personIndex] = updatedPerson;
+
+            didAttach = true;
+            return {
+                ...prev,
+                sources: nextSources,
+                people: updatedPeople
+            };
+        });
+
+        if (!didAttach) {
+            showStatus(statusError || 'Kunde inte lägga till källa.', 'error');
+            return { success: false, error: statusError || 'Attach failed' };
+        }
+
+        showStatus(
+            didCreateSource
+                ? 'Ny källa skapad och kopplad till händelsen.'
+                : 'Befintlig källa kopplad till händelsen.',
+            'success'
+        );
+
+        return { success: true, sourceId: resolvedSourceId, created: didCreateSource };
+    }, [setDbData, showStatus]);
+
     const handleUndo = () => {
         if (undoState.onUndo) undoState.onUndo();
         setUndoState({ isVisible: false, message: '', onUndo: null });
@@ -3207,7 +3380,7 @@ export default function useAppContext() {
         handleTogglePlaceDrawer,
         openPlaceDrawerForSelection,
         handleCreateAndEditPerson, handleOpenSourceModal, handleCloseSourceModal, handleSourceFormChange,
-        handleParseSource, handleSaveSource, handleSaveEditedSource, handleUndo, handleDeleteSource,
+        handleParseSource, handleSaveSource, handleSaveEditedSource, handleQuickPasteSource, handleUndo, handleDeleteSource,
         handleSetFocusPair, handleToggleBookmark, handleSwapFocus, handleClearFocus,
         handleAddNewPlace, handleSavePlace,
         handleAttachSources, handleSwitchToCreateSource,
