@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Search, Download, Filter, AlertCircle } from 'lucide-react';
 import WindowFrame from './WindowFrame.jsx';
 import Button from './Button.jsx';
@@ -9,12 +9,24 @@ import Button from './Button.jsx';
  */
 export function OAIArchiveHarvesterModal({ onClose, onImportSources }) {
   const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = useRef(null);
   const [selectedArchive, setSelectedArchive] = useState(null);
   const [archiveResults, setArchiveResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isHarvesting, setIsHarvesting] = useState(false);
   const [harvestProgress, setHarvestProgress] = useState({ current: 0, total: 0 });
   const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (searchInputRef.current) {
+        searchInputRef.current.focus();
+        searchInputRef.current.select();
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, []);
 
   // Filterknappar
   const [filters, setFilters] = useState({
@@ -294,12 +306,28 @@ export function OAIArchiveHarvesterModal({ onClose, onImportSources }) {
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-2.5 text-muted" size={18} />
               <input
+                ref={searchInputRef}
                 type="text"
                 placeholder="T.ex. Svenstorp, Stockholm..."
                 className="w-full bg-background border border-subtle text-on-accent pl-10 pr-4 py-2 rounded focus:ring-1 focus:ring-accent outline-none text-sm placeholder-slate-500"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearchArchives()}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleSearchArchives();
+                    return;
+                  }
+
+                  if (e.key === 'Escape') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (String(searchQuery || '').trim().length > 0) {
+                      setSearchQuery('');
+                    } else {
+                      onClose?.();
+                    }
+                  }
+                }}
               />
             </div>
             <Button

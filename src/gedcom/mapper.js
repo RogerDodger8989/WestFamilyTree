@@ -242,9 +242,11 @@ function mapIndividuals(parsedNodes, all) {
     const givnNode = children.find(c => _getTag(c) === 'GIVN');
     const surnNode = children.find(c => _getTag(c) === 'SURN');
     const sexNode = children.find(c => _getTag(c) === 'SEX');
+    const refnNode = children.find(c => _getTag(c) === 'REFN');
     const given = givnNode ? valueToString(_getValue(givnNode)).trim() : '';
     const surname = surnNode ? valueToString(_getValue(surnNode)).trim() : '';
     const sex = sexNode ? valueToString(_getValue(sexNode)).trim() : '';
+    const refNumber = refnNode ? valueToString(_getValue(refnNode)).trim() : '';
       // events: look for nodes with tags like BIRT, DEAT, BURI, MARR
       const events = children.filter(c => ['BIRT', 'DEAT', 'BURI', 'CHR', 'BAPT', 'EVEN', 'FACT', 'MARR', 'DIV', 'RESI'].includes(c.tag)).map(ev => {
         const date = valueToString(extractValue(ev, 'DATE')) || null;
@@ -298,6 +300,7 @@ function mapIndividuals(parsedNodes, all) {
 
     individuals.push({
       xref,
+      refNumber,
       firstName: given,
       lastName: surname,
       gender: sex,

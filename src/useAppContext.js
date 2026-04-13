@@ -150,6 +150,38 @@ const ensureDbDataStructure = (data) => {
     };
 };
 
+const normalizeRefNumberValue = (value) => {
+    const text = String(value ?? '').trim();
+    if (!text) return null;
+    const parsed = Number.parseInt(text, 10);
+    if (!Number.isFinite(parsed) || parsed <= 0) return null;
+    return parsed;
+};
+
+const isRefNumberTaken = (people, refValue, excludePersonId = null) => {
+    const normalizedRef = normalizeRefNumberValue(refValue);
+    if (normalizedRef === null) return false;
+    return (Array.isArray(people) ? people : []).some((person) => {
+        if (!person || person.id === excludePersonId) return false;
+        return normalizeRefNumberValue(person.refNumber) === normalizedRef;
+    });
+};
+
+const getNextAvailableRefNumber = (people) => {
+    const used = new Set(
+        (Array.isArray(people) ? people : [])
+            .map((person) => normalizeRefNumberValue(person?.refNumber))
+            .filter((ref) => ref !== null)
+            .map((ref) => String(ref))
+    );
+
+    let nextRef = 1;
+    while (used.has(String(nextRef))) {
+        nextRef += 1;
+    }
+    return nextRef;
+};
+
 const applyWriteToMetadataInheritance = (tags, forcedIds = new Set()) => {
     const list = Array.isArray(tags) ? tags : [];
     const byId = new Map(list.map((tag) => [normalizePath(tag?.id), { ...tag }]));
@@ -1173,7 +1205,10 @@ function useAppContext() {
     const handleAddPerson = (e) => {
         e.preventDefault();
         if (!newFirstName.trim() || !newLastName.trim()) return alert("Förnamn och efternamn får inte vara tomma.");
-        const maxRef = (dbData && dbData.people ? dbData.people : []).reduce((max, p) => p.refNumber > max ? p.refNumber : max, 0);
+        const maxRef = (dbData && dbData.people ? dbData.people : []).reduce((max, p) => {
+            const ref = normalizeRefNumberValue(p?.refNumber);
+            return ref !== null && ref > max ? ref : max;
+        }, 0);
         const newPerson = {
             id: `p_${Date.now()}`, refNumber: maxRef + 1, firstName: newFirstName.trim(), lastName: newLastName.trim(),
             gender: "", events: [], notes: "", links: {}, relations: { parents: [], children: [] }
@@ -1339,15 +1374,29 @@ function useAppContext() {
         if (personIndex === -1) {
             console.warn('[handleEditFormChange] Person hittades inte:', updatedPerson.id);
             // Om personen inte finns, lägg till den (för nya personer)
-            const updatedPeople = [...currentDbData.people, updatedPerson];
+            const safeUpdatedPerson = { ...updatedPerson };
+            if (isRefNumberTaken(currentDbData.people, safeUpdatedPerson.refNumber, safeUpdatedPerson.id)) {
+                safeUpdatedPerson.refNumber = getNextAvailableRefNumber(currentDbData.people);
+            }
+            const updatedPeople = [...currentDbData.people, safeUpdatedPerson];
             const relations = buildRelationsFromPeople(updatedPeople);
             setDbData(prevDb => ({ ...prevDb, people: updatedPeople, relations }));
-            if (editingPerson) setEditingPerson(JSON.parse(JSON.stringify(updatedPerson)));
+            if (editingPerson) {
+                const resolvedPerson = updatedPeople.find(p => p.id === safeUpdatedPerson.id) || safeUpdatedPerson;
+                setEditingPerson(JSON.parse(JSON.stringify(resolvedPerson)));
+            }
             return;
         }
         // Uppdatera personen i arrayen och behåll fält som inte kommer från editorn just nu
         const updatedPeople = [...currentDbData.people];
         const existingPerson = updatedPeople[personIndex] || {};
+        const incomingRef = normalizeRefNumberValue(updatedPerson.refNumber);
+        if (incomingRef !== null && isRefNumberTaken(currentDbData.people, incomingRef, updatedPerson.id)) {
+            updatedPerson = {
+                ...updatedPerson,
+                refNumber: existingPerson.refNumber
+            };
+        }
         updatedPeople[personIndex] = JSON.parse(JSON.stringify({
             ...existingPerson,
             ...updatedPerson,
@@ -1367,7 +1416,10 @@ function useAppContext() {
             console.log('[handleEditFormChange] setDbData anropad, antal personer:', newData.people.length, 'person:', newData.people[personIndex]?.firstName, newData.people[personIndex]?.sex);
             return newData;
         });
-        if (editingPerson) setEditingPerson(JSON.parse(JSON.stringify(updatedPeople[personIndex])));
+        if (editingPerson) {
+            const resolvedPerson = updatedPeople.find(p => p.id === updatedPerson.id) || updatedPeople[personIndex];
+            setEditingPerson(JSON.parse(JSON.stringify(resolvedPerson)));
+        }
         // Debounced audit for inline edits: record before snapshot once, then commit after idle
         try {
             const id = updatedPerson.id;
@@ -2249,7 +2301,10 @@ function useAppContext() {
     };
 
     const handleCreateAndEditPerson = () => {
-        const maxRef = dbData.people.reduce((max, p) => p.refNumber > max ? p.refNumber : max, 0);
+        const maxRef = dbData.people.reduce((max, p) => {
+            const ref = normalizeRefNumberValue(p?.refNumber);
+            return ref !== null && ref > max ? ref : max;
+        }, 0);
         const newPerson = {
             id: `p_${Date.now()}`, refNumber: maxRef + 1, firstName: "", lastName: "", gender: "",
             events: [], notes: "", links: {}, relations: { parents: [], children: [], spouseId: null }

@@ -21,6 +21,8 @@ import RelationSettings from './RelationSettings.jsx';
 import GedcomImporter from './GedcomImporter.jsx';
 import DashboardView from './DashboardView.jsx';
 import RelationshipPanel from './RelationshipPanel.jsx';
+import AutomatchModal from './AutomatchModal.jsx';
+import RelationshipCalculatorModal from './RelationshipCalculatorModal.jsx';
 import { MediaManager } from './MediaManager.jsx';
 import WindowFrame from './WindowFrame.jsx';
 import LinkPersonModal from './LinkPersonModal.jsx';
@@ -81,6 +83,8 @@ function App() {
       setSourceCatalogState({});
       setPlaceCatalogState({});
       setFamilyTreeFocusPersonId(null);
+      setIsAutomatchModalOpen(false);
+      setIsRelationshipCalculatorOpen(false);
       setSourcingEventInfo(null);
       setIsSourceDrawerOpen(false);
       setIsPlaceDrawerOpen(false);
@@ -153,6 +157,8 @@ function App() {
   const [isGedcomExportModalOpen, setIsGedcomExportModalOpen] = useState(false);
   const [mediaFolderPath, setMediaFolderPathState] = useState((dbData?.meta && dbData.meta.mediaFolderPath) || '');
   const [theme, setTheme] = useState(() => getInitialTheme(dbData?.meta?.theme));
+  const [isAutomatchModalOpen, setIsAutomatchModalOpen] = useState(false);
+  const [isRelationshipCalculatorOpen, setIsRelationshipCalculatorOpen] = useState(false);
 
   const [isPeopleEditorDocked, setIsPeopleEditorDocked] = useState(() => {
     try {
@@ -1362,19 +1368,6 @@ function App() {
           {(!activeTab || activeTab === 'people') && (
             <div className="w-full h-full min-h-0 flex flex-col people-docked-scroll">
               <div className="tab-content w-full flex flex-col min-h-0">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4 shrink-0">
-                  <div className="lg:col-span-2">
-                    <SuggestionsPanel allPeople={visiblePeople} onOpenPair={(pair) => { setMergeInitialPair(pair); setShowDuplicateMerge(true); }} />
-                  </div>
-                  <RelationshipPanel
-                    focusPair={focusPair || { primary: null, secondary: null }}
-                    allPeople={dbData?.people || visiblePeople}
-                    onClearFocus={handleClearFocus}
-                    onSwapFocus={handleSwapFocus}
-                    inline={true}
-                  />
-                </div>
-
                 <div className="flex-1 min-h-0">
                   <PersonList
                     people={visiblePeople}
@@ -1441,7 +1434,7 @@ function App() {
           )}
 
           {activeTab === 'tools' && (
-            <div className="tab-content flex items-center justify-center h-full">
+            <div className="tab-content flex flex-wrap items-center justify-center gap-6 h-full p-8">
               <Button
                 variant="primary"
                 size="lg"
@@ -1450,6 +1443,26 @@ function App() {
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                 OAI-PMH arkivharvester
+              </Button>
+              
+              <Button
+                variant="primary"
+                size="lg"
+                onClick={() => setIsAutomatchModalOpen(true)}
+                className="flex items-center gap-3 px-8 py-4 text-lg"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                Automatch-förslag
+              </Button>
+              
+              <Button
+                variant="primary"
+                size="lg"
+                onClick={() => setIsRelationshipCalculatorOpen(true)}
+                className="flex items-center gap-3 px-8 py-4 text-lg"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.856-1.487M15 10a3 3 0 11-6 0 3 3 0 016 0zM15 20H9m6-12h-3V9a3 3 0 014.471 4.472l-2.471-2.472z" /></svg>
+                Släktskapsberäkning
               </Button>
             </div>
           )}
@@ -1911,6 +1924,23 @@ function App() {
           }}
         />
       )}
+
+      <AutomatchModal
+        isOpen={isAutomatchModalOpen}
+        onClose={() => setIsAutomatchModalOpen(false)}
+        allPeople={visiblePeople}
+        onOpenPair={(pair) => {
+          setMergeInitialPair(pair);
+          setShowDuplicateMerge(true);
+          setIsAutomatchModalOpen(false);
+        }}
+      />
+
+      <RelationshipCalculatorModal
+        isOpen={isRelationshipCalculatorOpen}
+        onClose={() => setIsRelationshipCalculatorOpen(false)}
+        allPeople={visiblePeople}
+      />
 
       {isGedcomImporterOpen && (
         <div className="modal" style={{display: 'block', zIndex: 3000}}>

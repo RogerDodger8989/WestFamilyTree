@@ -30,6 +30,29 @@ function normalizeXref(x) {
   }
 }
 
+function normalizeRefNumberValue(value) {
+  const text = String(value ?? '').trim();
+  if (!text) return null;
+  const parsed = Number.parseInt(text, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return parsed;
+}
+
+function allocateUniqueRefNumber(preferredRef, fallbackRef, usedRefs) {
+  const preferred = normalizeRefNumberValue(preferredRef);
+  if (preferred !== null && !usedRefs.has(String(preferred))) {
+    usedRefs.add(String(preferred));
+    return preferred;
+  }
+
+  let candidate = normalizeRefNumberValue(fallbackRef) || 1;
+  while (usedRefs.has(String(candidate))) {
+    candidate += 1;
+  }
+  usedRefs.add(String(candidate));
+  return candidate;
+}
+
 // Normalize incoming title/archive fields that sometimes are objects
 function normalizeTitleField(v) {
   if (v === null || v === undefined) return '';
@@ -456,10 +479,10 @@ function mergeSourceFields(existing, incoming, db) {
 }
 
 // Create person object compatible with existing app shape
-function buildPerson(mappedPerson, nextRef) {
+function buildPerson(mappedPerson, nextRef, usedRefs) {
   return {
     id: genId('p'),
-    refNumber: nextRef,
+    refNumber: allocateUniqueRefNumber(mappedPerson && mappedPerson.refNumber, nextRef, usedRefs),
     firstName: mappedPerson.firstName || '',
     lastName: mappedPerson.lastName || '',
     gender: mappedPerson.gender || '',
@@ -479,7 +502,15 @@ function applyCreateAll(dbData, mapped) {
   ensureMeta(db);
   const diagProblems = [];
   const existingPeople = db.people || [];
-  let maxRef = existingPeople.reduce((m, p) => (p.refNumber > m ? p.refNumber : m), 0);
+  const usedRefs = new Set();
+  for (const person of existingPeople) {
+    const ref = normalizeRefNumberValue(person && person.refNumber);
+    if (ref !== null) usedRefs.add(String(ref));
+  }
+  let maxRef = existingPeople.reduce((m, p) => {
+    const ref = normalizeRefNumberValue(p && p.refNumber);
+    return ref !== null && ref > m ? ref : m;
+  }, 0);
   const created = { people: [], families: [], sources: [] };
 
   // Create people
@@ -508,6 +539,10 @@ function applyCreateAll(dbData, mapped) {
         const updates = {};
         if (!p.firstName && mp.firstName) updates.firstName = mp.firstName;
         if (!p.lastName && mp.lastName) updates.lastName = mp.lastName;
+        if (mp.refNumber && normalizeRefNumberValue(p && p.refNumber) === null) {
+          updates.refNumber = allocateUniqueRefNumber(mp.refNumber, maxRef + 1, usedRefs);
+          maxRef = Math.max(maxRef, normalizeRefNumberValue(updates.refNumber) || maxRef);
+        }
         if (!p.gender && mp.gender) updates.gender = mp.gender;
         if ((!p.notes || p.notes === '') && mp.notes) updates.notes = mp.notes;
         if (mp.events && mp.events.length) {
@@ -521,7 +556,8 @@ function applyCreateAll(dbData, mapped) {
     }
 
     maxRef += 1;
-    const person = buildPerson(mp, maxRef);
+    const person = buildPerson(mp, maxRef, usedRefs);
+    maxRef = Math.max(maxRef, normalizeRefNumberValue(person.refNumber) || maxRef);
     db.people = [...(db.people || []), person];
     if (mp.xref) {
       const orig = mp.xref;
@@ -844,7 +880,15 @@ function applyMatchByXref(dbData, mapped) {
   const created = { people: [], families: [], sources: [] };
   const updated = { people: [], families: [], sources: [] };
 
-  let maxRef = (db.people || []).reduce((m, p) => (p.refNumber > m ? p.refNumber : m), 0);
+  const usedRefs = new Set();
+  for (const person of (db.people || [])) {
+    const ref = normalizeRefNumberValue(person && person.refNumber);
+    if (ref !== null) usedRefs.add(String(ref));
+  }
+  let maxRef = (db.people || []).reduce((m, p) => {
+    const ref = normalizeRefNumberValue(p && p.refNumber);
+    return ref !== null && ref > m ? ref : m;
+  }, 0);
 
   // People: try to match by xref -> existing id in meta
   for (const mp of (mapped.people || [])) {
@@ -858,6 +902,10 @@ function applyMatchByXref(dbData, mapped) {
         const updates = {};
         if (!p.firstName && mp.firstName) updates.firstName = mp.firstName;
         if (!p.lastName && mp.lastName) updates.lastName = mp.lastName;
+        if (mp.refNumber && normalizeRefNumberValue(p && p.refNumber) === null) {
+          updates.refNumber = allocateUniqueRefNumber(mp.refNumber, maxRef + 1, usedRefs);
+          maxRef = Math.max(maxRef, normalizeRefNumberValue(updates.refNumber) || maxRef);
+        }
         const mergedEvents = [...(p.events || []), ...((mp.events || []).map(ev => ({ id: genId('e'), type: ev.type, date: ev.date || '', place: ev.place || '' })))]
           .slice(-50);
         updates.events = mergedEvents;
@@ -868,7 +916,8 @@ function applyMatchByXref(dbData, mapped) {
     } else {
       // create new person
       maxRef += 1;
-      const person = buildPerson(mp, maxRef);
+      const person = buildPerson(mp, maxRef, usedRefs);
+      maxRef = Math.max(maxRef, normalizeRefNumberValue(person.refNumber) || maxRef);
       db.people = [...(db.people || []), person];
       if (mp.xref) {
         const orig = mp.xref;

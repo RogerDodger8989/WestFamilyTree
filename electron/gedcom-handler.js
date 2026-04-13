@@ -370,6 +370,9 @@ async function writeGedcom(dbData, options = {}) {
         lines.push(`1 NAME ${fullName}`);
         if (firstName) lines.push(`2 GIVN ${firstName}`);
         if (lastName) lines.push(`2 SURN ${lastName}`);
+        if (person.refNumber !== undefined && person.refNumber !== null && String(person.refNumber).trim() !== '') {
+          lines.push(`1 REFN ${escapeGedcomValue(String(person.refNumber).trim())}`);
+        }
 
         // SEX
         if (person.gender) {

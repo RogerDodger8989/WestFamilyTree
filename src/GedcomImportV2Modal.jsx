@@ -13,11 +13,25 @@ export default function GedcomImportV2Modal({ open, onClose }) {
     // Undvik dubbletter: bygg index på REF och sourRef
     setDbData(prev => {
       // Personer
-      const peopleByRef = new Map((prev.people || []).map(p => [p.refNumber, p]));
+      const usedRefs = new Set((prev.people || []).map(p => String(p.refNumber || '').trim()).filter(Boolean));
+      let maxRef = (prev.people || []).reduce((max, person) => {
+        const ref = Number.parseInt(person?.refNumber, 10);
+        return Number.isFinite(ref) && ref > max ? ref : max;
+      }, 0);
+      const nextRef = () => {
+        let candidate = maxRef + 1;
+        while (usedRefs.has(String(candidate))) {
+          candidate += 1;
+        }
+        usedRefs.add(String(candidate));
+        maxRef = candidate;
+        return String(candidate);
+      };
       const newPeople = [];
       for (const ind of data.individuals || []) {
-        const ref = ind.REF || '';
-        if (ref && peopleByRef.has(ref)) continue; // hoppa över dubblett
+        const incomingRef = String(ind.REF || '').trim();
+        const ref = incomingRef && !usedRefs.has(incomingRef) ? incomingRef : nextRef();
+        usedRefs.add(String(ref));
 
         // Hämta förnamn och efternamn robust
         let firstName = ind.GIVN || '';

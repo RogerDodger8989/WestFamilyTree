@@ -470,5 +470,269 @@
       }
     },
     "sourceIds": []
+  },
+  {
+    "id": "audit_1776009117499_wjb5aot",
+    "type": "edit",
+    "entityType": "person",
+    "entityId": "p_1775324699529",
+    "actor": "local",
+    "timestamp": "2026-04-12T15:51:57.499Z",
+    "details": {
+      "before": {
+        "firstName": "Anna Stina \"Ann\"",
+        "lastName": "Svensson",
+        "refNumber": 1
+      },
+      "after": {
+        "firstName": "Anna Stina \"Ann\"",
+        "lastName": "Svensson",
+        "refNumber": 2
+      },
+      "changes": {
+        "refNumber": {
+          "before": 1,
+          "after": 2
+        }
+      }
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776009123998_4gvwveg",
+    "type": "edit",
+    "entityType": "person",
+    "entityId": "p_1775324699529",
+    "actor": "local",
+    "timestamp": "2026-04-12T15:52:03.998Z",
+    "details": {
+      "before": {
+        "firstName": "Anna Stina \"Ann\"",
+        "lastName": "Svensson",
+        "refNumber": 2
+      },
+      "after": {
+        "firstName": "Anna Stina \"Ann\"",
+        "lastName": "Svensson",
+        "refNumber": 1
+      },
+      "changes": {
+        "refNumber": {
+          "before": 2,
+          "after": 1
+        }
+      }
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776009455581_bdi5bcr",
+    "type": "edit",
+    "entityType": "person",
+    "entityId": "p_1775325505905",
+    "actor": "local",
+    "timestamp": "2026-04-12T15:57:35.581Z",
+    "details": {
+      "before": {
+        "firstName": "dotter",
+        "lastName": "Svensson",
+        "refNumber": 3
+      },
+      "after": {
+        "firstName": "dotter",
+        "lastName": "Svensson",
+        "refNumber": 2
+      },
+      "changes": {
+        "refNumber": {
+          "before": 3,
+          "after": 2
+        }
+      }
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776013250878_njezw5b",
+    "type": "archive",
+    "entityType": "person",
+    "entityId": "p_1776012638013",
+    "actor": "local",
+    "timestamp": "2026-04-12T17:00:50.878Z",
+    "details": {
+      "name": "Ny Förälder "
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776018481488_4wuzpuj",
+    "type": "archive",
+    "entityType": "person",
+    "entityId": "p_1776013465791",
+    "actor": "local",
+    "timestamp": "2026-04-12T18:28:01.488Z",
+    "details": {
+      "name": "Ny Partner "
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776018680035_hgzj0ju",
+    "type": "archive",
+    "entityType": "person",
+    "entityId": "p_1776018569514",
+    "actor": "local",
+    "timestamp": "2026-04-12T18:31:20.035Z",
+    "details": {
+      "name": "Ny Förälder "
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776018681880_1n6zcey",
+    "type": "archive",
+    "entityType": "person",
+    "entityId": "p_1776018666449",
+    "actor": "local",
+    "timestamp": "2026-04-12T18:31:21.880Z",
+    "details": {
+      "name": "Ny Förälder "
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776018717302_lgeykt3",
+    "type": "archive",
+    "entityType": "person",
+    "entityId": "p_1776018696454",
+    "actor": "local",
+    "timestamp": "2026-04-12T18:31:57.302Z",
+    "details": {
+      "name": "Ny Förälder "
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776018718857_krfddir",
+    "type": "archive",
+    "entityType": "person",
+    "entityId": "p_1776018698680",
+    "actor": "local",
+    "timestamp": "2026-04-12T18:31:58.857Z",
+    "details": {
+      "name": "Ny Förälder "
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776061742123_md6jg6o",
+    "type": "archive",
+    "entityType": "person",
+    "entityId": "p_1776059007697",
+    "actor": "local",
+    "timestamp": "2026-04-13T06:29:02.123Z",
+    "details": {
+      "name": "Ny Partner "
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776061743960_hsmai82",
+    "type": "archive",
+    "entityType": "person",
+    "entityId": "p_1776059037107",
+    "actor": "local",
+    "timestamp": "2026-04-13T06:29:03.960Z",
+    "details": {
+      "name": "Nytt Barn "
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776061948605_iced1vp",
+    "type": "edit",
+    "entityType": "person",
+    "entityId": "p_1776061930553",
+    "actor": "local",
+    "timestamp": "2026-04-13T06:32:28.605Z",
+    "details": {
+      "before": {
+        "firstName": "Ny Förälder",
+        "lastName": "",
+        "refNumber": 4
+      },
+      "after": {
+        "firstName": "Far",
+        "lastName": "",
+        "refNumber": 4
+      },
+      "changes": {
+        "firstName": {
+          "before": "Ny Förälder",
+          "after": "Far"
+        }
+      }
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776075993904_wteumu3",
+    "type": "archive",
+    "entityType": "person",
+    "entityId": "p_1776062004112",
+    "actor": "local",
+    "timestamp": "2026-04-13T10:26:33.904Z",
+    "details": {
+      "name": "Nytt Barn "
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776075995839_xtalj7w",
+    "type": "archive",
+    "entityType": "person",
+    "entityId": "p_1776062014580",
+    "actor": "local",
+    "timestamp": "2026-04-13T10:26:35.839Z",
+    "details": {
+      "name": "Ny Partner "
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776075997475_otkqgae",
+    "type": "archive",
+    "entityType": "person",
+    "entityId": "p_1776062017988",
+    "actor": "local",
+    "timestamp": "2026-04-13T10:26:37.475Z",
+    "details": {
+      "name": "Nytt Barn 2 "
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776075999245_uj7j09q",
+    "type": "archive",
+    "entityType": "person",
+    "entityId": "p_1776061930553",
+    "actor": "local",
+    "timestamp": "2026-04-13T10:26:39.245Z",
+    "details": {
+      "name": "Far "
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776076000436_kia9xyj",
+    "type": "archive",
+    "entityType": "person",
+    "entityId": "p_1776061789262",
+    "actor": "local",
+    "timestamp": "2026-04-13T10:26:40.436Z",
+    "details": {
+      "name": "d d"
+    },
+    "sourceIds": []
   }
 ]
