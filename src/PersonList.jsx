@@ -79,10 +79,13 @@ function GenderIcon({ gender, className = '' }) {
 function getDefaultVisibleColumnsByViewport() {
   const wideDefaults = {
     ref: true,
-    name: true,
+    firstName: true,
+    lastName: true,
     gender: true,
-    birth: true,
-    death: true,
+    birthYear: true,
+    birthPlace: true,
+    deathYear: true,
+    deathPlace: true,
     occupation: true
   };
 
@@ -91,10 +94,13 @@ function getDefaultVisibleColumnsByViewport() {
 
   return {
     ref: false,
-    name: true,
+    firstName: true,
+    lastName: true,
     gender: false,
-    birth: true,
-    death: true,
+    birthYear: true,
+    birthPlace: false,
+    deathYear: true,
+    deathPlace: false,
     occupation: false
   };
 }
@@ -116,12 +122,13 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
   const [contextMenu, setContextMenu] = useState({ isOpen: false, x: 0, y: 0, personId: null });
   const [colorMenu, setColorMenu] = useState({ isOpen: false, personId: null, color: BRANCH_COLOR_PRESETS[0] });
   const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false);
-  const [columnOrder, setColumnOrder] = useState(['ref', 'name', 'gender', 'birth', 'death', 'occupation']);
+  const [columnOrder, setColumnOrder] = useState(['ref', 'firstName', 'lastName', 'gender', 'birthYear', 'birthPlace', 'deathYear', 'deathPlace', 'occupation']);
   const [visibleColumns, setVisibleColumns] = useState(() => getDefaultVisibleColumnsByViewport());
   const [draggedColumnId, setDraggedColumnId] = useState(null);
   const [dragOverColumnId, setDragOverColumnId] = useState(null);
   const [hasLoadedColumnPreferences, setHasLoadedColumnPreferences] = useState(false);
   const advancedRuleCounterRef = useRef(1);
+  const columnDragSuppressSortRef = useRef(false);
   const columnsMenuRef = useRef(null);
   const { dbData, setDbData, undoMerge, restorePerson, showStatus, setFamilyTreeFocusPersonId, familyTreeFocusPersonId, recordAudit } = useApp();
 
@@ -631,8 +638,6 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
   };
 
   const personMatchesQuickFilter = (person, activeFilter) => {
-    if (activeFilter === 'missing-sources') return !personHasSources(person);
-    if (activeFilter === 'emigrants') return personIsEmigrant(person);
     if (activeFilter === 'warnings') return personHasWarnings(person);
     if (activeFilter === 'bookmarked') return bookmarks.includes(person.id);
     return true;
@@ -645,9 +650,28 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
       const directionSign = sortDirection === 'asc' ? 1 : -1;
 
       const sorted = [...people].sort((a, b) => {
-        if (sortBy === 'name') {
-          const nameDiff = getFullName(a).localeCompare(getFullName(b), 'sv');
-          return nameDiff !== 0 ? nameDiff * directionSign : byRef(a, b) * directionSign;
+        if (sortBy === 'firstName') {
+          const aFirst = String(a?.firstName || '').trim().toLowerCase();
+          const bFirst = String(b?.firstName || '').trim().toLowerCase();
+          const firstDiff = aFirst.localeCompare(bFirst, 'sv');
+          if (firstDiff !== 0) return firstDiff * directionSign;
+
+          const aLast = String(a?.lastName || '').trim().toLowerCase();
+          const bLast = String(b?.lastName || '').trim().toLowerCase();
+          const lastDiff = aLast.localeCompare(bLast, 'sv');
+          return lastDiff !== 0 ? lastDiff * directionSign : byRef(a, b) * directionSign;
+        }
+
+        if (sortBy === 'lastName') {
+          const aLast = String(a?.lastName || '').trim().toLowerCase();
+          const bLast = String(b?.lastName || '').trim().toLowerCase();
+          const lastDiff = aLast.localeCompare(bLast, 'sv');
+          if (lastDiff !== 0) return lastDiff * directionSign;
+
+          const aFirst = String(a?.firstName || '').trim().toLowerCase();
+          const bFirst = String(b?.firstName || '').trim().toLowerCase();
+          const firstDiff = aFirst.localeCompare(bFirst, 'sv');
+          return firstDiff !== 0 ? firstDiff * directionSign : byRef(a, b) * directionSign;
         }
 
         if (sortBy === 'created') {
@@ -662,6 +686,54 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
           const bUpdated = personAuditMeta.get(b.id)?.lastModifiedAt || 0;
           const diff = aUpdated - bUpdated;
           return diff !== 0 ? diff * directionSign : byRef(a, b) * directionSign;
+        }
+
+        if (sortBy === 'birthYear') {
+          const aYear = Number.parseInt(getBirthYear(a), 10);
+          const bYear = Number.parseInt(getBirthYear(b), 10);
+          const aValue = Number.isNaN(aYear) ? Number.POSITIVE_INFINITY : aYear;
+          const bValue = Number.isNaN(bYear) ? Number.POSITIVE_INFINITY : bYear;
+          const diff = aValue - bValue;
+          return diff !== 0 ? diff * directionSign : byRef(a, b) * directionSign;
+        }
+
+        if (sortBy === 'deathYear') {
+          const aYear = (() => {
+            const date = String(getDeathEvent(a)?.date || '');
+            const match = date.match(/(\d{4})/);
+            return match ? Number.parseInt(match[1], 10) : Number.NaN;
+          })();
+          const bYear = (() => {
+            const date = String(getDeathEvent(b)?.date || '');
+            const match = date.match(/(\d{4})/);
+            return match ? Number.parseInt(match[1], 10) : Number.NaN;
+          })();
+          const aValue = Number.isNaN(aYear) ? Number.POSITIVE_INFINITY : aYear;
+          const bValue = Number.isNaN(bYear) ? Number.POSITIVE_INFINITY : bYear;
+          const diff = aValue - bValue;
+          return diff !== 0 ? diff * directionSign : byRef(a, b) * directionSign;
+        }
+
+        if (sortBy === 'birthPlace') {
+          const aPlace = String(getBirthEvent(a)?.place || '').trim().toLowerCase();
+          const bPlace = String(getBirthEvent(b)?.place || '').trim().toLowerCase();
+          const diff = aPlace.localeCompare(bPlace, 'sv');
+          if (diff !== 0) return diff * directionSign;
+          const aFirst = String(a?.firstName || '').trim().toLowerCase();
+          const bFirst = String(b?.firstName || '').trim().toLowerCase();
+          const firstDiff = aFirst.localeCompare(bFirst, 'sv');
+          return firstDiff !== 0 ? firstDiff * directionSign : byRef(a, b) * directionSign;
+        }
+
+        if (sortBy === 'deathPlace') {
+          const aPlace = String(getDeathEvent(a)?.place || '').trim().toLowerCase();
+          const bPlace = String(getDeathEvent(b)?.place || '').trim().toLowerCase();
+          const diff = aPlace.localeCompare(bPlace, 'sv');
+          if (diff !== 0) return diff * directionSign;
+          const aFirst = String(a?.firstName || '').trim().toLowerCase();
+          const bFirst = String(b?.firstName || '').trim().toLowerCase();
+          const firstDiff = aFirst.localeCompare(bFirst, 'sv');
+          return firstDiff !== 0 ? firstDiff * directionSign : byRef(a, b) * directionSign;
         }
 
         return byRef(a, b) * directionSign;
@@ -686,15 +758,11 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
 
   const quickFilterCounts = useMemo(() => {
     const counts = {
-      'missing-sources': 0,
-      emigrants: 0,
       warnings: 0,
       bookmarked: 0
     };
 
     for (const person of sortedPeople) {
-      if (!personHasSources(person)) counts['missing-sources'] += 1;
-      if (personIsEmigrant(person)) counts.emigrants += 1;
       if (personHasWarnings(person)) counts.warnings += 1;
       if (bookmarks.includes(person.id)) counts.bookmarked += 1;
     }
@@ -786,10 +854,13 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
 
   const personColumns = useMemo(() => ([
     { id: 'ref', label: 'Ref Nr' },
-    { id: 'name', label: 'Namn' },
+    { id: 'firstName', label: 'F.Namn' },
+    { id: 'lastName', label: 'E.Namn' },
     { id: 'gender', label: 'Kön' },
-    { id: 'birth', label: 'Född (datum + plats)' },
-    { id: 'death', label: 'Död (datum + plats)' },
+    { id: 'birthYear', label: 'Född År' },
+    { id: 'birthPlace', label: 'Född Plats' },
+    { id: 'deathYear', label: 'Död År' },
+    { id: 'deathPlace', label: 'Död Plats' },
     { id: 'occupation', label: 'Yrke / Titel' }
   ]), []);
 
@@ -827,6 +898,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
   };
 
   const handleColumnDragStart = (columnId) => {
+    columnDragSuppressSortRef.current = true;
     setDraggedColumnId(columnId);
     setDragOverColumnId(null);
   };
@@ -848,6 +920,9 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
   };
 
   const handleColumnDragEnd = () => {
+    window.setTimeout(() => {
+      columnDragSuppressSortRef.current = false;
+    }, 120);
     setDraggedColumnId(null);
     setDragOverColumnId(null);
   };
@@ -875,7 +950,7 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
   const renderPersonCell = (person, columnId) => {
     if (columnId === 'ref') return <span className="font-mono text-xs text-muted">{person.refNumber || '-'}</span>;
 
-    if (columnId === 'name') {
+    if (columnId === 'firstName') {
       return (
         <div className="flex items-center gap-2 min-w-0">
           <span
@@ -897,14 +972,22 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
             title="Sätt som Sekundär Fokus"
           >★</span>
           <GenderIcon gender={person.gender} className="flex-shrink-0" />
-          <span className="truncate font-semibold text-primary">{person.firstName} {person.lastName}</span>
+          <span className="truncate font-semibold text-primary">{person.firstName || '-'}</span>
         </div>
       );
     }
 
+    if (columnId === 'lastName') return <span className="text-secondary font-medium">{person.lastName || '-'}</span>;
+
     if (columnId === 'gender') return <span className="text-secondary">{person.gender || person.sex || '-'}</span>;
-    if (columnId === 'birth') return <span className="text-secondary">{getDatePlaceText(getBirthEvent(person))}</span>;
-    if (columnId === 'death') return <span className="text-secondary">{getDatePlaceText(getDeathEvent(person))}</span>;
+    if (columnId === 'birthYear') return <span className="text-secondary">{getBirthYear(person) || '-'}</span>;
+    if (columnId === 'birthPlace') return <span className="text-secondary">{String(getBirthEvent(person)?.place || '-')}</span>;
+    if (columnId === 'deathYear') {
+      const deathDate = String(getDeathEvent(person)?.date || '');
+      const yearMatch = deathDate.match(/(\d{4})/);
+      return <span className="text-secondary">{yearMatch ? yearMatch[1] : '-'}</span>;
+    }
+    if (columnId === 'deathPlace') return <span className="text-secondary">{String(getDeathEvent(person)?.place || '-')}</span>;
     if (columnId === 'occupation') return <span className="text-secondary">{getOccupationText(person) || '-'}</span>;
 
     return <span className="text-muted">-</span>;
@@ -988,8 +1071,6 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
 
     if (quickFilter !== 'all') {
       const quickMap = {
-        'missing-sources': 'Snabbfilter: Saknar källor',
-        emigrants: 'Snabbfilter: Emigranter',
         warnings: 'Snabbfilter: Varningar'
       };
       chips.push({ id: 'quick', label: quickMap[quickFilter] || 'Snabbfilter', clear: () => setQuickFilter('all') });
@@ -1116,6 +1197,41 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
       window.removeEventListener('keydown', handleMenuShortcuts);
     };
   }, [contextMenu.isOpen, contextMenu.personId]);
+
+  const sortableColumns = useMemo(() => new Set([
+    'ref',
+    'firstName',
+    'lastName',
+    'birthYear',
+    'birthPlace',
+    'deathYear',
+    'deathPlace',
+    'created',
+    'updated'
+  ]), []);
+
+  const columnSortKeyMap = useMemo(() => ({
+    ref: 'ref',
+    firstName: 'firstName',
+    lastName: 'lastName',
+    birthYear: 'birthYear',
+    birthPlace: 'birthPlace',
+    deathYear: 'deathYear',
+    deathPlace: 'deathPlace'
+  }), []);
+
+  const handleColumnHeaderSort = (columnId) => {
+    if (columnDragSuppressSortRef.current) return;
+    const sortKey = columnSortKeyMap[columnId];
+    if (!sortKey || !sortableColumns.has(sortKey)) return;
+
+    if (sortBy === sortKey) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortBy(sortKey);
+      setSortDirection('asc');
+    }
+  };
 
   useEffect(() => {
     try {
@@ -1592,7 +1708,12 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
                 title="Sortera"
               >
                 <option value="ref">Sortera: REF</option>
-                <option value="name">Sortera: Namn</option>
+                <option value="firstName">Sortera: F.Namn</option>
+                <option value="lastName">Sortera: E.Namn</option>
+                <option value="birthYear">Sortera: Född År</option>
+                <option value="birthPlace">Sortera: Född Plats</option>
+                <option value="deathYear">Sortera: Död År</option>
+                <option value="deathPlace">Sortera: Död Plats</option>
                 <option value="created">Sortera: Skapad</option>
                 <option value="updated">Sortera: Senast ändrad</option>
               </select>
@@ -1633,20 +1754,6 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
               className={`px-2.5 py-1 rounded-full text-xs border ${quickFilter === 'all' ? 'bg-accent border-accent text-on-accent' : 'bg-surface border-subtle text-secondary hover:bg-surface-2'}`}
             >
               Alla
-            </button>
-            <button
-              type="button"
-              onClick={() => setQuickFilter('missing-sources')}
-              className={`px-2.5 py-1 rounded-full text-xs border ${quickFilter === 'missing-sources' ? 'bg-warning border-warning text-on-accent' : 'bg-surface border-subtle text-secondary hover:bg-surface-2'}`}
-            >
-              Saknar källor ({quickFilterCounts['missing-sources']})
-            </button>
-            <button
-              type="button"
-              onClick={() => setQuickFilter('emigrants')}
-              className={`px-2.5 py-1 rounded-full text-xs border ${quickFilter === 'emigrants' ? 'bg-success border-success text-on-accent' : 'bg-surface border-subtle text-secondary hover:bg-surface-2'}`}
-            >
-              Emigranter ({quickFilterCounts.emigrants})
             </button>
             <button
               type="button"
@@ -1706,7 +1813,22 @@ function PersonList({ people, onOpenEditModal, onOpenRelationModal, onDeletePers
                               className={`px-3 py-2 border-b border-subtle cursor-move select-none transition-colors ${isDragged ? 'opacity-50' : ''} ${isDropTarget ? 'border-l-4 border-l-accent bg-accent-soft' : ''}`}
                               title="Dra för att flytta kolumn"
                             >
-                              {column?.label || columnId}
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  handleColumnHeaderSort(columnId);
+                                }}
+                                className="inline-flex items-center gap-1 text-inherit hover:text-primary"
+                                title={`Sortera på ${column?.label || columnId}`}
+                              >
+                                <span>{column?.label || columnId}</span>
+                                {sortBy === columnSortKeyMap[columnId] && (
+                                  sortDirection === 'asc'
+                                    ? <ChevronUp className="w-3 h-3" />
+                                    : <ChevronDown className="w-3 h-3" />
+                                )}
+                              </button>
                             </th>
                           );
                         })}
