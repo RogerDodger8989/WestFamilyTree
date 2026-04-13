@@ -64,7 +64,40 @@
     return levels;
   }
   // Bygg hierarkisk källsträng av fält
-export function buildSourceString({ archive, volume, imagePage, page, aid, nad, raId, bildId, date }) {
+export function buildSourceString({ archiveTop, archive, sourceType, author, sourceTitle, title, volume, imagePage, page, aid, nad, raId, bildId, date }) {
+  const sourceTypeLabels = {
+    book: 'Bok',
+    website: 'Webbsida',
+    interview: 'Intervju',
+    document: 'Dokument',
+    newspaper: 'Tidning'
+  };
+
+  const isArchiveSource = Boolean(
+    aid || nad || raId || bildId ||
+    archiveTop === 'Arkiv Digital' || archiveTop === 'Riksarkivet' ||
+    archive === 'Arkiv Digital' || archive === 'Riksarkivet'
+  );
+
+  // Manual source (Övrigt): Övrigt - Källtyp - Författare - Titel (Datum) - sida
+  if (!isArchiveSource && (archiveTop === 'Övrigt' || sourceType || author || sourceTitle || title)) {
+    const typeLabel = sourceTypeLabels[String(sourceType || '').trim().toLowerCase()] || 'Dokument';
+    const authorLabel = String(author || '').trim() || 'Okänd författare';
+    const titleLabel = String(sourceTitle || title || 'Namnlös källa').trim();
+    const dateSuffix = date ? ` (${date})` : '';
+
+    let pageLabel = String(page || '').trim();
+    if (pageLabel) {
+      if (!/^(sid|sida|page)\b/i.test(pageLabel)) {
+        pageLabel = `sida ${pageLabel}`;
+      }
+    } else {
+      pageLabel = 'sida';
+    }
+
+    return `Övrigt - ${typeLabel} - ${authorLabel} - ${titleLabel}${dateSuffix} - ${pageLabel}`.trim();
+  }
+
   let str = '';
   // Lägg till Arkiv Digital ENDAST om archive är tomt eller inte redan börjar med Arkiv Digital
   if (archive && archive.trim() === 'Arkiv Digital') {

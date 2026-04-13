@@ -33,6 +33,7 @@ import {
   getEventTypeConfig,
   normalizeEventForType
 } from './eventFieldConfig.js';
+import { buildSourceString } from './parsing.js';
 
 // --- KONSTANTER ---
 
@@ -2964,7 +2965,11 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
     }
 
     const textToCopy = sourcesToCopy
-      .map((source) => String(source.sourceString || source.title || '').trim())
+      .map((source) => {
+        const formatted = buildSourceString(source);
+        const fallback = source.sourceString || source.title || '';
+        return String(formatted || fallback).trim();
+      })
       .filter(Boolean)
       .join('\n');
 

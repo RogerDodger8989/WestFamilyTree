@@ -7,6 +7,7 @@ import MediaImage from './components/MediaImage.jsx';
 import { getAvatarImageStyle } from './imageUtils.js';
 import { User, Tag, X } from 'lucide-react'; 
 import ContextMenu from './ContextMenu.jsx';
+import { buildSourceString } from './parsing.js';
 
 // --- SOURCE TYPE DEFINITIONS (GEDCOM compatible) ---
 const SOURCE_TYPES = {
@@ -82,6 +83,17 @@ function SourceContextMenu({ source, onCopy, onDelete, onCreateSibling, isFolder
 // --- CITATION FORMATTER ---
 function formatCitation(source) {
   if (!source) return '';
+  const isArchiveSource = Boolean(
+    source.aid || source.nad || source.raId || source.bildId || source.bildid ||
+    source.archiveTop === 'Arkiv Digital' || source.archiveTop === 'Riksarkivet' ||
+    source.archive === 'Arkiv Digital' || source.archive === 'Riksarkivet'
+  );
+
+  if (!isArchiveSource) {
+    const manualCitation = buildSourceString(source);
+    if (manualCitation) return manualCitation;
+  }
+
   if (source.archive === 'Arkiv Digital' && source.aid) {
     return `${source.title || ''} ${source.volume || ''} (${source.date || ''}) Bild ${source.imagePage || '?'} (AID: ${source.aid}, NAD: ${source.nad || ''})`.trim();
   }
