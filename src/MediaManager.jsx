@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import ImageViewer from './ImageViewer.jsx';
 import LinkPersonModal from './LinkPersonModal.jsx';
 import TrashModal from './TrashModal.jsx';
@@ -663,7 +663,8 @@ const translatePlaceType = (type) => {
 };
 
 export function MediaManager({ allPeople = [], allSources = [], onOpenEditModal = () => {}, onNavigateToSource = () => {}, onNavigateToPlace = () => {}, mediaItems: initialMedia = [], onUpdateMedia = () => {}, setIsSourceDrawerOpen = () => {}, setIsPlaceDrawerOpen = () => {}, onSelectMedia = null, selectedMediaIds = [] }) {
-  const { showUndoToast, showStatus, getAllTags } = useApp();
+  const { showUndoToast, showStatus, getAllTags, dbData } = useApp();
+  const activeMediaFolderPath = String(dbData?.meta?.mediaFolderPath || '').trim();
 
   // UI State
   const [viewMode, setViewMode] = useState('grid'); 
@@ -754,6 +755,87 @@ export function MediaManager({ allPeople = [], allSources = [], onOpenEditModal 
     setMediaItems(newMedia);
     onUpdateMedia(newMedia);
   };
+
+  const refreshMediaFromDisk = useCallback(async ({ silent = false } = {}) => {
+    if (!window.electronAPI || !window.electronAPI.scanMediaFolder) return;
+
+    try {
+      if (!silent && typeof showStatus === 'function') {
+        showStatus('Skannar media-mappen...', 'info');
+      }
+
+      const result = await window.electronAPI.scanMediaFolder();
+      if (!(result && result.success && result.media)) return;
+
+      const filesOnDisk = new Map();
+      result.media.forEach((m) => {
+        const key = m.filePath || m.url?.replace('media://', '').replace(/%2F/g, '/');
+        if (key) filesOnDisk.set(key, m);
+      });
+
+      updateMedia((prev) => {
+        const existingById = new Map(prev.map((m) => [m.id, m]));
+        const existingByPath = new Map(prev.map((m) => {
+          const path = m.filePath || m.url?.replace('media://', '').replace(/%2F/g, '/');
+          return [path, m];
+        }));
+
+        const merged = result.media.map((fileMedia) => {
+          const path = fileMedia.filePath || fileMedia.url?.replace('media://', '').replace(/%2F/g, '/');
+          const existing = existingById.get(fileMedia.id) || existingByPath.get(path);
+          if (existing) {
+            return {
+              ...existing,
+              fileSize: fileMedia.fileSize,
+              url: fileMedia.url,
+              filePath: fileMedia.filePath
+            };
+          }
+          return fileMedia;
+        });
+
+        const removed = [];
+        const finalMedia = merged.filter((m) => {
+          const path = m.filePath || m.url?.replace('media://', '').replace(/%2F/g, '/');
+          const existsOnDisk = filesOnDisk.has(path);
+          if (!existsOnDisk) removed.push(m.name || m.id);
+          return existsOnDisk;
+        });
+
+        const prevCount = prev.length;
+        const newCount = finalMedia.length - prevCount;
+        const removedCount = removed.length;
+
+        if (!silent && typeof showStatus === 'function') {
+          if (newCount > 0 && removedCount > 0) {
+            showStatus(`${newCount} nya bilder hittade, ${removedCount} bilder borttagna.`, 'info');
+          } else if (newCount > 0) {
+            showStatus(`${newCount} nya bilder hittade!`, 'success');
+          } else if (removedCount > 0) {
+            showStatus(`${removedCount} bilder borttagna från filsystemet.`, 'info');
+          } else {
+            showStatus('Inga ändringar hittades.', 'info');
+          }
+        }
+
+        return finalMedia;
+      });
+    } catch (error) {
+      console.error('[MediaManager] Error scanning media folder:', error);
+      if (!silent && typeof showStatus === 'function') {
+        showStatus(`Fel vid skanning: ${error.message}`, 'error');
+      }
+    }
+  }, [showStatus, updateMedia]);
+
+  useEffect(() => {
+    const handleExternalRefresh = () => {
+      refreshMediaFromDisk({ silent: true });
+    };
+
+    window.addEventListener('WFT:mediaRefreshRequested', handleExternalRefresh);
+    return () => window.removeEventListener('WFT:mediaRefreshRequested', handleExternalRefresh);
+  }, [refreshMediaFromDisk]);
   
   // Context Menu Handlers
   const handleContextMenu = (e, itemId) => {
@@ -2426,99 +2508,18 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
       <div className="min-h-14 border-b border-subtle flex flex-wrap items-center justify-between gap-2 px-4 py-2 bg-surface-2">
           <div className="flex items-center gap-2">
             <button
-              onClick={async () => {
-                if (window.electronAPI && window.electronAPI.scanMediaFolder) {
-                  try {
-                    if (typeof showStatus === 'function') {
-                      showStatus('Skannar media-mappen...', 'info');
-                    }
-                    const result = await window.electronAPI.scanMediaFolder();
-                    if (result && result.success && result.media) {
-                      // Skapa en map av filer som finns på disk (keyed by filePath)
-                      const filesOnDisk = new Map();
-                      result.media.forEach(m => {
-                        const key = m.filePath || m.url?.replace('media://', '').replace(/%2F/g, '/');
-                        if (key) filesOnDisk.set(key, m);
-                      });
-                      
-                      // Merga med befintlig media - använd metadata från databasen om den finns
-                      updateMedia(prev => {
-                        const existingById = new Map(prev.map(m => [m.id, m]));
-                        const existingByPath = new Map(prev.map(m => {
-                          const path = m.filePath || m.url?.replace('media://', '').replace(/%2F/g, '/');
-                          return [path, m];
-                        }));
-                        
-                        // Lägg till/uppdatera bilder som finns på disk
-                        const merged = result.media.map(fileMedia => {
-                          const path = fileMedia.filePath || fileMedia.url?.replace('media://', '').replace(/%2F/g, '/');
-                          // Försök hitta befintlig media via ID eller filePath
-                          const existing = existingById.get(fileMedia.id) || existingByPath.get(path);
-                          if (existing) {
-                            // Merga: behåll metadata från databasen, uppdatera fileSize
-                            return {
-                              ...existing,
-                              fileSize: fileMedia.fileSize,
-                              url: fileMedia.url, // Uppdatera URL om den ändrats
-                              filePath: fileMedia.filePath // Uppdatera filePath om den ändrats
-                            };
-                          } else {
-                            // Ny bild från filsystemet
-                            return fileMedia;
-                          }
-                        });
-                        
-                        // Ta bort bilder som inte längre finns på disk
-                        const removed = [];
-                        
-                        // Filtrera bort de som inte finns på disk
-                        const finalMedia = merged.filter(m => {
-                          const path = m.filePath || m.url?.replace('media://', '').replace(/%2F/g, '/');
-                          const existsOnDisk = filesOnDisk.has(path);
-                          if (!existsOnDisk) {
-                            removed.push(m.name || m.id);
-                          }
-                          return existsOnDisk;
-                        });
-                        
-                        const prevCount = prev.length;
-                        const newCount = finalMedia.length - prevCount;
-                        const removedCount = removed.length;
-                        
-                        if (newCount > 0 && removedCount > 0) {
-                          if (typeof showStatus === 'function') {
-                            showStatus(`${newCount} nya bilder hittade, ${removedCount} bilder borttagna.`, 'info');
-                          }
-                        } else if (newCount > 0) {
-                          if (typeof showStatus === 'function') {
-                            showStatus(`${newCount} nya bilder hittade!`, 'success');
-                          }
-                        } else if (removedCount > 0) {
-                          if (typeof showStatus === 'function') {
-                            showStatus(`${removedCount} bilder borttagna från filsystemet.`, 'info');
-                          }
-                        } else {
-                          if (typeof showStatus === 'function') {
-                            showStatus('Inga ändringar hittades.', 'info');
-                          }
-                        }
-                        
-                        return finalMedia;
-                      });
-                    }
-                  } catch (error) {
-                    console.error('[MediaManager] Error scanning media folder:', error);
-                    if (typeof showStatus === 'function') {
-                      showStatus(`Fel vid skanning: ${error.message}`, 'error');
-                    }
-                  }
-                }
-              }}
+              onClick={() => refreshMediaFromDisk({ silent: false })}
               className="px-3 py-1.5 bg-surface-2 border border-subtle hover:bg-surface text-primary text-xs rounded transition-colors flex items-center gap-1.5"
               title="Skanna media-mappen för nya bilder"
             >
               <RefreshCw size={14} /> Uppdatera
             </button>
+            <div
+              className="px-2.5 py-1.5 rounded border border-subtle bg-background text-[11px] text-muted max-w-[420px] truncate"
+              title={activeMediaFolderPath || 'Standard media-mapp används'}
+            >
+              Media-mapp: {activeMediaFolderPath || 'Standard (../media)'}
+            </div>
           </div>
           <div className="flex gap-2 items-center">
               <button

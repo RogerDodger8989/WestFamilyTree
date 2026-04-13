@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useLayoutEffect, useEffect, useRef } from 'react';
 import { useApp } from './AppContext';
-import ImageGallery from './ImageGallery.jsx';
 import Editor from './MaybeEditor.jsx';
 import Button from './Button.jsx';
 import MediaImage from './components/MediaImage.jsx';
+import MediaSelector from './MediaSelector.jsx';
 import { getAvatarImageStyle } from './imageUtils.js';
 import { User, Tag, X } from 'lucide-react'; 
 import ContextMenu from './ContextMenu.jsx';
@@ -251,7 +251,7 @@ export default function SourceCatalog({
     onUnlinkSourceFromEvent, 
     alreadyLinkedIds = [] 
 }) {
-  const { getAllTags, showStatus = () => {} } = useApp();
+  const { getAllTags, showStatus = () => {}, dbData, setDbData } = useApp();
   const { selectedSourceId, expanded, searchTerm, sortOrder = 'name_asc' } = catalogState; 
   const [importString, setImportString] = useState(''); 
   const listContainerRef = useRef(null);
@@ -592,6 +592,98 @@ export default function SourceCatalog({
   const handleSearch = (e) => setCatalogState(prev => ({ ...prev, searchTerm: e.target.value }));
   const handleSortChange = (e) => setCatalogState(prev => ({ ...prev, sortOrder: e.target.value }));
   const selectedSource = sources.find(s => s.id === selectedSourceId);
+  const currentMediaFolderPath = String(dbData?.meta?.mediaFolderPath || '').trim();
+
+  const requestMediaManagerRefresh = (reason = 'source-catalog') => {
+    if (typeof window === 'undefined' || typeof window.dispatchEvent !== 'function') return;
+    window.dispatchEvent(new CustomEvent('WFT:mediaRefreshRequested', { detail: { reason } }));
+  };
+  const sourceMediaItems = useMemo(() => {
+    if (!selectedSource) return [];
+    const refs = Array.isArray(selectedSource.images) ? selectedSource.images : [];
+    const mediaList = Array.isArray(dbData?.media) ? dbData.media : [];
+    const byId = new Map(mediaList.map((m) => [String(m?.id || ''), m]));
+    const byPath = new Map(mediaList.map((m) => [String(m?.filePath || '').replace(/\\/g, '/'), m]));
+
+    const resolved = refs
+      .map((entry) => {
+        const mediaId = String(typeof entry === 'string' ? entry : (entry?.mediaId || entry?.id || '')).trim();
+        const fallbackPath = String(typeof entry === 'object' ? (entry?.filePath || entry?.src || '') : '').replace(/\\/g, '/');
+        return (mediaId && byId.get(mediaId)) || (fallbackPath && byPath.get(fallbackPath)) || null;
+      })
+      .filter(Boolean);
+
+    const seen = new Set();
+    return resolved.filter((item) => {
+      const key = String(item?.id || '');
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [selectedSource, dbData?.media]);
+
+  const handleSourceMediaChange = (newMediaList) => {
+    if (!selectedSource?.id || !Array.isArray(newMediaList) || typeof setDbData !== 'function') return;
+
+    const selectedIds = new Set(newMediaList.map((item) => String(item?.id || '').trim()).filter(Boolean));
+
+    setDbData((prev) => {
+      if (!prev) return prev;
+
+      const prevMedia = Array.isArray(prev.media) ? prev.media : [];
+      const mediaMap = new Map(prevMedia.map((item) => [String(item?.id || ''), { ...item }]));
+
+      const toSourceIds = (sourcesValue) => {
+        if (!Array.isArray(sourcesValue)) return [];
+        return sourcesValue.map((entry) => String(typeof entry === 'string' ? entry : entry?.id || '')).filter(Boolean);
+      };
+
+      newMediaList.forEach((item) => {
+        const id = String(item?.id || '').trim();
+        if (!id) return;
+        const existing = mediaMap.get(id) || {};
+        const existingConn = existing.connections && typeof existing.connections === 'object' ? existing.connections : {};
+        const nextSourceIds = Array.from(new Set([...toSourceIds(existingConn.sources), selectedSource.id]));
+        mediaMap.set(id, {
+          ...existing,
+          ...item,
+          libraryId: 'sources',
+          connections: {
+            ...existingConn,
+            ...(item?.connections && typeof item.connections === 'object' ? item.connections : {}),
+            people: Array.isArray(existingConn.people) ? existingConn.people : [],
+            places: Array.isArray(existingConn.places) ? existingConn.places : [],
+            sources: nextSourceIds,
+          },
+        });
+      });
+
+      mediaMap.forEach((item, id) => {
+        const conn = item?.connections && typeof item.connections === 'object' ? item.connections : {};
+        const sourceIds = toSourceIds(conn.sources);
+        if (!sourceIds.includes(selectedSource.id)) return;
+        if (selectedIds.has(id)) return;
+        mediaMap.set(id, {
+          ...item,
+          connections: {
+            ...conn,
+            sources: sourceIds.filter((sourceId) => sourceId !== selectedSource.id),
+          },
+        });
+      });
+
+      const nextMedia = Array.from(mediaMap.values());
+      const nextSources = (Array.isArray(prev.sources) ? prev.sources : []).map((src) => {
+        if (!src || src.id !== selectedSource.id) return src;
+        return { ...src, images: Array.from(selectedIds) };
+      });
+
+      return { ...prev, media: nextMedia, sources: nextSources };
+    });
+
+    requestMediaManagerRefresh('source-media-change');
+  };
+
   const isArchiveManagedSource = Boolean(
     selectedSource && (
       selectedSource.archiveTop === 'Arkiv Digital' ||
@@ -1603,12 +1695,28 @@ export default function SourceCatalog({
 
                 {/* --- FLIK: BILDER --- */}
                 {activeRightTab === 'images' && (
-                    <div>
-                        <ImageGallery 
-                            source={selectedSource} 
-                            onEditSource={handleSave} 
-                            people={people} 
-                            onOpenEditModal={onOpenEditModal} 
+                    <div className="max-w-5xl mx-auto space-y-4">
+                        <div className="text-[10px] text-muted" title={currentMediaFolderPath || 'Standard media-mapp'}>
+                          Aktiv media-mapp: {currentMediaFolderPath || 'Standard (../media)'}
+                        </div>
+                        <MediaSelector
+                          media={sourceMediaItems}
+                          onMediaChange={handleSourceMediaChange}
+                          mediaSortConfig={selectedSource?.mediaSortConfig || { sortBy: 'custom', imageSize: 0.62 }}
+                          onMediaSortChange={(newConfig) => handleSave({ mediaSortConfig: newConfig })}
+                          entityType="source"
+                          entityId={selectedSource?.id}
+                          allPeople={people || []}
+                          onOpenEditModal={onOpenEditModal}
+                          allMediaItems={Array.isArray(dbData?.media) ? dbData.media : []}
+                          onUpdateAllMedia={(updatedAllMedia) => {
+                            if (typeof setDbData === 'function') {
+                              setDbData((prev) => ({ ...prev, media: updatedAllMedia }));
+                              requestMediaManagerRefresh('source-media-global-update');
+                            }
+                          }}
+                          allSources={sources || []}
+                          allPlaces={places || []}
                         />
                     </div>
                 )}

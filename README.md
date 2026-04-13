@@ -1,167 +1,117 @@
 # WestFamilyTree
 
-WestFamilyTree är ett modernt släktforskningsverktyg byggt med React och Electron. Programmet fokuserar på enkel hantering av personer, relationer, källor och import av GEDCOM-filer.
+En professionell, blixtsnabb och offline-först desktopapplikation för släktforskning. Byggd med modern webbteknik (Electron + React) men designad för att hantera tunga, lokala databaser (SQLite) med fokus på integritet, källkritik och svensk släktforskning (ArkivDigital & Riksarkivet).
 
-## Huvudfunktioner
+## 🌟 Huvudfunktioner
 
-- **Personregister**: Lägg till, redigera och visa personer med namn, födelse/död, relationer och noteringar.
-- **Relationer**: Koppla personer som föräldrar, barn, makar m.m. och visualisera släktträd.
-- **Källkatalog**: Hantera källor (arkiv, böcker, bilder) och koppla dem till personer och händelser.
-- **GEDCOM-import**: Importera släktdata från GEDCOM-filer med korrekt fältmappning (GIVN, SURN, BIRT, DEAT, osv).
-- **Dublettkontroll**: Grundläggande logik för att undvika dubbletter vid import och sammanslagning.
-- **Sök & filtrering**: Sök bland personer och källor, filtrera på olika attribut.
-- **Bildhantering**: 
-  - Koppla och visa bilder till källor och personer
-  - **🎯 MWG-Regions support**: Ansiktstaggar med koordinater (Lightroom/DigiKam kompatibelt)
-  - Rotera, beskära, justera ljus/kontrast
-  - Automatisk region-omberäkning vid beskärning
-- **EXIF/XMP-metadata**: 
-  - Läs och skriv EXIF-data med face tags
-  - Fullt stöd för MWG-Regions standarden
-  - 100% interoperabilitet med Lightroom och DigiKam
-  - Automatic backup före ändringar
-- **Undo/Redo**: Ångra och gör om ändringar i databasen.
-- **Export/Backup**: Exportera databasen eller skapa säkerhetskopior.
+### 👥 Person- & Relationshantering
+- **Detaljerat Personregister:** Hantera namn (födelsenamn, tidigare namn, smeknamn), kön, levnadsdatum och unika REF-nummer med inbyggd dubblettkontroll.
+- **Stensäker Tvåvägssynkronisering:** Om person A läggs till som förälder till person B, blir person B omedelbart och automatiskt barn till person A i databasen. Hanterar föräldrar, barn, partners och syskon.
+- **Smart Relationsmotor (Relation Engine):** Inbyggt varningssystem som flaggar "misstänkta" relationer (t.ex. förälder som är för ung/gammal, barn födda efter förälderns död, eller orimliga åldersskillnader mellan syskon/partners). Inställningsbara tröskelvärden.
+- **Interaktivt Släktträd:** Visuell navigering genom generationerna.
 
-## Teknik
+### 📖 Händelser & Biografi
+- **Livshändelser (Events):** Kronologisk hantering av händelser (Födelse, Dop, Vigsel, Yrke, Död, etc). 
+- **Kopplade Vittnen:** Koppla faddrar, präster, bouppteckningsmän och andra medverkande direkt till specifika händelser.
+- **Automatisk Biografi:** Generera en läsbar, löpande text om personens liv baserat på registrerade händelser, yrken och relationer med ett klick.
+- **Platsdatabas:** Hierarkisk platshantering (Gård, By, Socken, Kommun, Län, Land).
+
+### 📚 Avancerad Källkatalog (Svensk standard)
+- **Skräddarsydd för Sverige:** Fält och snabblänkar direkt anpassade för **ArkivDigital (AID)**, **Riksarkivet (BildID)** och **NAD**.
+- **Blixtsnabb Inmatning:** Kopiera en källreferens i webbläsaren och klistra in den direkt på en händelse i appen med automatisk tolkning.
+- **Trovärdighetsgradering:** Värdera källans pålitlighet (0-5 stjärnor).
+- **GEDCOM-Korrekt:** Stöd för fristående transkriberingar (`DATA.TEXT`) separat från egna noteringar (`NOTE`).
+- **Deduplicering:** Automatiskt återanvändande av Master-källor för att hålla databasen ren.
+
+### 🖼️ MediaManager & EXIF-hantering (MWG-Regions)
+- **Lokal Bildhantering:** Rekursiv skanning av din lokala bildmapp. Dra-och-släpp bilder eller klistra in direkt från urklipp.
+- **Inbyggd Bildvisare:** Zooma, panorera och rotera originaldokument direkt i appen.
+- **Ansiktsigenkänning & Taggning:** Markera ansikten i foton och koppla dem till personer i databasen.
+- **Cross-Compatible Metadata:** Skriver metadata (Keywords, Face Tags, Datum) direkt in i filernas EXIF/IPTC/XMP-data via en lokal Python-server (`exiftool`/`piexif`). Taggar du ett ansikte i WestFamilyTree, syns det i **Lightroom** och **DigiKam** (MWG-Regions standard).
+- **Papperskorg:** Säkert borttagande av media med 30 dagars ångerrätt (`.trash`-system).
+
+### 🔍 OCR & Textigenkänning
+- **Tesseract OCR:** Markera ett stycke i en gammal kyrkbok (bild) och låt appen automatiskt läsa av och transkribera texten till redigerbar text (optimerad för svenska och engelska).
+- **TrOCR Redo:** Backend-stöd inbyggt för HuggingFace TrOCR för avancerad tolkning av handskriven text.
+
+### 📝 Forskningsmodul (Workflow)
+- **Att-göra (Tasks):** Skapa forskningsuppgifter per person. Sätt prioritet (0-5), status (Pågående, Klar, etc) och deadlines.
+- **Obesvarade Frågor:** Lista de "Gåtor" du försöker lösa för varje anfader. Bocka av dem när källan är funnen.
+- **Forskningsnoteringar:** En dedikerad "kladdbok" (Rich Text Editor) per person för lösa teorier och analyser.
+
+### 🖨️ Personakt & Rapporter
+- **Proffsiga Utskrifter:** Skapa eleganta, bok-liknande personakter i A4-format (PDF/Utskrift) med klassisk serif-typografi.
+- **Valbart Innehåll:** Välj exakt vad som ska ingå: Basfakta, livshändelser, familjeöversikt, bildgalleri, biografiska noteringar och en komplett, indexerad källförteckning (fotnoter).
+
+### 🔄 GEDCOM 5.5.1 / 7.0
+- **Fullt Stöd:** Importera och Exportera standardiserade `.ged`-filer för att kommunicera med MyHeritage, Ancestry, Genney, Disgen, etc.
+- **Säker Import:** Förhandsgranskning och smarta merge-strategier vid import för att undvika dubbletter (Match by XREF / Name+Birth).
+
+## 🛠️ Teknisk Arkitektur
 
 ### Frontend
-- **React 18+** (UI och state management)
-- **Electron** (desktopintegration, filsystem)
-- **Tailwind CSS** (design och styling)
-- **Node.js** (build tools, server)
-- **Canvas API** (bildbehandling: rotation, crop, filters)
+- **React 18 & Vite:** Komponentbaserad, blixtsnabb rendering.
+- **Tailwind CSS:** Modern utility-first styling.
+- **Lucide Icons:** Stilrena och konsekventa ikoner.
+- **Design System:** Applikationen efterliknar ett strikt och rent Windows 11 Desktop-gränssnitt.
 
-### Backend
-- **Python 3.7+**
-  - `exif_manager.py`: EXIF/XMP metadata, MWG-Regions parsing (Lightroom/DigiKam compatible)
-  - `database_manager.py`: SQLite genealogy database
-  - `place_database_manager.py`: Place hierarchies
-  - `official_place_database.py`: Swedish official places registry
-  - `gedcom_handler.js`: GEDCOM import/export
-  - `api_server_cors.py`: Flask API server
+### Backend (Electron)
+- **Electron Main Process:** Hanterar all filsystemsåtkomst, fönsterhantering och native-dialoger.
+- **SQLite3 Databas:** Hela släktträdet (Personer, Källor, Platser, Media, Relationer, Meta) sparas i en enda portabel `.db` eller `.sqlite`-fil.
+- **Auto-Save:** Blixtsnabb, debouncad auto-sparning till SQLite i realtid vid varje ändring.
+- **Audit & Merges:** Automatiska JSON-loggar för versionshistorik och spårbarhet.
 
-### Kritiska Beroenden
-- **exiftool** (för MWG-Regions support) – **måste installeras separat** (se Installation)
-- **piexif** (fallback EXIF-hantering)
-- **Flask** + **Flask-CORS** (API server)
-- **SQLite** (databas)
+### Python Microservice (EXIF)
+För att garantera förstklassig hantering av bilders metadata används en lokal Flask-server integrerad med appen.
+- Läser och skriver avancerad EXIF, IPTC och XMP (MWG-Regions).
+- `exif_manager.py` utnyttjar Phil Harveys `exiftool` för bit-perfekt skrivning av data, med fallback till `piexif`.
 
-## EXIF & MWG-Regions (Metadata)
+---
 
-WestFamilyTree använder **MWG-Regions** standarden för ansiktstaggar, vilket ger full kompatibilitet med Lightroom och DigiKam.
+## 🚀 Kom igång (Utveckling)
 
-### Features
-- ✅ Läs/skriv MWG-Regions (mwg-rs:Name, mwg-rs:Area med koordinater)
-- ✅ Automatisk koordinat-konvertering: 0-100% (frontend) ↔ 0-1 (XMP standard)
-- ✅ Keywords/tags med XMP:Subject och IPTC:Keywords
-- ✅ Automatic backup före ändringar
-- ✅ Crop med automatisk region-räkning
-- ✅ Lightroom/DigiKam interoperabilitet
-
-### Hur det fungerar
-1. **I appen**: Du taggar ett ansikte, taggen sparas i 0-100% format
-2. **Backend**: Konverteras till 0-1, skrivs via exiftool till MWG-Regions
-3. **I Lightroom/DigiKam**: Du öppnar samma bild → taggen syns redan där!
-4. **Bidirektionellt**: Redigera i Lightroom, öppna i appen igen → uppdaterad
-
-Se [MWG_REGIONS_QUICKSTART.md](MWG_REGIONS_QUICKSTART.md) för snabb start.
-Se [MWG_REGIONS_TECHNICAL_GUIDE.md](MWG_REGIONS_TECHNICAL_GUIDE.md) för detaljer.
-
-## Att implementera/utveckla vidare
-
-- **Avancerad merge-logik för dubbletter**: 
-  - Identifiera och slå ihop personer/källor på fler sätt (t.ex. fuzzy match på namn, födelsedata, källreferenser).
-  - Logga och visa vilka poster som slogs ihop eller hoppades över vid import.
-- **Bättre GEDCOM-export**: 
-  - Möjlighet att exportera hela databasen till GEDCOM-format.
-- **Fler relationstyper**: 
-  - Stöd för t.ex. fosterföräldrar, samboskap, vittnen m.m.
-- **Källgranskning och betyg**: 
-  - Möjlighet att sätta tillförlitlighetsbetyg och kommentarer på källor.
-- **Platsregister**: 
-  - Hantera och koppla platser (församlingar, gårdar, länder) till personer och händelser.
-- **Avancerad sökning**: 
-  - Sök på kombinationer av fält, fritext, filter på relationer m.m.
-- **Användarhantering**: 
-  - Flera användare, rättigheter, delning av träd.
-- **Automatisk backup**: 
-  - Schemalagda säkerhetskopior och versionshantering.
-- **Responsiv design**: 
-  - Förbättra stöd för surfplattor och mobiler.
-
-## Kom igång
-
-### Systemkrav
-- **Node.js 14+** och **npm**
-- **Python 3.7+**
-- **exiftool** (för EXIF/metadata support) – se installation nedan
+### Förutsättningar
+- Node.js (v18+)
+- Python 3.8+ (för EXIF-servern)
+- ExifTool (rekommenderas starkt för fullt XMP-stöd)
 
 ### Installation
 
-Se [INSTALLATION.md](INSTALLATION.md) för fullständig installations-guide.
-
-**Snabb start:**
-
-1. Klona repot och installera beroenden:
-   ```bash
-   git clone <repo-url>
-   cd WestFamilyTree
+1. **Klona repot och installera Node-beroenden:**
+   \`\`\`bash
    npm install
-   ```
+   \`\`\`
 
-2. Installera exiftool:
-   - **Windows**: `choco install exiftool` eller ladda ner från https://exiftool.org
-   - **macOS**: `brew install exiftool`
-   - **Linux**: `sudo apt-get install exiftool`
+2. **Installera Python-beroenden (för EXIF-servern):**
+   \`\`\`bash
+   pip install flask piexif Pillow
+   \`\`\`
+   *(Installera även exiftool via choco/brew/apt för optimal funktion).*
 
-3. Starta alla tjänster:
-   ```bash
-   # Terminal 1: Frontend dev server
+3. **Starta applikationen i dev-läge:**
+   Du behöver starta tre terminaler:
+   
+   *Terminal 1 (Python EXIF-server):*
+   \`\`\`bash
+   python api_server.py
+   \`\`\`
+
+   *Terminal 2 (Vite Frontend):*
+   \`\`\`bash
    npm run dev
-   
-   # Terminal 2: Python API server
-   python api_server_cors.py
-   
-   # Terminal 3: Electron app (när frontend är klar)
+   \`\`\`
+
+   *Terminal 3 (Electron Backend):*
+   \`\`\`bash
    npm run electron
-   ```
+   \`\`\`
 
-   **Eller** använd den förbundna startscripten:
-   ```bash
-   npm run start:all  # startar alla tjänster parallellt
-   ```
+## 📂 Filstruktur & Data
 
-### Verifiering
-Verifiera att MWG-Regions fungerar:
-```bash
-python test_mwg_regions.py C:/path/to/test.jpg
-```
-
-Resultat: Alla 6 tester grön ✅ = system är klart!
-
-## Kontakt
-
-För frågor eller förslag, kontakta projektägaren via GitHub.
+All data är din egen och stannar på din dator.
+- **Databasen:** `min_slakt.db` (SQLite)
+- **Bilder:** Sökvägen konfigureras i inställningarna (som standard `../media`). Bilderna indexeras i undermappar som `persons/`, `sources/` och `places/`.
+- **Papperskorg:** Raderade bilder läggs i `media/.trash/` och behålls i 30 dagar innan permanent radering.
 
 ---
-
-## 📚 Dokumentation
-
-| Dokument | Innehål |
-|----------|---------|
-| [INSTALLATION.md](INSTALLATION.md) | **START HÄR**: Steg-för-steg installation för Windows/macOS/Linux |
-| [MWG_REGIONS_QUICKSTART.md](MWG_REGIONS_QUICKSTART.md) | Snabb start för EXIF/metadata och ansiktstaggar |
-| [MWG_REGIONS_TECHNICAL_GUIDE.md](MWG_REGIONS_TECHNICAL_GUIDE.md) | Teknisk guide för MWG-Regions, koordinatkconvertering, debugging |
-| [EXIF_README.md](EXIF_README.md) | EXIF metadata hantering, read/write operationer |
-| [GEDCOM_README.md](GEDCOM_README.md) | GEDCOM import/export guide, fältmappning |
-
----
-
-## 🎯 Snabb Navigation
-
-- **Ny användare?** → [INSTALLATION.md](INSTALLATION.md)
-- **Vill tagga ansikten?** → [MWG_REGIONS_QUICKSTART.md](MWG_REGIONS_QUICKSTART.md)
-- **Tekniska frågor om metadata?** → [MWG_REGIONS_TECHNICAL_GUIDE.md](MWG_REGIONS_TECHNICAL_GUIDE.md)
-- **Problem med exiftool?** → Se "Felsökning" i [INSTALLATION.md](INSTALLATION.md)
-- **Vill importera familjedata?** → [GEDCOM_README.md](GEDCOM_README.md)
+*WestFamilyTree – Byggt med passion för bevarandet av vår historia.*

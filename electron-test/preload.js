@@ -62,7 +62,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     permanentlyDeleteFromTrash: (trashFileName) => ipcRenderer.invoke('permanently-delete-from-trash', trashFileName),
     emptyTrash: (olderThanDays) => ipcRenderer.invoke('empty-trash', olderThanDays),
     scanMediaFolder: () => ipcRenderer.invoke('scan-media-folder'),
-    importImages: () => ipcRenderer.invoke('import-images'),
+    importImages: (targetSubfolder) => ipcRenderer.invoke('import-images', targetSubfolder),
+    selectMediaFolder: () => ipcRenderer.invoke('select-media-folder'),
     showTextContextMenu: () => ipcRenderer.send('show-text-context-menu'),
     // Add generic event listener for menu actions
     on: (channel, listener) => {

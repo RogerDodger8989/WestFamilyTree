@@ -6,6 +6,25 @@ console.log('IPC-handlers for last-opened-file are active!');
 const { loadSettings, saveSettings } = require('./settingsStore');
 
 const { ipcMain, app, BrowserWindow, Menu, protocol, shell } = require('electron');
+
+const getDefaultMediaRoot = () => require('path').join(__dirname, '..', 'media');
+
+const getMediaRoot = () => {
+  const settings = loadSettings() || {};
+  const configured = String(settings.mediaFolderPath || '').trim();
+  if (configured && require('path').isAbsolute(configured)) {
+    return configured;
+  }
+  return getDefaultMediaRoot();
+};
+
+const setMediaRoot = (folderPath) => {
+  const normalized = String(folderPath || '').trim();
+  if (!normalized) return;
+  const settings = loadSettings() || {};
+  settings.mediaFolderPath = normalized;
+  saveSettings(settings);
+};
 // IPC handler for saving the entire database (people, sources, places, meta)
 ipcMain.handle('save-database', async (event, fileHandle, data) => {
   // DEBUG: Logga vad som sparas (allra först)
@@ -306,7 +325,7 @@ ipcMain.handle('open-database', async (event, filePath) => {
 async function scanMediaFolder() {
   const path = require('path');
   const fs = require('fs');
-  const IMAGE_ROOT = path.join(__dirname, '..', 'media');
+  const IMAGE_ROOT = getMediaRoot();
   
   try {
     const mediaItems = [];
@@ -398,7 +417,7 @@ const path = require('path');
 const fs = require('fs');
 
 // Rensa gamla .sqlite-filer i media-mappen vid appstart (behåll bara de 5 senaste)
-const mediaDir = path.join(__dirname, '..', 'media');
+const mediaDir = getMediaRoot();
 try {
   const files = fs.readdirSync(mediaDir)
     .filter(f => f.endsWith('.sqlite'))
@@ -548,8 +567,7 @@ function createApplicationMenu() {
   Menu.setApplicationMenu(menu);
 }
 const openImage = require('./open-image');
-// Media-mapp i programmets katalog
-const IMAGE_ROOT = path.join(__dirname, '..', 'media');
+const getCurrentImageRoot = () => getMediaRoot();
 
 // IPC för att öppna bild i systemets visare
 ipcMain.on('open-image', (event, filePath) => {
@@ -569,6 +587,7 @@ console.log('============================================================');
 
 // Hjälpfunktion: Kombinera rot-mappen med den relativa sökvägen från appen.
 function forceImageRoot(filePath) {
+  const IMAGE_ROOT = getCurrentImageRoot();
   let relPath = filePath;
   
   // Dekoda till UTF-8 om det är en Buffer eller felaktigt kodad sträng
@@ -1188,6 +1207,7 @@ ipcMain.handle('write-exif-face-tags', async (event, filePath, faceTags, backup 
 // Copy file to media folder
 ipcMain.handle('copy-file-to-media', async (event, sourcePath, fileName) => {
   try {
+    const IMAGE_ROOT = getCurrentImageRoot();
     // ...existing code...
     
     // Om sourcePath är undefined, betyder det att det är en blob från webbläsare
@@ -1195,18 +1215,19 @@ ipcMain.handle('copy-file-to-media', async (event, sourcePath, fileName) => {
       return { success: false, error: 'No source path provided' };
     }
     
-    const destPath = path.join(IMAGE_ROOT, fileName);
+    const normalizedFileName = String(fileName || '').replace(/\\/g, '/').replace(/^\/+/, '');
+    const destPath = path.join(IMAGE_ROOT, normalizedFileName);
     
     console.log('[copy-file-to-media] Copying:', sourcePath, '->', destPath);
     
     // Skapa media-mappen om den inte finns
-      await fs.promises.mkdir(IMAGE_ROOT, { recursive: true });
+      await fs.promises.mkdir(path.dirname(destPath), { recursive: true });
     
     // Kopiera filen
       await fs.promises.copyFile(sourcePath, destPath);
     
     console.log('[copy-file-to-media] Success!');
-    return { success: true, filePath: fileName };
+    return { success: true, filePath: normalizedFileName };
   } catch (error) {
     console.error('[copy-file-to-media] Error:', error);
     return { success: false, error: error.message };
@@ -1216,6 +1237,7 @@ ipcMain.handle('copy-file-to-media', async (event, sourcePath, fileName) => {
 // Save file buffer to media folder (för drag-and-drop och paste)
 ipcMain.handle('save-file-buffer-to-media', async (event, fileBuffer, filePath) => {
   try {
+    const IMAGE_ROOT = getCurrentImageRoot();
     // Normalisera filePath (hantera både forward och backslashes)
     const normalizedPath = filePath.replace(/\\/g, '/');
     
@@ -1269,9 +1291,14 @@ ipcMain.handle('save-file-buffer-to-media', async (event, fileBuffer, filePath) 
 });
 
 // Import images - dialog + copy to media folder
-ipcMain.handle('import-images', async (event) => {
+ipcMain.handle('import-images', async (event, targetSubfolderRaw = '') => {
   try {
+    const IMAGE_ROOT = getCurrentImageRoot();
     // ...existing code...
+    const targetSubfolder = String(targetSubfolderRaw || '')
+      .replace(/\\/g, '/')
+      .replace(/^\/+|\/+$/g, '')
+      .replace(/\.\./g, '');
     
     // Visa fil-dialog
     const result = await dialog.showOpenDialog({
@@ -1292,15 +1319,17 @@ ipcMain.handle('import-images', async (event) => {
     const importedFiles = [];
     for (const sourcePath of result.filePaths) {
       const fileName = path.basename(sourcePath);
-      const destPath = path.join(IMAGE_ROOT, fileName);
+      const relativeTargetPath = targetSubfolder ? `${targetSubfolder}/${fileName}` : fileName;
+      const destPath = path.join(IMAGE_ROOT, relativeTargetPath);
       
       console.log('[import-images] Copying:', sourcePath, '->', destPath);
       
       try {
+        await fs.mkdir(path.dirname(destPath), { recursive: true });
         await fs.copyFile(sourcePath, destPath);
         importedFiles.push({
           fileName: fileName,
-          filePath: fileName,
+          filePath: relativeTargetPath,
           originalPath: sourcePath
         });
       } catch (error) {
@@ -1315,8 +1344,31 @@ ipcMain.handle('import-images', async (event) => {
   }
 });
 
+ipcMain.handle('select-media-folder', async () => {
+  try {
+    const { dialog } = require('electron');
+    const win = BrowserWindow.getFocusedWindow();
+    const result = await dialog.showOpenDialog(win, {
+      title: 'Välj media-mapp',
+      properties: ['openDirectory', 'createDirectory']
+    });
+
+    if (result.canceled || !Array.isArray(result.filePaths) || result.filePaths.length === 0) {
+      return { success: false, canceled: true };
+    }
+
+    const selectedPath = result.filePaths[0];
+    setMediaRoot(selectedPath);
+    await require('fs').promises.mkdir(selectedPath, { recursive: true });
+    return { success: true, folderPath: selectedPath };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
 // Get media file path (för att visa bilder från media-mappen)
 ipcMain.handle('get-media-path', async (event, fileName) => {
+  const IMAGE_ROOT = getCurrentImageRoot();
   const fullPath = path.join(IMAGE_ROOT, fileName);
   return fullPath;
 });

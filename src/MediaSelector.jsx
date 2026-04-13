@@ -55,6 +55,7 @@ export default function MediaSelector({
   const fileInputRef = useRef(null);
   const dropZoneRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [isImportingWindowsDialog, setIsImportingWindowsDialog] = useState(false);
   const [selectedIndices, setSelectedIndices] = useState(new Set());
   const imageSizeMultiplier = Number(mediaSortConfig?.imageSize ?? 0.62);
   const sortBy = mediaSortConfig?.sortBy || 'custom';
@@ -605,6 +606,63 @@ export default function MediaSelector({
     }
   };
 
+  const handleImportFromWindowsDialog = async () => {
+    if (!window.electronAPI || typeof window.electronAPI.importImages !== 'function') {
+      alert('Windows-dialog för import är inte tillgänglig i denna miljö.');
+      return;
+    }
+
+    const subfolder = entityType === 'source' ? 'sources' : entityType === 'person' ? 'persons' : entityType === 'place' ? 'places' : 'temp';
+    setIsImportingWindowsDialog(true);
+
+    try {
+      const result = await window.electronAPI.importImages(subfolder);
+      if (!result || !result.success || !Array.isArray(result.files) || result.files.length === 0) {
+        return;
+      }
+
+      const imported = result.files.map((file) => {
+        const filePath = String(file?.filePath || '').replace(/\\/g, '/');
+        return {
+          id: `img_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+          url: `media://${encodeURIComponent(filePath)}`,
+          filePath,
+          name: file.fileName || filePath.split('/').pop() || 'Bild',
+          date: new Date().toISOString().split('T')[0],
+          description: '',
+          tags: [],
+          note: '',
+          libraryId: subfolder,
+          connections: {
+            people: [],
+            places: [],
+            sources: entityType === 'source' && entityId ? [entityId] : []
+          }
+        };
+      });
+
+      const existingByPath = new Set(media.map((item) => String(item?.filePath || '').replace(/\\/g, '/')).filter(Boolean));
+      const uniqueImported = imported.filter((item) => !existingByPath.has(String(item.filePath || '')));
+      if (uniqueImported.length === 0) return;
+
+      onMediaChange([...media, ...uniqueImported]);
+      clearSelectedIndices();
+
+      if (onUpdateAllMedia) {
+        const existingGlobalByPath = new Set((allMediaItems || []).map((item) => String(item?.filePath || '').replace(/\\/g, '/')).filter(Boolean));
+        const uniqueGlobal = uniqueImported.filter((item) => !existingGlobalByPath.has(String(item.filePath || '')));
+        if (uniqueGlobal.length > 0) {
+          onUpdateAllMedia([...(allMediaItems || []), ...uniqueGlobal]);
+        }
+      }
+    } catch (error) {
+      console.error('[MediaSelector] Windows-dialog import failed:', error);
+      alert(`Fel vid import: ${error.message || error}`);
+    } finally {
+      setIsImportingWindowsDialog(false);
+    }
+  };
+
   // Hantera drag-and-drop för filer
   useEffect(() => {
     const dropZone = dropZoneRef.current;
@@ -703,12 +761,25 @@ export default function MediaSelector({
         <div className="flex items-center gap-2 flex-1">
           <button
             onClick={() => setIsMediaManagerOpen(true)}
-            className="p-1.5 bg-accent hover:bg-accent text-on-accent rounded transition-colors"
+            className="inline-flex items-center gap-1.5 px-2 py-1.5 bg-accent hover:bg-accent text-on-accent rounded transition-colors text-xs font-medium"
             title="Välj från bibliotek"
             aria-label="Välj från bibliotek"
           >
             <ImageIcon size={14} />
+            Välj bilder
           </button>
+          {entityType === 'source' && (
+            <button
+              onClick={handleImportFromWindowsDialog}
+              disabled={isImportingWindowsDialog}
+              className={`inline-flex items-center gap-1.5 px-2 py-1.5 rounded transition-colors text-xs font-medium ${isImportingWindowsDialog ? 'bg-surface-2 text-muted cursor-not-allowed' : 'bg-surface-2 hover:bg-surface text-primary'}`}
+              title="Importera bilder via Windows-dialog"
+              aria-label="Windows-dialog"
+            >
+              <UploadCloud size={14} />
+              {isImportingWindowsDialog ? 'Importerar...' : 'Windows-dialog'}
+            </button>
+          )}
           <input
             ref={fileInputRef}
             type="file"
