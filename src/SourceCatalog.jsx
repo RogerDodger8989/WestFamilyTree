@@ -6,11 +6,133 @@ import Button from './Button.jsx';
 import MediaImage from './components/MediaImage.jsx';
 import { getAvatarImageStyle } from './imageUtils.js';
 import { User, Tag, X } from 'lucide-react'; 
+import ContextMenu from './ContextMenu.jsx';
+
+// --- SOURCE TYPE DEFINITIONS (GEDCOM compatible) ---
+const SOURCE_TYPES = {
+  book: { label: 'Bok', fields: ['author', 'title', 'publisher', 'date'], icon: '📖' },
+  website: { label: 'Webbsida', fields: ['author', 'title', 'url', 'date'], icon: '🌐' },
+  interview: { label: 'Intervju', fields: ['interviewerName', 'intervieweeName', 'date'], icon: '🎤' },
+  document: { label: 'Dokument', fields: ['author', 'title', 'date'], icon: '📄' },
+  newspaper: { label: 'Tidning', fields: ['title', 'date', 'page'], icon: '📰' },
+};
+
+// --- CONTEXT MENU HELPER ---
+function SourceContextMenu({ source, onCopy, onDelete, onCreateSibling, isFolder, children }) {
+  const [contextMenu, setContextMenu] = useState(null);
+
+  const handleContextMenu = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ x: e.clientX, y: e.clientY, visible: true });
+  };
+
+  const handleClose = () => setContextMenu(null);
+
+  const menuItems = [];
+  
+  if (isFolder) {
+    menuItems.push({
+      label: '➕ Skapa ny källa på samma nivå',
+      onClick: () => {
+        onCreateSibling && onCreateSibling(source);
+        handleClose();
+      }
+    });
+  } else {
+    menuItems.push({ 
+      label: '📋 Kopiera källhänvisning', 
+      onClick: () => { 
+        onCopy && onCopy(source); 
+        handleClose();
+      } 
+    });
+    menuItems.push({ 
+      label: '➕ Skapa ny källa på samma nivå', 
+      onClick: () => { 
+        onCreateSibling && onCreateSibling(source); 
+        handleClose();
+      } 
+    });
+    menuItems.push({ 
+      label: '🗑️ Ta bort källa', 
+      onClick: () => { 
+        onDelete && onDelete(source.id); 
+        handleClose();
+      } 
+    });
+  }
+
+  return (
+    <>
+      <div onContextMenu={handleContextMenu}>{children}</div>
+      {contextMenu && contextMenu.visible && (
+        <ContextMenu
+          visible={true}
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={handleClose}
+          items={menuItems}
+        />
+      )}
+    </>
+  );
+}
+
+// --- CITATION FORMATTER ---
+function formatCitation(source) {
+  if (!source) return '';
+  if (source.archive === 'Arkiv Digital' && source.aid) {
+    return `${source.title || ''} ${source.volume || ''} (${source.date || ''}) Bild ${source.imagePage || '?'} (AID: ${source.aid}, NAD: ${source.nad || ''})`.trim();
+  }
+  if (source.archive === 'Riksarkivet' && source.bildid) {
+    return `${source.archive}, ${source.title || ''}, ${source.volume || ''} (${source.date || ''}), bildid: ${source.bildid}`.trim();
+  }
+  return `${source.title || 'Okänd källa'} ${source.volume ? `[${source.volume}]` : ''} (${source.date || ''})`.trim();
+}
+
+// --- AUTO-DEDUPLICATION HELPER ---
+function findMasterSource(db, incoming) {
+  if (!db || !db.sources || !incoming) return null;
+  const normalizeStr = (s) => (s || '').toString().trim().toLowerCase();
+  const incomingTitle = normalizeStr(incoming.title);
+  const incomingVolume = normalizeStr(incoming.volume);
+  
+  return (db.sources || []).find(src => 
+    normalizeStr(src.title) === incomingTitle && 
+    normalizeStr(src.volume) === incomingVolume
+  );
+}
+
+// --- ORPHANED SOURCES CHECKER ---
+function getOrphanedSourceIds(sources, people) {
+  if (!sources || !people) return [];
+  const usedSourceIds = new Set();
+  
+  people.forEach(person => {
+    if (person.events) {
+      person.events.forEach(event => {
+        if (event.sources) {
+          event.sources.forEach(sourceId => usedSourceIds.add(sourceId));
+        }
+      });
+    }
+  });
+  
+  return sources.filter(src => !usedSourceIds.has(src.id)).map(src => src.id);
+}
 
 // --- HJÄLPFUNKTIONER (Oförändrad) ---
 
 function buildSimpleTree(sources) {
   const tree = {};
+
+  const getSourceTypeLabel = (src) => {
+    const key = String(src?.sourceType || '').trim().toLowerCase();
+    if (key && SOURCE_TYPES[key]) return SOURCE_TYPES[key].label;
+    if (src?.sourceType) return String(src.sourceType);
+    return SOURCE_TYPES.document.label;
+  };
 
   for (const src of sources) {
     if (!src || !src.id) continue;
@@ -58,17 +180,28 @@ function buildSimpleTree(sources) {
         tree[topLevel][titleLevel][volLevel].push({ ...src, label: pageLabel });
 
     } else {
-        // HANTERING FÖR ÖVRIGT (3 Nivåer)
-        let bookLevel = src.title || "Namnlös källa";
-        if (!tree[topLevel][bookLevel]) tree[topLevel][bookLevel] = [];
+        // HANTERING FÖR ÖVRIGT (4 Nivåer)
+        // Övrigt -> Källtyp -> Författare -> Titel (Datum) -> källa
+        const sourceTypeLevel = getSourceTypeLabel(src);
+        if (!tree[topLevel][sourceTypeLevel]) tree[topLevel][sourceTypeLevel] = {};
+
+        const authorLevel = String(src.author || '').trim() || 'Okänd författare';
+        if (!tree[topLevel][sourceTypeLevel][authorLevel]) tree[topLevel][sourceTypeLevel][authorLevel] = {};
+
+        const titleBase = String(src.sourceTitle || src.title || 'Namnlös källa').trim();
+        const dateSuffix = src.date ? ` (${src.date})` : '';
+        const titleLevel = `${titleBase}${dateSuffix}`;
+        if (!tree[topLevel][sourceTypeLevel][authorLevel][titleLevel]) {
+          tree[topLevel][sourceTypeLevel][authorLevel][titleLevel] = [];
+        }
 
         let pageLabel = src.page || src.aid || src.imagePage || src.bildid;
         if (!pageLabel) {
             if (src.images && src.images.length > 0) pageLabel = "Bild";
             else pageLabel = "Källa (Allmän)";
         }
-        
-        tree[topLevel][bookLevel].push({ ...src, label: pageLabel });
+
+        tree[topLevel][sourceTypeLevel][authorLevel][titleLevel].push({ ...src, label: pageLabel });
     }
   }
   return tree;
@@ -106,7 +239,7 @@ export default function SourceCatalog({
     onUnlinkSourceFromEvent, 
     alreadyLinkedIds = [] 
 }) {
-  const { getAllTags } = useApp();
+  const { getAllTags, showStatus = () => {} } = useApp();
   const { selectedSourceId, expanded, searchTerm, sortOrder = 'name_asc' } = catalogState; 
   const [importString, setImportString] = useState(''); 
   const listContainerRef = useRef(null);
@@ -119,9 +252,26 @@ export default function SourceCatalog({
   const [tagSuggestions, setTagSuggestions] = useState([]);
   const tagInputRef = useRef(null);
 
-  // --- PARSER-LOGIK (Oförändrad) ---
+  // New state for GEDCOM features
+  const [showOrphanedOnly, setShowOrphanedOnly] = useState(false);
+
+  const buildExpandedStateForAllTreeNodes = (treeNode, prefix = '') => {
+    const out = {};
+    if (Array.isArray(treeNode)) return out;
+    Object.keys(treeNode || {}).forEach((key) => {
+      const path = `${prefix}${key}`;
+      out[path] = true;
+      Object.assign(out, buildExpandedStateForAllTreeNodes(treeNode[key], path));
+    });
+    return out;
+  };
+
+  // --- PARSER-LOGIK ---
   const parseSourceString = () => {
-      if (!importString || !importString.trim()) return;
+      if (!importString || !importString.trim()) {
+        showStatus('Klistra in en källtext först.', 'warning');
+        return;
+      }
       const text = importString.trim();
       let updates = { trust: 4 };
 
@@ -175,28 +325,90 @@ export default function SourceCatalog({
       const dateMatch = text.match(/\((\d{4}[-–]\d{4})\)/) || text.match(/\((\d{4})\)/);
       if (dateMatch) updates.date = dateMatch[1];
       
-      updates.note = ""; 
+      updates.note = "";
 
-      const safeUpdate = {
-          ...selectedSource,
-          ...updates,
-          title: updates.title || selectedSource.title || "",
-          archive: updates.archive || selectedSource.archive || "",
-          archiveTop: updates.archiveTop || selectedSource.archiveTop || "Övrigt",
-          volume: updates.volume || selectedSource.volume || "",
-          page: updates.page || selectedSource.page || "",
-          aid: updates.aid || selectedSource.aid || "",
-          nad: updates.nad || selectedSource.nad || "",
-          bildid: updates.bildid || selectedSource.bildid || "",
-          imagePage: updates.imagePage || selectedSource.imagePage || "",
-          date: updates.date || selectedSource.date || "",
-          note: updates.note, 
-          tags: updates.tags || selectedSource.tags || "",
+      // Guard: only continue if text could be parsed into meaningful AD/RA source fields.
+      const hasParseSignals = Boolean(
+        updates.aid ||
+        updates.bildid ||
+        (updates.nad && updates.volume) ||
+        (updates.volume && (updates.imagePage || updates.page))
+      );
+
+      if (!hasParseSignals) {
+        showStatus('Ogiltig text för snabb-import. Klistra in en AD/RA-källa.', 'warning');
+        return;
+      }
+
+      const parsedSource = {
+        title: updates.title || 'Ny källa',
+        sourceTitle: updates.title || 'Ny källa',
+        archive: updates.archive || '',
+        archiveTop: updates.archiveTop || 'Övrigt',
+        volume: updates.volume || '',
+        page: updates.page || '',
+        aid: updates.aid || '',
+        nad: updates.nad || '',
+        bildid: updates.bildid || '',
+        imagePage: updates.imagePage || '',
+        date: updates.date || '',
+        note: '',
+        tags: '',
+        trust: 4,
+        sourceType: 'document'
       };
 
+      // Duplicate handling (strong identity): focus existing source in expanded tree.
+      const norm = (v) => String(v || '').trim().toLowerCase();
+      const parsedAid = norm(parsedSource.aid);
+      const parsedBild = norm(parsedSource.bildid || parsedSource.bildId || parsedSource.raId);
+      const parsedNad = norm(parsedSource.nad);
+      const parsedVol = norm(parsedSource.volume);
+      const parsedDate = norm(parsedSource.date);
+
+      const existing = (sources || []).find((src) => {
+        if (!src) return false;
+        const srcAid = norm(src.aid);
+        const srcBild = norm(src.bildid || src.bildId || src.raId);
+        const srcNad = norm(src.nad);
+        const srcVol = norm(src.volume);
+        const srcDate = norm(src.date);
+
+        if (parsedAid && srcAid && parsedAid === srcAid) return true;
+        if (parsedBild && srcBild && parsedBild === srcBild) return true;
+        if (parsedNad && srcNad && parsedVol && srcVol && parsedNad === srcNad && parsedVol === srcVol) {
+          if (!parsedDate || !srcDate || parsedDate === srcDate) return true;
+        }
+        return false;
+      });
+
+      if (existing) {
+        const fullTree = buildSimpleTree(sources || []);
+        const expandedAll = buildExpandedStateForAllTreeNodes(fullTree);
+        setShowOrphanedOnly(false);
+        setCatalogState(prev => ({
+          ...prev,
+          selectedSourceId: existing.id,
+          searchTerm: '',
+          expanded: { ...expandedAll }
+        }));
+        setImportString('');
+        showStatus('Dublett hittad. Fokuserar och markerar befintlig källa.', 'success');
+        return;
+      }
+
+      // No duplicate: create a new source from parsed text.
+      if (onAddSource) {
+        onAddSource(parsedSource);
+        setImportString('');
+        showStatus('Ny källa skapad från snabb-import.', 'success');
+        return;
+      }
+
+      // Fallback if creation callback is unavailable.
       if (selectedSource) {
-          onEditSource(safeUpdate);
-          setImportString(''); 
+        onEditSource({ ...selectedSource, ...parsedSource });
+        setImportString('');
       }
   };
 
@@ -213,15 +425,27 @@ export default function SourceCatalog({
   }, [sources, sortOrder]);
 
   const filteredSources = useMemo(() => {
-    if (!searchTerm) return sortedSources;
-    const lower = searchTerm.toLowerCase();
-    return sortedSources.filter(s => 
-      (s.title && s.title.toLowerCase().includes(lower)) ||
-      (s.archive && s.archive.toLowerCase().includes(lower)) ||
-      (s.page && s.page.toLowerCase().includes(lower)) ||
-      (s.id && s.id.toLowerCase().includes(lower))
-    );
-  }, [sortedSources, searchTerm]);
+    let result = sortedSources;
+    if (!searchTerm) {
+      result = sortedSources;
+    } else {
+      const lower = searchTerm.toLowerCase();
+      result = sortedSources.filter(s => 
+        (s.title && s.title.toLowerCase().includes(lower)) ||
+        (s.archive && s.archive.toLowerCase().includes(lower)) ||
+        (s.page && s.page.toLowerCase().includes(lower)) ||
+        (s.id && s.id.toLowerCase().includes(lower))
+      );
+    }
+    
+    // Apply orphaned sources filter
+    if (showOrphanedOnly) {
+      const orphanedIds = getOrphanedSourceIds(sources, people);
+      result = result.filter(s => orphanedIds.includes(s.id));
+    }
+    
+    return result;
+  }, [sortedSources, searchTerm, showOrphanedOnly, sources, people]);
 
   const tree = useMemo(() => buildSimpleTree(filteredSources), [filteredSources]);
 
@@ -293,7 +517,61 @@ export default function SourceCatalog({
   const handleSearch = (e) => setCatalogState(prev => ({ ...prev, searchTerm: e.target.value }));
   const handleSortChange = (e) => setCatalogState(prev => ({ ...prev, sortOrder: e.target.value }));
   const selectedSource = sources.find(s => s.id === selectedSourceId);
-  const handleSave = (updatedFields) => { onEditSource({ ...selectedSource, ...updatedFields }); };
+  const isArchiveManagedSource = Boolean(
+    selectedSource && (
+      selectedSource.archiveTop === 'Arkiv Digital' ||
+      selectedSource.archiveTop === 'Riksarkivet' ||
+      selectedSource.archive === 'Arkiv Digital' ||
+      selectedSource.archive === 'Riksarkivet' ||
+      selectedSource.aid ||
+      selectedSource.bildid ||
+      selectedSource.nad
+    )
+  );
+
+    const findSourcePathKeys = (treeNode, sourceId, path = []) => {
+      if (Array.isArray(treeNode)) {
+        return treeNode.some((item) => item && item.id === sourceId) ? path : null;
+      }
+      for (const key of Object.keys(treeNode || {})) {
+        const res = findSourcePathKeys(treeNode[key], sourceId, [...path, key]);
+        if (res) return res;
+      }
+      return null;
+    };
+
+    const handleSave = (updatedFields) => {
+      if (!selectedSource) return;
+      const updatedSource = { ...selectedSource, ...updatedFields };
+      onEditSource(updatedSource);
+
+      // Keep tree focus and expansion in sync while renaming/re-grouping source.
+      const affectsTreePath = [
+        'title', 'sourceTitle', 'author', 'date', 'sourceType',
+        'archiveTop', 'archive', 'volume', 'imagePage', 'page'
+      ].some((k) => Object.prototype.hasOwnProperty.call(updatedFields, k));
+
+      if (!affectsTreePath) return;
+
+      const nextSources = (sources || []).map((s) => (s && s.id === updatedSource.id ? updatedSource : s));
+      const nextTree = buildSimpleTree(nextSources);
+      const keys = findSourcePathKeys(nextTree, updatedSource.id, []) || [];
+
+      let path = '';
+      const expandPatch = {};
+      for (const key of keys) {
+        path += key;
+        expandPatch[path] = true;
+      }
+
+      setShowOrphanedOnly(false);
+      setCatalogState((prev) => ({
+        ...prev,
+        selectedSourceId: updatedSource.id,
+        searchTerm: '',
+        expanded: { ...prev.expanded, ...expandPatch }
+      }));
+    };
 
   // Tag-funktioner (samma som MediaManager)
   // Använd centraliserad tag-lista från AppContext (alla taggar i appen)
@@ -459,63 +737,219 @@ export default function SourceCatalog({
   const imagesCount = selectedSource?.images?.length || 0;
   const notesCount = currentNotes.length;
 
-  // --- RENDER TREE (Oförändrad) ---
-  const renderTreeNodes = (node, pathPrefix) => {
+  const inferSourceTypeFromLabel = (label) => {
+    const text = String(label || '').trim().toLowerCase();
+    if (!text) return null;
+    if (text.includes('webb')) return 'website';
+    if (text.includes('intervju')) return 'interview';
+    if (text.includes('tidning')) return 'newspaper';
+    if (text.includes('bok')) return 'book';
+    if (text.includes('dokument')) return 'document';
+    return null;
+  };
+
+  const buildDefaultsForSameLevel = (target) => {
+    if (!target) return { archiveTop: 'Övrigt' };
+
+    // Leaf source: clone grouping context from the clicked source.
+    if (target.kind === 'source') {
+      const archiveTop = target.archiveTop || (target.archive === 'Arkiv Digital' || target.archive === 'Riksarkivet' ? target.archive : 'Övrigt');
+      return {
+        archiveTop,
+        archive: target.archive || (archiveTop === 'Arkiv Digital' || archiveTop === 'Riksarkivet' ? archiveTop : ''),
+        title: target.sourceTitle || target.title || '',
+        sourceTitle: target.sourceTitle || target.title || '',
+        author: target.author || '',
+        volume: target.volume || '',
+        date: target.date || '',
+        sourceType: target.sourceType || null
+      };
+    }
+
+    // Folder node: derive defaults from tree ancestry.
+    const ancestors = Array.isArray(target.ancestors) ? target.ancestors : [];
+    const root = ancestors[0] || 'Övrigt';
+    const defaults = {
+      archiveTop: root,
+      archive: (root === 'Arkiv Digital' || root === 'Riksarkivet') ? root : ''
+    };
+
+    if ((root === 'Arkiv Digital' || root === 'Riksarkivet') && ancestors.length >= 2) {
+      defaults.title = ancestors[1];
+    }
+
+    if ((root === 'Arkiv Digital' || root === 'Riksarkivet') && ancestors.length >= 3) {
+      const volLabel = String(ancestors[2] || '').trim();
+      const m = volLabel.match(/^(.*?)(?:\s*\[(\d{4}(?:[-–]\d{4})?)\])?$/);
+      defaults.volume = (m && m[1] ? m[1] : volLabel).trim();
+      defaults.date = (m && m[2]) ? m[2] : '';
+    }
+
+    if (root === 'Övrigt') {
+      const typeLabel = ancestors[1] || '';
+      const inferredType = inferSourceTypeFromLabel(typeLabel);
+      if (inferredType) defaults.sourceType = inferredType;
+
+      if (ancestors.length >= 3) {
+        defaults.author = ancestors[2] === 'Okänd författare' ? '' : ancestors[2];
+      }
+
+      if (ancestors.length >= 4) {
+        const titleWithDate = String(ancestors[3] || '').trim();
+        const m = titleWithDate.match(/^(.*?)(?:\s+\((\d{4}(?:[-–]\d{4})?)\))?$/);
+        const parsedTitle = (m && m[1] ? m[1] : titleWithDate).trim();
+        defaults.title = parsedTitle;
+        defaults.sourceTitle = parsedTitle;
+        if (m && m[2]) defaults.date = m[2];
+      }
+    }
+
+    // Also try infer source type from clicked folder label for non-Övrigt subfolders.
+    if (!defaults.sourceType) {
+      defaults.sourceType = inferSourceTypeFromLabel(ancestors[ancestors.length - 1]);
+    }
+
+    return defaults;
+  };
+
+  const handleMoveManualSourceToContext = (sourceId, targetContext) => {
+    if (!sourceId || !targetContext) return;
+
+    const dragged = (sources || []).find((s) => s && s.id === sourceId);
+    if (!dragged) return;
+
+    if ((dragged.archiveTop || 'Övrigt') !== 'Övrigt') {
+      showStatus('Drag-and-drop mellan mappar stöds bara för manuella källor under Övrigt.', 'warning');
+      return;
+    }
+
+    const next = { ...dragged };
+
+    if (targetContext.kind === 'source') {
+      next.title = targetContext.sourceTitle || targetContext.title || next.title;
+      next.sourceTitle = targetContext.sourceTitle || targetContext.title || next.sourceTitle || next.title;
+      next.author = targetContext.author || '';
+      next.sourceType = targetContext.sourceType || next.sourceType;
+      next.date = targetContext.date || next.date;
+    } else if (targetContext.kind === 'folder') {
+      const ancestors = Array.isArray(targetContext.ancestors) ? targetContext.ancestors : [];
+      if (ancestors[0] === 'Övrigt') {
+        const inferredType = inferSourceTypeFromLabel(ancestors[1]);
+        if (inferredType) next.sourceType = inferredType;
+        if (ancestors.length >= 3) {
+          next.author = ancestors[2] === 'Okänd författare' ? '' : ancestors[2];
+        }
+        if (ancestors.length >= 4) {
+          const titleWithDate = String(ancestors[3] || '').trim();
+          const m = titleWithDate.match(/^(.*?)(?:\s+\((\d{4}(?:[-–]\d{4})?)\))?$/);
+          const parsedTitle = (m && m[1] ? m[1] : titleWithDate).trim();
+          if (parsedTitle) {
+            next.title = parsedTitle;
+            next.sourceTitle = parsedTitle;
+          }
+          if (m && m[2]) next.date = m[2];
+        }
+      }
+    }
+
+    const changed = (
+      String(next.title || '') !== String(dragged.title || '') ||
+      String(next.sourceTitle || '') !== String(dragged.sourceTitle || '') ||
+      String(next.author || '') !== String(dragged.author || '') ||
+      String(next.sourceType || '') !== String(dragged.sourceType || '') ||
+      String(next.date || '') !== String(dragged.date || '')
+    );
+    if (!changed) return;
+
+    onEditSource(next);
+    showStatus('Källa flyttad till vald nivå.', 'success');
+  };
+
+  // --- RENDER TREE (Updated with badges & context menu) ---
+  const renderTreeNodes = (node, pathPrefix, ancestors = []) => {
       if (Array.isArray(node)) {
           return (
             <div className="ml-5 border-l-2 border-subtle pl-1">
               {node.map(src => {
                 const isLinked = alreadyLinkedIds.includes(src.id);
                 return (
-                    <div 
+                    <SourceContextMenu
                       key={src.id}
-                      id={`source-item-${src.id}`} 
-                                            draggable={true}
-                                            onDragStart={(e) => {
-                                                e.dataTransfer.setData('application/json', JSON.stringify({ type: 'source', id: src.id, title: src.title }));
-                                                e.dataTransfer.effectAllowed = 'copy';
-                                                e.currentTarget.style.opacity = '0.55';
-                                            }}
-                                            onDragEnd={(e) => {
-                                                e.currentTarget.style.opacity = '1';
-                                            }}
-                      onClick={() => handleSelect(src.id)}
-                      onDoubleClick={() => { if (isDrawerMode && onLinkSource) onLinkSource(src.id); }}
-                      className={`
-                        cursor-pointer text-xs py-1 px-2 rounded truncate transition-colors duration-200 flex justify-between items-center group
-                        ${selectedSourceId === src.id ? 'bg-accent text-on-accent font-medium border-l-2 border-accent shadow-sm' : 'text-muted hover:bg-surface-2'}
-                        ${isLinked ? 'bg-green-900 text-green-200 border-l-2 border-green-500' : ''}
-                      `}
-                      title={`${src.label} (Dubbelklicka för att koppla)`}
+                      source={{ ...src, kind: 'source' }}
+                      isFolder={false}
+                      onCopy={handleCopyCitation}
+                      onDelete={handleDeleteSource}
+                      onCreateSibling={handleCreateSourceSibling}
                     >
-                      <span className="truncate flex-1">{src.label}</span>
-                      
-                      {/* ACTION KNAPPAR */}
-                                            <div className="flex gap-1 items-center ml-2 shrink-0">
-                                                    <Button
-                                                        onClick={(e) => { e.stopPropagation(); src.aid && window.open(`http://www.arkivdigital.se/aid/show/${src.aid}`, '_blank'); }}
-                                                        variant={src.aid ? "success" : "ghost"}
-                                                        size="xs"
-                                                        title={src.aid ? "Öppna AID" : "Ingen AID"}
-                                                        className={src.aid ? "" : "opacity-50 border border-subtle"}
-                                                    >AD</Button>
-                                                    <Button
-                                                        onClick={(e) => { e.stopPropagation(); src.bildid && window.open(`https://sok.riksarkivet.se/bildvisning/${src.bildid}`, '_blank'); }}
-                                                        variant={src.bildid ? "success" : "ghost"}
-                                                        size="xs"
-                                                        title={src.bildid ? "Öppna RA" : "Ingen RA-länk"}
-                                                        className={src.bildid ? "" : "opacity-50 border border-subtle"}
-                                                    >RA</Button>
-                                                    <Button
-                                                        onClick={(e) => { e.stopPropagation(); src.nad && window.open(`https://sok.riksarkivet.se/?postid=ArkisRef%20${src.nad}`, '_blank'); }}
-                                                        variant={src.nad ? "success" : "ghost"}
-                                                        size="xs"
-                                                        title={src.nad ? "Öppna NAD" : "Ingen NAD-länk"}
-                                                        className={src.nad ? "" : "opacity-50 border border-subtle"}
-                                                    >NAD</Button>
-                                            </div>
-                      {isLinked && <span className="text-green-400 font-bold ml-1 text-xs">✓</span>}
-                    </div>
+                      <div 
+                        id={`source-item-${src.id}`} 
+                        draggable={true}
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData('application/json', JSON.stringify({ type: 'source', id: src.id, title: src.title }));
+                          e.dataTransfer.effectAllowed = 'move';
+                          e.currentTarget.style.opacity = '0.55';
+                        }}
+                        onDragEnd={(e) => {
+                          e.currentTarget.style.opacity = '1';
+                        }}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.dataTransfer.dropEffect = 'move';
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const dropData = e.dataTransfer.getData('application/json');
+                          if (dropData) {
+                            try {
+                              const data = JSON.parse(dropData);
+                              if (data.type !== 'source') return;
+                              if (data.id === src.id) return;
+                              // Dropping on a source row means inherit that source's context.
+                              handleMoveManualSourceToContext(data.id, { ...src, kind: 'source' });
+                            } catch (err) { /* ignore */ }
+                          }
+                        }}
+                        onClick={() => handleSelect(src.id)}
+                        onDoubleClick={() => { if (isDrawerMode && onLinkSource) onLinkSource(src.id); }}
+                        className={`
+                          cursor-pointer text-xs py-1 px-2 rounded truncate transition-colors duration-200 flex justify-between items-center group
+                          ${selectedSourceId === src.id ? 'bg-accent text-on-accent font-medium border-l-2 border-accent shadow-sm' : 'text-muted hover:bg-surface-2'}
+                          ${isLinked ? 'bg-green-900 text-green-200 border-l-2 border-green-500' : ''}
+                        `}
+                        title={`${src.label} (Högerklicka för meny)`}
+                      >
+                        <div className="flex items-center gap-1 flex-1 min-w-0">
+                          <span className="truncate flex-1">{src.label}</span>
+                        </div>
+                        
+                        {/* ACTION KNAPPAR */}
+                        <div className="flex gap-1 items-center ml-2 shrink-0">
+                          <Button
+                            onClick={(e) => { e.stopPropagation(); src.aid && window.open(`http://www.arkivdigital.se/aid/show/${src.aid}`, '_blank'); }}
+                            variant="ghost"
+                            size="xs"
+                            title={src.aid ? "Öppna AID" : "Ingen AID"}
+                            className={src.aid ? "border border-emerald-500 bg-emerald-100 text-black font-semibold hover:bg-emerald-200" : "opacity-50 border border-subtle text-muted"}
+                          >AD</Button>
+                          <Button
+                            onClick={(e) => { e.stopPropagation(); src.bildid && window.open(`https://sok.riksarkivet.se/bildvisning/${src.bildid}`, '_blank'); }}
+                            variant="ghost"
+                            size="xs"
+                            title={src.bildid ? "Öppna RA" : "Ingen RA-länk"}
+                            className={src.bildid ? "border border-sky-500 bg-sky-100 text-black font-semibold hover:bg-sky-200" : "opacity-50 border border-subtle text-muted"}
+                          >RA</Button>
+                          <Button
+                            onClick={(e) => { e.stopPropagation(); src.nad && window.open(`https://sok.riksarkivet.se/?postid=ArkisRef%20${src.nad}`, '_blank'); }}
+                            variant="ghost"
+                            size="xs"
+                            title={src.nad ? "Öppna NAD" : "Ingen NAD-länk"}
+                            className={src.nad ? "border border-violet-500 bg-violet-100 text-black font-semibold hover:bg-violet-200" : "opacity-50 border border-subtle text-muted"}
+                          >NAD</Button>
+                        </div>
+                        {isLinked && <span className="text-green-400 font-bold ml-1 text-xs">✓</span>}
+                      </div>
+                    </SourceContextMenu>
                 );
               })}
             </div>
@@ -524,12 +958,38 @@ export default function SourceCatalog({
       return Object.keys(node).sort().map(key => {
           const currentPath = pathPrefix + key;
           const isExpanded = expanded[currentPath];
+          const nextAncestors = [...ancestors, key];
           return (
             <div key={key} className="mb-1 ml-2">
-               <div className="flex items-center cursor-pointer hover:bg-surface-2 py-1 px-1 rounded font-semibold text-primary text-sm transition-colors" onClick={() => handleToggle(currentPath)}>
+              <SourceContextMenu
+                source={{ kind: 'folder', key, path: currentPath, ancestors: nextAncestors }}
+                isFolder={true}
+                onCreateSibling={handleCreateSourceSibling}
+              >
+               <div
+                className="flex items-center cursor-pointer hover:bg-surface-2 py-1 px-1 rounded font-semibold text-primary text-sm transition-colors"
+                onClick={() => handleToggle(currentPath)}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = 'move';
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const dropData = e.dataTransfer.getData('application/json');
+                  if (!dropData) return;
+                  try {
+                    const data = JSON.parse(dropData);
+                    if (data.type !== 'source') return;
+                    if (nextAncestors[0] !== 'Övrigt') return;
+                    handleMoveManualSourceToContext(data.id, { kind: 'folder', ancestors: nextAncestors });
+                  } catch (err) { /* ignore */ }
+                }}
+              >
                 <span className="w-4 text-center text-xs text-muted mr-1">{isExpanded ? '▼' : '▶'}</span>{key}
               </div>
-              {isExpanded && renderTreeNodes(node[key], currentPath)}
+              </SourceContextMenu>
+              {isExpanded && renderTreeNodes(node[key], currentPath, nextAncestors)}
             </div>
           );
       });
@@ -552,10 +1012,64 @@ export default function SourceCatalog({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedSourceId, sources, onDeleteSource]);
 
+  // Handlers for new features
+  const handleCopyCitation = async (src) => {
+    const citation = formatCitation(src);
+    try {
+      await navigator.clipboard.writeText(citation);
+      showStatus('Källhänvisning kopierad.');
+    } catch (err) {
+      console.error('Kopieringsfel:', err);
+      showStatus('Kunde inte kopiera källhänvisning.', 'error');
+    }
+  };
+
+  const handleDeleteSource = (sourceId) => {
+    if (confirm('Ta bort denna källa?')) {
+      onDeleteSource(sourceId);
+    }
+  };
+
+  const openSourceUrl = (rawUrl) => {
+    const value = String(rawUrl || '').trim();
+    if (!value) return;
+    const href = /^https?:\/\//i.test(value) ? value : `https://${value}`;
+    try {
+      window.open(href, '_blank');
+    } catch (err) {
+      console.error('Kunde inte öppna URL:', err);
+    }
+  };
+
+  const handleCreateSourceSibling = (sourceOrNode) => {
+    if (onAddSource) {
+      onAddSource(buildDefaultsForSameLevel(sourceOrNode));
+    }
+  };
+
   return (
     <div className="flex w-full h-full bg-surface overflow-hidden">
       <aside className="w-80 border-r border-subtle bg-surface flex flex-col h-full shrink-0">
         <div className="p-2 border-b border-subtle bg-background space-y-2 shrink-0">
+          <div className="mb-1 p-2 bg-surface border border-subtle rounded">
+            <label className="block text-xs font-bold text-accent uppercase mb-1">Snabb-import (AD/RA)</label>
+            <div className="flex gap-2">
+              <textarea
+                className="flex-1 border border-subtle rounded p-1 text-xs h-8 resize-none focus:h-16 transition-all bg-background text-primary focus:ring-2 focus:ring-accent focus:border-accent"
+                placeholder="Klistra in källtext..."
+                value={importString}
+                onChange={(e) => setImportString(e.target.value)}
+              />
+              <Button
+                onClick={parseSourceString}
+                variant="primary"
+                size="sm"
+                className="bg-accent text-on-accent border border-accent hover:opacity-90 font-semibold"
+              >
+                Tolka
+              </Button>
+            </div>
+          </div>
           <input type="text" placeholder="Sök..." className="w-full px-2 py-1 text-sm border border-subtle rounded bg-background text-primary placeholder-slate-500 focus:border-accent focus:outline-none shadow-sm" value={searchTerm || ''} onChange={handleSearch} />
           <select className="w-full px-2 py-1 text-xs border border-subtle rounded bg-background text-primary focus:border-accent focus:outline-none" value={sortOrder} onChange={handleSortChange}>
             <option value="name_asc">Namn (A-Ö)</option>
@@ -563,14 +1077,51 @@ export default function SourceCatalog({
             <option value="date_desc">Senast ändrad (Nyast)</option>
             <option value="date_asc">Senast ändrad (Äldst)</option>
           </select>
+          <button
+            onClick={() => setShowOrphanedOnly(!showOrphanedOnly)}
+            className={`w-full px-2 py-1 text-xs font-semibold rounded transition-colors ${
+              showOrphanedOnly 
+                ? 'bg-yellow-900 text-yellow-200 border border-yellow-500' 
+                : 'bg-surface-2 text-secondary border border-subtle hover:bg-surface-3'
+            }`}
+            title="Visa endast okopplade källor"
+          >
+            {showOrphanedOnly ? '🗑️ Visa oklopplade' : 'Visa alla'}
+          </button>
         </div>
         <div className="flex-1 overflow-y-auto p-2 relative" ref={listContainerRef}>
             {Object.keys(tree).sort().map(arkiv => (
                 <div key={arkiv} className="mb-1">
-                    <div className="flex items-center cursor-pointer hover:bg-surface-2 py-1 px-1 rounded font-bold text-accent transition-colors" onClick={() => handleToggle(arkiv)}>
+                    <SourceContextMenu
+                source={{ kind: 'folder', key: arkiv, ancestors: [arkiv] }}
+                      isFolder={true}
+                onCreateSibling={handleCreateSourceSibling}
+                    >
+                    <div
+                      className="flex items-center cursor-pointer hover:bg-surface-2 py-1 px-1 rounded font-bold text-accent transition-colors"
+                      onClick={() => handleToggle(arkiv)}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = 'move';
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const dropData = e.dataTransfer.getData('application/json');
+                        if (!dropData) return;
+                        try {
+                          const data = JSON.parse(dropData);
+                          if (data.type !== 'source') return;
+                          if (arkiv === 'Övrigt') {
+                            showStatus('Släpp på en undermapp under Övrigt (t.ex. Webbsida) för att flytta källan.', 'warning');
+                          }
+                        } catch (err) { /* ignore */ }
+                      }}
+                    >
                         <span className="w-4 text-center text-xs text-muted mr-1">{expanded[arkiv] ? '▼' : '▶'}</span>{arkiv}
                     </div>
-                    {expanded[arkiv] && renderTreeNodes(tree[arkiv], arkiv)}
+                    </SourceContextMenu>
+              {expanded[arkiv] && renderTreeNodes(tree[arkiv], arkiv, [arkiv])}
                 </div>
             ))}
             {Object.keys(tree).length === 0 && (
@@ -597,15 +1148,6 @@ export default function SourceCatalog({
                         {onAddSource && <Button onClick={onAddSource} variant="primary" size="sm">Ny källa</Button>}
                         {isDrawerMode && onLinkSource && <Button onClick={() => onLinkSource(selectedSource.id)} variant="success" size="sm">✓ Koppla källa</Button>}
                         <Button onClick={() => { if(confirm('Ta bort källa?')) onDeleteSource(selectedSource.id); }} variant="danger" size="sm">Ta bort källa</Button>
-                    </div>
-                </div>
-
-                {/* SNABB-IMPORT (Oförändrad) */}
-                <div className="mb-4 p-3 bg-surface border border-subtle rounded">
-                    <label className="block text-xs font-bold text-accent uppercase mb-1">Snabb-import (AD/RA)</label>
-                    <div className="flex gap-2">
-                        <textarea className="flex-1 border border-subtle rounded p-1 text-xs h-8 resize-none focus:h-16 transition-all bg-background text-primary focus:ring-2 focus:ring-accent focus:border-accent" placeholder="Klistra in källtext..." value={importString} onChange={(e) => setImportString(e.target.value)} />
-                        <Button onClick={parseSourceString} disabled={!importString} variant="primary" size="sm">Tolka</Button>
                     </div>
                 </div>
 
@@ -657,28 +1199,227 @@ export default function SourceCatalog({
                 
                 {activeRightTab === 'info' && (
                     <div>
-                        {/* ... (Källdetaljer oförändrade) ... */}
+                        {/* ORIGINAL FIELDS (AD/RA only) */}
+                        {isArchiveManagedSource && (
+                        <>
+                        <h3 className="text-sm font-bold text-secondary mb-4 uppercase">Arkivreferens (AD/RA)</h3>
                         <div className="grid grid-cols-2 gap-4 mb-4">
-                            <div><label className="block text-xs font-bold text-secondary uppercase">Arkiv (Top)</label><input className="w-full border border-subtle rounded px-2 py-1 bg-background text-primary focus:border-accent focus:outline-none" value={selectedSource.archiveTop || ''} onChange={e => handleSave({ archiveTop: e.target.value })} /></div>
+                          <div><label className="block text-xs font-bold text-secondary uppercase">Arkivsystem</label><input className="w-full border border-subtle rounded px-2 py-1 bg-background text-primary focus:border-accent focus:outline-none" value={selectedSource.archiveTop || ''} onChange={e => handleSave({ archiveTop: e.target.value })} /></div>
                             <div>
-                                <label className="block text-xs font-bold text-secondary uppercase">Titel / Ort</label>
-                                <input className="w-full border border-subtle rounded px-2 py-1 font-semibold bg-background text-primary focus:border-accent focus:outline-none" list="places-datalist" value={selectedSource.title || ''} onChange={e => handleSave({ title: e.target.value })} />
+                            <label className="block text-xs font-bold text-secondary uppercase">Titel (TITL)</label>
+                            <input className="w-full border border-subtle rounded px-2 py-1 font-semibold bg-background text-primary focus:border-accent focus:outline-none" list="places-datalist" value={selectedSource.sourceTitle || selectedSource.title || ''} onChange={e => handleSave({ sourceTitle: e.target.value, title: e.target.value })} />
                                 <datalist id="places-datalist">{places.map(p => (<option key={p.id} value={p.name} />))}</datalist>
                             </div>
                         </div>
                         <div className="grid grid-cols-4 gap-4 mb-6">
-                            <div><label className="block text-xs font-bold text-secondary uppercase">Volym</label><input className="w-full border border-subtle rounded px-2 py-1 bg-background text-primary focus:border-accent focus:outline-none" value={selectedSource.volume || ''} onChange={e => handleSave({ volume: e.target.value })} /></div>
+                          <div><label className="block text-xs font-bold text-secondary uppercase">Arkivvolym</label><input className="w-full border border-subtle rounded px-2 py-1 bg-background text-primary focus:border-accent focus:outline-none" value={selectedSource.volume || ''} onChange={e => handleSave({ volume: e.target.value })} /></div>
                             <div><label className="block text-xs font-bold text-secondary uppercase">År</label><input className="w-full border border-subtle rounded px-2 py-1 bg-background text-primary focus:border-accent focus:outline-none" value={selectedSource.date || ''} onChange={e => handleSave({ date: e.target.value })} /></div>
                             <div><label className="block text-xs font-bold text-secondary uppercase">Bild</label><input className="w-full border border-subtle rounded px-2 py-1 bg-background text-primary focus:border-accent focus:outline-none" value={selectedSource.imagePage || ''} onChange={e => handleSave({ imagePage: e.target.value })} /></div>
                             <div><label className="block text-xs font-bold text-secondary uppercase">Sida/Källdetalj</label><input className="w-full border border-subtle rounded px-2 py-1 bg-background text-primary focus:border-accent focus:outline-none" value={selectedSource.page || ''} onChange={e => handleSave({ page: e.target.value })} /></div>
                         </div>
                         <div className="grid grid-cols-3 gap-4 mb-6 bg-background p-3 rounded border border-subtle">
-                            <div className="flex items-end gap-1"><div className="flex-1"><label className="block text-xs font-bold text-secondary uppercase">AID (AD)</label><input className="w-full border border-subtle rounded px-2 py-1 font-mono text-xs bg-background text-primary focus:border-accent focus:outline-none" value={selectedSource.aid || ''} onChange={e => handleSave({ aid: e.target.value })} /></div>{selectedSource.aid && (<Button onClick={() => window.open(`http://www.arkivdigital.se/aid/show/${selectedSource.aid}`, '_blank')} variant="success" size="xs">AD</Button>)}</div>
-                            <div className="flex items-end gap-1"><div className="flex-1"><label className="block text-xs font-bold text-secondary uppercase">BildID (RA)</label><input className="w-full border border-subtle rounded px-2 py-1 font-mono text-xs bg-background text-primary focus:border-accent focus:outline-none" value={selectedSource.bildid || ''} onChange={e => handleSave({ bildid: e.target.value })} /></div>{selectedSource.bildid && (<Button onClick={() => window.open(`https://sok.riksarkivet.se/bildvisning/${selectedSource.bildid}`, '_blank')} variant="success" size="xs">RA</Button>)}</div>
-                            <div className="flex items-end gap-1"><div className="flex-1"><label className="block text-xs font-bold text-secondary uppercase">NAD</label><input className="w-full border border-subtle rounded px-2 py-1 font-mono text-xs bg-background text-primary focus:border-accent focus:outline-none" value={selectedSource.nad || ''} onChange={e => handleSave({ nad: e.target.value })} /></div>{selectedSource.nad && (<Button onClick={() => window.open(`https://sok.riksarkivet.se/?postid=ArkisRef%20${selectedSource.nad}`, '_blank')} variant="success" size="xs">NAD</Button>)}</div>
+                            <div className="flex items-end gap-1">
+                              <div className="flex-1">
+                                <label className="block text-xs font-bold text-secondary uppercase">AID (AD)</label>
+                                <input className="w-full border border-subtle rounded px-2 py-1 font-mono text-xs bg-background text-primary focus:border-accent focus:outline-none" value={selectedSource.aid || ''} onChange={e => handleSave({ aid: e.target.value })} />
+                              </div>
+                              {selectedSource.aid && (
+                                <Button
+                                  onClick={() => window.open(`http://www.arkivdigital.se/aid/show/${selectedSource.aid}`, '_blank')}
+                                  variant="ghost"
+                                  size="xs"
+                                  className="border border-emerald-500 bg-emerald-100 text-black font-semibold hover:bg-emerald-200"
+                                >AD</Button>
+                              )}
+                            </div>
+                            <div className="flex items-end gap-1">
+                              <div className="flex-1">
+                                <label className="block text-xs font-bold text-secondary uppercase">BildID (RA)</label>
+                                <input className="w-full border border-subtle rounded px-2 py-1 font-mono text-xs bg-background text-primary focus:border-accent focus:outline-none" value={selectedSource.bildid || ''} onChange={e => handleSave({ bildid: e.target.value })} />
+                              </div>
+                              {selectedSource.bildid && (
+                                <Button
+                                  onClick={() => window.open(`https://sok.riksarkivet.se/bildvisning/${selectedSource.bildid}`, '_blank')}
+                                  variant="ghost"
+                                  size="xs"
+                                  className="border border-sky-500 bg-sky-100 text-black font-semibold hover:bg-sky-200"
+                                >RA</Button>
+                              )}
+                            </div>
+                            <div className="flex items-end gap-1">
+                              <div className="flex-1">
+                                <label className="block text-xs font-bold text-secondary uppercase">NAD</label>
+                                <input className="w-full border border-subtle rounded px-2 py-1 font-mono text-xs bg-background text-primary focus:border-accent focus:outline-none" value={selectedSource.nad || ''} onChange={e => handleSave({ nad: e.target.value })} />
+                              </div>
+                              {selectedSource.nad && (
+                                <Button
+                                  onClick={() => window.open(`https://sok.riksarkivet.se/?postid=ArkisRef%20${selectedSource.nad}`, '_blank')}
+                                  variant="ghost"
+                                  size="xs"
+                                  className="border border-violet-500 bg-violet-100 text-black font-semibold hover:bg-violet-200"
+                                >NAD</Button>
+                              )}
+                            </div>
                         </div>
+                          </>
+                          )}
                         <div className="mt-4 mb-6 space-y-4">
-                           <div className="flex items-center gap-2"><label className="text-xs font-bold text-secondary uppercase">Trovärdighet:</label><TrustDropdown value={selectedSource.trust} onChange={v => handleSave({ trust: v })} /></div>
+                            {/* KÄLLTYP & GEDCOM FÄLT (manuella källor) */}
+                          {!isArchiveManagedSource && (
+                        <div className="mb-6 p-3 bg-background border border-accent/30 rounded">
+                            <label className="block text-xs font-bold text-accent uppercase mb-2">Källtyp (GEDCOM AUTH/TITL/PUBL)</label>
+                            <select 
+                              className="w-full border border-subtle rounded px-2 py-1.5 text-sm bg-background text-primary focus:border-accent focus:outline-none mb-3"
+                              value={selectedSource.sourceType || 'document'}
+                              onChange={e => handleSave({ sourceType: e.target.value })}
+                            >
+                              {Object.entries(SOURCE_TYPES).map(([key, cfg]) => (
+                                <option key={key} value={key}>{cfg.icon} {cfg.label}</option>
+                              ))}
+                            </select>
+
+                            {/* DYNAMIC FIELDS BASED ON SOURCE TYPE */}
+                            {(() => {
+                              const sourceType = selectedSource.sourceType || 'document';
+                              const config = SOURCE_TYPES[sourceType] || SOURCE_TYPES.document;
+                              return (
+                                <div className="grid grid-cols-2 gap-2">
+                                  {config.fields.includes('author') && (
+                                    <div>
+                                      <label className="block text-xs font-bold text-secondary uppercase">Författare (AUTH)</label>
+                                      <input 
+                                        className="w-full border border-subtle rounded px-2 py-1 text-xs bg-background text-primary focus:border-accent focus:outline-none"
+                                        value={selectedSource.author || ''}
+                                        onChange={e => handleSave({ author: e.target.value })}
+                                        placeholder="ex. John Smith"
+                                      />
+                                    </div>
+                                  )}
+                                  {config.fields.includes('title') && (
+                                    <div>
+                                      <label className="block text-xs font-bold text-secondary uppercase">Titel (TITL)</label>
+                                      <input 
+                                        className="w-full border border-subtle rounded px-2 py-1 text-xs bg-background text-primary focus:border-accent focus:outline-none"
+                                        value={selectedSource.sourceTitle || selectedSource.title || ''}
+                                        onChange={e => handleSave({ sourceTitle: e.target.value, title: e.target.value })}
+                                        placeholder="ex. Parish Records"
+                                      />
+                                    </div>
+                                  )}
+                                  {config.fields.includes('publisher') && (
+                                    <div>
+                                      <label className="block text-xs font-bold text-secondary uppercase">Förlag (PUBL)</label>
+                                      <input 
+                                        className="w-full border border-subtle rounded px-2 py-1 text-xs bg-background text-primary focus:border-accent focus:outline-none"
+                                        value={selectedSource.publisher || ''}
+                                        onChange={e => handleSave({ publisher: e.target.value })}
+                                        placeholder="ex. Unknown Publisher"
+                                      />
+                                    </div>
+                                  )}
+                                  {config.fields.includes('url') && (
+                                    <div className="col-span-2">
+                                      <label className="block text-xs font-bold text-secondary uppercase">URL</label>
+                                      <div className="flex items-center gap-2">
+                                        <input 
+                                          className="w-full border border-subtle rounded px-2 py-1 text-xs bg-background text-primary focus:border-accent focus:outline-none"
+                                          type="url"
+                                          value={selectedSource.url || ''}
+                                          onChange={e => handleSave({ url: e.target.value })}
+                                          placeholder="https://example.com"
+                                        />
+                                        <Button
+                                          onClick={() => openSourceUrl(selectedSource.url)}
+                                          variant="ghost"
+                                          size="xs"
+                                          disabled={!String(selectedSource.url || '').trim()}
+                                          title={selectedSource.url ? 'Öppna URL' : 'Ingen URL'}
+                                          className={String(selectedSource.url || '').trim()
+                                            ? 'border border-sky-500 bg-sky-100 text-black font-semibold hover:bg-sky-200'
+                                            : 'opacity-50 border border-subtle text-muted'
+                                          }
+                                        >
+                                          URL
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {config.fields.includes('interviewerName') && (
+                                    <div>
+                                      <label className="block text-xs font-bold text-secondary uppercase">Intervjuare</label>
+                                      <input 
+                                        className="w-full border border-subtle rounded px-2 py-1 text-xs bg-background text-primary focus:border-accent focus:outline-none"
+                                        value={selectedSource.interviewerName || ''}
+                                        onChange={e => handleSave({ interviewerName: e.target.value })}
+                                        placeholder="ex. Mary Doe"
+                                      />
+                                    </div>
+                                  )}
+                                  {config.fields.includes('intervieweeName') && (
+                                    <div>
+                                      <label className="block text-xs font-bold text-secondary uppercase">Intervjuad person</label>
+                                      <input 
+                                        className="w-full border border-subtle rounded px-2 py-1 text-xs bg-background text-primary focus:border-accent focus:outline-none"
+                                        value={selectedSource.intervieweeName || ''}
+                                        onChange={e => handleSave({ intervieweeName: e.target.value })}
+                                        placeholder="ex. John Smith"
+                                      />
+                                    </div>
+                                  )}
+                                  {config.fields.includes('date') && (
+                                    <div>
+                                      <label className="block text-xs font-bold text-secondary uppercase">Datum</label>
+                                      <input 
+                                        className="w-full border border-subtle rounded px-2 py-1 text-xs bg-background text-primary focus:border-accent focus:outline-none"
+                                        type="text"
+                                        value={selectedSource.date || ''}
+                                        onChange={e => handleSave({ date: e.target.value })}
+                                        placeholder="ex. 1950 eller 1950-05-15"
+                                      />
+                                    </div>
+                                  )}
+                                  {config.fields.includes('page') && (
+                                    <div>
+                                      <label className="block text-xs font-bold text-secondary uppercase">Sida</label>
+                                      <input 
+                                        className="w-full border border-subtle rounded px-2 py-1 text-xs bg-background text-primary focus:border-accent focus:outline-none"
+                                        value={selectedSource.page || ''}
+                                        onChange={e => handleSave({ page: e.target.value })}
+                                        placeholder="ex. 42 eller 40-45"
+                                      />
+                                    </div>
+                                  )}
+                                  {!config.fields.includes('page') && (
+                                    <div>
+                                      <label className="block text-xs font-bold text-secondary uppercase">Sida / Källdetalj (PAGE)</label>
+                                      <input
+                                        className="w-full border border-subtle rounded px-2 py-1 text-xs bg-background text-primary focus:border-accent focus:outline-none"
+                                        value={selectedSource.page || ''}
+                                        onChange={e => handleSave({ page: e.target.value })}
+                                        placeholder="ex. 42 eller rad/kolumn"
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })()}
+                        </div>
+                        )}
+
+                        <div className="flex items-center gap-2"><label className="text-xs font-bold text-secondary uppercase">Trovärdighet:</label><TrustDropdown value={selectedSource.trust} onChange={v => handleSave({ trust: v })} /></div>
+
+                        {/* TRANSKRIBERING / AVSKRIFT (GEDCOM DATA.TEXT) */}
+                        <div className="mb-6 p-3 bg-background border border-blue-900/30 rounded">
+                            <label className="block text-xs font-bold text-blue-300 uppercase mb-2">Transkribering / Avskrift (DATA.TEXT)</label>
+                            <div className="text-xs text-blue-200 mb-2">Ordagrant avskrift av källans text. Hålls skild från egna noteringar.</div>
+                            <Editor
+                              value={selectedSource.transcriptionText || ''}
+                              onChange={(e) => handleSave({ transcriptionText: e.target.value })}
+                              containerProps={{ style: { minHeight: '120px', overflow: 'auto' } }}
+                              spellCheck={true}
+                              lang="sv"
+                            />
+                        </div>
                            
                            {/* TAG-SEKTION (samma som MediaManager) */}
                            <div className="space-y-2">

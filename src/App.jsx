@@ -660,13 +660,34 @@ function App() {
     setIsDirty(true);
   };
 
-  const handleAddSource = () => {
-    const newId = `src_${Date.now()}`;
+  const handleAddSource = (defaults = {}) => {
+    const newId = `src_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const archiveTop = defaults.archiveTop || 'Övrigt';
+    const archive = (typeof defaults.archive === 'string')
+      ? defaults.archive
+      : (archiveTop === 'Arkiv Digital' || archiveTop === 'Riksarkivet' ? archiveTop : '');
     const newSource = {
-      id: newId, title: "Ny källa", archiveTop: "Övrigt", archive: "", volume: "", page: "", note: "", aid: "", nad: "", bildid: "", imagePage: "", date: "", tags: "", dateAdded: new Date().toISOString(), trust: 0
+      id: newId,
+      title: defaults.title || "Ny källa",
+      sourceTitle: defaults.sourceTitle || defaults.title || "Ny källa",
+      archiveTop,
+      archive,
+      sourceType: defaults.sourceType || 'document',
+      author: defaults.author || '',
+      volume: defaults.volume || "",
+      page: defaults.page || "",
+      note: defaults.note || "",
+      aid: defaults.aid || "",
+      nad: defaults.nad || "",
+      bildid: defaults.bildid || defaults.bildId || defaults.raId || "",
+      imagePage: defaults.imagePage || "",
+      date: defaults.date || "",
+      tags: defaults.tags || "",
+      dateAdded: new Date().toISOString(),
+      trust: Number.isFinite(Number(defaults.trust)) ? Number(defaults.trust) : 0
     };
     setDbData(prev => ({ ...prev, sources: [...(prev.sources || []), newSource] }));
-    setSourceCatalogState(prev => ({ ...prev, selectedSourceId: newId, searchTerm: '', expanded: { ...prev.expanded, 'Övrigt': true } }));
+    setSourceCatalogState(prev => ({ ...prev, selectedSourceId: newId, searchTerm: '', expanded: { ...prev.expanded, [archiveTop]: true } }));
     setIsDirty(true);
     showStatus('Ny källa skapad.');
   };

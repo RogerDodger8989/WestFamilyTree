@@ -485,10 +485,18 @@ async function writeGedcom(dbData, options = {}) {
 
         lines.push(`0 @${xref}@ SOUR`);
 
-        if (source.title) lines.push(`1 TITL ${escapeGedcomValue(source.title)}`);
+        // GEDCOM 5.5.1 / 7.0 standard fields
+        const sourceTitle = source.sourceTitle || source.title;
+        if (sourceTitle) lines.push(`1 TITL ${escapeGedcomValue(sourceTitle)}`);
         if (source.author) lines.push(`1 AUTH ${escapeGedcomValue(source.author)}`);
-        if (source.publ) lines.push(`1 PUBL ${escapeGedcomValue(source.publ)}`);
+        if (source.publisher || source.publ) lines.push(`1 PUBL ${escapeGedcomValue(source.publisher || source.publ)}`);
         if (source.page) lines.push(`1 PAGE ${escapeGedcomValue(source.page)}`);
+
+        // transcriptionText maps to GEDCOM DATA.TEXT (for transcriptions)
+        if (source.transcriptionText) {
+          lines.push(`1 DATA`);
+          lines.push(`2 TEXT ${escapeGedcomValue(source.transcriptionText)}`);
+        }
 
         if (source.note) {
           lines.push(`1 NOTE ${escapeGedcomValue(source.note)}`);
@@ -498,6 +506,17 @@ async function writeGedcom(dbData, options = {}) {
         if (source.archive) {
           lines.push(`1 REPO`);
           lines.push(`2 NAME ${escapeGedcomValue(source.archive)}`);
+        }
+
+        // Application-specific extensions (comments can be added for clarity)
+        if (source.url) {
+          lines.push(`1 OBJE`);
+          lines.push(`2 FORM URL`);
+          lines.push(`3 FILE ${escapeGedcomValue(source.url)}`);
+        }
+
+        if (source.sourceType) {
+          lines.push(`1 TYPE ${escapeGedcomValue(source.sourceType)}`);
         }
       }
     }

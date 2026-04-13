@@ -1,17 +1,17 @@
 import React from 'react';
+import ToastShell from './ToastShell.jsx';
 
 function StatusToast({ isVisible, message, severity = 'info' }) {
-  if (!isVisible) return null;
-
+  const sev = String(severity || 'info').toLowerCase();
   let bgClass = 'bg-accent';
-  if (severity === 'success') bgClass = 'bg-success';
-  if (severity === 'warn') bgClass = 'bg-warning';
-  if (severity === 'error') bgClass = 'bg-danger';
+  if (sev === 'success') bgClass = 'bg-success';
+  if (sev === 'warn' || sev === 'warning') bgClass = 'bg-warning';
+  if (sev === 'error') bgClass = 'bg-danger';
 
   return (
-    <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-[9999] ${bgClass} text-on-accent rounded-lg shadow-xl flex items-center p-3`}>
+    <ToastShell isVisible={isVisible} bgClass={bgClass}>
       <span>{message}</span>
-    </div>
+    </ToastShell>
   );
 }
 

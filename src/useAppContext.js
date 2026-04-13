@@ -2360,11 +2360,55 @@ function useAppContext() {
                 
             const updated = { ...safeSource, sourceString };
             
-            // Hantera dubbletter (checka mot sourceString)
-            // Se till att prev.sources existerar
+            // Hantera dubbletter (konservativt: slå bara ihop vid stark identitet)
             const currentSources = prev.sources || [];
-            
-            const duplicate = currentSources.find(src => (src.sourceString || "").trim() === (sourceString || "").trim() && src.id !== updated.id);
+            const norm = (v) => String(v || '').trim().toLowerCase();
+            const normTitle = (v) => norm(v).replace(/\s+/g, ' ');
+
+            const isWeakPlaceholder = (src) => {
+                const t = normTitle(src?.title || src?.sourceTitle);
+                if (!t) return true;
+                return ['ny källa', 'okänd titel', 'källa', 'source'].includes(t);
+            };
+
+            const hasStrongIdentityAgainst = (a, b) => {
+                const aAid = norm(a?.aid);
+                const bAid = norm(b?.aid);
+                if (aAid && bAid && aAid === bAid) return true;
+
+                const aBild = norm(a?.bildid || a?.bildId || a?.raId);
+                const bBild = norm(b?.bildid || b?.bildId || b?.raId);
+                if (aBild && bBild && aBild === bBild) return true;
+
+                const aNad = norm(a?.nad);
+                const bNad = norm(b?.nad);
+                const aVol = norm(a?.volume);
+                const bVol = norm(b?.volume);
+                const aDate = norm(a?.date);
+                const bDate = norm(b?.date);
+                if (aNad && bNad && aVol && bVol && aNad === bNad && aVol === bVol) {
+                    if (!aDate || !bDate || aDate === bDate) return true;
+                }
+
+                return false;
+            };
+
+            const hasSafeSoftMatchAgainst = (a, b) => {
+                // Tillat titel+volym+datum-match endast nar titeln inte ar en platshallare.
+                if (isWeakPlaceholder(a) || isWeakPlaceholder(b)) return false;
+                const aTitle = normTitle(a?.title || a?.sourceTitle);
+                const bTitle = normTitle(b?.title || b?.sourceTitle);
+                const aVol = norm(a?.volume);
+                const bVol = norm(b?.volume);
+                const aDate = norm(a?.date);
+                const bDate = norm(b?.date);
+                return Boolean(aTitle && bTitle && aVol && bVol && aDate && bDate && aTitle === bTitle && aVol === bVol && aDate === bDate);
+            };
+
+            const duplicate = currentSources.find(src => {
+                if (!src || src.id === updated.id) return false;
+                return hasStrongIdentityAgainst(updated, src) || hasSafeSoftMatchAgainst(updated, src);
+            });
             let newSources;
             
             if (duplicate) {

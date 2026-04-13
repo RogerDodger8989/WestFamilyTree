@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ToastShell from './ToastShell.jsx';
 
 function UndoToast({ isVisible, message, onUndo, duration = 10000 }) {
   const [timeLeft, setTimeLeft] = useState(duration / 1000);
@@ -23,12 +24,8 @@ function UndoToast({ isVisible, message, onUndo, duration = 10000 }) {
     }
   }, [isVisible, duration]);
 
-  if (!isVisible) {
-    return null;
-  }
-
   return (
-    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] bg-danger text-on-accent rounded-lg shadow-2xl flex items-center justify-between p-4 min-w-[350px]">
+    <ToastShell isVisible={isVisible} bgClass="bg-danger">
       <span>{message}</span>
       <div className="flex items-center">
         <button onClick={onUndo} className="ml-4 px-3 py-1 bg-surface/20 hover:bg-surface/40 rounded font-bold text-sm">
@@ -36,7 +33,7 @@ function UndoToast({ isVisible, message, onUndo, duration = 10000 }) {
         </button>
         <span className="ml-4 font-mono text-lg w-6 text-center">{timeLeft}</span>
       </div>
-    </div>
+    </ToastShell>
   );
 }
 

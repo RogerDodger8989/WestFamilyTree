@@ -734,5 +734,1407 @@
       "name": "d d"
     },
     "sourceIds": []
+  },
+  {
+    "id": "audit_1776081268648_t52vcsm",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1775996807427",
+    "actor": "local",
+    "timestamp": "2026-04-13T11:54:28.648Z",
+    "details": {},
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776083019452_xw6vtka",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1775996807427",
+    "actor": "local",
+    "timestamp": "2026-04-13T12:23:39.452Z",
+    "details": {},
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776083022047_xzeo877",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1775996807427",
+    "actor": "local",
+    "timestamp": "2026-04-13T12:23:42.047Z",
+    "details": {
+      "sourceString": "Riksarkivet A I/14 (1852-1856)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776084291371_0xwhpwy",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T12:44:51.371Z",
+    "details": {},
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776084292823_lsx556p",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T12:44:52.823Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776084301429_uvja30p",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T12:45:01.429Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776084301634_swej5aj",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T12:45:01.634Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776084301786_pceqmde",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T12:45:01.786Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776084301892_c009wv6",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T12:45:01.892Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776084302030_c0kmb3r",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T12:45:02.030Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776084302121_eo6vwzx",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T12:45:02.121Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776084305102_4y0zfep",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T12:45:05.102Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776084307271_y9aoek8",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T12:45:07.271Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776084307426_u58997k",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T12:45:07.426Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776084307580_l27w1q8",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T12:45:07.580Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776084307800_wzeyecs",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T12:45:07.800Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776084308085_3pvvbky",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T12:45:08.085Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776084308222_80fzdsd",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T12:45:08.222Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776084308357_tt0rgcm",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T12:45:08.357Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776084308399_0lwfllv",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T12:45:08.399Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776084308547_rqrdqc1",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T12:45:08.547Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776084308648_bud9b4r",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T12:45:08.648Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776084308867_wpe0igr",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T12:45:08.867Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776084308970_q1ncsio",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T12:45:08.970Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776084309062_a6k8u1v",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T12:45:09.062Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776084322095_e5rn1sl",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T12:45:22.095Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776084322201_is7thyq",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T12:45:22.201Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776084322313_ahgdgxv",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T12:45:22.313Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776084322601_tn0ubkx",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T12:45:22.601Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776084322786_mv87pgf",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T12:45:22.786Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776084323257_re6qwa7",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T12:45:23.257Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776084323392_kx47p81",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T12:45:23.392Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776084323539_40d1lh0",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T12:45:23.539Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776084323694_elyjli1",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T12:45:23.694Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776084323846_0nkfqz8",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T12:45:23.846Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776084324238_a776a4i",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T12:45:24.238Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776084324389_ru4wxpk",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T12:45:24.389Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776084324617_sq0hp4r",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T12:45:24.617Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776084324836_0fss2q6",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T12:45:24.836Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776084325157_m3s9i4n",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T12:45:25.157Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776084325308_xj2yx13",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T12:45:25.308Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776084325435_7c997w1",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T12:45:25.435Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776084325620_s0ps6oi",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T12:45:25.620Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776084325704_mvdy8ds",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T12:45:25.704Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776086243436_julq0jw",
+    "type": "delete",
+    "entityType": "source",
+    "entityId": "src_1776086234007",
+    "actor": "local",
+    "timestamp": "2026-04-13T13:17:23.436Z",
+    "details": null,
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776086576979_qzd993a",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776086573683",
+    "actor": "local",
+    "timestamp": "2026-04-13T13:22:56.979Z",
+    "details": {},
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776086989426_qd7306y",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776086981952",
+    "actor": "local",
+    "timestamp": "2026-04-13T13:29:49.426Z",
+    "details": {},
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776087003889_uvd9zof",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776086999654",
+    "actor": "local",
+    "timestamp": "2026-04-13T13:30:03.889Z",
+    "details": {},
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776087011606_miyain0",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776087009104",
+    "actor": "local",
+    "timestamp": "2026-04-13T13:30:11.606Z",
+    "details": {},
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776087020579_vzh0uau",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T13:30:20.579Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776087477187_kh3hyxn",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776087462384_76b781",
+    "actor": "local",
+    "timestamp": "2026-04-13T13:37:57.187Z",
+    "details": {},
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776087533406_pz3jqhp",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776087528478_uhm4ns",
+    "actor": "local",
+    "timestamp": "2026-04-13T13:38:53.406Z",
+    "details": {},
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776087533577_jhraim7",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776087528478_uhm4ns",
+    "actor": "local",
+    "timestamp": "2026-04-13T13:38:53.577Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776087534036_hk3y52c",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776087528478_uhm4ns",
+    "actor": "local",
+    "timestamp": "2026-04-13T13:38:54.036Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776087534389_cpvz44b",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776087528478_uhm4ns",
+    "actor": "local",
+    "timestamp": "2026-04-13T13:38:54.389Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776087535050_1p8zjuj",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776087528478_uhm4ns",
+    "actor": "local",
+    "timestamp": "2026-04-13T13:38:55.050Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776087539403_x6am9dd",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776087528478_uhm4ns",
+    "actor": "local",
+    "timestamp": "2026-04-13T13:38:59.403Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776087539517_0mr9eaf",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776087528478_uhm4ns",
+    "actor": "local",
+    "timestamp": "2026-04-13T13:38:59.517Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776087539727_kj9jaw5",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776087528478_uhm4ns",
+    "actor": "local",
+    "timestamp": "2026-04-13T13:38:59.727Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776087540778_uurcaqi",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776087528478_uhm4ns",
+    "actor": "local",
+    "timestamp": "2026-04-13T13:39:00.778Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776087540945_nfc6tfl",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776087528478_uhm4ns",
+    "actor": "local",
+    "timestamp": "2026-04-13T13:39:00.945Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776087541090_hxr3bej",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776087528478_uhm4ns",
+    "actor": "local",
+    "timestamp": "2026-04-13T13:39:01.090Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776087541437_lcu32m9",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776087528478_uhm4ns",
+    "actor": "local",
+    "timestamp": "2026-04-13T13:39:01.437Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776087542336_7rf0xd0",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776087528478_uhm4ns",
+    "actor": "local",
+    "timestamp": "2026-04-13T13:39:02.336Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776087545054_s72c6hr",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776087528478_uhm4ns",
+    "actor": "local",
+    "timestamp": "2026-04-13T13:39:05.054Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776087832217_146tq9b",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776086573683",
+    "actor": "local",
+    "timestamp": "2026-04-13T13:43:52.217Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776087840021_lhnwjur",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776087528478_uhm4ns",
+    "actor": "local",
+    "timestamp": "2026-04-13T13:44:00.021Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776087877972_3qqltej",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T13:44:37.972Z",
+    "details": {},
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776087878033_n39wsau",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T13:44:38.033Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776087878125_xv6yl9r",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T13:44:38.125Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776087878209_4o6y57d",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T13:44:38.209Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776087878256_ozb4tk6",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T13:44:38.256Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776087878349_78137z4",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T13:44:38.349Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776087878614_20j4bix",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T13:44:38.614Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776087878702_k07f3i8",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T13:44:38.702Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776087882277_o2wlr7t",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T13:44:42.277Z",
+    "details": {
+      "sourceString": ""
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776087882393_jpz9kos",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T13:44:42.393Z",
+    "details": {
+      "sourceString": "(2)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776087883084_70ruiil",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T13:44:43.084Z",
+    "details": {
+      "sourceString": "(20)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776087883195_16jlbhj",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T13:44:43.195Z",
+    "details": {
+      "sourceString": "(202)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776087883629_0p6jpjs",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T13:44:43.629Z",
+    "details": {
+      "sourceString": "(2026)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776087884734_omowl2h",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T13:44:44.734Z",
+    "details": {
+      "sourceString": "(2026-)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776087885568_ktha6br",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T13:44:45.568Z",
+    "details": {
+      "sourceString": "(2026-0)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776087885849_pleuoso",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T13:44:45.849Z",
+    "details": {
+      "sourceString": "(2026-05)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776087886060_1t9mn1e",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T13:44:46.060Z",
+    "details": {
+      "sourceString": "(2026-05-)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776087886303_k90bh6y",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T13:44:46.303Z",
+    "details": {
+      "sourceString": "(2026-05-0)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776094338152_o7d6n9r",
+    "type": "delete",
+    "entityType": "source",
+    "entityId": "src_1776094331154_5w59as",
+    "actor": "local",
+    "timestamp": "2026-04-13T15:32:18.152Z",
+    "details": null,
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776094569111_1q5uej9",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T15:36:09.111Z",
+    "details": {},
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776094569195_ojnunoo",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T15:36:09.195Z",
+    "details": {
+      "sourceString": "(2026-05-02)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776094569454_y8xnvo3",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T15:36:09.454Z",
+    "details": {
+      "sourceString": "(2026-05-02)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776094569586_e4tot3q",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T15:36:09.586Z",
+    "details": {
+      "sourceString": "(2026-05-02)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776094570214_lb4wycs",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T15:36:10.214Z",
+    "details": {
+      "sourceString": "(2026-05-02)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776094574804_zf2c2m2",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T15:36:14.804Z",
+    "details": {
+      "sourceString": "(2026-05-02)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776094577367_5zebh5f",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T15:36:17.367Z",
+    "details": {
+      "sourceString": "(2026-05-02)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776094577532_7v61vmv",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T15:36:17.532Z",
+    "details": {
+      "sourceString": "(2026-05-02)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776094577708_p07bl5q",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T15:36:17.708Z",
+    "details": {
+      "sourceString": "(2026-05-02)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776094577802_hny4s2w",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T15:36:17.802Z",
+    "details": {
+      "sourceString": "(2026-05-02)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776094578000_90s6oof",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T15:36:18.000Z",
+    "details": {
+      "sourceString": "(2026-05-02)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776094582306_x6c9or5",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T15:36:22.306Z",
+    "details": {
+      "sourceString": "(2026-05-02)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776094583016_7ah7pty",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T15:36:23.016Z",
+    "details": {
+      "sourceString": "(2026-05-02)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776094583553_v41nxpx",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T15:36:23.553Z",
+    "details": {
+      "sourceString": "(2026-05-02)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776094583855_uprbdde",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T15:36:23.855Z",
+    "details": {
+      "sourceString": "(2026-05-02)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776094604586_dlysr4i",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T15:36:44.586Z",
+    "details": {
+      "sourceString": "(2026-05-02)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776094605889_pm1caft",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T15:36:45.889Z",
+    "details": {
+      "sourceString": "(2026-05-02)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776094910394_k3b7y2k",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T15:41:50.394Z",
+    "details": {
+      "sourceString": "(2026-05-02)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776094911212_91y64vl",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T15:41:51.212Z",
+    "details": {
+      "sourceString": "(2026-05-02)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776094911729_i2ap17c",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T15:41:51.729Z",
+    "details": {
+      "sourceString": "(2026-05-02)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776094912745_yzafmrq",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T15:41:52.745Z",
+    "details": {
+      "sourceString": "(2026-05-02)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776094914018_8quszuz",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T15:41:54.018Z",
+    "details": {
+      "sourceString": "(2026-05-02)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776094914166_i3jbp8p",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T15:41:54.166Z",
+    "details": {
+      "sourceString": "(2026-05-02)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776094914323_oatlyth",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T15:41:54.323Z",
+    "details": {
+      "sourceString": "(2026-05-02)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776094914777_ogq0d5f",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T15:41:54.777Z",
+    "details": {
+      "sourceString": "(2026-05-02)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776094914973_i84m1yg",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T15:41:54.973Z",
+    "details": {
+      "sourceString": "(2026-05-02)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776094914988_pu6dsdp",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T15:41:54.988Z",
+    "details": {
+      "sourceString": "(2026-05-02)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776094915447_nx8pjla",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T15:41:55.447Z",
+    "details": {
+      "sourceString": "(2026-05-02)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776094915606_6y47qol",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T15:41:55.606Z",
+    "details": {
+      "sourceString": "(2026-05-02)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776094915750_gde8q14",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T15:41:55.750Z",
+    "details": {
+      "sourceString": "(2026-05-02)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776094916493_vemhm23",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T15:41:56.493Z",
+    "details": {
+      "sourceString": "(2026-05-02)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776094919554_4n81zg4",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T15:41:59.554Z",
+    "details": {
+      "sourceString": "(2026-05-02)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776094920224_worutyc",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776082939324",
+    "actor": "local",
+    "timestamp": "2026-04-13T15:42:00.224Z",
+    "details": {
+      "sourceString": "(2026-05-02)"
+    },
+    "sourceIds": []
   }
 ]
