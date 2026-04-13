@@ -30,7 +30,7 @@ import OAIArchiveHarvesterModal from './OAIArchiveHarvesterModal.jsx';
 import AuditMergesSettingsModal from './AuditMergesSettingsModal.jsx';
 import Button from './Button.jsx'; 
 import MediaImage from './components/MediaImage.jsx';
-import { User, Settings, PanelRight, Minus, Maximize2, X, Network, Star } from 'lucide-react'; 
+import { User, Settings, PanelRight, Minus, Maximize2, X, Network, Star, Printer } from 'lucide-react'; 
 import { buildRelationsFromPeople, ensureParentsArePartners } from './relationUtils.js';
 
 const THEME_STORAGE_KEY = 'westFamilyTreeTheme';
@@ -1748,6 +1748,17 @@ function App() {
                       title="Visa i släktträd"
                     >
                       <Network size={15} />
+                    </button>
+                    <button
+                      onClick={() => {
+                        window.dispatchEvent(new CustomEvent('WFT:openPersonPrintSettings', {
+                          detail: { personId: editingPerson.id }
+                        }));
+                      }}
+                      className="p-1.5 hover:bg-surface rounded text-secondary hover:text-primary"
+                      title="Skapa personakt"
+                    >
+                      <Printer size={15} />
                     </button>
                     <button
                       onClick={() => handleToggleBookmark(editingPerson.id)}

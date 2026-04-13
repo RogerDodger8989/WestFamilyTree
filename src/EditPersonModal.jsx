@@ -8,7 +8,7 @@ import {
   Link as LinkIcon, Camera, Edit3, AlertCircle, Check,
   Copy, Star,
   ChevronDown, ChevronUp, MoreHorizontal, Search, Globe, HelpCircle, Network,
-  ClipboardList, BookOpen, Clock,
+  ClipboardList, BookOpen, Clock, Printer,
   Sparkles, DownloadCloud
 } from 'lucide-react';
 import WindowFrame from './WindowFrame.jsx';
@@ -19,6 +19,7 @@ import Editor from './MaybeEditor.jsx';
 import MediaSelector from './MediaSelector.jsx';
 import MediaImage from './components/MediaImage.jsx';
 import { getAvatarImageStyle } from './imageUtils.js';
+import { generatePersonaktHTML } from './personaktGenerator.js';
 import { useApp } from './AppContext';
 import { calculateRelationship, getAncestryPath } from './relationshipUtils';
 import { ensureParentsArePartners } from './relationUtils.js';
@@ -509,7 +510,80 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
   const [secondParentCandidates, setSecondParentCandidates] = useState([]);
   const [pendingChildId, setPendingChildId] = useState(null); // Barnets ID som vi håller på att skapa
   const [inlineRelationEditor, setInlineRelationEditor] = useState(null);
+  const [isPrintSettingsOpen, setIsPrintSettingsOpen] = useState(false);
+  const [printOptions, setPrintOptions] = useState({
+    includeBasics: true,
+    includeEvents: true,
+    includeFamilyParentsSiblings: true,
+    includeFamilyPartnersChildren: true,
+    includeFamilyGrandchildren: false,
+    includeMedia: true,
+    includeNotesBiography: true,
+    includeSourceList: true,
+  });
   const inlineRelationFirstNameRef = useRef(null);
+
+  const togglePrintOption = (key) => {
+    if (key === 'includeBasics') return;
+    setPrintOptions((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleCreatePersonakt = () => {
+    try {
+      const html = generatePersonaktHTML(
+        person,
+        {
+          people: Array.isArray(allPeople) ? allPeople : (dbData?.people || []),
+          sources: Array.isArray(allSources) ? allSources : (dbData?.sources || []),
+          places: Array.isArray(allPlaces) ? allPlaces : (dbData?.places || []),
+        },
+        printOptions
+      );
+
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        showStatus('Kunde inte oppna utskriftsfonster. Kontrollera popup-blockering.');
+        return;
+      }
+
+      printWindow.document.open();
+      printWindow.document.write(html);
+      printWindow.document.close();
+      printWindow.focus();
+
+      const triggerPrint = () => {
+        try {
+          printWindow.print();
+        } catch (error) {
+          console.error('[EditPersonModal] Kunde inte starta utskrift:', error);
+          showStatus('Kunde inte starta utskrift.');
+        }
+      };
+
+      if (printWindow.document.readyState === 'complete') {
+        window.setTimeout(triggerPrint, 180);
+      } else {
+        printWindow.addEventListener('load', () => window.setTimeout(triggerPrint, 180), { once: true });
+      }
+
+      setIsPrintSettingsOpen(false);
+    } catch (error) {
+      console.error('[EditPersonModal] Fel vid generering av personakt:', error);
+      showStatus('Kunde inte skapa personakt.');
+    }
+  };
+
+  useEffect(() => {
+    const handleOpenPrintSettings = (event) => {
+      const requestedPersonId = event?.detail?.personId;
+      if (!requestedPersonId || requestedPersonId === initialPerson?.id) {
+        setIsPrintSettingsOpen(true);
+      }
+    };
+
+    window.addEventListener('WFT:openPersonPrintSettings', handleOpenPrintSettings);
+    return () => window.removeEventListener('WFT:openPersonPrintSettings', handleOpenPrintSettings);
+  }, [initialPerson?.id]);
 
   // Open relation picker modal
   const openRelationModal = (type, partnerId = null) => {
@@ -3221,6 +3295,15 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                   )}
                   <button
                     type="button"
+                    onClick={() => setIsPrintSettingsOpen(true)}
+                    className="inline-flex items-center justify-center w-8 h-8 rounded border border-subtle text-secondary hover:text-accent hover:border-accent hover:bg-accent-soft transition-colors"
+                    title="Skapa personakt"
+                    aria-label="Skapa personakt"
+                  >
+                    <Printer className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => {
                       if (typeof handleToggleBookmark === 'function' && person?.id) {
                         handleToggleBookmark(person.id);
@@ -3313,6 +3396,123 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                 </button>
               ))}
             </nav>
+          </div>
+        )}
+
+        {isPrintSettingsOpen && (
+          <div className="fixed inset-0 z-[4300] bg-black/60 flex items-center justify-center p-4">
+            <div className="w-full max-w-2xl bg-surface border border-subtle rounded-xl shadow-2xl overflow-hidden">
+              <div className="px-5 py-4 border-b border-subtle bg-surface-2 flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-bold text-primary">Utskriftsinställningar</h3>
+                  <p className="text-xs text-muted mt-1">Välj innehåll som ska ingå i personakten.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsPrintSettingsOpen(false)}
+                  className="w-8 h-8 rounded border border-subtle text-secondary hover:text-primary hover:bg-surface transition-colors"
+                  title="Stäng"
+                  aria-label="Stäng"
+                >
+                  <X size={16} className="mx-auto" />
+                </button>
+              </div>
+
+              <div className="p-5 space-y-3 text-sm">
+                <label className="flex items-center gap-3 p-2 rounded border border-subtle bg-background opacity-70 cursor-not-allowed">
+                  <input type="checkbox" checked disabled className="accent-accent" />
+                  <span className="text-primary font-medium">Basfakta & Profilbild</span>
+                  <span className="text-xs text-muted">(alltid inkluderad)</span>
+                </label>
+
+                <label className="flex items-center gap-3 p-2 rounded border border-subtle bg-background cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={printOptions.includeEvents}
+                    onChange={() => togglePrintOption('includeEvents')}
+                    className="accent-accent"
+                  />
+                  <span className="text-primary">Livshändelser (kronologisk ordning)</span>
+                </label>
+
+                <label className="flex items-center gap-3 p-2 rounded border border-subtle bg-background cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={printOptions.includeFamilyParentsSiblings}
+                    onChange={() => togglePrintOption('includeFamilyParentsSiblings')}
+                    className="accent-accent"
+                  />
+                  <span className="text-primary">Familj: Föräldrar & Syskon</span>
+                </label>
+
+                <label className="flex items-center gap-3 p-2 rounded border border-subtle bg-background cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={printOptions.includeFamilyPartnersChildren}
+                    onChange={() => togglePrintOption('includeFamilyPartnersChildren')}
+                    className="accent-accent"
+                  />
+                  <span className="text-primary">Familj: Partners & Barn</span>
+                </label>
+
+                <label className="flex items-center gap-3 p-2 rounded border border-subtle bg-background cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={printOptions.includeFamilyGrandchildren}
+                    onChange={() => togglePrintOption('includeFamilyGrandchildren')}
+                    className="accent-accent"
+                  />
+                  <span className="text-primary">Familj: Barnbarn</span>
+                </label>
+
+                <label className="flex items-center gap-3 p-2 rounded border border-subtle bg-background cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={printOptions.includeMedia}
+                    onChange={() => togglePrintOption('includeMedia')}
+                    className="accent-accent"
+                  />
+                  <span className="text-primary">Media (kopplade bilder i galleri sist)</span>
+                </label>
+
+                <label className="flex items-center gap-3 p-2 rounded border border-subtle bg-background cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={printOptions.includeNotesBiography}
+                    onChange={() => togglePrintOption('includeNotesBiography')}
+                    className="accent-accent"
+                  />
+                  <span className="text-primary">Noteringar & Biografi</span>
+                </label>
+
+                <label className="flex items-center gap-3 p-2 rounded border border-subtle bg-background cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={printOptions.includeSourceList}
+                    onChange={() => togglePrintOption('includeSourceList')}
+                    className="accent-accent"
+                  />
+                  <span className="text-primary">Källförteckning (fotnoter/referenslista)</span>
+                </label>
+              </div>
+
+              <div className="px-5 py-4 border-t border-subtle bg-surface-2 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsPrintSettingsOpen(false)}
+                  className="px-3 py-2 text-sm rounded border border-subtle bg-surface text-primary hover:bg-background transition-colors"
+                >
+                  Avbryt
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCreatePersonakt}
+                  className="px-4 py-2 text-sm rounded bg-accent text-on-accent hover:bg-accent transition-colors font-semibold"
+                >
+                  Skapa Personakt
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
