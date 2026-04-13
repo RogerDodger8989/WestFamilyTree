@@ -436,18 +436,81 @@ export default function SourceCatalog({
     }
   }, [sources, sortOrder]);
 
+  const normalizeSearchText = (value) => {
+    return String(value || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
+  // OCR/typing tolerance for Swedish source volumes where I/l/1 are often mixed up (AI:6 vs Al:6).
+  const normalizeVolumeAmbiguity = (value) => normalizeSearchText(value).replace(/[l1]/g, 'i');
+
+  const getSourceSearchBlob = (source) => {
+    if (!source || typeof source !== 'object') return '';
+
+    const notesText = Array.isArray(source.notes)
+      ? source.notes.map((n) => (typeof n === 'string' ? n : n?.text || '')).join(' ')
+      : '';
+
+    const tagsText = Array.isArray(source.tags)
+      ? source.tags.join(' ')
+      : String(source.tags || '');
+
+    const fields = [
+      source.id,
+      source.title,
+      source.sourceTitle,
+      source.archiveTop,
+      source.archive,
+      source.volume,
+      source.date,
+      source.page,
+      source.imagePage,
+      source.aid,
+      source.nad,
+      source.bildid,
+      source.bildId,
+      source.raId,
+      source.sourceString,
+      source.note,
+      notesText,
+      tagsText,
+      source.author,
+      source.publisher,
+      source.url,
+      source.interviewerName,
+      source.intervieweeName,
+      source.sourceType,
+      source.transcription,
+      source.text,
+    ];
+
+    return normalizeSearchText(fields.filter(Boolean).join(' '));
+  };
+
   const filteredSources = useMemo(() => {
     let result = sortedSources;
     if (!searchTerm) {
       result = sortedSources;
     } else {
-      const lower = searchTerm.toLowerCase();
-      result = sortedSources.filter(s => 
-        (s.title && s.title.toLowerCase().includes(lower)) ||
-        (s.archive && s.archive.toLowerCase().includes(lower)) ||
-        (s.page && s.page.toLowerCase().includes(lower)) ||
-        (s.id && s.id.toLowerCase().includes(lower))
-      );
+      const query = normalizeSearchText(searchTerm);
+      const queryTokens = query.split(' ').filter(Boolean);
+      const fuzzyTokens = queryTokens.map(normalizeVolumeAmbiguity);
+
+      result = sortedSources.filter((s) => {
+        const blob = getSourceSearchBlob(s);
+        if (!blob) return false;
+        const blobFuzzy = normalizeVolumeAmbiguity(blob);
+
+        // All tokens must match, either exact-normalized or fuzzy-normalized.
+        return queryTokens.every((token, idx) => {
+          const fuzzyToken = fuzzyTokens[idx];
+          return blob.includes(token) || blobFuzzy.includes(fuzzyToken);
+        });
+      });
     }
     
     // Apply orphaned sources filter
