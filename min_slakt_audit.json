@@ -3770,5 +3770,25 @@
       "sourceString": "Arkiv Digital AI:6 (1821-1826)"
     },
     "sourceIds": []
+  },
+  {
+    "id": "audit_1776156478545_e2ff5o9",
+    "type": "delete",
+    "entityType": "source",
+    "entityId": "src_1776155564918_iuxhv6",
+    "actor": "local",
+    "timestamp": "2026-04-14T08:47:58.545Z",
+    "details": null,
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776156504824_i6bro4x",
+    "type": "delete",
+    "entityType": "source",
+    "entityId": "src_1776156486279_6qgmdh",
+    "actor": "local",
+    "timestamp": "2026-04-14T08:48:24.824Z",
+    "details": null,
+    "sourceIds": []
   }
 ]

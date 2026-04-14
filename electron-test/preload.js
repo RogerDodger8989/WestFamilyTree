@@ -55,6 +55,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // Media operations
     copyFileToMedia: (sourcePath, fileName) => ipcRenderer.invoke('copy-file-to-media', sourcePath, fileName),
     saveFileBufferToMedia: (fileBuffer, fileName) => ipcRenderer.invoke('save-file-buffer-to-media', fileBuffer, fileName),
+    downloadRiksarkivetImageToMedia: (bildid, filePath) => ipcRenderer.invoke('download-riksarkivet-image-to-media', bildid, filePath),
     moveFileInMedia: (oldPath, newPath) => ipcRenderer.invoke('move-file-in-media', oldPath, newPath),
     moveFileToTrash: (filePath) => ipcRenderer.invoke('move-file-to-trash', filePath),
     getTrashFiles: () => ipcRenderer.invoke('get-trash-files'),

@@ -1290,6 +1290,95 @@ ipcMain.handle('save-file-buffer-to-media', async (event, fileBuffer, filePath) 
   }
 });
 
+ipcMain.handle('download-riksarkivet-image-to-media', async (event, bildidRaw, filePathRaw) => {
+  const fetch = require('node-fetch');
+  try {
+    const IMAGE_ROOT = getCurrentImageRoot();
+    const bildid = String(bildidRaw || '').trim().toUpperCase();
+    const normalizedPath = String(filePathRaw || '').replace(/\\/g, '/').replace(/^\/+/, '');
+
+    if (!bildid) {
+      return { success: false, error: 'bildid saknas' };
+    }
+    if (!normalizedPath) {
+      return { success: false, error: 'filePath saknas' };
+    }
+
+    const encodedBildId = encodeURIComponent(bildid);
+    const match = bildid.match(/^([A-Z0-9]+?)(?:_(\d+))?$/);
+    const baseId = match?.[1] || '';
+    const frameId = match?.[2] || '';
+    const paddedFrame = frameId ? frameId.padStart(5, '0') : '';
+
+    const candidates = [
+      `https://lbiiif.riksarkivet.se/arkis!${encodedBildId}/full/max/0/default.jpg`,
+      ...(baseId && frameId ? [`https://lbiiif.riksarkivet.se/arkis!${encodeURIComponent(`${baseId}_${paddedFrame}`)}/full/max/0/default.jpg`] : []),
+      ...(baseId && frameId ? [`https://lbiiif.riksarkivet.se/arkis!${encodeURIComponent(`${baseId}_${frameId}`)}/full/max/0/default.jpg`] : []),
+      ...(baseId ? [`https://lbiiif.riksarkivet.se/arkis!${encodeURIComponent(baseId)}/full/max/0/default.jpg`] : []),
+      `https://sok.riksarkivet.se/bildvisning/${encodedBildId}/iiif/full/max/0/default.jpg`,
+      `https://sok.riksarkivet.se/bildvisning/${encodedBildId}/iiif/full/full/0/default.jpg`,
+      `https://sok.riksarkivet.se/bildvisning/${encodedBildId}/iiif/full/2000,/0/default.jpg`
+    ];
+
+    const uniqueCandidates = Array.from(new Set(candidates));
+    const headers = {
+      Accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+      Referer: `https://sok.riksarkivet.se/bildvisning/${encodedBildId}`,
+      Origin: 'https://sok.riksarkivet.se',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
+    };
+
+    let imageBuffer = null;
+    let selectedUrl = null;
+    const attempted = [];
+
+    for (const url of uniqueCandidates) {
+      try {
+        const response = await fetch(url, { headers, redirect: 'follow' });
+        attempted.push(`${response.status} ${url}`);
+        if (!response.ok) continue;
+
+        const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+        if (!contentType.includes('image') && !contentType.includes('octet-stream')) {
+          continue;
+        }
+
+        const buffer = await response.buffer();
+        if (!buffer || buffer.length === 0) continue;
+
+        imageBuffer = buffer;
+        selectedUrl = url;
+        break;
+      } catch (err) {
+        attempted.push(`ERR ${url} (${err.message})`);
+      }
+    }
+
+    if (!imageBuffer) {
+      return {
+        success: false,
+        error: `Kunde inte hämta RA-bild. Försök: ${attempted.join(' | ')}`
+      };
+    }
+
+    const destPath = path.join(IMAGE_ROOT, normalizedPath);
+    const normalizedDestPath = path.normalize(destPath);
+    const normalizedDir = path.normalize(path.dirname(destPath));
+    await fs.promises.mkdir(normalizedDir, { recursive: true });
+    await fs.promises.writeFile(normalizedDestPath, imageBuffer);
+
+    return {
+      success: true,
+      filePath: normalizedPath,
+      sourceUrl: selectedUrl,
+      size: imageBuffer.length
+    };
+  } catch (error) {
+    console.error('[download-riksarkivet-image-to-media] Error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
 // Import images - dialog + copy to media folder
 ipcMain.handle('import-images', async (event, targetSubfolderRaw = '') => {
   try {

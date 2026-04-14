@@ -134,6 +134,59 @@ function getOrphanedSourceIds(sources, people) {
   return sources.filter(src => !usedSourceIds.has(src.id)).map(src => src.id);
 }
 
+function sanitizeWindowsSegment(value) {
+  return String(value || '')
+    .replace(/[\\/*?"<>|:]/g, '-')
+    .replace(/[\x00-\x1f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/[.\s]+$/g, '')
+    .replace(/-+/g, '-');
+}
+
+function formatVolumeForPath(volume) {
+  const compact = String(volume || 'okand-volym')
+    .replace(/\s+/g, '')
+    .replace(/[\/]+/g, '-');
+  return sanitizeWindowsSegment(compact) || 'okand-volym';
+}
+
+function buildRiksarkivetImageRelativePath({ archiveName, volume, year, bildid }) {
+  const archiveSegment = sanitizeWindowsSegment(archiveName || 'Riksarkivet') || 'Riksarkivet';
+  const volumeSegment = formatVolumeForPath(volume);
+  const yearSegment = sanitizeWindowsSegment(year || '').trim();
+  const folderName = yearSegment ? `${volumeSegment} (${yearSegment})` : volumeSegment;
+  const bildIdSegment = sanitizeWindowsSegment(bildid || 'okand') || 'okand';
+  return `sources/${archiveSegment}/${folderName}/bildid-${bildIdSegment}.jpg`;
+}
+
+function buildRiksarkivetIiifCandidates(bildid) {
+  const cleanBildId = String(bildid || '').trim().toUpperCase();
+  if (!cleanBildId) return [];
+
+  const candidates = [];
+  const encodedBildId = encodeURIComponent(cleanBildId);
+  const baseMatch = cleanBildId.match(/^([A-Z0-9]+?)(?:_(\d+))?$/);
+  const baseId = baseMatch?.[1] || '';
+  const frameId = baseMatch?.[2] || '';
+  const paddedFrame = frameId ? frameId.padStart(5, '0') : '';
+
+  candidates.push(`https://lbiiif.riksarkivet.se/arkis!${encodedBildId}/full/max/0/default.jpg`);
+  if (baseId && frameId) {
+    candidates.push(`https://lbiiif.riksarkivet.se/arkis!${encodeURIComponent(`${baseId}_${paddedFrame}`)}/full/max/0/default.jpg`);
+    candidates.push(`https://lbiiif.riksarkivet.se/arkis!${encodeURIComponent(`${baseId}_${frameId}`)}/full/max/0/default.jpg`);
+  }
+  if (baseId) {
+    candidates.push(`https://lbiiif.riksarkivet.se/arkis!${encodeURIComponent(baseId)}/full/max/0/default.jpg`);
+  }
+
+  candidates.push(`https://sok.riksarkivet.se/bildvisning/${encodedBildId}/iiif/full/max/0/default.jpg`);
+  candidates.push(`https://sok.riksarkivet.se/bildvisning/${encodedBildId}/iiif/full/full/0/default.jpg`);
+  candidates.push(`https://sok.riksarkivet.se/bildvisning/${encodedBildId}/iiif/full/2000,/0/default.jpg`);
+
+  return Array.from(new Set(candidates));
+}
+
 // --- HJÄLPFUNKTIONER (Oförändrad) ---
 
 function buildSimpleTree(sources) {
@@ -279,7 +332,7 @@ export default function SourceCatalog({
   };
 
   // --- PARSER-LOGIK ---
-  const parseSourceString = () => {
+  const parseSourceString = async () => {
       if (!importString || !importString.trim()) {
         showStatus('Klistra in en källtext först.', 'warning');
         return;
@@ -409,9 +462,186 @@ export default function SourceCatalog({
         return;
       }
 
+      const newSourceId = `src_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      let downloadedMedia = null;
+
+      const isRiksarkivetImport = parsedSource.archiveTop === 'Riksarkivet' && Boolean(parsedSource.bildid);
+      if (isRiksarkivetImport) {
+        await new Promise((resolve) => setTimeout(resolve, 160));
+        showStatus('Laddar ner originaldokument från Riksarkivet...', 'info');
+
+        try {
+          const bildid = String(parsedSource.bildid || '').trim();
+          const relativePath = buildRiksarkivetImageRelativePath({
+            archiveName: parsedSource.title || parsedSource.sourceTitle || parsedSource.archiveTop,
+            volume: parsedSource.volume,
+            year: parsedSource.date,
+            bildid
+          });
+
+          let saveResult = null;
+          const iiifCandidates = buildRiksarkivetIiifCandidates(bildid);
+
+          if (window.electronAPI && typeof window.electronAPI.downloadRiksarkivetImageToMedia === 'function') {
+            const ipcResult = await window.electronAPI.downloadRiksarkivetImageToMedia(bildid, relativePath);
+            if (ipcResult?.success) {
+              saveResult = ipcResult;
+            } else if (ipcResult?.error) {
+              console.warn('[SourceCatalog] Main process RA download failed, trying renderer fallback:', ipcResult.error);
+            }
+          }
+
+          if (!saveResult) {
+            let response = null;
+            let lastError = null;
+            for (const candidateUrl of iiifCandidates) {
+              try {
+                const attempt = await fetch(candidateUrl, {
+                  headers: {
+                    Accept: 'image/jpeg,image/*;q=0.9,*/*;q=0.8'
+                  }
+                });
+                if (attempt.ok) {
+                  response = attempt;
+                  break;
+                }
+                lastError = new Error(`HTTP ${attempt.status} (${candidateUrl})`);
+              } catch (err) {
+                lastError = err;
+              }
+            }
+
+            if (!response || !response.ok) {
+              throw lastError || new Error('Kunde inte hämta bild från Riksarkivet IIIF');
+            }
+
+            const imageBuffer = await response.arrayBuffer();
+            if (window.electronAPI && typeof window.electronAPI.saveFileBufferToMedia === 'function') {
+              const fallbackSave = await window.electronAPI.saveFileBufferToMedia(new Uint8Array(imageBuffer), relativePath);
+              if (!fallbackSave || !fallbackSave.success) {
+                throw new Error(fallbackSave?.error || 'Kunde inte spara filen lokalt');
+              }
+              saveResult = fallbackSave;
+            }
+          }
+
+          if (!saveResult?.success) {
+            throw new Error(saveResult?.error || 'Kunde inte spara Riksarkivet-bilden');
+          }
+
+          const savedPath = String(saveResult.filePath || saveResult.path || relativePath).replace(/\\/g, '/');
+          const mediaId = `img_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+          downloadedMedia = {
+            id: mediaId,
+            url: `media://${encodeURIComponent(savedPath)}`,
+            filePath: savedPath,
+            name: `bildid-${bildid}.jpg`,
+            date: new Date().toISOString().split('T')[0],
+            description: '',
+            note: '',
+            tags: [],
+            libraryId: 'sources',
+            connections: {
+              people: [],
+              places: [],
+              sources: [newSourceId]
+            }
+          };
+        } catch (error) {
+          console.error('[SourceCatalog] RA original download failed:', error);
+          showStatus('Källan sparas, men originalbilden från Riksarkivet kunde inte hämtas.', 'warning');
+        }
+      }
+
+      const createSourcePayload = {
+        id: newSourceId,
+        title: parsedSource.title || 'Ny källa',
+        sourceTitle: parsedSource.sourceTitle || parsedSource.title || 'Ny källa',
+        archiveTop: parsedSource.archiveTop || 'Övrigt',
+        archive: parsedSource.archive || '',
+        sourceType: parsedSource.sourceType || 'document',
+        author: parsedSource.author || '',
+        volume: parsedSource.volume || '',
+        page: parsedSource.page || '',
+        note: parsedSource.note || '',
+        aid: parsedSource.aid || '',
+        nad: parsedSource.nad || '',
+        bildid: parsedSource.bildid || '',
+        imagePage: parsedSource.imagePage || '',
+        date: parsedSource.date || '',
+        tags: parsedSource.tags || '',
+        trust: Number.isFinite(Number(parsedSource.trust)) ? Number(parsedSource.trust) : 4,
+        dateAdded: new Date().toISOString(),
+        images: []
+      };
+
+      if (typeof setDbData === 'function') {
+        setDbData((prev) => {
+          const prevSources = Array.isArray(prev?.sources) ? prev.sources : [];
+          const prevMedia = Array.isArray(prev?.media) ? prev.media : [];
+
+          let imageRefId = null;
+          let nextMedia = prevMedia;
+
+          if (downloadedMedia) {
+            const existingMedia = prevMedia.find((item) =>
+              String(item?.filePath || '').replace(/\\/g, '/') === downloadedMedia.filePath
+            );
+
+            if (existingMedia) {
+              imageRefId = existingMedia.id;
+              nextMedia = prevMedia.map((item) => {
+                if (String(item?.id) !== String(existingMedia.id)) return item;
+                const currentConn = item?.connections && typeof item.connections === 'object' ? item.connections : {};
+                const currentSources = Array.isArray(currentConn.sources) ? currentConn.sources : [];
+                if (currentSources.includes(newSourceId)) return item;
+                return {
+                  ...item,
+                  connections: {
+                    ...currentConn,
+                    people: Array.isArray(currentConn.people) ? currentConn.people : [],
+                    places: Array.isArray(currentConn.places) ? currentConn.places : [],
+                    sources: [...currentSources, newSourceId]
+                  }
+                };
+              });
+            } else {
+              imageRefId = downloadedMedia.id;
+              nextMedia = [...prevMedia, downloadedMedia];
+            }
+          }
+
+          const nextSource = imageRefId
+            ? { ...createSourcePayload, images: [imageRefId] }
+            : createSourcePayload;
+
+          return {
+            ...prev,
+            sources: [...prevSources, nextSource],
+            media: nextMedia
+          };
+        });
+
+        setShowOrphanedOnly(false);
+        setCatalogState((prev) => ({
+          ...prev,
+          selectedSourceId: newSourceId,
+          searchTerm: '',
+          expanded: { ...prev.expanded, [createSourcePayload.archiveTop || 'Övrigt']: true }
+        }));
+
+        if (downloadedMedia) {
+          requestMediaManagerRefresh('quick-import-riksarkivet-original');
+        }
+
+        setImportString('');
+        showStatus('Ny källa skapad från snabb-import.', 'success');
+        return;
+      }
+
       // No duplicate: create a new source from parsed text.
       if (onAddSource) {
-        onAddSource(parsedSource);
+        onAddSource({ ...parsedSource, id: newSourceId, images: downloadedMedia ? [downloadedMedia.id] : [] });
         setImportString('');
         showStatus('Ny källa skapad från snabb-import.', 'success');
         return;
