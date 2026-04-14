@@ -2274,7 +2274,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
 
   // Automatisk EXIF-läsning när bilden väljs
   useEffect(() => {
-    if (!selectedImage) {
+    if (!selectedImage?.id) {
       setExifData(null);
       return;
     }
@@ -2314,39 +2314,53 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
           setExifData(data);
           // Uppdatera item med EXIF info (keywords -> tags, faces -> faces, date, description)
           if (data.keywords || data.face_tags || data.metadata) {
-            updateMedia(prev => prev.map(item => {
-              if (item.id !== selectedImage.id) return item;
-              const updated = { ...item };
-              
-              // Keywords -> tags
-              if (data.keywords && data.keywords.length) {
-                updated.tags = [...new Set([...(item.tags || []), ...data.keywords])];
-              }
-              
-              // Face tags
-              if (data.face_tags && data.face_tags.length) {
-                updated.faces = data.face_tags;
-              }
-              
-              // Metadata (datum och beskrivning)
-              if (data.metadata) {
-                // Fyll i datum från EXIF om tomt
-                if (!updated.date && data.metadata.date_taken) {
-                  updated.date = data.metadata.date_taken;
-                }
-                
-                // Fyll i beskrivning från EXIF titel eller beskrivning om tomt
-                if (!updated.description) {
-                  if (data.metadata.title) {
-                    updated.description = data.metadata.title;
-                  } else if (data.metadata.description) {
-                    updated.description = data.metadata.description;
+            updateMedia(prev => {
+              let didChange = false;
+              const next = prev.map(item => {
+                if (item.id !== selectedImage.id) return item;
+
+                const updated = { ...item };
+
+                // Keywords -> tags
+                if (data.keywords && data.keywords.length) {
+                  const mergedTags = [...new Set([...(item.tags || []), ...data.keywords])];
+                  if (JSON.stringify(mergedTags) !== JSON.stringify(item.tags || [])) {
+                    updated.tags = mergedTags;
+                    didChange = true;
                   }
                 }
-              }
-              
-              return updated;
-            }));
+
+                // Face tags
+                if (data.face_tags && data.face_tags.length) {
+                  if (JSON.stringify(data.face_tags) !== JSON.stringify(item.faces || [])) {
+                    updated.faces = data.face_tags;
+                    didChange = true;
+                  }
+                }
+
+                // Metadata (datum och beskrivning)
+                if (data.metadata) {
+                  if (!item.date && data.metadata.date_taken) {
+                    updated.date = data.metadata.date_taken;
+                    didChange = true;
+                  }
+
+                  if (!item.description) {
+                    if (data.metadata.title) {
+                      updated.description = data.metadata.title;
+                      didChange = true;
+                    } else if (data.metadata.description) {
+                      updated.description = data.metadata.description;
+                      didChange = true;
+                    }
+                  }
+                }
+
+                return didChange ? updated : item;
+              });
+
+              return didChange ? next : prev;
+            });
           }
         }
       } catch (error) {
@@ -2357,17 +2371,7 @@ ${unmatchedTags.length > 0 ? `\n✗ ${unmatchedTags.length} omatchade: ${unmatch
     };
     
     loadExif();
-  }, [selectedImage]);
-
-  // Synka selectedImage med mediaItems när connections uppdateras
-  useEffect(() => {
-    if (selectedImage && selectedImage.id) {
-      const updatedImage = mediaItems.find(m => m.id === selectedImage.id);
-      if (updatedImage && JSON.stringify(updatedImage) !== JSON.stringify(selectedImage)) {
-        setSelectedImage(updatedImage);
-      }
-    }
-  }, [mediaItems]);
+  }, [selectedImage?.id]);
 
   useEffect(() => setTransform({ x: 0, y: 0, scale: 1, rotate: 0 }), [selectedImage]);
   const handleWheel = (e) => { e.preventDefault(); const s = -e.deltaY * 0.001; setTransform(p => ({ ...p, scale: Math.min(Math.max(0.5, p.scale + s), 5) })); };

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import JSZip from 'jszip';
 import { 
   Image as ImageIcon, Plus, Trash2, Star, MoreHorizontal,
-  Search, X, Grid, List, Eye, UploadCloud, Check, User, FileText, MapPin,
+  Search, X, Grid, List, Eye, Check, User, FileText, MapPin,
   Edit2, Link as LinkIcon, Folder, FolderPlus, Layers, MoveRight, Download,
   ChevronRight, ChevronDown
 } from 'lucide-react';
@@ -55,7 +55,6 @@ export default function MediaSelector({
   const fileInputRef = useRef(null);
   const dropZoneRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [isImportingWindowsDialog, setIsImportingWindowsDialog] = useState(false);
   const [selectedIndices, setSelectedIndices] = useState(new Set());
   const imageSizeMultiplier = Number(mediaSortConfig?.imageSize ?? 0.62);
   const sortBy = mediaSortConfig?.sortBy || 'custom';
@@ -606,63 +605,6 @@ export default function MediaSelector({
     }
   };
 
-  const handleImportFromWindowsDialog = async () => {
-    if (!window.electronAPI || typeof window.electronAPI.importImages !== 'function') {
-      alert('Windows-dialog för import är inte tillgänglig i denna miljö.');
-      return;
-    }
-
-    const subfolder = entityType === 'source' ? 'sources' : entityType === 'person' ? 'persons' : entityType === 'place' ? 'places' : 'temp';
-    setIsImportingWindowsDialog(true);
-
-    try {
-      const result = await window.electronAPI.importImages(subfolder);
-      if (!result || !result.success || !Array.isArray(result.files) || result.files.length === 0) {
-        return;
-      }
-
-      const imported = result.files.map((file) => {
-        const filePath = String(file?.filePath || '').replace(/\\/g, '/');
-        return {
-          id: `img_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
-          url: `media://${encodeURIComponent(filePath)}`,
-          filePath,
-          name: file.fileName || filePath.split('/').pop() || 'Bild',
-          date: new Date().toISOString().split('T')[0],
-          description: '',
-          tags: [],
-          note: '',
-          libraryId: subfolder,
-          connections: {
-            people: [],
-            places: [],
-            sources: entityType === 'source' && entityId ? [entityId] : []
-          }
-        };
-      });
-
-      const existingByPath = new Set(media.map((item) => String(item?.filePath || '').replace(/\\/g, '/')).filter(Boolean));
-      const uniqueImported = imported.filter((item) => !existingByPath.has(String(item.filePath || '')));
-      if (uniqueImported.length === 0) return;
-
-      onMediaChange([...media, ...uniqueImported]);
-      clearSelectedIndices();
-
-      if (onUpdateAllMedia) {
-        const existingGlobalByPath = new Set((allMediaItems || []).map((item) => String(item?.filePath || '').replace(/\\/g, '/')).filter(Boolean));
-        const uniqueGlobal = uniqueImported.filter((item) => !existingGlobalByPath.has(String(item.filePath || '')));
-        if (uniqueGlobal.length > 0) {
-          onUpdateAllMedia([...(allMediaItems || []), ...uniqueGlobal]);
-        }
-      }
-    } catch (error) {
-      console.error('[MediaSelector] Windows-dialog import failed:', error);
-      alert(`Fel vid import: ${error.message || error}`);
-    } finally {
-      setIsImportingWindowsDialog(false);
-    }
-  };
-
   // Hantera drag-and-drop för filer
   useEffect(() => {
     const dropZone = dropZoneRef.current;
@@ -768,18 +710,6 @@ export default function MediaSelector({
             <ImageIcon size={14} />
             Välj bilder
           </button>
-          {entityType === 'source' && (
-            <button
-              onClick={handleImportFromWindowsDialog}
-              disabled={isImportingWindowsDialog}
-              className={`inline-flex items-center gap-1.5 px-2 py-1.5 rounded transition-colors text-xs font-medium ${isImportingWindowsDialog ? 'bg-surface-2 text-muted cursor-not-allowed' : 'bg-surface-2 hover:bg-surface text-primary'}`}
-              title="Importera bilder via Windows-dialog"
-              aria-label="Windows-dialog"
-            >
-              <UploadCloud size={14} />
-              {isImportingWindowsDialog ? 'Importerar...' : 'Windows-dialog'}
-            </button>
-          )}
           <input
             ref={fileInputRef}
             type="file"
@@ -790,8 +720,25 @@ export default function MediaSelector({
           />
         </div>
         
-        {media.length > 0 && (
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 rounded border border-subtle bg-background px-3 py-1.5">
+            <span className="text-xs text-muted whitespace-nowrap">Storlek</span>
+            <input
+              type="range"
+              min="0.2"
+              max="2"
+              step="0.01"
+              value={imageSizeMultiplier}
+              onChange={(e) => updateMediaSortConfig({ imageSize: Number(e.target.value) })}
+              className="w-28 accent-blue-500"
+              aria-label="Justera storlek på tumnaglar"
+            />
+            <span className="text-xs text-muted tabular-nums w-10 text-right">
+              {Math.round(imageSizeMultiplier * 100)}%
+            </span>
+          </div>
+          {media.length > 0 && (
+            <>
             <div className="relative">
               <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-muted" size={16} />
               <input
@@ -837,8 +784,9 @@ export default function MediaSelector({
             >
               <Download size={16} />
             </button>
-          </div>
-        )}
+            </>
+          )}
+        </div>
       </div>
 
       <div

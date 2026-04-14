@@ -2190,5 +2190,1585 @@
     "timestamp": "2026-04-13T15:55:53.063Z",
     "details": null,
     "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897241_opfwar8",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.241Z",
+    "details": {},
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897258_xsvl0tn",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.258Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897276_mfqm1n6",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.276Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897289_yr7knde",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.289Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897304_3uxtzdn",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.304Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897315_vzy9uq0",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.315Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897326_72l3hs7",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.326Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897338_xvl8xoi",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.338Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897351_0rqd3cv",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.351Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897363_2pbg8dq",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.363Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897376_2ze9sc4",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.376Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897386_lc07bv2",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.386Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897398_7dozprl",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.398Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897409_1vzf3z2",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.409Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897426_9hkerus",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.426Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897437_2fkhh5q",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.437Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897456_oz684hb",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.456Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897471_b26n82b",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.471Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897493_2yc0m3x",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.493Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897504_0oiiia3",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.504Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897560_giabkbh",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.560Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897582_fndbpuz",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.582Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897598_gd1mwsc",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.598Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897615_g6riq34",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.615Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897629_62nv9dt",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.629Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897640_y1l0lqb",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.640Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897652_aktk65v",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.652Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897663_vn803os",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.663Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897674_aukiorc",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.674Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897684_3cxhihv",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.684Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897690_52xnp7o",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.690Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897700_s710aic",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.700Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897708_ne9ptso",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.708Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897716_8y7m1rx",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.716Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897732_2exqsa8",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.732Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897738_cbgvxc0",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.738Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897746_oejdkg8",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.746Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897754_xtxhw3q",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.754Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897762_lfv2vgu",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.762Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897769_1whwu01",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.769Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897789_fv1vi2r",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.789Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897797_0jtenyw",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.797Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897806_hggzo0h",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.806Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897813_mmjitav",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.813Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897837_52pk2ef",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.837Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897844_6lnoq2l",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.844Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897860_4xtzry8",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.860Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897871_342y96t",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.871Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897877_dw1ge3u",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.877Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897884_bqlejs1",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.884Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897904_kh0rg73",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.904Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897910_gnlbkyg",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.910Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897918_40hut66",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.918Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897924_2muyycc",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.924Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897937_ihjwkg1",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.937Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897948_7kdjo24",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.948Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897976_59pk7x4",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.976Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897982_e09xsyt",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.982Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105897998_yt1wd0b",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:57.998Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105898009_lre0ihw",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:58.009Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105898016_mer6g21",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:58.016Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105898059_q1ylzpw",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:58.059Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105898082_qeb1taq",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:58.082Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776105898126_38e0qu3",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-13T18:44:58.126Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147214798_jogu0rr",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:34.798Z",
+    "details": {},
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147214814_1bpeihi",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:34.814Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147214826_xohumht",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:34.826Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147214837_20ks9q7",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:34.837Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147214848_wcxvflk",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:34.848Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147214859_lg54jtk",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:34.859Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147214870_n04xvu8",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:34.870Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147214880_7ib64qg",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:34.880Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147214891_i6bu9ph",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:34.891Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147214902_7kxd1nt",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:34.902Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147214912_05np0gg",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:34.912Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147214923_5g1lkt3",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:34.923Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147214934_5nsboym",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:34.934Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147214945_gpbt2lh",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:34.945Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147214960_hxbn43u",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:34.960Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147214970_1qx66fg",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:34.970Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147214981_jlxoohp",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:34.981Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147214991_igmv4ar",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:34.991Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215002_0aks9ov",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.002Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215013_eslb33s",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.013Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215023_8m405yz",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.023Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215035_sjj8hzz",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.035Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215045_e8w0tip",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.045Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215055_eut7pc9",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.055Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215067_lpuy6mq",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.067Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215078_66ch6gb",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.078Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215089_ry1jurv",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.089Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215110_6owfomg",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.110Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215122_3j2543x",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.122Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215143_5zylwcu",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.143Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215199_linmo53",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.199Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215232_i2bb81c",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.232Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215593_8apcng4",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.593Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215600_kwf3o4q",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.600Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215608_xlkmpuy",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.608Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215616_xppimo7",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.616Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215624_fgfa85k",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.624Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215633_o67o1pq",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.633Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215640_xbscea8",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.640Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215648_lh7wm0v",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.648Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215655_qsy11o2",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.655Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215663_bcr0rwf",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.663Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215670_dsnrhpa",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.670Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215699_03h5iqw",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.699Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215716_ogw4l2o",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.716Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215749_fegr8ak",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.749Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215771_w93efnw",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.771Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215793_bx4vunw",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.793Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215804_v9hj8rw",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.804Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215821_lfdft4d",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.821Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215831_n50ljt7",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.831Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215843_zomiq2y",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.843Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215860_42qnqz2",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.860Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215872_kljdf0y",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.872Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215885_teqwobz",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.885Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215896_tah52m3",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.896Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215908_ckg381l",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.908Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215920_cj38qew",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.920Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215931_bgatxo7",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.931Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215944_h2p8tbo",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.944Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215956_cpingfk",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.956Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147215982_s50ljed",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:35.982Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147216016_b4y3g5m",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:36.016Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776147216150_6yxtciu",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T06:13:36.150Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776153277520_bz9i3wh",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T07:54:37.520Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776153279928_9suhrcz",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T07:54:39.928Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776153280139_4o41ahj",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T07:54:40.139Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776153280256_j0j86ib",
+    "type": "edit",
+    "entityType": "source",
+    "entityId": "src_1776095777932_quh9ic",
+    "actor": "local",
+    "timestamp": "2026-04-14T07:54:40.256Z",
+    "details": {
+      "sourceString": "Arkiv Digital AI:6 (1821-1826)"
+    },
+    "sourceIds": []
   }
 ]

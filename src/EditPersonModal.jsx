@@ -1707,12 +1707,37 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
   const [isImageEditorOpen, setIsImageEditorOpen] = useState(false);
   const [editingImageIndex, setEditingImageIndex] = useState(null);
   const [imageEditorContext, setImageEditorContext] = useState('event');
+  const [sourceImageViewerMedia, setSourceImageViewerMedia] = useState([]);
+  const [sourceThumbHover, setSourceThumbHover] = useState({ open: false, x: 0, y: 0, url: '', name: '' });
   const [isRefCopied, setIsRefCopied] = useState(false);
   const [isRefConflictVisible, setIsRefConflictVisible] = useState(false);
   const refCopyTimeoutRef = useRef(null);
   const refConflictTimeoutRef = useRef(null);
   const [hasClipboardSourceText, setHasClipboardSourceText] = useState(false);
   const [isPastingSourceFromClipboard, setIsPastingSourceFromClipboard] = useState(false);
+
+  const updateSourceThumbHover = (clientX, clientY, url, name = '') => {
+    if (!url) return;
+    const margin = 14;
+    const previewWidth = Math.min(Math.max(window.innerWidth * 0.28, 220), 420);
+    const previewHeight = Math.min(Math.max(window.innerHeight * 0.32, 180), 460);
+
+    let x = clientX + 18;
+    let y = clientY + 18;
+
+    if (x + previewWidth + margin > window.innerWidth) {
+      x = Math.max(margin, clientX - previewWidth - 18);
+    }
+    if (y + previewHeight + margin > window.innerHeight) {
+      y = Math.max(margin, clientY - previewHeight - 18);
+    }
+
+    setSourceThumbHover({ open: true, x, y, url, name });
+  };
+
+  const closeSourceThumbHover = () => {
+    setSourceThumbHover((prev) => (prev.open ? { ...prev, open: false } : prev));
+  };
 
   // State för noteringar-fliken
   const [noteSearch, setNoteSearch] = useState('');
@@ -5344,6 +5369,43 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                         displaySource.year ? `(${displaySource.year})` : ''
                       ].filter(Boolean).join(' ');
                       const sourceReferenceText = displaySource.bildId ? `bildid: ${displaySource.bildId}` : '';
+                      const sourceNotesText = getMeaningfulNoteText(displaySource.notes);
+                      const sourceImageRefs = Array.isArray(displaySource.images) ? displaySource.images : [];
+                      const resolvedSourceImages = sourceImageRefs
+                        .map((imgRef, imgIdx) => {
+                          if (!imgRef) return null;
+
+                          const refId = (typeof imgRef === 'string' || typeof imgRef === 'number')
+                            ? String(imgRef)
+                            : (imgRef?.id ? String(imgRef.id) : null);
+
+                          if (refId) {
+                            const mediaMatch = (allMediaItems || []).find((m) => String(m?.id) === refId);
+                            if (mediaMatch) return mediaMatch;
+                          }
+
+                          if (typeof imgRef === 'string') {
+                            return {
+                              id: `legacy_${sourceId}_${imgIdx}`,
+                              url: imgRef,
+                              name: 'Bild'
+                            };
+                          }
+
+                          if (typeof imgRef === 'object') {
+                            if (imgRef.url || imgRef.thumbnail) return imgRef;
+                            if (imgRef.filePath) {
+                              const normalizedPath = String(imgRef.filePath).replace(/\\/g, '/');
+                              return {
+                                ...imgRef,
+                                url: `media://${encodeURIComponent(normalizedPath)}`
+                              };
+                            }
+                          }
+
+                          return null;
+                        })
+                        .filter(Boolean);
 
                       console.log('🔍 SOURCE FOR DISPLAY (mapped):', {
                         sourceId,
@@ -5360,22 +5422,31 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                         <div key={sourceId} className="bg-surface p-2 rounded border border-subtle flex items-start gap-3">
                           {/* Thumbnails */}
                           <div className="flex gap-1 items-start">
-                            {displaySource.images && displaySource.images.length > 0 ? (
-                              displaySource.images.slice(0, 3).map((img, idx) => (
-                                <div key={idx} className="relative group">
-                                  <img
-                                    src={img.url || img.thumbnail || img}
+                            {resolvedSourceImages.length > 0 ? (
+                              resolvedSourceImages.slice(0, 3).map((img, idx) => (
+                                <button
+                                  key={idx}
+                                  type="button"
+                                  className="relative"
+                                  onMouseEnter={(e) => updateSourceThumbHover(e.clientX, e.clientY, img.url || img.thumbnail, img.name || 'Källbild')}
+                                  onMouseMove={(e) => updateSourceThumbHover(e.clientX, e.clientY, img.url || img.thumbnail, img.name || 'Källbild')}
+                                  onMouseLeave={closeSourceThumbHover}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    closeSourceThumbHover();
+                                    setSourceImageViewerMedia(resolvedSourceImages);
+                                    setImageEditorContext('source');
+                                    setEditingImageIndex(idx);
+                                    setIsImageEditorOpen(true);
+                                  }}
+                                  title="Öppna i bildvisaren"
+                                >
+                                  <MediaImage
+                                    url={img.url || img.thumbnail}
                                     alt="Thumbnail"
                                     className="h-8 w-8 object-cover rounded cursor-pointer border border-subtle hover:border-accent"
-                                    onClick={() => {
-                                      const fullUrl = img.url || img;
-                                      window.open(fullUrl, '_blank');
-                                    }}
                                   />
-                                  <div className="absolute hidden group-hover:block z-50 bg-background border border-subtle rounded shadow-lg p-1 left-0 top-10">
-                                    <img src={img.url || img} alt="Preview" className="h-32 w-32 object-cover rounded" />
-                                  </div>
-                                </div>
+                                </button>
                               ))
                             ) : (
                               <div className="h-8 w-8 bg-surface-2 rounded flex items-center justify-center text-muted">
@@ -5456,9 +5527,9 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                               </button>
                             </div>
 
-                            {displaySource.notes && (
+                            {sourceNotesText && (
                               <div className="mt-1 text-muted text-xs italic line-clamp-1">
-                                {displaySource.notes}
+                                {sourceNotesText}
                               </div>
                             )}
                           </div>
@@ -5466,7 +5537,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                           {/* Action buttons */}
                           <div className="flex gap-1 ml-2 items-center text-xs">
                             {/* Noter-ikon */}
-                            {displaySource.notes && (
+                            {sourceNotesText && (
                               <div className="relative group">
                                 <button
                                   className="text-muted hover:text-accent p-1 flex items-center gap-0.5"
@@ -5476,7 +5547,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                                   <span className="text-muted">1</span>
                                 </button>
                                 <div className="absolute hidden group-hover:block z-50 bg-background text-on-accent text-xs rounded shadow-lg p-2 right-0 top-6 min-w-max max-w-xs whitespace-normal">
-                                  {displaySource.notes}
+                                  {sourceNotesText}
                                   <div className="absolute top-0 right-2 transform -translate-y-1 w-2 h-2 bg-background rotate-45"></div>
                                 </div>
                               </div>
@@ -5891,10 +5962,75 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                       const sourceYear = source.date || source.year;
                       const sourceBildId = source.bildid || source.bildId || source.raId;
                       const sourceMainText = `${source.title || 'Ingen titel'}${source.volume ? ` vol. ${source.volume}` : ''}${sourceYear ? ` (${sourceYear})` : ''}`;
+                      const sourceImageRefs = Array.isArray(source.images) ? source.images : [];
+                      const resolvedSourceImages = sourceImageRefs
+                        .map((imgRef, imgIdx) => {
+                          if (!imgRef) return null;
+
+                          const refId = (typeof imgRef === 'string' || typeof imgRef === 'number')
+                            ? String(imgRef)
+                            : (imgRef?.id ? String(imgRef.id) : null);
+
+                          if (refId) {
+                            const mediaMatch = (allMediaItems || []).find((m) => String(m?.id) === refId);
+                            if (mediaMatch) return mediaMatch;
+                          }
+
+                          if (typeof imgRef === 'string') {
+                            return {
+                              id: `event_src_legacy_${sourceId}_${imgIdx}`,
+                              url: imgRef,
+                              name: 'Bild'
+                            };
+                          }
+
+                          if (typeof imgRef === 'object') {
+                            if (imgRef.url || imgRef.thumbnail) return imgRef;
+                            if (imgRef.filePath) {
+                              const normalizedPath = String(imgRef.filePath).replace(/\\/g, '/');
+                              return {
+                                ...imgRef,
+                                url: `media://${encodeURIComponent(normalizedPath)}`
+                              };
+                            }
+                          }
+
+                          return null;
+                        })
+                        .filter(Boolean);
 
                       return (
-                        <div key={sourceId} className="bg-surface p-3 rounded text-sm border border-subtle flex justify-between items-start">
-                          <div className="flex-1">
+                        <div key={sourceId} className="bg-surface p-3 rounded text-sm border border-subtle flex items-start gap-3">
+                          {resolvedSourceImages.length > 0 && (
+                            <div className="flex gap-1 items-start shrink-0">
+                              {resolvedSourceImages.slice(0, 3).map((img, imgIdx) => (
+                                <button
+                                  key={img.id || imgIdx}
+                                  type="button"
+                                  className="relative"
+                                  onMouseEnter={(e) => updateSourceThumbHover(e.clientX, e.clientY, img.url || img.thumbnail, img.name || 'Källbild')}
+                                  onMouseMove={(e) => updateSourceThumbHover(e.clientX, e.clientY, img.url || img.thumbnail, img.name || 'Källbild')}
+                                  onMouseLeave={closeSourceThumbHover}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    closeSourceThumbHover();
+                                    setSourceImageViewerMedia(resolvedSourceImages);
+                                    setImageEditorContext('source');
+                                    setEditingImageIndex(imgIdx);
+                                    setIsImageEditorOpen(true);
+                                  }}
+                                  title="Öppna i bildvisaren"
+                                >
+                                  <MediaImage
+                                    url={img.url || img.thumbnail}
+                                    alt={img.name || 'Källbild'}
+                                    className="h-9 w-9 object-cover rounded border border-subtle"
+                                  />
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
                             <div className="font-semibold text-primary mb-1 flex flex-wrap items-center gap-1">
                               <button
                                 type="button"
@@ -5933,7 +6069,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                               </a>
                             )}
                           </div>
-                          <div className="flex gap-2 ml-3">
+                          <div className="flex gap-2 ml-3 shrink-0">
                             <button
                               onClick={() => setNewEvent({
                                 ...newEvent,
@@ -6196,14 +6332,16 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
       {isImageEditorOpen && (() => {
         const mediaObjects = imageEditorContext === 'person'
           ? (Array.isArray(person.media) ? person.media : [])
-          : (() => {
-            const eventImages = selectedEventIndex !== null && person.events?.[selectedEventIndex]?.images
-              ? (Array.isArray(person.events[selectedEventIndex].images)
-                ? person.events[selectedEventIndex].images
-                : [])
-              : [];
-            return allMediaItems.filter(m => eventImages.includes(m.id));
-          })();
+          : imageEditorContext === 'source'
+            ? (Array.isArray(sourceImageViewerMedia) ? sourceImageViewerMedia : [])
+            : (() => {
+              const eventImages = selectedEventIndex !== null && person.events?.[selectedEventIndex]?.images
+                ? (Array.isArray(person.events[selectedEventIndex].images)
+                  ? person.events[selectedEventIndex].images
+                  : [])
+                : [];
+              return allMediaItems.filter(m => eventImages.includes(m.id));
+            })();
 
         const currentImage = editingImageIndex !== null ? mediaObjects[editingImageIndex] : null;
         const prevImage = editingImageIndex !== null && editingImageIndex > 0 ? mediaObjects[editingImageIndex - 1] : null;
@@ -6216,6 +6354,7 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
               setIsImageEditorOpen(false);
               setEditingImageIndex(null);
               setImageEditorContext('event');
+              setSourceImageViewerMedia([]);
             }}
             imageSrc={currentImage?.url || currentImage?.path}
             imageTitle={currentImage?.name}
@@ -6242,6 +6381,15 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                   );
                   onUpdateAllMedia(nextAllMedia);
                 }
+              }
+
+              if (imageEditorContext === 'source' && typeof onUpdateAllMedia === 'function') {
+                const nextAllMedia = (allMediaItems || []).map((item) =>
+                  String(item?.id) === String(currentImage?.id)
+                    ? { ...item, regions: newRegions, faces: newRegions }
+                    : item
+                );
+                onUpdateAllMedia(nextAllMedia);
               }
             }}
             onSaveImageMeta={(metaPatch) => {
@@ -6289,6 +6437,25 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
           />
         );
       })()}
+
+      {sourceThumbHover.open && sourceThumbHover.url && createPortal(
+        <div
+          className="fixed pointer-events-none z-[140000] bg-background border border-subtle rounded-lg shadow-2xl overflow-hidden"
+          style={{
+            left: `${sourceThumbHover.x}px`,
+            top: `${sourceThumbHover.y}px`,
+            width: 'clamp(220px, 28vw, 420px)',
+            height: 'clamp(180px, 32vh, 460px)'
+          }}
+        >
+          <MediaImage
+            url={sourceThumbHover.url}
+            alt={sourceThumbHover.name || 'Förhandsvisning'}
+            className="w-full h-full object-contain bg-surface"
+          />
+        </div>,
+        document.body
+      )}
 
       {/* --- SOURCE MODAL (SUB-MODAL) --- */}
       <SourceModal

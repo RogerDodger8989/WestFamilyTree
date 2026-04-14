@@ -58,17 +58,28 @@ export default function LinkPersonModal({
     }, [isOpen]);
 
     const filteredPeople = useMemo(() => {
-        if (initialPersonId) return people.filter(p => p.id === initialPersonId);
-        if (!searchTerm) return [];
-        const lower = searchTerm.toLowerCase();
-        // Filter out excluded persons (already tagged)
-        return people
-            .filter(p => !excludePersonIds.includes(p.id))
-            .filter(p => 
+        const excluded = new Set((excludePersonIds || []).map((id) => String(id)));
+        const availablePeople = (people || []).filter((p) => !excluded.has(String(p?.id)));
+
+        if (initialPersonId) {
+            return availablePeople.filter((p) => String(p?.id) === String(initialPersonId));
+        }
+
+        const lower = searchTerm.trim().toLowerCase();
+        if (!lower) {
+            return availablePeople
+                .slice()
+                .sort((a, b) => `${a?.lastName || ''} ${a?.firstName || ''}`.localeCompare(`${b?.lastName || ''} ${b?.firstName || ''}`, 'sv'))
+                .slice(0, 200);
+        }
+
+        return availablePeople
+            .filter((p) =>
                 (p.firstName && p.firstName.toLowerCase().includes(lower)) ||
                 (p.lastName && p.lastName.toLowerCase().includes(lower)) ||
-                (p.refNumber && String(p.refNumber).includes(lower))
-            ).slice(0, 20); 
+                (p.refNumber && String(p.refNumber).toLowerCase().includes(lower))
+            )
+            .slice(0, 200);
     }, [people, searchTerm, initialPersonId, excludePersonIds]);
 
     if (!isOpen) return null;
@@ -84,27 +95,27 @@ export default function LinkPersonModal({
                 zIndex={zIndex}
             >
                 <div className="p-4 h-full flex flex-col">
-                    <div className="mb-3 text-sm text-slate-400">
-                        Denna person har ingen händelse ännu. Du kan:
+                    <div className="mb-3 text-sm text-muted">
+                        Välj en händelse att koppla till källan.
                     </div>
-                    <div className="flex-1 overflow-y-auto border rounded bg-slate-800 border-slate-700 mb-4">
+                    <div className="flex-1 overflow-y-auto border rounded bg-surface border-subtle mb-4">
                         {(!selectedPerson.events || selectedPerson.events.length === 0) && (
-                            <div className="p-4 text-slate-400 text-center italic">Inga händelser</div>
+                            <div className="p-4 text-muted text-center italic">Inga händelser</div>
                         )}
                         {selectedPerson.events && selectedPerson.events.map(event => (
-                            <div key={event.id} className="border-b border-slate-700 bg-slate-900">
+                            <div key={event.id} className="border-b border-subtle bg-surface last:border-b-0">
                                 <div 
-                                    className="p-3 cursor-pointer hover:bg-slate-700 flex justify-between items-center"
+                                    className="p-3 cursor-pointer hover:bg-surface-2 flex justify-between items-center transition-colors"
                                     onClick={() => {
                                         onLink(selectedPerson.id, event.id);
                                         setSelectedPerson(null);
                                         onClose();
                                     }}
                                 >
-                                    <div className="text-slate-200 text-sm">
+                                    <div className="text-primary text-sm">
                                         <span className="font-bold">{event.type}</span>
-                                        <span className="text-slate-400 ml-2">{event.date || '-'}</span>
-                                        <span className="text-slate-500 text-xs ml-2">{event.place || ''}</span>
+                                        <span className="text-muted ml-2">{event.date || '-'}</span>
+                                        <span className="text-muted text-xs ml-2">{event.place || ''}</span>
                                     </div>
                                 </div>
                             </div>
@@ -113,7 +124,7 @@ export default function LinkPersonModal({
                     <div className="flex gap-2">
                         <button
                             onClick={() => setSelectedPerson(null)}
-                            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded text-sm font-medium"
+                            className="px-4 py-2 bg-surface-2 hover:bg-surface text-primary rounded text-sm font-medium transition-colors"
                         >
                             Tillbaka
                         </button>
@@ -124,7 +135,7 @@ export default function LinkPersonModal({
                                 setSelectedPerson(null);
                                 onClose();
                             }}
-                            className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium"
+                            className="flex-1 px-4 py-2 bg-accent hover:bg-accent text-on-accent rounded text-sm font-medium transition-colors"
                         >
                             + Lägg till ny händelse
                         </button>
@@ -150,7 +161,7 @@ export default function LinkPersonModal({
                             ref={inputRef}
                             type="text" 
                             placeholder="Sök på namn eller REF..." 
-                            className="w-full border p-2 rounded shadow-sm focus:ring-2 focus:ring-blue-500 outline-none bg-slate-900 text-slate-200 border-slate-700"
+                            className="w-full border p-2 rounded shadow-sm focus:ring-2 focus:ring-accent outline-none bg-background text-primary border-subtle"
                             value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
                             onClick={() => inputRef.current?.focus()}
@@ -159,14 +170,14 @@ export default function LinkPersonModal({
                     </div>
                 )}
 
-                <div className="flex-1 overflow-y-auto border rounded bg-slate-800 border-slate-700">
-                    {filteredPeople.length === 0 && searchTerm && (
-                        <div className="p-4 text-slate-400 text-center">Inga personer hittades.</div>
+                <div className="flex-1 overflow-y-auto border rounded bg-surface border-subtle">
+                    {filteredPeople.length === 0 && (
+                        <div className="p-4 text-muted text-center">Inga personer hittades.</div>
                     )}
                     {filteredPeople.map(person => (
-                        <div key={person.id} className="border-b border-slate-700 bg-slate-900">
+                        <div key={person.id} className="border-b border-subtle bg-surface last:border-b-0">
                             <div 
-                                className="p-3 cursor-pointer hover:bg-slate-700 flex justify-between items-center"
+                                className="p-3 cursor-pointer hover:bg-surface-2 flex justify-between items-center transition-colors"
                                 onClick={() => {
                                     if (skipEventSelection) {
                                         // For face tagging: select person directly and close
@@ -178,10 +189,10 @@ export default function LinkPersonModal({
                                     }
                                 }}
                             >
-                                <div className="font-bold text-slate-200 text-sm">
+                                <div className="font-bold text-primary text-sm">
                                     {person.firstName} {person.lastName} 
-                                    <span className="text-slate-400 font-normal ml-2">{getLifeRange(person)}</span>
-                                    <span className="text-slate-500 font-normal text-xs ml-2">(Ref: {person.refNumber})</span>
+                                    <span className="text-muted font-normal ml-2">{getLifeRange(person)}</span>
+                                    <span className="text-muted font-normal text-xs ml-2">(Ref: {person.refNumber})</span>
                                 </div>
                             </div>
                         </div>

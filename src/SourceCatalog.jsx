@@ -903,6 +903,9 @@ export default function SourceCatalog({
   const currentNotes = selectedSource ? getNotesList(selectedSource) : [];
   const imagesCount = selectedSource?.images?.length || 0;
   const notesCount = currentNotes.length;
+  const connectionsCount = Array.isArray(linkedData)
+    ? linkedData.reduce((sum, item) => sum + (Array.isArray(item?.events) ? item.events.length : 0), 0)
+    : 0;
 
   const inferSourceTypeFromLabel = (label) => {
     const text = String(label || '').trim().toLowerCase();
@@ -1356,6 +1359,7 @@ export default function SourceCatalog({
                     >
                         <span className="text-lg" role="img" aria-label="Kopplingar">👥</span>
                         Kopplingar
+                      {connectionsCount > 0 && <span className="ml-1 bg-green-900 text-green-200 text-xs font-bold px-2 py-0.5 rounded-full shadow-sm">{connectionsCount}</span>}
                         {activeRightTab === 'connections' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2 h-2 bg-blue-500 rounded-full" />}
                     </button>
                 </div>
