@@ -28,7 +28,7 @@ export default function PlaceCreateModal({ parentNode, onClose, onCreate }) {
     e.preventDefault();
     setSaving(true);
     try {
-      await onCreate({ ...form, parentid: parentNode?.metadata?.id || null });
+      await onCreate({ ...form, parentid: parentNode?.metadata?.id || parentNode?.id || null });
       onClose();
     } catch (err) {
       alert('Kunde inte skapa plats: ' + err.message);
@@ -41,7 +41,16 @@ export default function PlaceCreateModal({ parentNode, onClose, onCreate }) {
     <form onSubmit={handleSubmit} className="p-6 space-y-4 flex flex-col h-full">
           <div>
             <label className="block text-sm font-semibold text-secondary">Namn</label>
-            <input type="text" name="name" value={form.name} onChange={handleChange} required autoComplete="off" className="w-full border border-subtle bg-background text-primary rounded px-3 py-2" />
+            <input 
+              type="text" 
+              name="name" 
+              value={form.name} 
+              onChange={handleChange} 
+              required 
+              autoComplete="off" 
+              autoFocus
+              className="w-full border border-subtle bg-background text-primary rounded px-3 py-2" 
+            />
           </div>
           <div>
             <label className="block text-sm font-semibold text-secondary">Typ</label>

@@ -287,8 +287,8 @@ const ContextMenu = ({ x, y, node, onClose, onAction }) => {
 };
 
 export default function PlaceCatalog({ catalogState, setCatalogState, onPick, onClose, isDrawerMode = false, onLinkPlace, onCalculateMergeImpact, onMergePlaces, allPeople = [], onOpenEditModal }) {
-  // State for map visibility
-  const [showMap, setShowMap] = useState(true);
+  // State for map visibility - default minimized
+  const [showMap, setShowMap] = useState(false);
   // Ref for Leaflet map
   const leafletMapRef = useRef(null);
   // Riksarkivet state
@@ -321,6 +321,7 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
   const [isMergeFinalStep, setIsMergeFinalStep] = useState(false);
   const [mergeImpactPreview, setMergeImpactPreview] = useState(null);
   const [placeToDelete, setPlaceToDelete] = useState(null);
+  const [pendingFocusId, setPendingFocusId] = useState(null);
   const fileInputRef = useRef(null);
   const selectedPlaceIdSet = useMemo(() => new Set(selectedPlaceIds), [selectedPlaceIds]);
 
@@ -342,6 +343,47 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
       .filter(Boolean);
   }, [flatPlaces]);
   const selectedCoordinates = useMemo(() => getNodeCoordinates(selectedNode), [selectedNode]);
+
+  // --- NYTT: Effekt för att fokusera och fälla ut trädet när en ny plats skapats ---
+  useEffect(() => {
+    if (!pendingFocusId || !flatPlaces.length) return;
+
+    // Hitta noden i den platta listan (som nu förhoppningsvis innehåller den nya platsen)
+    const targetNode = flatPlaces.find(p => p.id === pendingFocusId || p.metadata?.id === pendingFocusId);
+    
+    if (targetNode) {
+      // 1. Expandera föräldrar
+      const pathIds = new Set();
+      const findPath = (nodes, targetId, currentPath = []) => {
+        for (const n of nodes) {
+          if (n.id === targetId) return currentPath;
+          if (n.children) {
+            const res = findPath(n.children, targetId, [...currentPath, n.id]);
+            if (res) return res;
+          }
+        }
+        return null;
+      };
+
+      const path = findPath(tree, targetNode.id);
+      if (path) {
+        // Börja med ett rent set (root + sökvägen) för att "städa upp" listan enligt önskemål
+        const next = new Set(['root']);
+        path.forEach(id => next.add(id));
+        setExpandedNodes(next);
+      }
+
+      // 2. Markera noden
+      setSelectedNode(targetNode);
+      setSelectedPlaceIds([targetNode.id]);
+      
+      // 3. Rensa pending
+      setPendingFocusId(null);
+      
+      // 4. Scrolla till vy om möjligt (valfritt)
+      console.log('Automatiskt fokus satt på:', targetNode.name);
+    }
+  }, [pendingFocusId, flatPlaces, tree]);
 
   // Function to fly to coordinates
   function flyToCoordinates(coords, zoom = 11) {
@@ -872,15 +914,13 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
     return { filtered, nodesToExpand };
   }
   
-  // Auto-expandera noder vid sökning (använd useEffect för att undvika infinite loop)
+  // Auto-expandera noder vid sökning
   useEffect(() => {
     if (searchTerm && tree.length > 0) {
       const { nodesToExpand } = filterTree(tree, searchTerm);
       if (nodesToExpand.size > 0) {
         setExpandedNodes(prev => new Set([...prev, ...nodesToExpand]));
       }
-    } else if (!searchTerm) {
-      setExpandedNodes(new Set(['root']));
     }
   }, [searchTerm, tree]);
 
@@ -907,8 +947,8 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
     if (result) {
       const { node, parentIds } = result;
       
-      // Expanderar alla föräldranoder så att noden är synlig
-      const newExpanded = new Set(expandedNodes);
+      // Expanderar alla föräldranoder så att noden är synlig - städar även här
+      const newExpanded = new Set(['root']);
       let hasChanges = false;
       parentIds.forEach(id => {
         if (!newExpanded.has(id)) {
@@ -1300,7 +1340,7 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
     });
 
     showStatus && showStatus('Plats sparad.');
-    loadPlaces();
+    // Ingen loadPlaces() här för att undvika frysning/flash, dbData synkar automatiskt
   };
 
   // Skapa ny plats
@@ -1310,11 +1350,22 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
     const pm = parentNode?.metadata || {};
     
     // Kopiera f�r�lderns platshierarki
+    // Kopiera hierarki robust
     const inheritedFields = {
       lansnamn: pm.lansnamn || pm.region || '',
+      lanskod: pm.lanskod || '',
       kommunnamn: pm.kommunnamn || pm.municipality || '',
+      kommunkod: pm.kommunkod || '',
       sockenstadnamn: pm.sockenstadnamn || pm.parish || ''
     };
+
+    // Fallback för virtuella noder
+    if (parentNode?.type === 'Parish' && !inheritedFields.sockenstadnamn) {
+      inheritedFields.sockenstadnamn = parentNode.name.replace(/\s*församling$/i, '').replace(/\s*socken$/i, '').trim();
+    }
+    if (parentNode?.type === 'Municipality' && !inheritedFields.kommunnamn) {
+      inheritedFields.kommunnamn = parentNode.name.replace(/\s*kommun$/i, '').trim();
+    }
 
     const tempId = 'user_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
     const newPlace = {
@@ -1322,31 +1373,31 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
       ...formData,
       id: tempId,
       source: 'user',
-      type: formData.type, // Spara typ även på toppnivå
+      type: formData.type,
       metadata: {
         ...inheritedFields,
         ...formData,
-        id: tempId, // VIKTIGT: Spara ID även i metadata så att radering hittar rätt
+        id: tempId,
         latitude: formData.latitude || null,
         longitude: formData.longitude || null,
         note: formData.note || '',
-        type: formData.type // Spara typ även i metadata
+        type: formData.type
       }
     };
+
     setDbData(prev => {
-      const places = Array.isArray(prev.places) ? prev.places : [];
-      return { ...prev, places: [...places, newPlace] };
+      const placesList = Array.isArray(prev.places) ? prev.places : [];
+      return { ...prev, places: [...placesList, newPlace] };
     });
     
-    // Lägg till direkt i lokal state för omedelbar respons
     setPlaces(prev => [...prev, newPlace]);
-    
+    setPendingFocusId(tempId);
+
     showStatus && showStatus('Ny plats skapad.');
     setSearchTerm('');
     setTimeout(() => {
       if (searchInputRef.current) searchInputRef.current.focus();
-    }, 0);
-    loadPlaces();
+    }, 100);
   };
 
   // Importera XML-fil
@@ -1983,58 +2034,72 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
                   const node = placeToDelete;
                   setPlaceToDelete(null);
 
-                  const result = findNodeById(tree, node.id || node.metadata?.id);
-                  let parentIdToSelect = null;
-                  if (result && result.parentIds && result.parentIds.length > 0) {
-                    parentIdToSelect = result.parentIds[result.parentIds.length - 1];
-                  }
+                  const originalDbData = dbData;
+                  const originalSelectedNode = selectedNode;
+                  const originalPlaces = places;
 
-                  let deletedPlace = null;
                   const targetDeleteId = node.metadata?.id || node.id;
+
+                  // Hitta förälder för att flytta fokus
+                  let parentNode = null;
+                  const m = node.metadata || {};
+                  if (m.parentid || m.parish_id || m.municipality_id || m.region_id) {
+                    const pid = m.parentid || m.parish_id || m.municipality_id || m.region_id;
+                    parentNode = flatPlaces.find(p => p.id === pid || p.metadata?.id === pid);
+                  }
                   
-                  // Radera från backend först så att den inte poppar tillbaka vid reload
-                  try {
-                    await fetch(`http://127.0.0.1:5005/place/${targetDeleteId}`, { method: 'DELETE' });
-                  } catch (err) {
-                    console.error('Kunde inte radera plats från backend:', err);
+                  // Om vi inte hittade via metadata, försök via trädstrukturen
+                  if (!parentNode && tree) {
+                    const findParent = (nodes, targetId, parent = null) => {
+                      for (const n of nodes) {
+                        if (n.id === targetId) return parent;
+                        if (n.children) {
+                          const res = findParent(n.children, targetId, n);
+                          if (res) return res;
+                        }
+                      }
+                      return null;
+                    };
+                    parentNode = findParent(tree, node.id);
                   }
 
+                  // Flytta fokus till förälder
+                  if (parentNode) {
+                    setSelectedNode(parentNode);
+                  } else {
+                    setSelectedNode(null);
+                  }
+
+                  // Utför radering lokalt
                   setDbData(prev => {
-                    const places = Array.isArray(prev.places) ? prev.places : [];
-                    // Hitta platsen mer robust genom att kolla både top-level id och metadata.id
-                    deletedPlace = places.find(p => p.id === targetDeleteId || p.metadata?.id === targetDeleteId);
-                    
-                    // Ta bort platsen genom att filtrera bort alla varianter av ID:t
+                    const pList = Array.isArray(prev.places) ? prev.places : [];
                     return { 
                       ...prev, 
-                      places: places.filter(p => 
-                        p.id !== targetDeleteId && 
-                        p.metadata?.id !== targetDeleteId
-                      ) 
+                      places: pList.filter(p => p.id !== targetDeleteId && p.metadata?.id !== targetDeleteId) 
                     };
                   });
+                  setPlaces(prev => prev.filter(p => {
+                    const pid = p.metadata?.id || p.id;
+                    return pid !== targetDeleteId;
+                  }));
 
-                  setPlaces(prev => prev.filter(p => p.id !== node.id && p.id !== node.metadata?.id));
-
-                  if (parentIdToSelect) {
-                    const pResult = findNodeById(tree, parentIdToSelect);
-                    if (pResult?.node) {
-                       setSelectedNode(pResult.node);
-                       setSelectedPlaceIds([pResult.node.id]);
-                       if (setCatalogState) setCatalogState(prev => ({...prev, selectedPlaceId: pResult.node.id}));
-                    }
-                  } else {
-                    setSelectedNode(prev => (prev && (prev.id === node.id || prev.metadata?.id === node.metadata?.id)) ? null : prev);
-                    setSelectedPlaceIds(prev => prev.filter(id => id !== node.id));
-                  }
-
-                  showStatus && showStatus('Plats raderad.');
-                  if (showUndoToast && deletedPlace) {
-                    showUndoToast(`Platsen "${node.name}" raderades`, () => {
-                      setDbData(prev => ({ ...prev, places: [...(Array.isArray(prev.places) ? prev.places : []), deletedPlace] }));
-                      loadPlaces();
+                  // Visa Undo-toast
+                  if (showUndoToast) {
+                    showUndoToast(`Platsen "${node.name}" raderad.`, () => {
+                      setDbData(originalDbData);
+                      setSelectedNode(originalSelectedNode);
+                      setPlaces(originalPlaces);
                     });
                   }
+
+                  // Fördröj radering från backend i 10 sekunder (matchar toast-tid)
+                  setTimeout(async () => {
+                    try {
+                      await fetch(`http://127.0.0.1:5005/place/${targetDeleteId}`, { method: 'DELETE' });
+                    } catch (err) {
+                      console.error('Kunde inte radera plats från backend:', err);
+                    }
+                  }, 10500);
                 }}
               >
                 Ja, radera
@@ -2171,7 +2236,10 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
             parentNode={creatingParent}
             onClose={() => setCreatingParent(null)}
             onCreate={async (form) => {
-              await handleCreatePlace({ name: form.name, type: form.type, latitude: form.latitude, longitude: form.longitude, note: form.note });
+              await handleCreatePlace({ 
+                ...form, 
+                parentid: creatingParent.id 
+              });
             }}
           />
         </WindowFrame>
