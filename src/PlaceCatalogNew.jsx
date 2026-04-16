@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { useApp } from './AppContext.jsx';
@@ -50,6 +50,8 @@ const PLACE_TYPE_ICONS = {
   'Municipality': '🏛️',
   'Parish': '⛪',
   'Village': '📍',
+  'Building': '🏠',
+  'Cemetary': '🪦',
   'default': '📍'
 };
 
@@ -318,6 +320,7 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
   const [mergeMasterId, setMergeMasterId] = useState('');
   const [isMergeFinalStep, setIsMergeFinalStep] = useState(false);
   const [mergeImpactPreview, setMergeImpactPreview] = useState(null);
+  const [placeToDelete, setPlaceToDelete] = useState(null);
   const fileInputRef = useRef(null);
   const selectedPlaceIdSet = useMemo(() => new Set(selectedPlaceIds), [selectedPlaceIds]);
 
@@ -604,15 +607,35 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
         ? data.list
         : (Array.isArray(data.tree) ? data.tree : []);
       const userPlaces = Array.isArray(dbData?.places) ? dbData.places : [];
-      const peopleDerivedPlaces = buildPlaceListFromPeople(allPeople);
-      // Slå ihop alla platser
-      const mergedPlaces = [...apiPlaces, ...userPlaces, ...peopleDerivedPlaces];
+      
+      // Filter för att dölja "Okända" och "Ospecificerade" platser som skräpat ner servern
+      const filterJunk = (p) => {
+        const text = [
+          p.lansnamn, p.region, p.kommunnamn, p.municipality, 
+          p.sockenstadnamn, p.parish, p.ortnamn, p.village, 
+          p.specific, p.name
+        ].filter(Boolean).join(' ').toLowerCase();
+        return text.includes('okänd') || text.includes('okänt') || text.includes('ospecificerad');
+      };
+
+      const filteredApi = apiPlaces.filter(p => !filterJunk(p));
+      const filteredUser = userPlaces.filter(p => !filterJunk(p));
+
+      // Slå ihop alla platser (ignorera peopleDerivedPlaces för att slippa spök-platser)
+      const mergedPlaces = [...filteredApi, ...filteredUser];
       setPlaces(mergedPlaces);
     } catch (e) {
       // Fallback: Endast lokala platser
       const localPlaces = Array.isArray(dbData?.places) ? dbData.places : [];
-      const peopleDerivedPlaces = buildPlaceListFromPeople(allPeople);
-      const mergedPlaces = [...localPlaces, ...peopleDerivedPlaces];
+      const filteredLocal = localPlaces.filter(p => {
+        const text = [
+          p.lansnamn, p.region, p.kommunnamn, p.municipality, 
+          p.sockenstadnamn, p.parish, p.ortnamn, p.village, 
+          p.specific, p.name
+        ].filter(Boolean).join(' ').toLowerCase();
+        return !(text.includes('okänd') || text.includes('okänt') || text.includes('ospecificerad'));
+      });
+      const mergedPlaces = [...filteredLocal];
 
       const hasRenderableChildren = (treeData) => {
         if (!Array.isArray(treeData) || treeData.length === 0) return false;
@@ -1122,7 +1145,18 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
         setEditingPlace(node);
         break;
       case 'delete': {
-        if (!node || !node.metadata?.id) {
+        if (!node) {
+          showStatus && showStatus('Ingen plats är markerad.', 'error');
+          break;
+        }
+
+        // Kontrollera om det är en virtuell mapp-nod skapad av trädgeneratorn
+        if (!node.metadata?.id && (node.id === 'unspecified' || String(node.id).startsWith('lan-') || String(node.id).startsWith('kom-') || String(node.id).startsWith('for-'))) {
+          showStatus && showStatus('Detta är en grupperingsmapp. Du måste markera och radera de enskilda platserna som ligger inuti den.', 'error');
+          break;
+        }
+
+        if (!node.metadata?.id) {
           showStatus && showStatus('Kan inte radera: saknar ID.', 'error');
           break;
         }
@@ -1143,43 +1177,7 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
           showStatus && showStatus('Du kan bara radera egna platser.', 'error');
           break;
         }
-        if (linkedPeople && linkedPeople.length > 0 && selectedNode && selectedNode.metadata?.id === node.metadata.id) {
-          if (!window.confirm(`Det finns ${linkedPeople.length} personer kopplade till platsen. Vill du ändå radera?`)) break;
-        } else {
-          if (!window.confirm(`Vill du verkligen radera "${node.name}"?`)) break;
-        }
-        // DELETE-anrop till backend
-        try {
-          await fetch(`http://127.0.0.1:5005/place/${node.metadata.id}`, { method: 'DELETE' });
-        } catch (err) {
-          console.error('Kunde inte radera plats från backend:', err);
-        }
-        // Undo support: spara platsen innan radering
-        let deletedPlace = null;
-        setDbData(prev => {
-          const places = Array.isArray(prev.places) ? prev.places : [];
-          deletedPlace = places.find(p => p.id === node.metadata.id);
-          // Ta bort platsen permanent ur places-arrayen
-          return { ...prev, places: places.filter(p => p.id !== node.metadata.id) };
-        });
-        showStatus && showStatus('Plats raderad.');
-        // Visa undo-toast
-        if (showUndoToast && deletedPlace) {
-          showUndoToast(`Platsen "${node.name}" raderades`, () => {
-            setDbData(prev => {
-              const places = Array.isArray(prev.places) ? prev.places : [];
-              // Återskapa platsen
-              return { ...prev, places: [...places, deletedPlace] };
-            });
-            showStatus && showStatus('Radering ångrad.');
-            loadPlaces();
-          });
-        }
-        // Ta bort platsen från lokal state (uppdaterar tree och flatPlaces automatiskt via useMemo)
-        setPlaces(prev => prev.filter(p => p.id !== node.id && p.id !== node.metadata?.id));
-        // Om platsen är vald, nollställ selection
-        setSelectedNode(prev => (prev && (prev.id === node.id || prev.metadata?.id === node.metadata?.id)) ? null : prev);
-        setSelectedPlaceIds(prev => prev.filter(id => id !== node.id));
+        setPlaceToDelete(node);
         break;
       }
       case 'copy-id':
@@ -1308,14 +1306,27 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
   // Skapa ny plats
   // Skapa ny plats: endast till dbData.places
   const handleCreatePlace = async (formData) => {
+    const parentNode = flatPlaces.find(p => (p.id === formData.parentid || p.metadata?.id === formData.parentid));
+    const pm = parentNode?.metadata || {};
+    
+    // Kopiera f�r�lderns platshierarki
+    const inheritedFields = {
+      lansnamn: pm.lansnamn || pm.region || '',
+      kommunnamn: pm.kommunnamn || pm.municipality || '',
+      sockenstadnamn: pm.sockenstadnamn || pm.parish || ''
+    };
+
     const tempId = 'user_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
     const newPlace = {
+      ...inheritedFields,
       ...formData,
       id: tempId,
       source: 'user',
       type: formData.type, // Spara typ även på toppnivå
       metadata: {
+        ...inheritedFields,
         ...formData,
+        id: tempId, // VIKTIGT: Spara ID även i metadata så att radering hittar rätt
         latitude: formData.latitude || null,
         longitude: formData.longitude || null,
         note: formData.note || '',
@@ -1359,6 +1370,7 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
 
   // Bygg breadcrumbs (sökväg)
   const getPath = (nodes, targetId, path = []) => {
+    if (!Array.isArray(nodes)) return null;
     for (const node of nodes) {
       if (node.id === targetId) return [...path, node.name];
       if (node.children) {
@@ -1369,7 +1381,7 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
     return null;
   };
 
-  const breadcrumbs = selectedNode ? getPath(tree, selectedNode.id) : [];
+  const breadcrumbs = selectedNode ? (getPath(tree, selectedNode.id || selectedNode.metadata?.id) || []) : [];
   
   // Sortera och filtrera trädet
   const sortTree = (nodes) => {
@@ -1926,11 +1938,109 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
         </div>
       ) : (
         <div className="h-8 bg-background text-secondary flex items-center px-4 text-xs border-t border-subtle">
-          {breadcrumbs.length > 0 ? (
-            <span>{breadcrumbs.join(' › ')}</span>
+          {(breadcrumbs || []).length > 0 ? (
+            <span>{(breadcrumbs || []).join(' › ')}</span>
           ) : (
             <span>Ingen plats vald</span>
           )}
+        </div>
+      )}
+
+      {placeToDelete && !isDrawerMode && (
+        <div className="fixed inset-0 z-[12000] bg-black/60 flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-surface border border-subtle rounded-lg shadow-xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-subtle flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-primary">Bekräfta radering</h3>
+              <button
+                className="text-secondary hover:text-primary"
+                onClick={() => setPlaceToDelete(null)}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 space-y-3">
+              {linkedPeople && linkedPeople.length > 0 && selectedNode && selectedNode.metadata?.id === placeToDelete.metadata?.id ? (
+                <p className="text-sm text-secondary">
+                  Det finns {linkedPeople.length} personer kopplade till platsen.<br/>
+                  Vill du ändå radera "{placeToDelete.name}"?
+                </p>
+              ) : (
+                <p className="text-sm text-secondary">
+                  Vill du verkligen radera "{placeToDelete.name}"?
+                </p>
+              )}
+            </div>
+            <div className="px-4 py-3 border-t border-subtle flex items-center justify-end gap-2">
+              <button
+                className="px-3 py-1 bg-surface-2 text-primary rounded hover:bg-surface"
+                onClick={() => setPlaceToDelete(null)}
+              >
+                Avbryt
+              </button>
+              <button
+                className="px-3 py-1 bg-red-600 text-red-100 rounded hover:bg-red-500 font-medium"
+                onClick={async () => {
+                  const node = placeToDelete;
+                  setPlaceToDelete(null);
+
+                  const result = findNodeById(tree, node.id || node.metadata?.id);
+                  let parentIdToSelect = null;
+                  if (result && result.parentIds && result.parentIds.length > 0) {
+                    parentIdToSelect = result.parentIds[result.parentIds.length - 1];
+                  }
+
+                  let deletedPlace = null;
+                  const targetDeleteId = node.metadata?.id || node.id;
+                  
+                  // Radera från backend först så att den inte poppar tillbaka vid reload
+                  try {
+                    await fetch(`http://127.0.0.1:5005/place/${targetDeleteId}`, { method: 'DELETE' });
+                  } catch (err) {
+                    console.error('Kunde inte radera plats från backend:', err);
+                  }
+
+                  setDbData(prev => {
+                    const places = Array.isArray(prev.places) ? prev.places : [];
+                    // Hitta platsen mer robust genom att kolla både top-level id och metadata.id
+                    deletedPlace = places.find(p => p.id === targetDeleteId || p.metadata?.id === targetDeleteId);
+                    
+                    // Ta bort platsen genom att filtrera bort alla varianter av ID:t
+                    return { 
+                      ...prev, 
+                      places: places.filter(p => 
+                        p.id !== targetDeleteId && 
+                        p.metadata?.id !== targetDeleteId
+                      ) 
+                    };
+                  });
+
+                  setPlaces(prev => prev.filter(p => p.id !== node.id && p.id !== node.metadata?.id));
+
+                  if (parentIdToSelect) {
+                    const pResult = findNodeById(tree, parentIdToSelect);
+                    if (pResult?.node) {
+                       setSelectedNode(pResult.node);
+                       setSelectedPlaceIds([pResult.node.id]);
+                       if (setCatalogState) setCatalogState(prev => ({...prev, selectedPlaceId: pResult.node.id}));
+                    }
+                  } else {
+                    setSelectedNode(prev => (prev && (prev.id === node.id || prev.metadata?.id === node.metadata?.id)) ? null : prev);
+                    setSelectedPlaceIds(prev => prev.filter(id => id !== node.id));
+                  }
+
+                  showStatus && showStatus('Plats raderad.');
+                  if (showUndoToast && deletedPlace) {
+                    showUndoToast(`Platsen "${node.name}" raderades`, () => {
+                      setDbData(prev => ({ ...prev, places: [...(Array.isArray(prev.places) ? prev.places : []), deletedPlace] }));
+                      loadPlaces();
+                    });
+                  }
+                }}
+              >
+                Ja, radera
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
