@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { useApp } from './AppContext.jsx';
@@ -295,7 +295,7 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
   const [riksarkivetError, setRiksarkivetError] = useState(null);
   const [riksarkivetSearched, setRiksarkivetSearched] = useState(false);
   // Ingen set-hantering behövs för Riksarkivet OAI-PMH
-  const { recordAudit, showStatus, setDbData, dbData } = useApp();
+  const { recordAudit, showStatus, setDbData, dbData, showUndoToast } = useApp();
   // EN källa till platsdata
   const [places, setPlaces] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -432,111 +432,119 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
   }, [selectedNode]);
 
   function convertListToTree(placeList) {
-    // Bygg hierarkiskt träd: län > kommun > församling > ort
-    const länMap = {};
-    for (const place of placeList) {
-          // Filtrera bort platser där namnet börjar med 'Okänd'
-          if (
-            (place.lansnamn && place.lansnamn.trim().toLowerCase().startsWith('okänd')) ||
-            (place.kommunnamn && place.kommunnamn.trim().toLowerCase().startsWith('okänd')) ||
-            (place.sockenstadnamn && place.sockenstadnamn.trim().toLowerCase().startsWith('okänd')) ||
-            (place.ortnamn && place.ortnamn.trim().toLowerCase().startsWith('okänd'))
-          ) {
-            continue;
-          }
-          const län = place.lansnamn;
-          const länKod = place.lanskod;
-          const kommun = place.kommunnamn;
-          const kommunKod = place.kommunkod;
-          const församling = place.sockenstadnamn;
-          const församlingKod = place.sockenstadkod;
-          const ort = place.ortnamn;
-          // Typ-mappning svensk -> engelsk
-          const typeMap = {
-            'Län': 'County',
-            'Kommun': 'Municipality',
-            'Församling': 'Parish',
-            'Ort': 'Village',
-            'Land': 'Country',
-            'root': 'Country'
-          };
-          // Län
-          if (!länMap[län]) {
-            länMap[län] = {
-              id: `lan-${län}`,
-              name: `${län ? län.replace(/\s*\(K-\d{4}\)/g, '').replace(/\s*\(K\)/gi, '').trim() : ''} län${länKod ? ` (${länKod})` : ''}`,
-              type: typeMap['Län'],
-              children: {},
-              metadata: { lansnamn: län, lanskod: länKod }
-            };
-          }
-          // Kommun
-          if (!länMap[län].children[kommun]) {
-            länMap[län].children[kommun] = {
-              id: `kommun-${kommun}`,
-              name: `${kommun ? kommun.replace(/\s*\(K-\d{4}\)/g, '').replace(/\s*\(K\)/gi, '').trim() : ''} kommun${länKod ? ` (${länKod})` : ''}`,
-              type: typeMap['Kommun'],
-              children: {},
-              metadata: { kommunnamn: kommun, kommunkod: kommunKod, lansnamn: län, lanskod: länKod }
-            };
-          }
-          // Församling
-          if (!länMap[län].children[kommun].children[församling]) {
-            länMap[län].children[kommun].children[församling] = {
-              id: `forsamling-${församling}`,
-              name: (() => {
-                let namn = församling ? församling.replace(/\s*\(K-\d{4}\)/g, '').replace(/\s*\(K\)/gi, '').trim() : '';
-                if (namn && !namn.toLowerCase().endsWith('församling') && !namn.toLowerCase().endsWith('socken')) {
-                  namn += ' församling';
-                }
-                return namn;
-              })(),
-              type: typeMap['Församling'],
-              children: {},
-              metadata: { sockenstadnamn: församling, sockenstadkod: församlingKod, kommunnamn: kommun, kommunkod: kommunKod, lansnamn: län, lanskod: länKod }
-            };
-          }
-          // Ort
-          länMap[län].children[kommun].children[församling].children[ort + '-' + place.id] = {
-            id: place.id,
-            name: ort,
-            type: typeMap['Ort'],
+    const root = {
+      id: 'root',
+      name: 'Sverige',
+      type: 'Country',
+      children: [],
+      metadata: {}
+    };
+
+    const lanMap = {};
+    const typeMap = {
+      'Län': 'County', 'Kommun': 'Municipality', 'Församling': 'Parish',
+      'Ort': 'Village', 'Byggnad': 'Building', 'Kyrkogård': 'Cemetary',
+      'Land': 'Country', 'root': 'Country'
+    };
+
+    for (const place of (placeList || [])) {
+      if (!place || !place.id) continue;
+
+      const p_lan = place.lansnamn || place.region;
+      const p_kommun = place.kommunnamn || place.municipality;
+      const p_forsamling = place.sockenstadnamn || place.parish;
+      const p_ort = place.ortnamn || place.village || place.specific || place.name || '';
+      const nodeType = place.type ? (typeMap[place.type] || place.type) : typeMap['Ort'];
+
+      const placeNode = {
+        id: place.id,
+        name: (p_ort || ''),
+        type: nodeType,
+        children: [],
+        metadata: place
+      };
+
+      let parentNode = null;
+
+      if (p_lan) {
+        if (!lanMap[p_lan]) {
+          lanMap[p_lan] = {
+            id: `lan-${p_lan}`,
+            name: `${p_lan.replace(/\s*\(K-\d{4}\)/g, '').trim()} län`,
+            type: 'County',
             children: [],
-            metadata: place
+            metadata: { lansnamn: p_lan, lanskod: place.lanskod }
           };
+          root.children.push(lanMap[p_lan]);
+        }
+        parentNode = lanMap[p_lan];
+      }
+
+      if (parentNode && p_kommun) {
+        let kommunNode = parentNode.children.find(c => c.metadata.kommunnamn === p_kommun);
+        if (!kommunNode) {
+          kommunNode = {
+            id: `kommun-${p_kommun}`,
+            name: `${p_kommun.replace(/\s*\(K-\d{4}\)/g, '').trim()} kommun`,
+            type: 'Municipality',
+            children: [],
+            metadata: { kommunnamn: p_kommun, kommunkod: place.kommunkod, lansnamn: p_lan, lanskod: place.lanskod }
+          };
+          parentNode.children.push(kommunNode);
+        }
+        parentNode = kommunNode;
+      }
+
+      if (parentNode && p_forsamling) {
+        let forsamlingNode = parentNode.children.find(c => c.metadata.sockenstadnamn === p_forsamling);
+        if (!forsamlingNode) {
+          let namn = p_forsamling.replace(/\s*\(K-\d{4}\)/g, '').trim();
+          if (namn && !namn.toLowerCase().endsWith('församling') && !namn.toLowerCase().endsWith('socken')) {
+            namn += ' församling';
+          }
+          forsamlingNode = {
+            id: `forsamling-${p_forsamling}`,
+            name: namn,
+            type: 'Parish',
+            children: [],
+            metadata: { sockenstadnamn: p_forsamling, sockenstadkod: place.sockenstadkod, kommunnamn: p_kommun, kommunkod: place.kommunkod, lansnamn: p_lan, lanskod: place.lanskod }
+          };
+          parentNode.children.push(forsamlingNode);
+        }
+        parentNode = forsamlingNode;
+      }
+
+      if (parentNode) {
+        if (!parentNode.children.some(c => c.id === placeNode.id)) {
+          parentNode.children.push(placeNode);
+        }
+      } else {
+        let unspecifiedNode = root.children.find(c => c.id === 'unspecified');
+        if (!unspecifiedNode) {
+          unspecifiedNode = {
+            id: 'unspecified',
+            name: 'Ospecificerade platser',
+            type: 'default',
+            children: [],
+            metadata: {}
+          };
+          root.children.push(unspecifiedNode);
+        }
+        if (!unspecifiedNode.children.some(c => c.id === placeNode.id)) {
+          unspecifiedNode.children.push(placeNode);
+        }
+      }
     }
 
-    // Konvertera till arraystruktur
-    // Filtrera bort noder med tomt/generiskt namn
-    function isValidName(name, type) {
-      if (!name) return false;
-      const n = name.trim().toLowerCase();
-      if (type === 'Län' && (n === 'län' || n === '')) return false;
-      if (type === 'Kommun' && (n === 'kommun' || n === '')) return false;
-      if (type === 'Församling' && (n === 'församling' || n === '')) return false;
-      if (type === 'Ort' && (n === 'ort' || n === '')) return false;
-      return true;
-    }
+    const sortChildren = (node) => {
+      if (node.children && node.children.length > 0) {
+        node.children.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'sv'));
+        node.children.forEach(sortChildren);
+      }
+    };
 
-    const länArr = Object.values(länMap)
-      .filter(länNode => isValidName(länNode.metadata.lansnamn, 'Län'))
-      .map(länNode => {
-        länNode.children = Object.values(länNode.children)
-          .filter(kommunNode => isValidName(kommunNode.metadata.kommunnamn, 'Kommun'))
-          .map(kommunNode => {
-            kommunNode.children = Object.values(kommunNode.children)
-              .filter(forsamlingNode => isValidName(forsamlingNode.metadata.sockenstadnamn, 'Församling'))
-              .map(forsamlingNode => {
-                forsamlingNode.children = Object.values(forsamlingNode.children)
-                  .filter(ortNode => isValidName(ortNode.metadata.ortnamn, 'Ort'));
-                return forsamlingNode;
-              });
-            return kommunNode;
-          });
-        return länNode;
-      });
-
-    return [{ id: 'root', name: 'Sverige', type: 'Country', children: länArr, metadata: {} }];
+    sortChildren(root);
+    return [root];
   }
 
   function buildPlaceListFromPeople(people) {
@@ -1102,6 +1110,10 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
   };
 
   const handleContextAction = async (action, node) => {
+    // Avvakta så att kontextmenyn hinner stängas i DOM innan vi blockerar med native confirm.
+    // Annars fryser webbläsaren muspekaren i ett låst läge över sökrutan.
+    await new Promise(resolve => setTimeout(resolve, 50));
+
     switch (action) {
       case 'new':
         setCreatingParent(node);
@@ -1109,7 +1121,7 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
       case 'edit':
         setEditingPlace(node);
         break;
-      case 'delete':
+      case 'delete': {
         if (!node || !node.metadata?.id) {
           showStatus && showStatus('Kan inte radera: saknar ID.', 'error');
           break;
@@ -1127,10 +1139,6 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
             (!node.node || (node.node.source === undefined && node.node.metadata?.source === undefined))
           )
         );
-        // Debug log for deletion
-        console.log('[DEBUG] Försöker radera plats:', node);
-        console.log('[DEBUG] source:', node.source, '| metadata.source:', node.metadata?.source, '| node.node?.source:', node.node?.source, '| node.node?.metadata?.source:', node.node?.metadata?.source);
-        console.log('[DEBUG] isUserPlace:', isUserPlace);
         if (!isUserPlace) {
           showStatus && showStatus('Du kan bara radera egna platser.', 'error');
           break;
@@ -1151,23 +1159,20 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
         setDbData(prev => {
           const places = Array.isArray(prev.places) ? prev.places : [];
           deletedPlace = places.find(p => p.id === node.metadata.id);
+          // Ta bort platsen permanent ur places-arrayen
           return { ...prev, places: places.filter(p => p.id !== node.metadata.id) };
         });
         showStatus && showStatus('Plats raderad.');
         // Visa undo-toast
-        if (typeof window !== 'undefined' && window.setUndoState) {
-          window.setUndoState({
-            isVisible: true,
-            message: `Platsen "${node.name}" raderades`,
-            onUndo: () => {
-              setDbData(prev => {
-                const places = Array.isArray(prev.places) ? prev.places : [];
-                // Återskapa platsen
-                return { ...prev, places: [...places, deletedPlace] };
-              });
-              showStatus && showStatus('Radering ångrad.');
-              loadPlaces();
-            }
+        if (showUndoToast && deletedPlace) {
+          showUndoToast(`Platsen "${node.name}" raderades`, () => {
+            setDbData(prev => {
+              const places = Array.isArray(prev.places) ? prev.places : [];
+              // Återskapa platsen
+              return { ...prev, places: [...places, deletedPlace] };
+            });
+            showStatus && showStatus('Radering ångrad.');
+            loadPlaces();
           });
         }
         // Ta bort platsen från lokal state (uppdaterar tree och flatPlaces automatiskt via useMemo)
@@ -1176,6 +1181,7 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
         setSelectedNode(prev => (prev && (prev.id === node.id || prev.metadata?.id === node.metadata?.id)) ? null : prev);
         setSelectedPlaceIds(prev => prev.filter(id => id !== node.id));
         break;
+      }
       case 'copy-id':
         navigator.clipboard.writeText(node.id);
         break;
@@ -1242,31 +1248,61 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
     setDbData(prev => {
       const places = Array.isArray(prev.places) ? prev.places : [];
       let updated = false;
+      
+      const updatedPlace = {
+        ...formData,
+        id: editingPlace.metadata.id,
+        source: 'user',
+        type: formData.type, // Spara typ även på toppnivå
+        metadata: {
+          ...formData,
+          latitude: formData.latitude || null,
+          longitude: formData.longitude || null,
+          note: formData.note || '',
+          type: formData.type // Spara typ även i metadata
+        }
+      };
+
       const newPlaces = places.map(p => {
         if (p.id === editingPlace.metadata.id) {
           updated = true;
-          return {
-            ...formData,
-            id: editingPlace.metadata.id,
-            source: 'user',
-            type: formData.type, // Spara typ även på toppnivå
-            metadata: {
-              ...formData,
-              latitude: formData.latitude || null,
-              longitude: formData.longitude || null,
-              note: formData.note || '',
-              type: formData.type // Spara typ även i metadata
-            }
-          };
+          return updatedPlace;
         }
         return p;
       });
-      if (!updated) newPlaces.push({ ...formData, id: editingPlace.metadata.id, source: 'user', type: formData.type, metadata: { ...formData, type: formData.type } });
+      if (!updated) newPlaces.push(updatedPlace);
       return { ...prev, places: newPlaces };
     });
-    // setIsDirty(true); // Fix: Ta bort, fanns ej definierad
+    
+    // Uppdatera lokal state direkt så det syns omedelbart
+    setPlaces(prev => {
+      let updated = false;
+      const updatedPlace = {
+        ...formData,
+        id: editingPlace.metadata.id,
+        source: 'user',
+        type: formData.type,
+        metadata: {
+          ...formData,
+          latitude: formData.latitude || null,
+          longitude: formData.longitude || null,
+          note: formData.note || '',
+          type: formData.type
+        }
+      };
+      const newPlaces = prev.map(p => {
+        if (p.id === editingPlace.metadata.id) {
+          updated = true;
+          return updatedPlace;
+        }
+        return p;
+      });
+      if (!updated) newPlaces.push(updatedPlace);
+      return newPlaces;
+    });
+
     showStatus && showStatus('Plats sparad.');
-    await loadPlaces();
+    loadPlaces();
   };
 
   // Skapa ny plats
@@ -1290,13 +1326,16 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
       const places = Array.isArray(prev.places) ? prev.places : [];
       return { ...prev, places: [...places, newPlace] };
     });
-    // setIsDirty(true); // Fix: Ta bort, fanns ej definierad
+    
+    // Lägg till direkt i lokal state för omedelbar respons
+    setPlaces(prev => [...prev, newPlace]);
+    
     showStatus && showStatus('Ny plats skapad.');
-    await loadPlaces();
     setSearchTerm('');
     setTimeout(() => {
       if (searchInputRef.current) searchInputRef.current.focus();
     }, 0);
+    loadPlaces();
   };
 
   // Importera XML-fil
@@ -1335,14 +1374,12 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
   // Sortera och filtrera trädet
   const sortTree = (nodes) => {
     if (!nodes || nodes.length === 0) return nodes;
-    
     const sorted = [...nodes].sort((a, b) => {
-      if (sortOrder === 'name-asc') return a.name.localeCompare(b.name, 'sv');
-      if (sortOrder === 'name-desc') return b.name.localeCompare(a.name, 'sv');
-      if (sortOrder === 'type') return a.type.localeCompare(b.type);
+      if (sortOrder === 'name-asc') return (a.name || '').localeCompare(b.name || '', 'sv');
+      if (sortOrder === 'name-desc') return (b.name || '').localeCompare(a.name || '', 'sv');
+      if (sortOrder === 'type') return (a.type || '').localeCompare(b.type || '');
       return 0;
     });
-    
     return sorted.map(node => ({
       ...node,
       children: node.children ? sortTree(node.children) : []
