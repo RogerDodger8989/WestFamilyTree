@@ -487,9 +487,38 @@ const GedcomImporter = (props) => {
     if (!data) return;
     try {
       setLoading(true);
+      let enrichedPlaces = Array.isArray(data.places) ? [...data.places] : [];
+      if (window.electronAPI && typeof window.electronAPI.mapPlacReference === 'function') {
+        enrichedPlaces = await Promise.all(enrichedPlaces.map(async (place) => {
+          try {
+            const sourceText = place.fullString || place.name || '';
+            const mapped = await window.electronAPI.mapPlacReference(sourceText);
+            const mappedPlace = mapped?.mapped?.place;
+            if (!mappedPlace) return place;
+            return {
+              ...place,
+              country: mappedPlace.country || place.country || '',
+              region: mappedPlace.region || place.region || '',
+              municipality: mappedPlace.municipality || place.municipality || '',
+              parish: mappedPlace.parish || place.parish || '',
+              village: mappedPlace.village || place.village || '',
+              specific: mappedPlace.specific || place.specific || '',
+              matched_place_id: mappedPlace.source || place.matched_place_id || 'reference'
+            };
+          } catch (e) {
+            return place;
+          }
+        }));
+      }
+
+      const dataToImport = {
+        ...data,
+        places: enrichedPlaces
+      };
+
       // Spara platser till backend
-      if (data.places && data.places.length > 0) {
-        for (const place of data.places) {
+      if (dataToImport.places && dataToImport.places.length > 0) {
+        for (const place of dataToImport.places) {
           try {
             await fetch('http://127.0.0.1:5005/place', {
               method: 'POST',
@@ -502,12 +531,12 @@ const GedcomImporter = (props) => {
         }
       }
       // Spara personer/källor på samma sätt som tidigare
-      console.log("Skickar data till Electron...", data);
-      const result = await window.electronAPI.importGedcom(data);
+      console.log("Skickar data till Electron...", dataToImport);
+      const result = await window.electronAPI.importGedcom(dataToImport);
       if (result.success) {
-        alert(`✅ Importen lyckades!\n${data.individuals.length} personer tillagda.`);
+        alert(`✅ Importen lyckades!\n${dataToImport.individuals.length} personer tillagda.`);
         if (props.onImport) {
-          props.onImport(data);
+          props.onImport(dataToImport);
         } else {
           window.location.reload();
         }

@@ -36,6 +36,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   gedcomApply: (parsed, options) => ipcRenderer.invoke('gedcom:apply', parsed, options),
   gedcomWrite: (dbData, options) => ipcRenderer.invoke('gedcom:write', dbData, options),
   exportGedcom: (dbData, options) => ipcRenderer.invoke('export-gedcom', dbData, options),
+  searchReferencePlaces: (query, limit) => ipcRenderer.invoke('search-reference-places', query, limit),
+  getReferenceSwedenPlaces: (limit) => ipcRenderer.invoke('get-reference-sweden-places', limit),
+  mapPlacReference: (placString) => ipcRenderer.invoke('map-plac-reference', placString),
+  searchRiksarkivetArchives: (placeName, rows) => ipcRenderer.invoke('search-riksarkivet-archives', placeName, rows),
   // Save an audit backup file into the app user-data folder (audit-backups)
   saveAuditBackup: (fileName, data, dir) => ipcRenderer.invoke('save-audit-backup', fileName, data, dir),
   // Open the audit backup folder (or provided folder)

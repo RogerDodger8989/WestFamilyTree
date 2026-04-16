@@ -5863,7 +5863,22 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                       displayValue={newEvent.place || ''}
                       allPlaces={allPlaces || []}
                       onChange={(placeId, placeObject) => {
-                        const placeName = placeObject ? (placeObject.name || placeObject.ortnamn || placeObject.sockenstadnamn || '') : '';
+                        const placeName = placeObject
+                          ? (
+                              placeObject.displayLabel
+                              || placeObject.name
+                              || placeObject.ortnamn
+                              || placeObject.sockenstadnamn
+                              || [
+                                placeObject.specific,
+                                placeObject.village,
+                                placeObject.parish,
+                                placeObject.municipality,
+                                placeObject.region,
+                                placeObject.country
+                              ].filter(Boolean).join(', ')
+                            )
+                          : '';
                         setNewEvent({ ...newEvent, placeId, place: placeName, placeData: placeObject });
                       }}
                     />

@@ -1,5 +1,6 @@
 const fs = require('fs').promises;
 const path = require('path');
+const placeReferenceHandler = require('./placeReferenceHandler.cjs');
 let iconv;
 try {
   iconv = require('iconv-lite');
@@ -268,6 +269,96 @@ async function applyGedcom(parsed, options = {}) {
     if (mapper && typeof mapper.mapParsedGedcom === 'function') {
       try {
         const mapped = mapper.mapParsedGedcom(parsed);
+        try {
+          await placeReferenceHandler.initPlaceReferenceLibrary(path.join(__dirname, '..', 'docs'));
+          const placeMap = new Map();
+          let placeCounter = 1;
+
+          const ensurePlace = (eventPlace) => {
+            const rawPlace = String(eventPlace || '').trim();
+            if (!rawPlace) return null;
+            const mappedPlace = placeReferenceHandler.mapPlacStringToStructuredPlace(rawPlace);
+            if (!mappedPlace || !mappedPlace.matched || !mappedPlace.place) return null;
+
+            const normalized = mappedPlace.place;
+            const key = [
+              normalized.country,
+              normalized.region,
+              normalized.municipality,
+              normalized.parish,
+              normalized.village,
+              normalized.specific
+            ].map((v) => String(v || '').trim().toLowerCase()).join('|');
+
+            if (placeMap.has(key)) return placeMap.get(key);
+
+            const id = `gedplac_${Date.now()}_${placeCounter++}`;
+            const created = {
+              id,
+              country: normalized.country || '',
+              region: normalized.region || '',
+              municipality: normalized.municipality || '',
+              parish: normalized.parish || '',
+              village: normalized.village || '',
+              specific: normalized.specific || '',
+              matched_place_id: normalized.source || 'reference'
+            };
+            placeMap.set(key, created);
+            return created;
+          };
+
+          const people = Array.isArray(mapped.people) ? mapped.people : [];
+          for (const person of people) {
+            const events = Array.isArray(person.events) ? person.events : [];
+            for (const evt of events) {
+              const createdPlace = ensurePlace(evt.place);
+              if (!createdPlace) continue;
+              evt.placeId = createdPlace.id;
+              evt.placeData = { ...createdPlace };
+              if (!evt.place || !String(evt.place).trim()) {
+                evt.place = [
+                  createdPlace.specific,
+                  createdPlace.village,
+                  createdPlace.parish,
+                  createdPlace.municipality,
+                  createdPlace.region,
+                  createdPlace.country
+                ].filter(Boolean).join(', ');
+              }
+            }
+          }
+
+          const mappedPlaces = Array.from(placeMap.values());
+          if (mappedPlaces.length > 0) {
+            const existingPlaces = Array.isArray(mapped.places) ? mapped.places : [];
+            const existingKey = new Set(existingPlaces.map((pl) => [
+              pl.country,
+              pl.region,
+              pl.municipality,
+              pl.parish,
+              pl.village,
+              pl.specific
+            ].map((v) => String(v || '').trim().toLowerCase()).join('|')));
+
+            mapped.places = [...existingPlaces];
+            for (const pl of mappedPlaces) {
+              const key = [
+                pl.country,
+                pl.region,
+                pl.municipality,
+                pl.parish,
+                pl.village,
+                pl.specific
+              ].map((v) => String(v || '').trim().toLowerCase()).join('|');
+              if (existingKey.has(key)) continue;
+              existingKey.add(key);
+              mapped.places.push(pl);
+            }
+          }
+        } catch (placeErr) {
+          console.warn('[gedcom-handler] place enrichment skipped:', placeErr && placeErr.message ? placeErr.message : placeErr);
+        }
+
         try {
           const pCount = mapped && mapped.people ? mapped.people.length : 0;
           const fCount = mapped && mapped.families ? mapped.families.length : 0;

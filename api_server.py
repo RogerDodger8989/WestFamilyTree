@@ -1,9 +1,9 @@
-
-
 from flask import Flask, request, jsonify
 from database_manager import DatabaseManager
 from official_place_database import OfficialPlaceDatabase
 from exif_manager import ExifManager
+import os
+from place_database_manager import PlaceDatabaseManager
 
 app = Flask(__name__)
 db = DatabaseManager()
@@ -25,12 +25,13 @@ def parents(id):
     return jsonify({'father': father, 'mother': mother})
 
 
+
 # GET /official_places/<id>
 @app.route('/official_places/<int:place_id>', methods=['GET'])
 def get_official_place(place_id):
-    conn = official_place_db.db_path
+    db_path = request.headers.get('X-Database-Path') or request.args.get('db_path') or official_place_db.db_path
     import sqlite3
-    sqlite_conn = sqlite3.connect(conn)
+    sqlite_conn = sqlite3.connect(db_path)
     sqlite_conn.row_factory = sqlite3.Row
     c = sqlite_conn.cursor()
     c.execute('SELECT * FROM official_places WHERE id = ?', (place_id,))
@@ -40,6 +41,29 @@ def get_official_place(place_id):
         return jsonify(dict(row))
     else:
         return jsonify({'error': 'Place not found'}), 404
+
+
+@app.route('/place/<int:place_id>', methods=['DELETE'])
+def delete_place(place_id):
+    """
+    Radera plats från användarens valda databas och markera som dold i official_places.db om nödvändigt.
+    """
+    try:
+        # Hämta databasväg från header (eller query-param som fallback)
+        user_db_path = request.headers.get('X-Database-Path') or request.args.get('db_path')
+        if not user_db_path:
+            return jsonify({'error': 'Ingen databasväg angiven (X-Database-Path)'}), 400
+        official_db_path = os.path.join(os.path.dirname(__file__), 'official_places.db')
+        print(f"Raderar plats {place_id} via PlaceDatabaseManager... (user_db: {user_db_path})")
+        user_db = PlaceDatabaseManager(user_db_path)
+        user_db.delete_place(place_id)
+        print(f"Försöker även dölja plats {place_id} i official_places.db om den finns där... (official_db: {official_db_path})")
+        official_db = PlaceDatabaseManager(official_db_path)
+        official_db.hide_place(place_id)
+        return jsonify({'success': True, 'message': f'Plats med id {place_id} raderad/dold.'}), 200
+    except Exception as e:
+        print(f"Fel vid radering/döljning av plats {place_id}: {e}")
+        return jsonify({'error': str(e)}), 500
 
 
 # ============================================

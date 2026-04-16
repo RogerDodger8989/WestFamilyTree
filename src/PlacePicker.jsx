@@ -24,25 +24,24 @@ export function buildPlaceString(place) {
 }
 
 export default function PlacePicker({ value, displayValue, allPlaces, onChange }) {
-        // Spara senaste platser globalt (window) för enkel demo, kan bytas till context eller localStorage
-        const [recentPlaces, setRecentPlaces] = useState(() => window._recentPlaces || []);
+    // Endast användarplatser får sparas till dbData.places
+    const [recentPlaces, setRecentPlaces] = useState(() => window._recentPlaces || []);
 
-        useEffect(() => {
-            window._recentPlaces = recentPlaces;
-        }, [recentPlaces]);
+    useEffect(() => {
+        window._recentPlaces = recentPlaces;
+    }, [recentPlaces]);
 
-        // Lägg till vald plats i senaste-listan
-        const addRecentPlace = (place) => {
-            if (!place || !place.id) return;
-            setRecentPlaces(prev => {
-                const filtered = prev.filter(p => p.id !== place.id);
-                return [place, ...filtered].slice(0, 5);
-            });
-        };
+    const addRecentPlace = (place) => {
+        if (!place || !place.id) return;
+        setRecentPlaces(prev => {
+            const filtered = prev.filter(p => p.id !== place.id);
+            return [place, ...filtered].slice(0, 5);
+        });
+    };
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [serverResults, setServerResults] = useState([]);
+    const [referenceResults, setReferenceResults] = useState([]);
     const wrapperRef = useRef(null);
 
     const selectedPlace = useMemo(() => allPlaces.find(p => p.id === value), [value, allPlaces]);
@@ -52,52 +51,87 @@ export default function PlacePicker({ value, displayValue, allPlaces, onChange }
         return String(s).normalize('NFD').replace(/\p{Diacritic}+/gu, '').toLowerCase();
     };
 
+    // Endast användarplatser (dbData.places) får sparas
+    const userPlaces = useMemo(() => Array.isArray(allPlaces) ? allPlaces.filter(p => p && (p.source === 'user' || !p.source)) : [], [allPlaces]);
+
     const filteredPlaces = useMemo(() => {
-        if (!Array.isArray(allPlaces)) return [];
-        if (!searchTerm) return allPlaces;
+        if (!searchTerm) return userPlaces;
         const lowerTerm = stripAccents(searchTerm);
-        const localMatches = allPlaces.filter(p => {
+        const localMatches = userPlaces.filter(p => {
             if (!p) return false;
             const norm = (!p.country && (p.name || p.plac))
                 ? { ...p, ...parsePlaceString(p.name || p.plac) }
                 : p;
-            // Only search known string fields to avoid [object Object]
             const fields = [
-                // Generella
                 norm.name, norm.plac,
-                // Engelska
                 norm.country, norm.region, norm.municipality, norm.parish, norm.village, norm.specific,
-                // Svenska
                 norm.land, norm.lan, norm.socken, norm.by, norm.gard,
-                // Officiell databas-nycklar
                 norm.ortnamn, norm.sockenstadnamn, norm.kommunnamn, norm.lansnamn
             ].filter(Boolean).map(v => stripAccents(v));
             if (fields.some(f => f.includes(lowerTerm))) return true;
-            // Fallback: built string
             const built = stripAccents(buildPlaceString(norm));
             return built.includes(lowerTerm);
         });
-        // Prioritize server results if present
-        if (Array.isArray(serverResults) && serverResults.length > 0) {
-            // Deduplicate by namn + koordinater + typ
-            const seen = new Set();
-            const deduped = [];
-            for (const p of serverResults) {
-                const lat = p.raw?.latitude ?? p.raw?.metadata?.latitude ?? '';
-                const lon = p.raw?.longitude ?? p.raw?.metadata?.longitude ?? '';
-                const type = p.raw?.detaljtyp || p.raw?.type || p.type || '';
-                const key = `${(p.name||'').trim().toLowerCase()}|${lat}|${lon}|${type}`;
-                if (seen.has(key)) continue;
-                seen.add(key);
-                // Sätt typ på platsen för visning
-                p._dedupType = type;
-                deduped.push(p);
+        // Kombinera användarplatser och referensplatser
+        const refIds = new Set(localMatches.map(r => r.id));
+        return [
+            ...localMatches,
+            ...referenceResults.filter(r => !refIds.has(r.id))
+        ];
+    }, [userPlaces, searchTerm, referenceResults]);
+
+    // Sök referensplatser (readonly)
+    useEffect(() => {
+        let abort = false;
+        let timeoutId = null;
+        const run = async () => {
+            try {
+                const q = searchTerm.trim();
+                if (!q || q.length < 2) { setReferenceResults([]); return; }
+                timeoutId = setTimeout(async () => {
+                    if (!window.electronAPI || typeof window.electronAPI.searchReferencePlaces !== 'function') {
+                        setReferenceResults([]);
+                        return;
+                    }
+                    const response = await window.electronAPI.searchReferencePlaces(q, 30);
+                    if (abort) return;
+                    if (!response || !response.success) {
+                        setReferenceResults([]);
+                        return;
+                    }
+                    setReferenceResults(Array.isArray(response.results) ? response.results : []);
+                }, 120);
+            } catch (err) {
+                setReferenceResults([]);
             }
-            return deduped;
-        }
-        return localMatches;
-    }, [searchTerm, allPlaces, serverResults]);
+        };
+        run();
+        return () => {
+            abort = true;
+            if (timeoutId) clearTimeout(timeoutId);
+        };
+    }, [searchTerm]);
+
+    // När användaren väljer "lägg till plats" - spara alltid till dbData.places och märk som user
+    // DUBBEL: handleSelect tas bort här, se nedan för korrekt version
     const renderItem = (place) => {
+        if (place?.type === 'reference-sweden' || place?.type === 'reference-usa') {
+            const placeData = place.place || {};
+            const typeLabel = place.type === 'reference-sweden' ? 'Referens (SE)' : 'Referens (US)';
+            const details = [placeData.parish || placeData.village, placeData.municipality, placeData.region, placeData.country]
+                .filter(Boolean)
+                .join(' • ');
+            return (
+                <div className="w-full">
+                    <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm text-slate-300 font-medium">{place.label || place.value}</span>
+                        <span className="ml-2 text-[11px] px-2 py-0.5 rounded-full bg-accent-soft text-accent border border-accent/30">{typeLabel}</span>
+                    </div>
+                    {details && <div className="text-[12px] text-muted mt-0.5">{details}</div>}
+                </div>
+            );
+        }
+
         // Use raw official fields when available, else fall back to parsed/local
         const raw = place.raw || place;
         const name = raw.ortnamn || raw.sockenstadnamn || raw.kommunnamn || raw.lansnamn || place.name || place.plac || '';
@@ -137,45 +171,59 @@ export default function PlacePicker({ value, displayValue, allPlaces, onChange }
         );
     };
 
-    // Fetch official places from backend for autocomplete
+    // Offline-first: search in Electron-loaded reference library (docs/*.json/csv)
     useEffect(() => {
         let abort = false;
+        let timeoutId = null;
         const run = async () => {
             try {
                 const q = searchTerm.trim();
-                if (!q || q.length < 2) { setServerResults([]); return; }
-                const url = `http://localhost:5005/official_places/search?q=${encodeURIComponent(q)}`;
-                const res = await fetch(url);
-                if (!res.ok) { setServerResults([]); return; }
-                const data = await res.json();
-                if (abort) return;
-                // Map to a uniform shape expected by builder and selection
-                const mapped = (Array.isArray(data) ? data : []).map(p => ({
-                    id: p.id,
-                    name: p.ortnamn || p.sockenstadnamn || p.kommunnamn || p.lansnamn || p.name,
-                    ortnamn: p.ortnamn,
-                    sockenstadnamn: p.sockenstadnamn,
-                    kommunnamn: p.kommunnamn,
-                    lansnamn: p.lansnamn,
-                    // Keep raw for potential future use
-                    raw: p
-                }));
-                setServerResults(mapped);
+                if (!q || q.length < 2) { setReferenceResults([]); return; }
+                timeoutId = setTimeout(async () => {
+                    if (!window.electronAPI || typeof window.electronAPI.searchReferencePlaces !== 'function') {
+                        setReferenceResults([]);
+                        return;
+                    }
+                    const response = await window.electronAPI.searchReferencePlaces(q, 30);
+                    if (abort) return;
+                    if (!response || !response.success) {
+                        setReferenceResults([]);
+                        return;
+                    }
+                    setReferenceResults(Array.isArray(response.results) ? response.results : []);
+                }, 120);
             } catch (err) {
-                setServerResults([]);
+                setReferenceResults([]);
             }
         };
         run();
-        return () => { abort = true; };
+        return () => {
+            abort = true;
+            if (timeoutId) clearTimeout(timeoutId);
+        };
     }, [searchTerm]);
 
     const handleSelect = (placeId, placeObject) => {
-        if (placeId) {
-            onChange(placeId, placeObject);
-            addRecentPlace(placeObject);
+        if (!placeObject) return;
+
+        if (placeObject.type === 'reference-sweden' || placeObject.type === 'reference-usa') {
+            const placeData = {
+                ...(placeObject.place || {}),
+                id: null,
+                name: placeObject.value || placeObject.label || '',
+                displayLabel: placeObject.label || ''
+            };
+            onChange(null, placeData);
             setIsOpen(false);
             setSearchTerm('');
+            return;
         }
+
+        if (!placeId) return;
+        onChange(placeId, placeObject);
+        addRecentPlace(placeObject);
+        setIsOpen(false);
+        setSearchTerm('');
     };
 
     // Stäng listan om man klickar utanför
@@ -257,7 +305,7 @@ export default function PlacePicker({ value, displayValue, allPlaces, onChange }
                                     }}
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        handleSelect(place.id, place);
+                                        handleSelect(place.id || null, place);
                                     }}
                                     className="px-4 py-2 hover:bg-surface cursor-pointer flex items-start gap-2 border-b border-subtle last:border-0"
                                 >
@@ -268,8 +316,8 @@ export default function PlacePicker({ value, displayValue, allPlaces, onChange }
                     ) : (
                         <div className="p-4 text-center text-muted text-sm italic">
                             {searchTerm && searchTerm.length >= 2
-                                ? (serverResults.length === 0
-                                    ? 'Inga platser hittades (kontrollera anslutning till officiellt register)'
+                                ? (referenceResults.length === 0
+                                    ? 'Inga referensplatser hittades'
                                     : 'Söker...')
                                 : 'Skriv minst 2 tecken för att söka'}
                         </div>

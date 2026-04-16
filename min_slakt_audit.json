@@ -3790,5 +3790,25 @@
     "timestamp": "2026-04-14T08:48:24.824Z",
     "details": null,
     "sourceIds": []
+  },
+  {
+    "id": "audit_1776175508047_efpzsok",
+    "type": "delete",
+    "entityType": "source",
+    "entityId": "src_1776157540306_vrbn16",
+    "actor": "local",
+    "timestamp": "2026-04-14T14:05:08.047Z",
+    "details": null,
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776181633328_z8d6uzk",
+    "type": "delete",
+    "entityType": "source",
+    "entityId": "src_1776175563363_mh6ukp",
+    "actor": "local",
+    "timestamp": "2026-04-14T15:47:13.328Z",
+    "details": null,
+    "sourceIds": []
   }
 ]

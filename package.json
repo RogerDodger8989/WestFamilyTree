@@ -3,7 +3,8 @@
   "scripts": {
     "dev": "vite",
     "electron": "electron electron-test/main.js",
-    "build": "vite build",
+    "build": "npm run copy-leaflet-icons && vite build",
+      "copy-leaflet-icons": "node ./scripts/copy-leaflet-icons.cjs",
     "test": "npm run test:integration",
     "test:integration": "node --test electron/database.integration.test.js",
     "test:e2e": "npm run build && playwright test tests/electron.spec.js"

@@ -4,8 +4,18 @@ console.log('Electron version:', process.versions.electron);
 console.log('IPC-handlers for last-opened-file är aktiva!');
 // Inställnings-store för senaste fil
 const { loadSettings, saveSettings } = require('./settingsStore');
+const placeReferenceHandler = require('../electron/placeReferenceHandler.cjs');
 
 const { ipcMain, app, BrowserWindow, Menu, protocol } = require('electron');
+
+placeReferenceHandler
+  .initPlaceReferenceLibrary(require('path').join(__dirname, '..', 'docs'))
+  .then((result) => {
+    console.log('[place-reference] loaded', result && result.counts ? result.counts : result);
+  })
+  .catch((error) => {
+    console.error('[place-reference] failed to load docs:', error && error.message ? error.message : error);
+  });
 
 const getDefaultMediaRoot = () => require('path').join(__dirname, '..', 'media');
 
@@ -1118,6 +1128,7 @@ app.whenReady().then(() => {
   // Registrera custom protocol för media-bilder med rekursiv sökning
   protocol.registerFileProtocol('media', async (request, callback) => {
     try {
+      const IMAGE_ROOT = getMediaRoot();
       const encodedName = request.url.replace('media://', '');
       let relativePath = decodeURIComponent(encodedName);
       
@@ -2138,6 +2149,49 @@ ipcMain.handle('get-media-path', async (event, fileName) => {
   const IMAGE_ROOT = getCurrentImageRoot();
   const fullPath = path.join(IMAGE_ROOT, fileName);
   return fullPath;
+});
+
+ipcMain.handle('search-reference-places', async (event, query, limit = 25) => {
+  try {
+    await placeReferenceHandler.initPlaceReferenceLibrary(require('path').join(__dirname, '..', 'docs'));
+    const results = placeReferenceHandler.searchReferencePlaces(query, limit);
+    return { success: true, results };
+  } catch (error) {
+    console.error('[search-reference-places] Error:', error);
+    return { success: false, error: error.message, results: [] };
+  }
+});
+
+ipcMain.handle('get-reference-sweden-places', async (event, limit = 0) => {
+  try {
+    await placeReferenceHandler.initPlaceReferenceLibrary(require('path').join(__dirname, '..', 'docs'));
+    const list = placeReferenceHandler.getSwedenReferencePlaces(limit);
+    return { success: true, list };
+  } catch (error) {
+    console.error('[get-reference-sweden-places] Error:', error);
+    return { success: false, error: error.message, list: [] };
+  }
+});
+
+ipcMain.handle('map-plac-reference', async (event, placString) => {
+  try {
+    await placeReferenceHandler.initPlaceReferenceLibrary(require('path').join(__dirname, '..', 'docs'));
+    const mapped = placeReferenceHandler.mapPlacStringToStructuredPlace(placString);
+    return { success: true, mapped };
+  } catch (error) {
+    console.error('[map-plac-reference] Error:', error);
+    return { success: false, error: error.message, mapped: null };
+  }
+});
+
+ipcMain.handle('search-riksarkivet-archives', async (event, placeName, rows = 80) => {
+  try {
+    const result = await placeReferenceHandler.searchRiksarkivetArchives(placeName, rows);
+    return result;
+  } catch (error) {
+    console.error('[search-riksarkivet-archives] Error:', error);
+    return { success: false, error: error.message, tree: [] };
+  }
 });
 
 // ✅ NY GEDCOM IMPORT HANDLER

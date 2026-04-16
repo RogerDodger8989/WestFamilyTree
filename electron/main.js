@@ -4,8 +4,18 @@ console.log('Electron version:', process.versions.electron);
 console.log('IPC-handlers for last-opened-file are active!');
 // Inställnings-store för senaste fil
 const { loadSettings, saveSettings } = require('./settingsStore');
+const placeReferenceHandler = require('./placeReferenceHandler.cjs');
 
 const { ipcMain, app, BrowserWindow, Menu, protocol, shell } = require('electron');
+
+placeReferenceHandler
+  .initPlaceReferenceLibrary(require('path').join(__dirname, '..', 'docs'))
+  .then((result) => {
+    console.log('[place-reference] loaded', result && result.counts ? result.counts : result);
+  })
+  .catch((error) => {
+    console.error('[place-reference] failed to load docs:', error && error.message ? error.message : error);
+  });
 
 const getDefaultMediaRoot = () => require('path').join(__dirname, '..', 'media');
 
@@ -700,6 +710,19 @@ ipcMain.handle('create-new-database', async (event) => {
       )`, (err) => {
         if (err) reject(err);
       });
+      // Skapa även places-tabellen
+      db.run(`CREATE TABLE IF NOT EXISTS places (
+        id TEXT PRIMARY KEY,
+        country TEXT,
+        region TEXT,
+        municipality TEXT,
+        parish TEXT,
+        village TEXT,
+        specific TEXT,
+        matched_place_id TEXT
+      )`, (err) => {
+        if (err) reject(err);
+      });
     });
   });
   db.close();
@@ -707,6 +730,7 @@ ipcMain.handle('create-new-database', async (event) => {
   return {
     people: [],
     relations: [],
+    places: [], // Viktigt: alltid tomt!
     dbPath
   };
 });
@@ -951,6 +975,7 @@ app.whenReady().then(() => {
   createApplicationMenu();
   // Registrera custom protocol för media-bilder
   protocol.registerFileProtocol('media', (request, callback) => {
+    const IMAGE_ROOT = getMediaRoot();
     const encodedPath = request.url.replace('media://', '');
     const relativePath = decodeURIComponent(encodedPath);
     // relativePath kan vara antingen filnamn eller sökväg med undermapp (t.ex. "persons/image.jpg")
@@ -1460,6 +1485,49 @@ ipcMain.handle('get-media-path', async (event, fileName) => {
   const IMAGE_ROOT = getCurrentImageRoot();
   const fullPath = path.join(IMAGE_ROOT, fileName);
   return fullPath;
+});
+
+ipcMain.handle('search-reference-places', async (event, query, limit = 25) => {
+  try {
+    await placeReferenceHandler.initPlaceReferenceLibrary(require('path').join(__dirname, '..', 'docs'));
+    const results = placeReferenceHandler.searchReferencePlaces(query, limit);
+    return { success: true, results };
+  } catch (error) {
+    console.error('[search-reference-places] Error:', error);
+    return { success: false, error: error.message, results: [] };
+  }
+});
+
+ipcMain.handle('get-reference-sweden-places', async (event, limit = 0) => {
+  try {
+    await placeReferenceHandler.initPlaceReferenceLibrary(require('path').join(__dirname, '..', 'docs'));
+    const list = placeReferenceHandler.getSwedenReferencePlaces(limit);
+    return { success: true, list };
+  } catch (error) {
+    console.error('[get-reference-sweden-places] Error:', error);
+    return { success: false, error: error.message, list: [] };
+  }
+});
+
+ipcMain.handle('map-plac-reference', async (event, placString) => {
+  try {
+    await placeReferenceHandler.initPlaceReferenceLibrary(require('path').join(__dirname, '..', 'docs'));
+    const mapped = placeReferenceHandler.mapPlacStringToStructuredPlace(placString);
+    return { success: true, mapped };
+  } catch (error) {
+    console.error('[map-plac-reference] Error:', error);
+    return { success: false, error: error.message, mapped: null };
+  }
+});
+
+ipcMain.handle('search-riksarkivet-archives', async (event, placeName, rows = 80) => {
+  try {
+    const result = await placeReferenceHandler.searchRiksarkivetArchives(placeName, rows);
+    return result;
+  } catch (error) {
+    console.error('[search-riksarkivet-archives] Error:', error);
+    return { success: false, error: error.message, tree: [] };
+  }
 });
 
 // ✅ NY GEDCOM IMPORT HANDLER

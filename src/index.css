@@ -397,3 +397,13 @@ body,
   overflow-y: auto;
   margin: auto;
 }
+
+/* Fix: Always black text on input/select in light mode */
+.theme-light input,
+.theme-light textarea,
+.theme-light select,
+.theme-light .ui-select,
+.theme-light option {
+  color: #0f172a !important;
+  background-color: #fff !important;
+}

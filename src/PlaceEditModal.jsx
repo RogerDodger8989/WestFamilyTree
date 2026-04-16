@@ -70,7 +70,7 @@ export default function PlaceEditModal({ place, onClose, onSave }) {
     <form onSubmit={handleSubmit} className="p-6 space-y-4 flex flex-col h-full">
           {/* Namn */}
           <div>
-            <label className="block text-sm font-bold text-slate-300 mb-1">
+            <label className="block text-sm font-bold text-secondary mb-1">
               Namn <span className="text-red-500">*</span>
             </label>
             <input
@@ -79,20 +79,20 @@ export default function PlaceEditModal({ place, onClose, onSave }) {
               value={formData.name}
               onChange={handleChange}
               required
-              className="w-full px-3 py-2 border border-slate-600 rounded bg-slate-900 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-subtle rounded bg-background text-primary focus:outline-none focus:ring-2 focus:ring-accent"
             />
           </div>
 
           {/* Typ */}
           <div>
-            <label className="block text-sm font-bold text-slate-300 mb-1">
+            <label className="block text-sm font-bold text-secondary mb-1">
               Typ
             </label>
             <select
               name="type"
               value={formData.type}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-slate-600 rounded bg-slate-900 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-subtle rounded bg-background text-primary focus:outline-none focus:ring-2 focus:ring-accent"
             >
               {PLACE_TYPE_OPTIONS.map(option => (
                 <option key={option.value} value={option.value}>
@@ -105,7 +105,7 @@ export default function PlaceEditModal({ place, onClose, onSave }) {
           {/* Koordinater */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-bold text-slate-300 mb-1">
+              <label className="block text-sm font-bold text-secondary mb-1">
                 Latitud
               </label>
               <input
@@ -115,11 +115,11 @@ export default function PlaceEditModal({ place, onClose, onSave }) {
                 value={formData.latitude}
                 onChange={handleChange}
                 placeholder="55.6050"
-                className="w-full px-3 py-2 border border-slate-600 rounded bg-slate-900 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-subtle rounded bg-background text-primary focus:outline-none focus:ring-2 focus:ring-accent"
               />
             </div>
             <div>
-              <label className="block text-sm font-bold text-slate-300 mb-1">
+              <label className="block text-sm font-bold text-secondary mb-1">
                 Longitud
               </label>
               <input
@@ -129,7 +129,7 @@ export default function PlaceEditModal({ place, onClose, onSave }) {
                 value={formData.longitude}
                 onChange={handleChange}
                 placeholder="13.0038"
-                className="w-full px-3 py-2 border border-slate-600 rounded bg-slate-900 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-subtle rounded bg-background text-primary focus:outline-none focus:ring-2 focus:ring-accent"
               />
             </div>
           </div>
@@ -137,11 +137,11 @@ export default function PlaceEditModal({ place, onClose, onSave }) {
 
 
           {/* Knappar */}
-          <div className="flex gap-3 pt-4 border-t border-slate-700">
+          <div className="flex gap-3 pt-4 border-t border-subtle">
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white font-semibold rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 px-4 py-2 bg-accent text-on-accent font-semibold rounded hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? 'Sparar...' : '💾 Spara'}
             </button>
@@ -149,7 +149,7 @@ export default function PlaceEditModal({ place, onClose, onSave }) {
               type="button"
               onClick={onClose}
               disabled={saving}
-              className="px-4 py-2 bg-slate-600 text-slate-200 font-semibold rounded hover:bg-slate-500 disabled:opacity-50"
+              className="px-4 py-2 bg-surface-2 text-primary font-semibold rounded hover:bg-surface disabled:opacity-50"
             >
               Avbryt
             </button>

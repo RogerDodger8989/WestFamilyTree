@@ -1187,6 +1187,246 @@ function useAppContext() {
         try { recordAudit({ type: 'edit', entityType: 'place', entityId: normPlace.id, details: { label: [normPlace.specific, normPlace.village].filter(Boolean).join(', ') } }); } catch (e) {}
     };
 
+    const calculatePlaceMergeImpact = useCallback(({ masterPlaceId, mergePlaceIds = [] }) => {
+        const currentDbData = dbDataRef.current || dbData || {};
+        const masterId = String(masterPlaceId || '').trim();
+        if (!masterId) {
+            return { success: false, error: 'master-missing' };
+        }
+
+        const allIds = Array.isArray(mergePlaceIds) ? mergePlaceIds : [];
+        const idsToMerge = Array.from(new Set(allIds.map((id) => String(id || '').trim()).filter(Boolean)));
+        const idsToReplace = idsToMerge.filter((id) => id !== masterId);
+        if (idsToReplace.length === 0) {
+            return { success: false, error: 'not-enough-places' };
+        }
+
+        let changedEvents = 0;
+        let changedMediaFiles = 0;
+        let changedMediaLinks = 0;
+
+        const people = Array.isArray(currentDbData?.people) ? currentDbData.people : [];
+        for (const person of people) {
+            const events = Array.isArray(person?.events) ? person.events : [];
+            for (const event of events) {
+                const eventPlaceId = String(event?.placeId || event?.place_id || '').trim();
+                if (eventPlaceId && idsToReplace.includes(eventPlaceId)) {
+                    changedEvents += 1;
+                }
+            }
+        }
+
+        const media = Array.isArray(currentDbData?.media) ? currentDbData.media : [];
+        for (const item of media) {
+            let itemChanged = false;
+
+            const rawPlaceId = String(item?.placeId || item?.place_id || '').trim();
+            if (rawPlaceId && idsToReplace.includes(rawPlaceId)) {
+                itemChanged = true;
+                changedMediaLinks += 1;
+            }
+
+            const conn = item?.connections && typeof item.connections === 'object' ? item.connections : null;
+            if (conn && Array.isArray(conn.places)) {
+                for (const p of conn.places) {
+                    const pid = typeof p === 'object'
+                        ? String(p?.id || p?.placeId || '').trim()
+                        : String(p || '').trim();
+                    if (pid && idsToReplace.includes(pid)) {
+                        itemChanged = true;
+                        changedMediaLinks += 1;
+                    }
+                }
+            }
+
+            if (itemChanged) changedMediaFiles += 1;
+        }
+
+        const places = Array.isArray(currentDbData?.places) ? currentDbData.places : [];
+        const removedPlaces = places.reduce((count, p) => {
+            const id = String(p?.id || '').trim();
+            return count + (idsToReplace.includes(id) ? 1 : 0);
+        }, 0);
+
+        return {
+            success: true,
+            masterId,
+            mergedIds: idsToReplace,
+            changedEvents,
+            changedMediaFiles,
+            changedMediaLinks,
+            removedPlaces,
+        };
+    }, [dbData]);
+
+    const handleMergePlaces = useCallback(({ masterPlaceId, mergePlaceIds = [], masterPlaceName = '' }) => {
+        const masterId = String(masterPlaceId || '').trim();
+        const impact = calculatePlaceMergeImpact({ masterPlaceId: masterId, mergePlaceIds });
+
+        if (!impact.success && impact.error === 'master-missing') {
+            showStatus('Välj en master-plats innan merge.', 'error');
+            return impact;
+        }
+
+        if (!impact.success && impact.error === 'not-enough-places') {
+            showStatus('Välj minst två olika platser för merge.', 'warning');
+            return impact;
+        }
+
+        if (!impact.success) return impact;
+
+        const idsToReplace = impact.mergedIds;
+
+        let removedPlaces = 0;
+
+        setDbData((prev) => {
+            const prevPlaces = Array.isArray(prev?.places) ? prev.places : [];
+            const masterPlace = prevPlaces.find((p) => String(p?.id || '').trim() === masterId);
+
+            const computedMasterName = String(
+                masterPlaceName
+                || masterPlace?.name
+                || [
+                    masterPlace?.specific,
+                    masterPlace?.village,
+                    masterPlace?.parish,
+                    masterPlace?.municipality,
+                    masterPlace?.region,
+                    masterPlace?.country
+                ].filter(Boolean).join(', ')
+            ).trim();
+
+            const masterPlaceData = masterPlace
+                ? {
+                    id: masterPlace.id,
+                    country: masterPlace.country || '',
+                    region: masterPlace.region || '',
+                    municipality: masterPlace.municipality || '',
+                    parish: masterPlace.parish || '',
+                    village: masterPlace.village || '',
+                    specific: masterPlace.specific || '',
+                    latitude: masterPlace.latitude ?? null,
+                    longitude: masterPlace.longitude ?? null,
+                    matched_place_id: masterPlace.matched_place_id || ''
+                }
+                : null;
+
+            const people = (Array.isArray(prev?.people) ? prev.people : []).map((person) => {
+                const events = (Array.isArray(person?.events) ? person.events : []).map((event) => {
+                    const eventPlaceId = String(event?.placeId || event?.place_id || '').trim();
+                    if (!eventPlaceId || !idsToReplace.includes(eventPlaceId)) return event;
+                    return {
+                        ...event,
+                        placeId: masterId,
+                        place_id: masterId,
+                        place: computedMasterName || event.place || '',
+                        placeData: masterPlaceData || event.placeData || null
+                    };
+                });
+                return { ...person, events };
+            });
+
+            const media = (Array.isArray(prev?.media) ? prev.media : []).map((item) => {
+                let itemChanged = false;
+                const nextItem = { ...item };
+
+                const rawPlaceId = String(item?.placeId || item?.place_id || '').trim();
+                if (rawPlaceId && idsToReplace.includes(rawPlaceId)) {
+                    nextItem.placeId = masterId;
+                    nextItem.place_id = masterId;
+                    itemChanged = true;
+                }
+
+                const conn = item?.connections && typeof item.connections === 'object' ? item.connections : null;
+                if (conn && Array.isArray(conn.places)) {
+                    const remappedPlaces = conn.places.map((p) => {
+                        if (p && typeof p === 'object') {
+                            const pid = String(p.id || p.placeId || '').trim();
+                            if (pid && idsToReplace.includes(pid)) {
+                                itemChanged = true;
+                                return {
+                                    ...p,
+                                    id: masterId,
+                                    placeId: masterId,
+                                    name: computedMasterName || p.name || ''
+                                };
+                            }
+                            return p;
+                        }
+
+                        const pid = String(p || '').trim();
+                        if (pid && idsToReplace.includes(pid)) {
+                            itemChanged = true;
+                            return masterId;
+                        }
+                        return p;
+                    });
+
+                    const dedupedPlaces = [];
+                    const seen = new Set();
+                    for (const p of remappedPlaces) {
+                        const pid = typeof p === 'object'
+                            ? String(p.id || p.placeId || '').trim()
+                            : String(p || '').trim();
+                        const key = pid || JSON.stringify(p);
+                        if (!key || seen.has(key)) continue;
+                        seen.add(key);
+                        dedupedPlaces.push(p);
+                    }
+
+                    nextItem.connections = {
+                        ...conn,
+                        places: dedupedPlaces
+                    };
+                }
+
+                return itemChanged ? nextItem : item;
+            });
+
+            const places = prevPlaces.filter((p) => {
+                const id = String(p?.id || '').trim();
+                const shouldKeep = !idsToReplace.includes(id);
+                if (!shouldKeep) removedPlaces += 1;
+                return shouldKeep;
+            });
+
+            return {
+                ...prev,
+                people,
+                media,
+                places
+            };
+        });
+
+        showStatus(`Merge klar: ${removedPlaces} platser borttagna, ${impact.changedEvents} händelser och ${impact.changedMediaFiles} mediefiler uppdaterade.`);
+        try {
+            recordAudit({
+                type: 'merge',
+                entityType: 'place',
+                entityId: masterId,
+                details: {
+                    mergedIds: idsToReplace,
+                    changedEvents: impact.changedEvents,
+                    changedMediaFiles: impact.changedMediaFiles,
+                    changedMediaLinks: impact.changedMediaLinks,
+                    removedPlaces
+                }
+            });
+        } catch (e) {
+            // ignore audit errors for merge completion
+        }
+
+        return {
+            success: true,
+            masterId,
+            mergedIds: idsToReplace,
+            changedEvents: impact.changedEvents,
+            changedMediaFiles: impact.changedMediaFiles,
+            changedMediaLinks: impact.changedMediaLinks,
+            removedPlaces
+        };
+    }, [calculatePlaceMergeImpact, setDbData, showStatus]);
+
     const handleToggleBookmark = (personId) => {
         setBookmarks(prev => {
             const isBookmarked = prev.includes(personId);
@@ -3481,7 +3721,7 @@ function useAppContext() {
         handleCreateAndEditPerson, handleOpenSourceModal, handleCloseSourceModal, handleSourceFormChange,
         handleParseSource, handleSaveSource, handleSaveEditedSource, handleQuickPasteSource, handleUndo, handleDeleteSource,
         handleSetFocusPair, handleToggleBookmark, handleSwapFocus, handleClearFocus,
-        handleAddNewPlace, handleSavePlace,
+        handleAddNewPlace, handleSavePlace, calculatePlaceMergeImpact, handleMergePlaces,
         handleAttachSources, handleSwitchToCreateSource,
         // Relation & archive helpers
         addRelation, updateRelation, unlinkRelation, getPersonRelations, handleBulkCreateRelations,

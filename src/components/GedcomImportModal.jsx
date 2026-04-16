@@ -68,32 +68,25 @@ export default function GedcomImportModal({ open, onClose }) {
     setLoading(true);
     setError(null);
     try {
-      // Prefer doing mapping in the renderer (more consistent ESM environment).
-      // If a parsed payload is available from preview, map it locally.
       let mapped = null;
       try {
+        if (window.electronAPI && typeof window.electronAPI.gedcomApply === 'function') {
+          const res = await window.electronAPI.gedcomApply(preview.parsed, { strategy: 'mapOnly' });
+          if (res && !res.error) {
+            mapped = res.mapped;
+          } else if (res && res.error) {
+            throw new Error(res.error);
+          }
+        }
+      } catch (mapErr) {
+        console.warn('Main-process mapping failed, trying renderer fallback:', mapErr);
+      }
+
+      if (!mapped) {
         const mapperModule = await import('../gedcom/mapper');
         const mapperExport = mapperModule && (mapperModule.default || mapperModule);
         if (typeof mapperExport === 'function') mapped = mapperExport(preview.parsed);
         else if (mapperExport && typeof mapperExport.mapParsedGedcom === 'function') mapped = mapperExport.mapParsedGedcom(preview.parsed);
-        if (mapped) {
-          console.debug('[GedcomImportModal] renderer mapped counts:', { people: (mapped && mapped.people) ? mapped.people.length : 0, families: (mapped && mapped.families) ? mapped.families.length : 0, sources: (mapped && mapped.sources) ? mapped.sources.length : 0 });
-        }
-      } catch (mapErr) {
-        console.warn('Renderer mapping failed, falling back to main mapping:', mapErr);
-        // fallback to asking main process to map
-        if (!window.electronAPI || typeof window.electronAPI.gedcomApply !== 'function') {
-          setError('Rendering mapping failed and main mapping unavailable: ' + (mapErr && mapErr.message ? mapErr.message : String(mapErr)));
-          setLoading(false);
-          return;
-        }
-        const res = await window.electronAPI.gedcomApply(preview.parsed, { strategy: 'mapOnly' });
-        if (res && res.error) {
-          setError(res.error);
-          setLoading(false);
-          return;
-        }
-        mapped = res && res.mapped;
       }
 
       if (!mapped) {
@@ -191,17 +184,19 @@ export default function GedcomImportModal({ open, onClose }) {
                 // Export mapped preview into gedcom_sources (separat lager) so user can review
                 setLoading(true); setError(null);
                 try {
-                  // Map in renderer or via main as earlier
+                  // Map in main process first (includes place-reference enrichment)
                   let mapped = null;
                   try {
+                    if (window.electronAPI && typeof window.electronAPI.gedcomApply === 'function') {
+                      const res = await window.electronAPI.gedcomApply(preview.parsed, { strategy: 'mapOnly' });
+                      mapped = res && res.mapped;
+                    }
+                  } catch (e) { /* ignore - fallback handled below */ }
+                  if (!mapped) {
                     const mapperModule = await import('../gedcom/mapper');
                     const mapperExport = mapperModule && (mapperModule.default || mapperModule);
                     if (typeof mapperExport === 'function') mapped = mapperExport(preview.parsed);
                     else if (mapperExport && typeof mapperExport.mapParsedGedcom === 'function') mapped = mapperExport.mapParsedGedcom(preview.parsed);
-                  } catch (e) { /* ignore - fallback handled below */ }
-                  if (!mapped) {
-                    const res = await window.electronAPI.gedcomApply(preview.parsed, { strategy: 'mapOnly' });
-                    mapped = res && res.mapped;
                   }
                   if (!mapped) { setError('Kunde inte mappa GEDCOM i renderer eller main'); setLoading(false); return; }
                   const exportRes = await exportMappedToGedcomSources(dbData, mapped);
@@ -220,18 +215,19 @@ export default function GedcomImportModal({ open, onClose }) {
                 setLoading(true);
                 setError(null);
                 try {
-                  const res = await window.electronAPI.gedcomApply(preview.parsed, { strategy: 'mapOnly' });
-                  if (res && res.error) {
-                    setError(res.error);
-                    setLoading(false);
-                    return;
+                  let mapped = null;
+                  if (window.electronAPI && typeof window.electronAPI.gedcomApply === 'function') {
+                    const res = await window.electronAPI.gedcomApply(preview.parsed, { strategy: 'mapOnly' });
+                    if (res && res.error) {
+                      throw new Error(res.error);
+                    }
+                    mapped = res && res.mapped;
                   }
-                  let mapped = res && res.mapped;
-                  if (!mapped && res && res.parsed) {
+                  if (!mapped) {
                     const mapperModule = await import('../gedcom/mapper');
-                      const mapperExport = mapperModule && (mapperModule.default || mapperModule);
-                      if (typeof mapperExport === 'function') mapped = mapperExport(res.parsed);
-                      else if (mapperExport && typeof mapperExport.mapParsedGedcom === 'function') mapped = mapperExport.mapParsedGedcom(res.parsed);
+                    const mapperExport = mapperModule && (mapperModule.default || mapperModule);
+                    if (typeof mapperExport === 'function') mapped = mapperExport(preview.parsed);
+                    else if (mapperExport && typeof mapperExport.mapParsedGedcom === 'function') mapped = mapperExport.mapParsedGedcom(preview.parsed);
                   }
                   if (!mapped) {
                     setError('No mapped data available from main process');

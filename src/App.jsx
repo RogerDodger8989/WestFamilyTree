@@ -123,7 +123,7 @@ function App() {
     handleOpenSourceModal, handleCloseSourceModal, handleSourceFormChange,
     handleParseSource, handleSaveSource, handleSaveEditedSource, handleUndo, handleDeleteSource,
     addRelation, getPersonRelations,
-    handleSetFocusPair, handleToggleBookmark, handleSwapFocus, handleClearFocus, handleAddNewPlace, handleSavePlace, isAttachingSource, handleAttachSources, handleSwitchToCreateSource, handleNavigateToPlace,
+    handleSetFocusPair, handleToggleBookmark, handleSwapFocus, handleClearFocus, handleAddNewPlace, handleSavePlace, calculatePlaceMergeImpact, handleMergePlaces, isAttachingSource, handleAttachSources, handleSwitchToCreateSource, handleNavigateToPlace,
     handleTogglePlaceDrawer,
     openPlaceDrawerForSelection,
     applyHistoryEntry,
@@ -1517,6 +1517,8 @@ function App() {
               onOpenEditModal={handleOpenEditModal}
               onSavePlace={handleSavePlace}
               onAddNewPlace={handleAddNewPlace}
+              onCalculateMergeImpact={calculatePlaceMergeImpact}
+              onMergePlaces={handleMergePlaces}
               onNavigateToSource={handleNavigateToSource}
               onAttachSource={handleOpenSourceModal}
               onUnlinkPlaceFromEvent={(placeId, eventId) => {
@@ -1916,6 +1918,8 @@ function App() {
             setCatalogState={setPlaceCatalogState}
             isDrawerMode={!!linkingMediaInfo}
             onLinkPlace={handleLinkPlaceToMedia}
+            onCalculateMergeImpact={calculatePlaceMergeImpact}
+            onMergePlaces={handleMergePlaces}
           />
         </WindowFrame>
       )}
