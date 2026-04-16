@@ -489,7 +489,9 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
     const typeMap = {
       'Län': 'County', 'Kommun': 'Municipality', 'Församling': 'Parish',
       'Ort': 'Village', 'Byggnad': 'Building', 'Kyrkogård': 'Cemetary',
-      'Land': 'Country', 'root': 'Country'
+      'Land': 'Country', 'root': 'Country',
+      'Gård': 'Farm', 'Hemman': 'Farm', 'Torp': 'Cottage',
+      'Härad': 'Hundred', 'Landskap': 'Province', 'Gata': 'Address', 'Adress': 'Address'
     };
 
     for (const place of (placeList || [])) {
@@ -2231,9 +2233,14 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
 
       {/* Create Modal */}
       {creatingParent && (
-        <WindowFrame title="Skapa ny plats" onClose={() => setCreatingParent(null)}>
+        <WindowFrame 
+          title="Skapa ny plats" 
+          onClose={() => setCreatingParent(null)}
+          subtitle={getPath(tree, creatingParent.id)?.join(' / ')}
+        >
           <PlaceCreateModal
             parentNode={creatingParent}
+            parentPath={getPath(tree, creatingParent.id)?.join(' / ')}
             onClose={() => setCreatingParent(null)}
             onCreate={async (form) => {
               await handleCreatePlace({ 

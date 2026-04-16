@@ -2,14 +2,19 @@ import React, { useState } from 'react';
 
 const PLACE_TYPE_OPTIONS = [
   { value: 'Village', label: 'By/Ort', icon: '🏘️' },
+  { value: 'Farm', label: 'Gård/Hemman', icon: '🚜' },
+  { value: 'Cottage', label: 'Torp', icon: '🛖' },
   { value: 'Parish', label: 'Församling/socken', icon: '⛪' },
   { value: 'Municipality', label: 'Kommun', icon: '🏛️' },
+  { value: 'Hundred', label: 'Härad', icon: '⚖️' },
   { value: 'County', label: 'Län', icon: '🗺️' },
+  { value: 'Province', label: 'Landskap', icon: '📜' },
   { value: 'Building', label: 'Byggnad', icon: '🏠' },
+  { value: 'Address', label: 'Gata/Adress', icon: '📍' },
   { value: 'Cemetary', label: 'Kyrkogård', icon: '🪦' },
 ];
 
-export default function PlaceCreateModal({ parentNode, onClose, onCreate }) {
+export default function PlaceCreateModal({ parentNode, parentPath, onClose, onCreate }) {
   const [form, setForm] = useState({
     name: '',
     type: 'Village',
@@ -39,6 +44,11 @@ export default function PlaceCreateModal({ parentNode, onClose, onCreate }) {
 
   return (
     <form onSubmit={handleSubmit} className="p-6 space-y-4 flex flex-col h-full">
+          {parentPath && (
+            <div className="bg-surface-2 p-2 rounded text-xs text-muted font-mono mb-2 overflow-x-auto whitespace-nowrap border border-subtle">
+              <span className="opacity-50">Sökväg:</span> {parentPath} / ...
+            </div>
+          )}
           <div>
             <label className="block text-sm font-semibold text-secondary">Namn</label>
             <input 
