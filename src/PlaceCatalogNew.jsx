@@ -46,24 +46,35 @@ function formatPlaceName(node) {
 // Ikoner för varje platstyp
 const PLACE_TYPE_ICONS = {
   'Country': '🌍',
+  'Landscape': '📜',
+  'Province': '📜',
   'County': '🗺️',
   'Municipality': '🏛️',
   'Parish': '⛪',
-  'Village': '📍',
+  'Village': '🏘️',
+  'Farm': '🚜',
+  'Cottage': '🛖',
+  'Hundred': '⚖️',
   'Building': '🏠',
   'Cemetary': '🪦',
+  'Address': '📍',
   'default': '📍'
 };
 
 const PLACE_TYPE_LABELS = {
   'Country': 'Land',
   'Landscape': 'Landskap',
+  'Province': 'Landskap',
   'County': 'Län',
   'Municipality': 'Kommun',
   'Parish': 'Församling',
-  'Village': 'Ort',
+  'Village': 'By/Ort',
+  'Farm': 'Gård/Hemman',
+  'Cottage': 'Torp/Stuga',
+  'Hundred': 'Härad',
   'Building': 'Byggnad',
   'Cemetary': 'Kyrkogård',
+  'Address': 'Gata/Adress',
   'default': 'Plats'
 };
 // Röd och blå Leaflet-ikon
@@ -141,13 +152,17 @@ const TreeNode = ({
   onToggleMultiSelect,
   onContextMenu,
   onDoubleClick,
-  highlightTerm
+  highlightTerm,
+  onDragStart,
+  onDragOver,
+  onDrop
 }) => {
   const hasChildren = node.children && node.children.length > 0;
   const isExpanded = expandedNodes.has(node.id);
   const isSelected = selectedNodeId === node.id;
   const placeId = String(node?.metadata?.id ?? node?.id ?? '').trim();
   const isMultiSelected = selectedNodeIds && selectedNodeIds.has(placeId);
+  const isUserPlace = node.metadata?.source === 'user' || String(node.id || '').startsWith('user_');
   
   // Highlight matching text
   const highlightText = (text) => {
@@ -161,16 +176,20 @@ const TreeNode = ({
 
   return (
     <div>
-      <div 
-        data-place-id={node.id}
-        className={`flex items-center py-1 px-2 cursor-pointer select-none hover:bg-surface-2 transition-colors ${
-          isSelected || isMultiSelected ? 'bg-accent border-l-4 border-accent' : ''
-        }`}
-        style={{ paddingLeft: `${level * 20 + 8}px` }}
-        onClick={(e) => onSelect(node, e)}
-        onDoubleClick={() => onDoubleClick(node)}
-        onContextMenu={(e) => onContextMenu(e, node)}
-      >
+        <div 
+          data-place-id={node.id}
+          draggable={isUserPlace}
+          onDragStart={(e) => onDragStart && onDragStart(e, node)}
+          onDragOver={(e) => onDragOver && onDragOver(e, node)}
+          onDrop={(e) => onDrop && onDrop(e, node)}
+          className={`flex items-center py-1 px-2 cursor-pointer select-none hover:bg-surface-2 transition-colors ${
+            isSelected || isMultiSelected ? 'bg-accent border-l-4 border-accent' : ''
+          }`}
+          style={{ paddingLeft: `${level * 20 + 8}px` }}
+          onClick={(e) => onSelect(node, e)}
+          onDoubleClick={() => onDoubleClick(node)}
+          onContextMenu={(e) => onContextMenu(e, node)}
+        >
         <div 
           className="mr-1 text-muted hover:text-secondary transition-colors"
           onClick={(e) => {
@@ -224,6 +243,9 @@ const TreeNode = ({
               onContextMenu={onContextMenu}
               onDoubleClick={onDoubleClick}
               highlightTerm={highlightTerm}
+              onDragStart={onDragStart}
+              onDragOver={onDragOver}
+              onDrop={onDrop}
             />
           ))}
         </div>
@@ -322,6 +344,8 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
   const [mergeImpactPreview, setMergeImpactPreview] = useState(null);
   const [placeToDelete, setPlaceToDelete] = useState(null);
   const [pendingFocusId, setPendingFocusId] = useState(null);
+  const [draggingNode, setDraggingNode] = useState(null);
+  const [moveConfirmation, setMoveConfirmation] = useState(null);
   const fileInputRef = useRef(null);
   const selectedPlaceIdSet = useMemo(() => new Set(selectedPlaceIds), [selectedPlaceIds]);
 
@@ -485,7 +509,6 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
       metadata: {}
     };
 
-    const lanMap = {};
     const typeMap = {
       'Län': 'County', 'Kommun': 'Municipality', 'Församling': 'Parish',
       'Ort': 'Village', 'Byggnad': 'Building', 'Kyrkogård': 'Cemetary',
@@ -494,91 +517,125 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
       'Härad': 'Hundred', 'Landskap': 'Province', 'Gata': 'Address', 'Adress': 'Address'
     };
 
+    // 1. Skapa mappar för administrativ skelett-struktur
+    const counties = new Map();
+    const municipalities = new Map();
+    const parishes = new Map();
+    const allNodes = new Map();
+    allNodes.set('root', root);
+
+    // Hjälpfunktion för att normalisera namn för skelett-noder
+    const getCleanName = (name) => String(name || '').replace(/\s*\(K-\d{4}\)/g, '').trim();
+
+    // 2. Första passet: Identifiera alla unika administrativa behållare och skapa skelett
     for (const place of (placeList || [])) {
       if (!place || !place.id) continue;
-
+      
       const p_lan = place.lansnamn || place.region;
       const p_kommun = place.kommunnamn || place.municipality;
       const p_forsamling = place.sockenstadnamn || place.parish;
-      const p_ort = place.ortnamn || place.village || place.specific || place.name || '';
-      const nodeType = place.type ? (typeMap[place.type] || place.type) : typeMap['Ort'];
 
-      const placeNode = {
+      if (p_lan && !counties.has(p_lan)) {
+        const node = {
+          id: `lan-${p_lan}`,
+          name: `${getCleanName(p_lan)} län`,
+          type: 'County',
+          children: [],
+          metadata: { lansnamn: p_lan, lanskod: place.lanskod }
+        };
+        counties.set(p_lan, node);
+        allNodes.set(node.id, node);
+        root.children.push(node);
+      }
+
+      if (p_lan && p_kommun && !municipalities.has(`${p_lan}|${p_kommun}`)) {
+        const key = `${p_lan}|${p_kommun}`;
+        const node = {
+          id: `kommun-${p_kommun}`,
+          name: `${getCleanName(p_kommun)} kommun`,
+          type: 'Municipality',
+          children: [],
+          metadata: { kommunnamn: p_kommun, kommunkod: place.kommunkod, lansnamn: p_lan, lanskod: place.lanskod }
+        };
+        municipalities.set(key, node);
+        allNodes.set(node.id, node);
+        counties.get(p_lan).children.push(node);
+      }
+
+      if (p_lan && p_kommun && p_forsamling && !parishes.has(`${p_lan}|${p_kommun}|${p_forsamling}`)) {
+        const key = `${p_lan}|${p_kommun}|${p_forsamling}`;
+        let label = getCleanName(p_forsamling);
+        if (label && !label.toLowerCase().endsWith('församling') && !label.toLowerCase().endsWith('socken')) {
+          label += ' församling';
+        }
+        const node = {
+          id: `forsamling-${p_forsamling}`,
+          name: label,
+          type: 'Parish',
+          children: [],
+          metadata: { sockenstadnamn: p_forsamling, sockenstadkod: place.sockenstadkod, kommunnamn: p_kommun, kommunkod: place.kommunkod, lansnamn: p_lan, lanskod: place.lanskod }
+        };
+        parishes.set(key, node);
+        allNodes.set(node.id, node);
+        municipalities.get(`${p_lan}|${p_kommun}`).children.push(node);
+      }
+    }
+
+    // 3. Andra passet: Skapa noder för alla orter/byggnader och lägg in i kartan
+    const placeNodes = (placeList || []).map(place => {
+      const nodeType = place.type ? (typeMap[place.type] || place.type) : 'Village';
+      const node = {
         id: place.id,
-        name: (p_ort || ''),
+        name: place.ortnamn || place.village || place.specific || place.name || '',
         type: nodeType,
         children: [],
         metadata: place
       };
+      allNodes.set(node.id, node);
+      return node;
+    });
 
-      let parentNode = null;
-
-      if (p_lan) {
-        if (!lanMap[p_lan]) {
-          lanMap[p_lan] = {
-            id: `lan-${p_lan}`,
-            name: `${p_lan.replace(/\s*\(K-\d{4}\)/g, '').trim()} län`,
-            type: 'County',
-            children: [],
-            metadata: { lansnamn: p_lan, lanskod: place.lanskod }
-          };
-          root.children.push(lanMap[p_lan]);
-        }
-        parentNode = lanMap[p_lan];
-      }
-
-      if (parentNode && p_kommun) {
-        let kommunNode = parentNode.children.find(c => c.metadata.kommunnamn === p_kommun);
-        if (!kommunNode) {
-          kommunNode = {
-            id: `kommun-${p_kommun}`,
-            name: `${p_kommun.replace(/\s*\(K-\d{4}\)/g, '').trim()} kommun`,
-            type: 'Municipality',
-            children: [],
-            metadata: { kommunnamn: p_kommun, kommunkod: place.kommunkod, lansnamn: p_lan, lanskod: place.lanskod }
-          };
-          parentNode.children.push(kommunNode);
-        }
-        parentNode = kommunNode;
-      }
-
-      if (parentNode && p_forsamling) {
-        let forsamlingNode = parentNode.children.find(c => c.metadata.sockenstadnamn === p_forsamling);
-        if (!forsamlingNode) {
-          let namn = p_forsamling.replace(/\s*\(K-\d{4}\)/g, '').trim();
-          if (namn && !namn.toLowerCase().endsWith('församling') && !namn.toLowerCase().endsWith('socken')) {
-            namn += ' församling';
-          }
-          forsamlingNode = {
-            id: `forsamling-${p_forsamling}`,
-            name: namn,
-            type: 'Parish',
-            children: [],
-            metadata: { sockenstadnamn: p_forsamling, sockenstadkod: place.sockenstadkod, kommunnamn: p_kommun, kommunkod: place.kommunkod, lansnamn: p_lan, lanskod: place.lanskod }
-          };
-          parentNode.children.push(forsamlingNode);
-        }
-        parentNode = forsamlingNode;
-      }
-
-      if (parentNode) {
-        if (!parentNode.children.some(c => c.id === placeNode.id)) {
-          parentNode.children.push(placeNode);
+    // 4. Tredje passet: Koppla noder till rätt förälder (prioritera parentid)
+    for (const node of placeNodes) {
+      const place = node.metadata;
+      const parentId = place.parentid || place.metadata?.parentid;
+      
+      if (parentId && allNodes.has(parentId) && parentId !== node.id) {
+        // Om vi har ett explicit parentid, flytta den dit
+        const parent = allNodes.get(parentId);
+        if (!parent.children.some(c => c.id === node.id)) {
+          parent.children.push(node);
         }
       } else {
-        let unspecifiedNode = root.children.find(c => c.id === 'unspecified');
-        if (!unspecifiedNode) {
-          unspecifiedNode = {
-            id: 'unspecified',
-            name: 'Ospecificerade platser',
-            type: 'default',
-            children: [],
-            metadata: {}
-          };
-          root.children.push(unspecifiedNode);
+        // Fallback: Använd administrativa hierarkin
+        const p_lan = place.lansnamn || place.region;
+        const p_kommun = place.kommunnamn || place.municipality;
+        const p_forsamling = place.sockenstadnamn || place.parish;
+
+        let fallbackParent = null;
+        if (p_lan && p_kommun && p_forsamling) {
+          fallbackParent = parishes.get(`${p_lan}|${p_kommun}|${p_forsamling}`);
+        } else if (p_lan && p_kommun) {
+          fallbackParent = municipalities.get(`${p_lan}|${p_kommun}`);
+        } else if (p_lan) {
+          fallbackParent = counties.get(p_lan);
         }
-        if (!unspecifiedNode.children.some(c => c.id === placeNode.id)) {
-          unspecifiedNode.children.push(placeNode);
+
+        if (fallbackParent) {
+          if (!fallbackParent.children.some(c => c.id === node.id)) {
+            fallbackParent.children.push(node);
+          }
+        } else {
+          // Ospecificerade
+          let unspecifiedNode = root.children.find(c => c.id === 'unspecified');
+          if (!unspecifiedNode) {
+            unspecifiedNode = { id: 'unspecified', name: 'Ospecificerade platser', type: 'Village', children: [], metadata: {} };
+            root.children.push(unspecifiedNode);
+            allNodes.set('unspecified', unspecifiedNode);
+          }
+          if (!unspecifiedNode.children.some(c => c.id === node.id)) {
+            unspecifiedNode.children.push(node);
+          }
         }
       }
     }
@@ -891,15 +948,18 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
     
     const filterNode = (node, ancestorIds = []) => {
       const matches = matchesSearch(node);
+      
+      if (matches) {
+        // Om noden matchar: returnera den och ALLA dess barn (explosiv sökning)
+        ancestorIds.forEach(id => nodesToExpand.add(id));
+        nodesToExpand.add(node.id);
+        return node; 
+      }
+
+      // Om inte match: kolla om barn matchar
       const filteredChildren = node.children ? node.children.map(child => filterNode(child, [...ancestorIds, node.id])).filter(Boolean) : [];
       
-      if (matches || filteredChildren.length > 0) {
-        // Samla noder att expandera
-        if (matches) {
-          ancestorIds.forEach(id => nodesToExpand.add(id));
-          nodesToExpand.add(node.id);
-        }
-        
+      if (filteredChildren.length > 0) {
         return {
           ...node,
           children: filteredChildren
@@ -1402,6 +1462,98 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
     }, 100);
   };
 
+  // Drag & Drop i trädet
+  const handleDragStart = (e, node) => {
+    setDraggingNode(node);
+    e.dataTransfer.setData('sourceId', node.id);
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDragOver = (e, node) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e, targetNode) => {
+    e.preventDefault();
+    if (!draggingNode || draggingNode.id === targetNode.id) return;
+
+    // Vi tillåter bara att flytta till noder som INTE är löv eller egna platser (förutom om man vill stapla)
+    // Men i detta fall: flytta under mål-noden
+    setMoveConfirmation({
+      source: draggingNode,
+      target: targetNode
+    });
+  };
+
+  const handleConfirmMove = () => {
+    if (!moveConfirmation) return;
+    const { source, target } = moveConfirmation;
+    setMoveConfirmation(null);
+    setDraggingNode(null);
+
+    const originalDbData = dbData;
+    const originalPlaces = places;
+
+    // Hitta målhierarki
+    const m = target.metadata || {};
+    const updatedHierarchy = {
+      lansnamn: m.lansnamn || m.region || '',
+      lanskod: m.lanskod || '',
+      kommunnamn: m.kommunnamn || m.municipality || '',
+      kommunkod: m.kommunkod || '',
+      sockenstadnamn: m.sockenstadnamn || m.parish || '',
+      parentid: target.metadata?.id || target.id
+    };
+
+    const targetId = source.metadata?.id || source.id;
+
+    // Uppdatera dbData
+    setDbData(prev => {
+      const pList = Array.isArray(prev.places) ? prev.places : [];
+      return {
+        ...prev,
+        places: pList.map(p => {
+          if (p.id === targetId || p.metadata?.id === targetId) {
+            return {
+              ...p,
+              ...updatedHierarchy,
+              metadata: {
+                ...p.metadata,
+                ...updatedHierarchy
+              }
+            };
+          }
+          return p;
+        })
+      };
+    });
+
+    // Uppdatera places omedelbart
+    setPlaces(prev => prev.map(p => {
+      if (p.id === targetId || p.metadata?.id === targetId) {
+        return {
+          ...p,
+          ...updatedHierarchy,
+          metadata: {
+            ...p.metadata,
+            ...updatedHierarchy
+          }
+        };
+      }
+      return p;
+    }));
+
+    setPendingFocusId(targetId);
+
+    if (showUndoToast) {
+      showUndoToast(`Flyttade "${source.name}" till under "${target.name}".`, () => {
+        setDbData(originalDbData);
+        setPlaces(originalPlaces);
+      });
+    }
+  };
+
   // Importera XML-fil
   const handleImportXML = async (e) => {
     const file = e.target.files?.[0];
@@ -1567,6 +1719,9 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
                   onContextMenu={handleContextMenu}
                   onDoubleClick={handleDoubleClick}
                   highlightTerm={searchTerm}
+                  onDragStart={handleDragStart}
+                  onDragOver={handleDragOver}
+                  onDrop={handleDrop}
                 />
               ))
             )}
@@ -1608,25 +1763,49 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
                           dragend: (e) => {
                             if (!isUserPlace) return;
                             const { lat, lng } = e.target.getLatLng();
-                            // Uppdatera platsens koordinater i state
-                            setCatalogState(prev => {
-                              const updatedPlaces = prev.places.map(p => {
-                                if ((p.id === place.id || p.metadata?.id === place.id)) {
-                                  return {
-                                    ...p,
-                                    latitude: lat,
-                                    longitude: lng,
-                                    metadata: {
-                                      ...p.metadata,
+                            const targetId = place.metadata?.id || place.id;
+
+                            // 1. Uppdatera dbData för permanent lagring i filen
+                            setDbData(prev => {
+                              const pList = Array.isArray(prev.places) ? prev.places : [];
+                              return {
+                                ...prev,
+                                places: pList.map(p => {
+                                  if (String(p.id) === String(targetId) || String(p.metadata?.id) === String(targetId)) {
+                                    return {
+                                      ...p,
                                       latitude: lat,
                                       longitude: lng,
-                                    }
-                                  };
-                                }
-                                return p;
-                              });
-                              return { ...prev, places: updatedPlaces };
+                                      metadata: {
+                                        ...(p.metadata || {}),
+                                        latitude: lat,
+                                        longitude: lng
+                                      }
+                                    };
+                                  }
+                                  return p;
+                                })
+                              };
                             });
+
+                            // 2. Uppdatera places för omedelbar respons i trädet
+                            setPlaces(prev => prev.map(p => {
+                              if (String(p.id) === String(targetId) || String(p.metadata?.id) === String(targetId)) {
+                                return {
+                                  ...p,
+                                  latitude: lat,
+                                  longitude: lng,
+                                  metadata: {
+                                    ...(p.metadata || {}),
+                                    latitude: lat,
+                                    longitude: lng
+                                  }
+                                };
+                              }
+                              return p;
+                            }));
+
+                            showStatus && showStatus(`Koordinater uppdaterade för ${place.name}`);
                           },
                         }}
                       >
@@ -2250,6 +2429,40 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
             }}
           />
         </WindowFrame>
+      )}
+
+      {/* Move Confirmation Modal */}
+      {moveConfirmation && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[11000] p-4 backdrop-blur-sm">
+          <div className="bg-surface rounded-lg shadow-2xl border border-subtle w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-6">
+              <div className="flex items-center gap-3 text-amber-500 mb-4">
+                <span className="text-2xl">🔄</span>
+                <h3 className="text-xl font-bold text-primary">Bekräfta flytt</h3>
+              </div>
+              <p className="text-secondary leading-relaxed mb-6 text-sm">
+                Vill du flytta <span className="font-bold text-primary">"{moveConfirmation.source.name}"</span> så att den ligger under <span className="font-bold text-primary">"{moveConfirmation.target.name}"</span>?
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  className="px-4 py-2 bg-surface-2 text-primary rounded hover:bg-surface-3 transition-colors text-sm font-medium"
+                  onClick={() => {
+                    setMoveConfirmation(null);
+                    setDraggingNode(null);
+                  }}
+                >
+                  Avbryt
+                </button>
+                <button
+                  className="px-6 py-2 bg-amber-600 text-white rounded hover:bg-amber-500 transition-colors text-sm font-bold shadow-lg shadow-amber-900/20"
+                  onClick={handleConfirmMove}
+                >
+                  Ja, flytta
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

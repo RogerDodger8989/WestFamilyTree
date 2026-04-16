@@ -1,14 +1,18 @@
 import React, { useState, useEffect } from 'react';
 
 const PLACE_TYPE_OPTIONS = [
-  { value: 'Country', label: 'Land', icon: '🌍' },
-  { value: 'Landscape', label: 'Landskap', icon: '🏞️' },
-  { value: 'County', label: 'Län', icon: '🗺️' },
-  { value: 'Municipality', label: 'Kommun', icon: '🏛️' },
-  { value: 'Parish', label: 'Församling/socken', icon: '⛪' },
   { value: 'Village', label: 'By/Ort', icon: '🏘️' },
+  { value: 'Farm', label: 'Gård/Hemman', icon: '🚜' },
+  { value: 'Cottage', label: 'Torp/Stuga', icon: '🛖' },
+  { value: 'Parish', label: 'Församling/socken', icon: '⛪' },
+  { value: 'Municipality', label: 'Kommun', icon: '🏛️' },
+  { value: 'Hundred', label: 'Härad', icon: '⚖️' },
+  { value: 'County', label: 'Län', icon: '🗺️' },
+  { value: 'Province', label: 'Landskap', icon: '📜' },
   { value: 'Building', label: 'Byggnad', icon: '🏠' },
+  { value: 'Address', label: 'Gata/Adress', icon: '📍' },
   { value: 'Cemetary', label: 'Kyrkogård', icon: '🪦' },
+  { value: 'Country', label: 'Land', icon: '🌍' },
 ];
 
 export default function PlaceEditModal({ place, onClose, onSave }) {
