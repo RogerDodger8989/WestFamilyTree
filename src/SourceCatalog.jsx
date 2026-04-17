@@ -320,6 +320,25 @@ export default function SourceCatalog({
   // New state for GEDCOM features
   const [showOrphanedOnly, setShowOrphanedOnly] = useState(false);
 
+  // Officiella platser (hämtade från backend) för att normalisera titlar vid import
+  const [officialPlaces, setOfficialPlaces] = useState([]);
+  useEffect(() => {
+    fetch('http://127.0.0.1:5005/official_places/full_tree')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data && Array.isArray(data.list)) {
+          // Extract all unique parish names from ortnamn/sockenstadnamn/parish
+          const nameSet = new Set();
+          for (const p of data.list) {
+            const names = [p.ortnamn, p.sockenstadnamn, p.parish, p.name].filter(Boolean);
+            for (const n of names) nameSet.add(n);
+          }
+          setOfficialPlaces(Array.from(nameSet).map(n => ({ name: n })));
+        }
+      })
+      .catch(() => {}); // Tyst fel – vi kör utan om API:t inte svarar
+  }, []);
+
   const buildExpandedStateForAllTreeNodes = (treeNode, prefix = '') => {
     const out = {};
     if (Array.isArray(treeNode)) return out;
@@ -374,7 +393,14 @@ export default function SourceCatalog({
           const bildNrMatch = text.match(/_(\d+)$/);
           if (bildNrMatch) updates.imagePage = bildNrMatch[1];
           const commaParts = text.split(',');
-          if (commaParts.length > 0) updates.title = normalizeArchiveTitle(commaParts[0].trim(), places);
+          if (commaParts.length > 0) {
+              const rawTitle = commaParts[0].trim();
+              // Use officialPlaces (from API) first, fall back to passed-in places
+              const allPlaces = officialPlaces.length > 0 ? officialPlaces : (places || []);
+              const normalizedTitle = normalizeArchiveTitle(rawTitle, allPlaces);
+              console.log('[DEBUG PARSE] rawTitle:', rawTitle, '| officialPlaces count:', officialPlaces.length, '| result:', normalizedTitle);
+              updates.title = normalizedTitle;
+          }
       }
 
       const dateMatch = text.match(/\((\d{4}[-–]\d{4})\)/) || text.match(/\((\d{4})\)/);

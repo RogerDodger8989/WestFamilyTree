@@ -3850,5 +3850,15 @@
     "timestamp": "2026-04-17T05:13:44.566Z",
     "details": null,
     "sourceIds": []
+  },
+  {
+    "id": "audit_1776405950954_fa5hxjx",
+    "type": "delete",
+    "entityType": "source",
+    "entityId": "src_1776405792936_6edp0a",
+    "actor": "local",
+    "timestamp": "2026-04-17T06:05:50.954Z",
+    "details": null,
+    "sourceIds": []
   }
 ]
