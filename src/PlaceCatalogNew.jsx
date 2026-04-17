@@ -9,6 +9,7 @@ import PlaceEditModal from './PlaceEditModal.jsx';
 import PlaceCreateModal from './PlaceCreateModal.jsx';
 import Editor from './MaybeEditor.jsx';
 import { User, X } from 'lucide-react';
+import MediaSelector from './MediaSelector.jsx';
 
 // Hjälpfunktion för att formatera namn och kod
 function formatPlaceName(node) {
@@ -212,7 +213,7 @@ const TreeNode = ({
           checked={isMultiSelected}
           onClick={(e) => e.stopPropagation()}
           onChange={(e) => onToggleMultiSelect && onToggleMultiSelect(node, e.target.checked)}
-          disabled={!placeId || placeId === 'root'}
+          disabled={!placeId}
           aria-label={`Välj plats ${formatPlaceName(node)}`}
         />
         
@@ -797,15 +798,38 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
   // Ladda personer kopplade till en plats
   const loadLinkedPeople = async (placeId) => {
     try {
-      // Använd allPeople från props istället för att hämta från backend
+      const meta = selectedNode?.metadata || {};
+      const rawNames = [
+        selectedNode?.name,
+        meta.ortnamn,
+        meta.sockenstadnamn,
+        meta.parish,
+        meta.village,
+        meta.name,
+      ].filter(Boolean);
+
+      // Bygg söktermer: fullt namn + basnamn utan länsbokstav
+      const nameVariants = new Set();
+      for (const n of rawNames) {
+        const lower = n.toLowerCase().trim();
+        nameVariants.add(lower);
+        const base = lower.replace(/\s*\([a-z]\)\s*$/i, '').trim();
+        if (base.length >= 3) nameVariants.add(base);
+      }
+
       const linked = [];
       for (const person of allPeople) {
         if (person.events && Array.isArray(person.events)) {
           for (const event of person.events) {
-            if (event.placeId == placeId || event.place_id == placeId) {
+            const idMatch = event.placeId == placeId || event.place_id == placeId;
+            const eventPlace = String(event.place || '').toLowerCase().trim();
+            const nameMatch = eventPlace.length > 0 && nameVariants.size > 0 &&
+              Array.from(nameVariants).some(variant => eventPlace.includes(variant));
+
+            if (idMatch || nameMatch) {
               linked.push({
                 personId: person.id,
-                person: person, // Spara hela person-objektet
+                person: person,
                 eventType: event.type,
                 eventDate: event.date || '',
                 eventId: event.id
@@ -814,7 +838,7 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
           }
         }
       }
-      
+
       setLinkedPeople(linked);
     } catch (err) {
       console.error('Kunde inte ladda kopplade personer:', err);
@@ -1033,7 +1057,6 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
         setExpandedNodes(newExpanded);
       }
       
-      // Sätt selectedNode
       setSelectedNode(node);
       const normalizedId = String(selectedPlaceId).trim();
       setSelectedPlaceIds((prev) => (prev.includes(normalizedId) ? prev : [...prev, normalizedId]));
@@ -1128,7 +1151,22 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
 
   const handleToggleMultiSelect = (node, checked) => {
     const selectedId = String(node?.metadata?.id ?? node?.id ?? '').trim();
-    if (!selectedId || selectedId === 'root') return;
+    if (!selectedId) return;
+
+    // Specialfall: Sverige-roten – markera/avmarkera ALLA platser
+    if (selectedId === 'root') {
+      const allIds = flatPlaces
+        .map((p) => String(p?.metadata?.id ?? p?.id ?? '').trim())
+        .filter((id) => id && id !== 'root');
+      if (checked) {
+        setSelectedPlaceIds(['root', ...allIds]);
+      } else {
+        setSelectedPlaceIds([]);
+      }
+      setLastSelectedPlaceId('root');
+      setSelectedNode(node);
+      return;
+    }
 
     setSelectedNode(node);
     setLastSelectedPlaceId(selectedId);
@@ -1234,9 +1272,9 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
     await loadPlaces();
   };
 
-  // Dubbelklick för redigering
+  // Dubbelklick fällar ut/in noden – öppnar INTE redigering
   const handleDoubleClick = (node) => {
-    setEditingPlace(node);
+    if (node?.id) toggleExpand(node.id);
   };
 
   // Högermeny
@@ -1567,7 +1605,20 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
 
   const handleSaveSidePanel = () => {
     if (!selectedNode) return;
-    
+
+    // Blockera redigering av officiella platser
+    const isOfficialPlace = selectedNode.metadata?.source !== 'user' &&
+      !String(selectedNode.id || '').startsWith('user_') &&
+      selectedNode.id !== 'root';
+
+    if (isOfficialPlace) {
+      showStatus && showStatus(
+        `"${selectedNode.name}" är en officiell plats och kan inte ändras. Skapa en egen plats om du vill anpassa den.`,
+        'warning'
+      );
+      return;
+    }
+
     const originalDbData = dbData;
     const originalPlaces = places;
     const targetId = selectedNode.metadata?.id || selectedNode.id;
@@ -1952,6 +2003,7 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
                   >
                     <span className="text-lg" role="img" aria-label="Bilder">🖼️</span>
                     Bilder
+                    {(() => { const cnt = selectedNode?.metadata?.images?.length || (dbData?.media || []).filter(m => Array.isArray(m?.connections?.places) && m.connections.places.includes(selectedNode?.id)).length || 0; return cnt > 0 ? <span className="ml-1 bg-green-900 text-green-200 text-xs font-bold px-2 py-0.5 rounded-full shadow-sm">{cnt}</span> : null; })()}
                     {activeRightTab === 'images' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2 h-2 bg-blue-500 rounded-full" />}
                   </button>
                   <button
@@ -1961,6 +2013,7 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
                   >
                     <span className="text-lg" role="img" aria-label="Noteringar">📝</span>
                     Noteringar
+                    {(() => { const note = selectedNode?.metadata?.note || ''; return note.trim().length > 0 ? <span className="ml-1 bg-green-900 text-green-200 text-xs font-bold px-2 py-0.5 rounded-full shadow-sm">1</span> : null; })()}
                     {activeRightTab === 'notes' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2 h-2 bg-blue-500 rounded-full" />}
                   </button>
                   <button
@@ -1970,6 +2023,7 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
                   >
                     <span className="text-lg" role="img" aria-label="Kopplingar">👥</span>
                     Kopplingar
+                    {linkedPeople.length > 0 && <span className="ml-1 bg-green-900 text-green-200 text-xs font-bold px-2 py-0.5 rounded-full shadow-sm">{linkedPeople.length}</span>}
                     {activeRightTab === 'connections' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2 h-2 bg-blue-500 rounded-full" />}
                   </button>
                 </div>
@@ -2122,12 +2176,60 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
                     )}
                   </div>
                 )}
-                {activeRightTab === 'images' && (
-                  <div className="max-w-3xl mx-auto">
-                    <h3 className="text-lg font-bold text-primary mb-3">Bilder</h3>
-                    <div className="text-sm text-muted italic bg-background border border-subtle rounded p-4">
-                      Inga bilder är kopplade till denna plats ännu.
-                    </div>
+                {activeRightTab === 'images' && selectedNode && (
+                  <div className="max-w-5xl mx-auto space-y-4">
+                    <MediaSelector
+                      media={(() => {
+                        const refs = Array.isArray(selectedNode.metadata?.images) ? selectedNode.metadata.images : [];
+                        const mediaList = Array.isArray(dbData?.media) ? dbData.media : [];
+                        const byId = new Map(mediaList.map(m => [String(m?.id || ''), m]));
+                        return refs.map(entry => {
+                          const id = String(typeof entry === 'string' ? entry : (entry?.mediaId || entry?.id || '')).trim();
+                          return id ? byId.get(id) : null;
+                        }).filter(Boolean);
+                      })()}
+                      onMediaChange={(newMediaList) => {
+                        if (!selectedNode?.id || typeof setDbData !== 'function') return;
+                        const placeId = selectedNode.id;
+                        const selectedIds = new Set(newMediaList.map(m => String(m?.id || '')).filter(Boolean));
+                        setDbData(prev => {
+                          const prevMedia = Array.isArray(prev.media) ? prev.media : [];
+                          const mediaMap = new Map(prevMedia.map(m => [String(m?.id || ''), { ...m }]));
+                          newMediaList.forEach(item => {
+                            const id = String(item?.id || '').trim();
+                            if (!id) return;
+                            const existing = mediaMap.get(id) || {};
+                            const conn = existing.connections || {};
+                            const placeIds = Array.isArray(conn.places) ? conn.places : [];
+                            mediaMap.set(id, { ...existing, ...item, connections: { ...conn, people: conn.people || [], sources: conn.sources || [], places: Array.from(new Set([...placeIds, placeId])) } });
+                          });
+                          mediaMap.forEach((item, id) => {
+                            const conn = item?.connections || {};
+                            const placeIds = Array.isArray(conn.places) ? conn.places : [];
+                            if (!placeIds.includes(placeId)) return;
+                            if (selectedIds.has(id)) return;
+                            mediaMap.set(id, { ...item, connections: { ...conn, places: placeIds.filter(p => p !== placeId) } });
+                          });
+                          const nextMedia = Array.from(mediaMap.values());
+                          const nextPlaces = (Array.isArray(prev.places) ? prev.places : []).map(p => {
+                            if (!p || p.id !== placeId) return p;
+                            return { ...p, images: Array.from(selectedIds) };
+                          });
+                          return { ...prev, media: nextMedia, places: nextPlaces };
+                        });
+                      }}
+                      entityType="place"
+                      entityId={selectedNode.id}
+                      allPeople={allPeople || []}
+                      allMediaItems={Array.isArray(dbData?.media) ? dbData.media : []}
+                      onUpdateAllMedia={(updatedAllMedia) => {
+                        if (typeof setDbData === 'function') {
+                          setDbData(prev => ({ ...prev, media: updatedAllMedia }));
+                        }
+                      }}
+                      allSources={[]}
+                      allPlaces={places || []}
+                    />
                   </div>
                 )}
                 {activeRightTab === 'notes' && (
@@ -2150,108 +2252,62 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
                   </div>
                 )}
                 {activeRightTab === 'connections' && (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-bold text-secondary uppercase">Kopplade Personer</h3>
+                  <div className="max-w-4xl mx-auto">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-lg font-bold text-primary">Kopplade Människor &amp; Händelser</h3>
                       <span className="text-xs text-muted">{linkedPeople.length} {linkedPeople.length === 1 ? 'person' : 'personer'}</span>
                     </div>
-                    <div className="bg-background rounded-md border border-subtle overflow-hidden">
-                      {linkedPeople.length > 0 ? (
-                        linkedPeople.map((link) => {
+                    {linkedPeople.length === 0 ? (
+                      <p className="text-muted text-sm italic text-center py-4">Inga personer är kopplade till denna plats än.</p>
+                    ) : (
+                      <div className="space-y-6">
+                        {linkedPeople.map((link, index) => {
                           const person = link.person || allPeople.find(p => p.id === link.personId);
-                          if (!person) {
-                            // Fallback om personen inte hittas
-                            return (
-                              <div key={`${link.personId}-${link.eventId}`} className="flex items-center justify-between bg-background p-2 rounded border border-subtle text-xs">
-                                <div><span className="text-primary font-medium block">Okänd person</span></div>
-                              </div>
-                            );
-                          }
-                          
-                          // Extrahera födelse- och dödsdata från events (samma format som MediaManager)
+                          if (!person) return null;
+
                           const birthEvent = person.events?.find(e => e.type === 'Födelse');
                           const deathEvent = person.events?.find(e => e.type === 'Död');
-                          
-                          const birthDate = birthEvent?.date || '';
-                          const birthPlace = birthEvent?.place || '';
-                          const deathDate = deathEvent?.date || '';
-                          const deathPlace = deathEvent?.place || '';
-                          
-                          // Formatera kön (samma format som EditPersonModal)
-                          const sex = person.gender || person.sex || 'U';
-                          const sexLabel = sex === 'M' || sex === 'Man' ? 'M' : sex === 'K' || sex === 'Kvinna' || sex === 'F' ? 'F' : 'U';
-                          
-                          // Hämta profilbild (samma logik som MediaManager)
+                          const birthYear = birthEvent?.date ? birthEvent.date.substring(0, 4) : null;
+                          const deathYear = deathEvent?.date ? deathEvent.date.substring(0, 4) : null;
+                          const lifeSpan = birthYear || deathYear ? `(${birthYear || '?'} – ${deathYear || ''})` : '';
                           const primaryMedia = person.media && person.media.length > 0 ? person.media[0] : null;
                           const profileImage = primaryMedia ? (primaryMedia.url || primaryMedia.path) : null;
-                          
+
                           return (
-                            <div 
-                              key={`${link.personId}-${link.eventId}`} 
-                              className="flex items-start gap-2 bg-background p-2 rounded border border-subtle text-xs cursor-pointer hover:bg-surface transition-colors"
-                              onClick={() => {
-                                if (onOpenEditModal) {
-                                  onOpenEditModal(link.personId);
-                                }
-                              }}
-                            >
-                              {/* Rund thumbnail (samma som MediaManager) */}
-                              <div className="w-10 h-10 rounded-full bg-surface flex-shrink-0 overflow-hidden border-2 border-strong">
-                                {profileImage ? (
-                                  <MediaImage 
-                                    url={profileImage}
-                                    alt={`${person.firstName} ${person.lastName}`} 
-                                    className="w-full h-full object-cover"
-                                    style={getAvatarImageStyle(primaryMedia, person.id)}
-                                  />
-                                ) : (
-                                  <User className="w-full h-full p-2 text-muted" />
-                                )}
-                              </div>
-                              
-                              {/* Personinfo */}
-                              <div className="flex-1 min-w-0">
-                                {/* Namn */}
-                                <div className="text-primary font-medium mb-0.5">
+                            <div key={`${link.personId}-${link.eventId}-${index}`} className="bg-background border border-subtle rounded-md overflow-hidden">
+                              <div
+                                className="flex items-center p-3 bg-surface border-b border-subtle hover:bg-surface-2 transition-colors cursor-pointer"
+                                onClick={() => onOpenEditModal && onOpenEditModal(link.personId)}
+                              >
+                                <div className="w-10 h-10 rounded-full bg-surface flex-shrink-0 overflow-hidden border-2 border-strong mr-3">
+                                  {profileImage ? (
+                                    <MediaImage
+                                      url={profileImage}
+                                      alt={`${person.firstName} ${person.lastName}`}
+                                      className="w-full h-full object-cover"
+                                      style={getAvatarImageStyle(primaryMedia, person.id)}
+                                    />
+                                  ) : (
+                                    <User className="w-full h-full p-2 text-muted" />
+                                  )}
+                                </div>
+                                <div className="w-12 text-xs font-mono text-muted">#{person.refNumber}</div>
+                                <div className="flex-1 font-bold text-accent hover:underline">
                                   {person.firstName} {person.lastName}
+                                  <span className="font-normal text-muted ml-2 text-xs">{lifeSpan}</span>
                                 </div>
-                                
-                                {/* Eventtyp och datum */}
-                                <div className="text-[10px] text-muted mb-0.5">
-                                  {link.eventType}
-                                  {link.eventDate && ` (${link.eventDate})`}
+                                <div className="flex flex-wrap gap-1 justify-end mr-2">
+                                  <span className="inline-flex items-center px-2 py-0.5 bg-green-200 text-green-900 rounded text-xs font-semibold">
+                                    {link.eventType}
+                                    {link.eventDate && <span className="ml-1 font-normal opacity-70">{link.eventDate}</span>}
+                                  </span>
                                 </div>
-                                
-                                {/* Födelsedatum och plats */}
-                                {(birthDate || birthPlace) && (
-                                  <div className="text-[10px] text-muted mb-0.5">
-                                    * {birthDate || '????-??-??'} {birthPlace && ` ${birthPlace}`} ({sexLabel})
-                                  </div>
-                                )}
-                                
-                                {/* Dödsdatum och plats */}
-                                {(deathDate || deathPlace) && (
-                                  <div className="text-[10px] text-muted">
-                                    + {deathDate || '????-??-??'} {deathPlace && ` ${deathPlace}`} ({sexLabel})
-                                  </div>
-                                )}
-                                
-                                {/* Om inga datum finns */}
-                                {!birthDate && !deathDate && (
-                                  <div className="text-[10px] text-muted italic">
-                                    Inga datum registrerade
-                                  </div>
-                                )}
                               </div>
                             </div>
                           );
-                        })
-                      ) : (
-                        <div className="p-4 text-sm text-muted italic">
-                          Inga personer kopplade till denna plats.
-                        </div>
-                      )}
-                    </div>
+                        })}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

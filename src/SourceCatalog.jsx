@@ -1148,7 +1148,9 @@ export default function SourceCatalog({
 
   const currentNotes = selectedSource ? getNotesList(selectedSource) : [];
   const imagesCount = selectedSource?.images?.length || 0;
-  const notesCount = currentNotes.length;
+  // Räkna 1 om det finns text, annars 0 (stöder både gammal array och NY enkel editor)
+  const notesCount = currentNotes.some(n => (n.text || '').trim().length > 0) ||
+    (selectedSource?.note || '').trim().length > 0 ? 1 : 0;
   const connectionsCount = Array.isArray(linkedData)
     ? linkedData.reduce((sum, item) => sum + (Array.isArray(item?.events) ? item.events.length : 0), 0)
     : 0;
@@ -1971,55 +1973,32 @@ export default function SourceCatalog({
                     </div>
                 )}
 
-                {/* --- FLIK: NOTERINGAR (Oförändrad) --- */}
+                {/* --- FLIK: NOTERINGAR --- */}
                 {activeRightTab === 'notes' && (
-                    <div className="max-w-3xl mx-auto">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="font-bold text-primary">Anteckningar</h3>
-                            <Button 
+                    <div className="max-w-3xl mx-auto space-y-3">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-lg font-bold text-primary">Noteringar</h3>
+                            <Button
                                 onClick={() => {
-                                    const newNote = { id: `note_${Date.now()}`, text: '', created: new Date().toISOString() };
-                                    const newNotes = [...currentNotes, newNote];
-                                    handleSave({ notes: newNotes });
+                                    const noteText = currentNotes.length > 0 ? currentNotes.map(n => n.text || '').join('\n\n') : '';
+                                    const newNote = { id: `note_${Date.now()}`, text: noteText, created: new Date().toISOString() };
+                                    handleSave({ notes: [newNote], note: noteText });
                                 }}
                                 variant="primary"
                                 size="sm"
                             >
-                                + Ny anteckning
+                                Spara
                             </Button>
                         </div>
-                        
-                        <div className="space-y-4">
-                            {currentNotes.map((note, idx) => (
-                                <div key={note.id || idx} className="border border-subtle rounded bg-background shadow-sm p-3">
-                                    <div className="flex justify-between text-xs text-muted mb-1">
-                                        <span>{note.created ? new Date(note.created).toLocaleDateString() : 'Importerad'}</span>
-                                        <Button 
-                                            onClick={() => {
-                                                if(confirm('Ta bort anteckning?')) {
-                                                    const newNotes = currentNotes.filter((_, i) => i !== idx);
-                                                    handleSave({ notes: newNotes });
-                                                }
-                                            }}
-                                            variant="danger" 
-                                            size="xs"
-                                        >
-                                            Ta bort
-                                        </Button>
-                                    </div>
-                                    <Editor
-                                        value={note.text || ''}
-                                        onChange={(e) => {
-                                            const newNotes = [...currentNotes];
-                                            newNotes[idx] = { ...note, text: e.target.value };
-                                            handleSave({ notes: newNotes });
-                                        }}
-                                        containerProps={{ style: { minHeight: '100px' } }}
-                                    />
-                                </div>
-                            ))}
-                            {currentNotes.length === 0 && <div className="text-center text-muted italic py-10">Inga anteckningar än.</div>}
-                        </div>
+                        <Editor
+                            value={currentNotes.length > 0 ? (currentNotes.map(n => n.text || '').join('\n\n')) : (selectedSource?.note || '')}
+                            onChange={(e) => {
+                                const text = e.target.value;
+                                const newNote = { id: `note_${Date.now()}`, text, created: new Date().toISOString() };
+                                handleSave({ notes: [newNote], note: text });
+                            }}
+                            containerProps={{ style: { minHeight: '200px' } }}
+                        />
                     </div>
                 )}
 
