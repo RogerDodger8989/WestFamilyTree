@@ -26,7 +26,7 @@ function AttachSourceModal({ allSources, allPeople, onAttach, onCreateNew, onClo
         }
         // Fallback till parsing.js om något saknas
         if (!source.archive || !source.volume || !source.imagePage || !aid) {
-            const parsed = parseSourceString(source.sourceString);
+            const parsed = parseSourceString(source.sourceString, dbDataPlaces);
             if (!source.archive) source.archive = parsed.archive;
             if (!source.volume) source.volume = parsed.volume;
             if (!source.imagePage) source.imagePage = parsed.imagePage;
@@ -72,7 +72,8 @@ function AttachSourceModal({ allSources, allPeople, onAttach, onCreateNew, onClo
   // Filtrera personer till bara relevanta släktingar
   // Anta att aktuell personId finns i props (t.ex. via en extra prop 'currentPersonId')
   // Om inte, visa tom lista
-  const { getPersonRelations } = useApp();
+  const { getPersonRelations, dbData } = useApp();
+  const dbDataPlaces = dbData?.places || [];
   const relevantPeople = (() => {
     if (!window.sourcingEventInfo || !window.sourcingEventInfo.personId) return [];
     const currentPersonId = window.sourcingEventInfo.personId;

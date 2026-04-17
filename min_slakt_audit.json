@@ -3810,5 +3810,45 @@
     "timestamp": "2026-04-14T15:47:13.328Z",
     "details": null,
     "sourceIds": []
+  },
+  {
+    "id": "audit_1776402065903_9ujk2g5",
+    "type": "delete",
+    "entityType": "source",
+    "entityId": "src_ra_1776401886355_qn16m",
+    "actor": "local",
+    "timestamp": "2026-04-17T05:01:05.903Z",
+    "details": null,
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776402083789_6z2sjs4",
+    "type": "delete",
+    "entityType": "source",
+    "entityId": "src_1776181644346_owtvhe",
+    "actor": "local",
+    "timestamp": "2026-04-17T05:01:23.789Z",
+    "details": null,
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776402759421_wswp6ex",
+    "type": "delete",
+    "entityType": "source",
+    "entityId": "src_1776402413906_mkd6p4",
+    "actor": "local",
+    "timestamp": "2026-04-17T05:12:39.421Z",
+    "details": null,
+    "sourceIds": []
+  },
+  {
+    "id": "audit_1776402824566_nov0vpd",
+    "type": "delete",
+    "entityType": "source",
+    "entityId": "src_1776402765705_j479tr",
+    "actor": "local",
+    "timestamp": "2026-04-17T05:13:44.566Z",
+    "details": null,
+    "sourceIds": []
   }
 ]

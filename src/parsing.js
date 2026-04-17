@@ -128,8 +128,53 @@ export function buildSourceString({ archiveTop, archive, sourceType, author, sou
   }
   return str.trim();
 }
+export function normalizeArchiveTitle(rawArchive, places = []) {
+  if (!rawArchive || typeof rawArchive !== 'string') return rawArchive;
   
-export function parseSourceString(sourceText) {
+  // Find the parish name part before "kyrkoarkiv"
+  const cleanNameMatch = rawArchive.match(/^(.+?)\s+kyrkoarkiv(?:[,\s]+|$)/i);
+  
+  if (!cleanNameMatch) return rawArchive;
+  
+  const baseName = cleanNameMatch[1].trim();
+  const searchTerms = [baseName.toLowerCase()];
+  
+  // If it ends with 's', also try without 's' (genitive case)
+  if (baseName.toLowerCase().endsWith('s')) {
+      searchTerms.push(baseName.slice(0, -1).toLowerCase());
+  }
+
+  if (places && Array.isArray(places) && places.length > 0) {
+    // PRIORITY SORTING:
+    // 1. Names containing " (" (likely has a county code like "(M)")
+    // 2. Longer names (more specific)
+    const sortedPlaces = [...places].sort((a, b) => {
+        const aName = a.name || "";
+        const bName = b.name || "";
+        const aHasParen = aName.includes(' (');
+        const bHasParen = bName.includes(' (');
+        
+        if (aHasParen && !bHasParen) return -1;
+        if (!aHasParen && bHasParen) return 1;
+        return bName.length - aName.length;
+    });
+
+    for (const place of sortedPlaces) {
+       if (place && place.name) {
+           const pName = place.name.toLowerCase();
+           for (const term of searchTerms) {
+               // Must match exactly or start with "Term ("
+               if (pName === term || pName.startsWith(term + ' (')) {
+                   return place.name;
+               }
+           }
+       }
+    }
+  }
+  return baseName; 
+}
+
+export function parseSourceString(sourceText, places = []) {
     const result = {
     archiveTop: 'Övrigt',
     archive: '', volume: '', imagePage: '', page: '', aid: '', nad: '', date: '', raId: '', bildId: '', bildid: '',
@@ -212,7 +257,7 @@ export function parseSourceString(sourceText) {
       .split(',')
       .map((part) => part.trim())
       .filter(Boolean);
-    result.archive = archiveParts.join(', ');
+    result.archive = normalizeArchiveTitle(archiveParts.join(', '), places);
 
     if (result.aid) {
       result.archiveTop = 'Arkiv Digital';
@@ -360,7 +405,7 @@ export function parseSourceQuickImport(sourceText, places = []) {
     if (bildNrMatch) updates.imagePage = bildNrMatch[1];
 
     const commaParts = text.split(',');
-    if (commaParts.length > 0) updates.title = commaParts[0].trim();
+    if (commaParts.length > 0) updates.title = normalizeArchiveTitle(commaParts[0].trim(), places);
   }
 
   const dateMatch = text.match(/\((\d{4}[-–]\d{4})\)/) || text.match(/\((\d{4})\)/);

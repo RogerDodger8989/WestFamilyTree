@@ -7,7 +7,7 @@ import MediaSelector from './MediaSelector.jsx';
 import { getAvatarImageStyle } from './imageUtils.js';
 import { User, Tag, X } from 'lucide-react'; 
 import ContextMenu from './ContextMenu.jsx';
-import { buildSourceString } from './parsing.js';
+import { buildSourceString, normalizeArchiveTitle } from './parsing.js';
 
 // --- SOURCE TYPE DEFINITIONS (GEDCOM compatible) ---
 const SOURCE_TYPES = {
@@ -355,21 +355,11 @@ export default function SourceCatalog({
           if (sidMatch) updates.page = sidMatch[1];
           const volMatch = text.match(/([A-Z]+\s*[A-Z]*:[a-z0-9]+)/i);
           if (volMatch) updates.volume = volMatch[1];
-          let bestMatch = null;
-          if (places && places.length > 0) {
-              for (const place of places) {
-                  if (place && place.name && text.startsWith(place.name)) {
-                      if (!bestMatch || place.name.length > bestMatch.name.length) {
-                          bestMatch = place;
-                      }
-                  }
-              }
-          }
-          if (bestMatch) updates.title = bestMatch.name;
-          else {
-              const splitPoint = text.indexOf(updates.volume || '(');
-              if (splitPoint > 0) updates.title = text.substring(0, splitPoint).trim();
-              else updates.title = "Okänd Titel";
+          const commaParts = text.split(',');
+          if (commaParts.length > 0) {
+              updates.title = normalizeArchiveTitle(commaParts[0].trim(), places);
+          } else {
+              updates.title = "Okänd Titel";
           }
 
       } else if (upperText.includes('BILDID:')) {
@@ -384,7 +374,7 @@ export default function SourceCatalog({
           const bildNrMatch = text.match(/_(\d+)$/);
           if (bildNrMatch) updates.imagePage = bildNrMatch[1];
           const commaParts = text.split(',');
-          if (commaParts.length > 0) updates.title = commaParts[0].trim();
+          if (commaParts.length > 0) updates.title = normalizeArchiveTitle(commaParts[0].trim(), places);
       }
 
       const dateMatch = text.match(/\((\d{4}[-–]\d{4})\)/) || text.match(/\((\d{4})\)/);
@@ -408,7 +398,7 @@ export default function SourceCatalog({
       const parsedSource = {
         title: updates.title || 'Ny källa',
         sourceTitle: updates.title || 'Ny källa',
-        archive: updates.archive || '',
+        archive: updates.archive || updates.title || '',
         archiveTop: updates.archiveTop || 'Övrigt',
         volume: updates.volume || '',
         page: updates.page || '',

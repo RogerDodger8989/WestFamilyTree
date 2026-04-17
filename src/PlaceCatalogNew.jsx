@@ -465,8 +465,8 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
     const sourceId = `src_ra_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const source = {
       id: sourceId,
-      title: getSelectedPlaceQuery() || selectedNode?.name || 'Riksarkivet',
-      sourceTitle: getSelectedPlaceQuery() || selectedNode?.name || 'Riksarkivet',
+      title: selectedNode?.name || 'Riksarkivet',
+      sourceTitle: selectedNode?.name || 'Riksarkivet',
       archiveTop: 'Riksarkivet',
       archive: 'Riksarkivet',
       sourceType: 'document',
@@ -720,14 +720,14 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
         : (Array.isArray(data.tree) ? data.tree : []);
       const userPlaces = Array.isArray(dbData?.places) ? dbData.places : [];
       
-      // Filter för att dölja "Okända" och "Ospecificerade" platser som skräpat ner servern
+      // Filter för att dölja "Okända", "Ospecificerade" och helt tomma platser som skräpat ner servern
       const filterJunk = (p) => {
         const text = [
           p.lansnamn, p.region, p.kommunnamn, p.municipality, 
           p.sockenstadnamn, p.parish, p.ortnamn, p.village, 
           p.specific, p.name
-        ].filter(Boolean).join(' ').toLowerCase();
-        return text.includes('okänd') || text.includes('okänt') || text.includes('ospecificerad');
+        ].filter(Boolean).join(' ').trim().toLowerCase();
+        return text === '' || text.includes('okänd') || text.includes('okänt') || text.includes('ospecificerad');
       };
 
       const filteredApi = apiPlaces.filter(p => !filterJunk(p));
@@ -744,8 +744,8 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
           p.lansnamn, p.region, p.kommunnamn, p.municipality, 
           p.sockenstadnamn, p.parish, p.ortnamn, p.village, 
           p.specific, p.name
-        ].filter(Boolean).join(' ').toLowerCase();
-        return !(text.includes('okänd') || text.includes('okänt') || text.includes('ospecificerad'));
+        ].filter(Boolean).join(' ').trim().toLowerCase();
+        return !(text === '' || text.includes('okänd') || text.includes('okänt') || text.includes('ospecificerad'));
       });
       const mergedPlaces = [...filteredLocal];
 
@@ -1700,15 +1700,16 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
           ➕ Ny
         </button>
         <button 
-          className="px-3 py-1 bg-surface-2 text-secondary text-sm rounded hover:bg-surface font-medium"
-          onClick={() => editingPlace ? setEditingPlace(null) : (selectedNode && setEditingPlace(selectedNode))}
-          disabled={!selectedNode}
-        >
-          ✏️ Redigera
-        </button>
-        <button 
           className="px-3 py-1 bg-red-600 text-red-100 text-sm rounded hover:bg-red-700 font-medium"
-          onClick={() => alert('Radera (kommer snart)')}
+          onClick={() => {
+            if (!selectedNode) return;
+            const isUserPlace = selectedNode.metadata?.source === 'user' || String(selectedNode.id || '').startsWith('user_');
+            if (isUserPlace) {
+              alert('Radera kommer snart');
+            } else {
+              alert('Endast egna platser går att radera');
+            }
+          }}
           disabled={!selectedNode}
         >
           🗑️ Radera
@@ -2072,7 +2073,7 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
                       <h3 className="text-lg font-bold text-primary">Riksarkivet</h3>
                       <button
                         className="px-3 py-1.5 bg-accent text-on-accent rounded hover:bg-accent font-medium disabled:opacity-60"
-                        onClick={handleSearchRiksarkivet}
+                        onClick={() => handleRiksarkivetSearch(selectedNode?.name || '')}
                         disabled={riksarkivetLoading || !selectedNode}
                       >
                         {riksarkivetLoading ? 'Söker...' : 'Sök kyrkoarkiv på Riksarkivet'}

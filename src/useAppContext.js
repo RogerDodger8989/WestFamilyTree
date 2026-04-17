@@ -2576,7 +2576,7 @@ function useAppContext() {
     };
 
     const handleSourceFormChange = (e) => setSourceState(prev => ({ ...prev, [e.target.name]: e.target.value }));
-    const handleParseSource = () => setSourceState(prev => ({ ...prev, ...parseSourceString(prev.sourceString) }));
+    const handleParseSource = () => setSourceState(prev => ({ ...prev, ...parseSourceString(prev.sourceString, dbData?.places || []) }));
 
     const handleSaveSource = async () => {
         // ... (Denna funktion är komplex och kan flyttas senare)

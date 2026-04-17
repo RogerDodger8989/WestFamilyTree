@@ -8,6 +8,13 @@ docs/släktträd.docx
 docs/släktträd.docx
 docs/~$äktträd.docx
 docs/släktträd.docx
-docs/
+docs/*
 docs/släktträd.docx
 docs/släktträd.docx
+tmp_check_db.py
+tmp_check_schema.py
+tmp_check2.py
+media/sources/*
+tmp_test_norm_v2.js
+tmp_test_norm_v3.js
+tmp_test_norm.js
