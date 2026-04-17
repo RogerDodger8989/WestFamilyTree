@@ -14,7 +14,7 @@ docs/släktträd.docx
 tmp_check_db.py
 tmp_check_schema.py
 tmp_check2.py
-media/sources/*
+media/*
 tmp_test_norm_v2.js
 tmp_test_norm_v3.js
 tmp_test_norm.js
