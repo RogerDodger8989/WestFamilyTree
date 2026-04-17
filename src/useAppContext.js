@@ -2854,23 +2854,41 @@ function useAppContext() {
         if (window.undoTimeout) clearTimeout(window.undoTimeout);
     };
 
-    const handleDeleteSource = useCallback((sourceIdToDelete) => {
-        const originalDbData = dbData;
-        const updatedSources = dbData.sources.filter(s => s.id !== sourceIdToDelete);
-        const updatedPeople = dbData.people.map(person => {
-            const updatedEvents = person.events.map(event => {
-                if (event.sources?.includes(sourceIdToDelete)) {
-                    return { ...event, sources: event.sources.filter(sid => sid !== sourceIdToDelete) };
-                }
-                return event;
+    const handleDeleteSource = useCallback((sourceIdOrIds) => {
+        const idsToDelete = Array.isArray(sourceIdOrIds) 
+            ? sourceIdOrIds.map(String) 
+            : [String(sourceIdOrIds)];
+
+        if (idsToDelete.length === 0) return;
+
+        setDbData(prev => {
+            const originalDbData = prev;
+            const updatedSources = prev.sources.filter(s => !idsToDelete.includes(String(s.id)));
+            const updatedPeople = prev.people.map(person => {
+                const updatedEvents = person.events.map(event => {
+                    const hasDeletedSource = event.sources?.some(sid => idsToDelete.includes(String(sid)));
+                    if (hasDeletedSource) {
+                        return { 
+                            ...event, 
+                            sources: event.sources.filter(sid => !idsToDelete.includes(String(sid))) 
+                        };
+                    }
+                    return event;
+                });
+                return { ...person, events: updatedEvents };
             });
-            return { ...person, events: updatedEvents };
+
+            const msg = idsToDelete.length > 1 ? `${idsToDelete.length} källor har raderats.` : "Källan har raderats.";
+            showUndoToast(msg, () => setDbData(originalDbData));
+
+            return { ...prev, sources: updatedSources, people: updatedPeople };
         });
-        setDbData({ ...dbData, sources: updatedSources, people: updatedPeople });
+
         setIsDirty(true);
-        showUndoToast("Källan har raderats.", () => setDbData(originalDbData));
-        try { recordAudit({ type: 'delete', entityType: 'source', entityId: sourceIdToDelete }); } catch (e) {}
-    }, [dbData]);
+        idsToDelete.forEach(id => {
+            try { recordAudit({ type: 'delete', entityType: 'source', entityId: id }); } catch (e) {}
+        });
+    }, [showUndoToast, setIsDirty, recordAudit]);
 
     const handleAttachSources = (sourceIdsToAttach) => {
         if (!sourcingEventInfo || sourceIdsToAttach.length === 0) return;

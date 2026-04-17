@@ -202,6 +202,15 @@ function buildSimpleTree(sources) {
   for (const src of sources) {
     if (!src || !src.id) continue;
 
+    const srcDateNum = new Date(src.dateModified || src.dateAdded || 0).getTime();
+
+    // Helper to update max date on a node
+    const updateMaxDate = (node) => {
+        if (!node._maxDate || srcDateNum > node._maxDate) {
+            node._maxDate = srcDateNum;
+        }
+    };
+
     // NIVÅ 1: ARKIV
     let topLevel = src.archiveTop;
     if (!topLevel) {
@@ -210,20 +219,26 @@ function buildSimpleTree(sources) {
         else topLevel = 'Övrigt';
     }
 
-    if (!tree[topLevel]) tree[topLevel] = {};
+    if (!tree[topLevel]) tree[topLevel] = { _isFolder: true };
+    updateMaxDate(tree[topLevel]);
 
     // SPECIALHANTERING FÖR AD / RA (4 Nivåer)
     if (topLevel === 'Arkiv Digital' || topLevel === 'Riksarkivet') {
         // NIVÅ 2: TITEL / ORT
         let titleLevel = src.title || "Okänd Titel";
-        if (!tree[topLevel][titleLevel]) tree[topLevel][titleLevel] = {};
+        if (!tree[topLevel][titleLevel]) tree[topLevel][titleLevel] = { _isFolder: true };
+        updateMaxDate(tree[topLevel][titleLevel]);
 
         // NIVÅ 3: VOLYM [ÅR]
         const vol = src.volume || 'Okänd volym';
         const date = src.date ? ` [${src.date}]` : ''; 
         let volLevel = vol + date;
         
-        if (!tree[topLevel][titleLevel][volLevel]) tree[topLevel][titleLevel][volLevel] = [];
+        if (!tree[topLevel][titleLevel][volLevel]) {
+            tree[topLevel][titleLevel][volLevel] = [];
+            tree[topLevel][titleLevel][volLevel]._isFolder = true;
+        }
+        updateMaxDate(tree[topLevel][titleLevel][volLevel]);
 
         // NIVÅ 4: BILD / SIDA (Lövet)
         let pageLabel = "";
@@ -239,7 +254,7 @@ function buildSimpleTree(sources) {
         if (parts.length > 0) {
             pageLabel = parts.join(' / ');
         } else {
-            pageLabel = src.aid || src.bildid || "Utan referens";
+            pageLabel = src.aid || src.bildid || src.bildId || "Utan referens";
         }
 
         tree[topLevel][titleLevel][volLevel].push({ ...src, label: pageLabel });
@@ -248,17 +263,21 @@ function buildSimpleTree(sources) {
         // HANTERING FÖR ÖVRIGT (4 Nivåer)
         // Övrigt -> Källtyp -> Författare -> Titel (Datum) -> källa
         const sourceTypeLevel = getSourceTypeLabel(src);
-        if (!tree[topLevel][sourceTypeLevel]) tree[topLevel][sourceTypeLevel] = {};
+        if (!tree[topLevel][sourceTypeLevel]) tree[topLevel][sourceTypeLevel] = { _isFolder: true };
+        updateMaxDate(tree[topLevel][sourceTypeLevel]);
 
         const authorLevel = String(src.author || '').trim() || 'Okänd författare';
-        if (!tree[topLevel][sourceTypeLevel][authorLevel]) tree[topLevel][sourceTypeLevel][authorLevel] = {};
+        if (!tree[topLevel][sourceTypeLevel][authorLevel]) tree[topLevel][sourceTypeLevel][authorLevel] = { _isFolder: true };
+        updateMaxDate(tree[topLevel][sourceTypeLevel][authorLevel]);
 
         const titleBase = String(src.sourceTitle || src.title || 'Namnlös källa').trim();
         const dateSuffix = src.date ? ` (${src.date})` : '';
         const titleLevel = `${titleBase}${dateSuffix}`;
         if (!tree[topLevel][sourceTypeLevel][authorLevel][titleLevel]) {
           tree[topLevel][sourceTypeLevel][authorLevel][titleLevel] = [];
+          tree[topLevel][sourceTypeLevel][authorLevel][titleLevel]._isFolder = true;
         }
+        updateMaxDate(tree[topLevel][sourceTypeLevel][authorLevel][titleLevel]);
 
         let pageLabel = src.page || src.aid || src.imagePage || src.bildid;
         if (!pageLabel) {
@@ -320,8 +339,16 @@ export default function SourceCatalog({
   // New state for GEDCOM features
   const [showOrphanedOnly, setShowOrphanedOnly] = useState(false);
 
+  // --- NYTT: Multival och Merge för källor ---
+  const [selectedSourceIds, setSelectedSourceIds] = useState([]);
+  const [isMergeDialogOpen, setIsMergeDialogOpen] = useState(false);
+  const [mergeMasterId, setMergeMasterId] = useState('');
+  const [mergeCustomName, setMergeCustomName] = useState('');
+
   // Officiella platser (hämtade från backend) för att normalisera titlar vid import
   const [officialPlaces, setOfficialPlaces] = useState([]);
+  const [pendingFocusNewSource, setPendingFocusNewSource] = useState(false);
+  const authorInputRef = useRef(null);
   useEffect(() => {
     fetch('http://127.0.0.1:5005/official_places/full_tree')
       .then(r => r.ok ? r.json() : null)
@@ -338,6 +365,14 @@ export default function SourceCatalog({
       })
       .catch(() => {}); // Tyst fel – vi kör utan om API:t inte svarar
   }, []);
+
+  // Automatisk fokus på Författare (AUTH) när man sklar ny källa
+  useEffect(() => {
+    if (pendingFocusNewSource && selectedSourceId && authorInputRef.current) {
+        authorInputRef.current.focus();
+        setPendingFocusNewSource(false);
+    }
+  }, [selectedSourceId, pendingFocusNewSource]);
 
   const buildExpandedStateForAllTreeNodes = (treeNode, prefix = '') => {
     const out = {};
@@ -674,8 +709,8 @@ export default function SourceCatalog({
   const sortedSources = useMemo(() => {
     const copy = [...sources];
     switch (sortOrder) {
-        case 'name_asc': return copy.sort((a, b) => (a.title || a.archive || '').localeCompare(b.title || b.archive || '', 'sv'));
-        case 'name_desc': return copy.sort((a, b) => (b.title || b.archive || '').localeCompare(a.title || a.archive || '', 'sv'));
+        case 'name_asc': return copy.sort((a, b) => (a.sourceTitle || a.title || a.archive || '').localeCompare(b.sourceTitle || b.title || b.archive || '', 'sv'));
+        case 'name_desc': return copy.sort((a, b) => (b.sourceTitle || b.title || b.archive || '').localeCompare(a.sourceTitle || a.title || a.archive || '', 'sv'));
         case 'date_desc': return copy.sort((a, b) => new Date(b.dateModified || b.dateAdded || 0) - new Date(a.dateModified || a.dateAdded || 0));
         case 'date_asc': return copy.sort((a, b) => new Date(a.dateModified || a.dateAdded || 0) - new Date(b.dateModified || b.dateAdded || 0));
         default: return copy;
@@ -836,7 +871,121 @@ export default function SourceCatalog({
   const handleSelect = (id) => setCatalogState(prev => ({ ...prev, selectedSourceId: id }));
   const handleToggle = (key) => setCatalogState(prev => ({ ...prev, expanded: { ...prev.expanded, [key]: !prev.expanded[key] } }));
   const handleSearch = (e) => setCatalogState(prev => ({ ...prev, searchTerm: e.target.value }));
+
+  // --- NYTT: Multival-logik för källor ---
+  const handleToggleMultiSelect = (sourceId, checked) => {
+    setSelectedSourceIds(prev => {
+      const idStr = String(sourceId);
+      if (checked) {
+        return prev.includes(idStr) ? prev : [...prev, idStr];
+      } else {
+        return prev.filter(id => id !== idStr);
+      }
+    });
+  };
+
+  const toggleAllSources = () => {
+    if (selectedSourceIds.length > 0) {
+      setSelectedSourceIds([]);
+    } else {
+      const allIds = sources.map(s => String(s.id));
+      setSelectedSourceIds(allIds);
+    }
+  };
   const handleSortChange = (e) => setCatalogState(prev => ({ ...prev, sortOrder: e.target.value }));
+
+  // --- SAMMANSLAGNING AV KÄLLOR ---
+  const handleMergeSources = async () => {
+    if (!mergeMasterId || selectedSourceIds.length < 2) return;
+    
+    const victimIds = selectedSourceIds.filter(id => id !== mergeMasterId);
+    const masterId = mergeMasterId;
+    
+    // Backup fr eventuell ångra-funktion (om implementerad senare)
+    const originalDbData = dbData;
+    
+    // 1. Förbered ny dbData
+    let updatedSources = [...(dbData.sources || [])];
+    let updatedPeople = [...(dbData.people || [])];
+    let updatedMedia = [...(dbData.media || [])];
+    
+    const masterSource = updatedSources.find(s => String(s.id) === String(masterId));
+    if (!masterSource) return;
+
+    // Uppdatera master-källans namn om anpassat namn finns
+    if (mergeCustomName.trim()) {
+      updatedSources = updatedSources.map(s => {
+        if (String(s.id) === String(masterId)) {
+          return { ...s, title: mergeCustomName.trim(), sourceTitle: mergeCustomName.trim() };
+        }
+        return s;
+      });
+    }
+    
+    // Ta bort victim-källor
+    updatedSources = updatedSources.filter(s => !victimIds.includes(String(s.id)));
+    
+    // 2. Uppdatera alla personer som refererar till victim-källorna
+    updatedPeople = updatedPeople.map(p => {
+      let personChanged = false;
+      
+      // Kolla personens händelser
+      const updatedEvents = (p.events || p.händelser || []).map(ev => {
+        if (ev.sources) {
+          const newSources = ev.sources.map(sid => victimIds.includes(String(sid)) ? masterId : sid);
+          // Ta bort dubbletter om både master och victim fanns
+          const uniqueSources = Array.from(new Set(newSources));
+          if (JSON.stringify(ev.sources) !== JSON.stringify(uniqueSources)) {
+            personChanged = true;
+            return { ...ev, sources: uniqueSources };
+          }
+        }
+        return ev;
+      });
+      
+      if (personChanged) {
+        return { ...p, events: updatedEvents };
+      }
+      return p;
+    });
+    
+    // 3. Uppdatera media-kopplingar
+    updatedMedia = updatedMedia.map(m => {
+      if (m.connections && Array.isArray(m.connections)) {
+        const hasVictimMatch = m.connections.some(conn => conn.type === 'source' && victimIds.includes(String(conn.id)));
+        if (hasVictimMatch) {
+          const newConnections = m.connections.map(conn => {
+            if (conn.type === 'source' && victimIds.includes(String(conn.id))) {
+              return { ...conn, id: masterId };
+            }
+            return conn;
+          });
+          // Unika kopplingar per media
+          const uniqueConns = [];
+          const seen = new Set();
+          newConnections.forEach(c => {
+            const key = `${c.type}-${c.id}`;
+            if (!seen.has(key)) {
+              seen.add(key);
+              uniqueConns.push(c);
+            }
+          });
+          return { ...m, connections: uniqueConns };
+        }
+      }
+      return m;
+    });
+
+    // Spara ändringar i dbData
+    setDbData({ ...dbData, sources: updatedSources, people: updatedPeople, media: updatedMedia });
+    showStatus(`Sammanslagning klar. ${victimIds.length} källor har slagits ihop med "${mergeCustomName.trim() || masterSource.title}".`);
+    
+    // Reset state
+    setSelectedSourceIds([]);
+    setIsMergeDialogOpen(false);
+    setMergeMasterId('');
+    setMergeCustomName('');
+  };
   const selectedSource = sources.find(s => s.id === selectedSourceId);
   const currentMediaFolderPath = String(dbData?.meta?.mediaFolderPath || '').trim();
 
@@ -1338,6 +1487,13 @@ export default function SourceCatalog({
                         title={`${src.label} (Högerklicka för meny)`}
                       >
                         <div className="flex items-center gap-1 flex-1 min-w-0">
+                          <input
+                            type="checkbox"
+                            className="mr-2 h-3 w-3 accent-accent cursor-pointer"
+                            checked={selectedSourceIds.includes(String(src.id))}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => handleToggleMultiSelect(src.id, e.target.checked)}
+                          />
                           <span className="truncate flex-1">{src.label}</span>
                         </div>
                         
@@ -1348,21 +1504,21 @@ export default function SourceCatalog({
                             variant="ghost"
                             size="xs"
                             title={src.aid ? "Öppna AID" : "Ingen AID"}
-                            className={src.aid ? "border border-emerald-500 bg-emerald-100 text-black font-semibold hover:bg-emerald-200" : "opacity-50 border border-subtle text-muted"}
+                            className={src.aid ? "border border-emerald-500 bg-emerald-100 text-black font-semibold hover:bg-emerald-200" : "opacity-30 border border-subtle text-muted scale-90"}
                           >AD</Button>
                           <Button
-                            onClick={(e) => { e.stopPropagation(); src.bildid && window.open(`https://sok.riksarkivet.se/bildvisning/${src.bildid}`, '_blank'); }}
+                            onClick={(e) => { e.stopPropagation(); (src.bildid || src.bildId) && window.open(`https://sok.riksarkivet.se/bildvisning/${src.bildid || src.bildId}`, '_blank'); }}
                             variant="ghost"
                             size="xs"
-                            title={src.bildid ? "Öppna RA" : "Ingen RA-länk"}
-                            className={src.bildid ? "border border-sky-500 bg-sky-100 text-black font-semibold hover:bg-sky-200" : "opacity-50 border border-subtle text-muted"}
+                            title={(src.bildid || src.bildId) ? "Öppna RA" : "Ingen RA-länk"}
+                            className={(src.bildid || src.bildId) ? "border border-sky-500 bg-sky-100 text-black font-semibold hover:bg-sky-200" : "opacity-30 border border-subtle text-muted scale-90"}
                           >RA</Button>
                           <Button
                             onClick={(e) => { e.stopPropagation(); src.nad && window.open(`https://sok.riksarkivet.se/?postid=ArkisRef%20${src.nad}`, '_blank'); }}
                             variant="ghost"
                             size="xs"
                             title={src.nad ? "Öppna NAD" : "Ingen NAD-länk"}
-                            className={src.nad ? "border border-violet-500 bg-violet-100 text-black font-semibold hover:bg-violet-200" : "opacity-50 border border-subtle text-muted"}
+                            className={src.nad ? "border border-violet-500 bg-violet-100 text-black font-semibold hover:bg-violet-200" : "opacity-30 border border-subtle text-muted scale-90"}
                           >NAD</Button>
                         </div>
                         {isLinked && <span className="text-green-400 font-bold ml-1 text-xs">✓</span>}
@@ -1373,7 +1529,22 @@ export default function SourceCatalog({
             </div>
           );
       }
-      return Object.keys(node).sort().map(key => {
+      // Sort folders based on sortOrder
+      const sortedKeys = Object.keys(node).filter(k => !k.startsWith('_')).sort((a, b) => {
+          if (sortOrder === 'name_asc' || sortOrder === 'name_desc') {
+              const collator = new Intl.Collator('sv', { numeric: true, sensitivity: 'accent' });
+              const cmp = collator.compare(a, b);
+              return sortOrder === 'name_asc' ? cmp : -cmp;
+          }
+          if (sortOrder === 'date_desc') {
+              const dateA = node[a]?._maxDate || 0;
+              const dateB = node[b]?._maxDate || 0;
+              return dateB - dateA;
+          }
+          return 0; 
+      });
+
+      return sortedKeys.map(key => {
           const currentPath = pathPrefix + key;
           const isExpanded = expanded[currentPath];
           const nextAncestors = [...ancestors, key];
@@ -1443,8 +1614,26 @@ export default function SourceCatalog({
   };
 
   const handleDeleteSource = (sourceId) => {
-    if (confirm('Ta bort denna källa?')) {
-      onDeleteSource(sourceId);
+    // If we have multi-checked sources, prioritize those. 
+    // Otherwise, if a sourceId was passed (e.g. from context menu or active source), use that.
+    const idsToDelete = (selectedSourceIds.length > 0)
+      ? selectedSourceIds 
+      : (sourceId ? [String(sourceId)] : []);
+
+    if (idsToDelete.length === 0) return;
+
+    const count = idsToDelete.length;
+    const msg = count > 1 ? `Radera ${count} markerade källor?` : 'Ta bort denna källa?';
+
+    if (confirm(msg)) {
+      onDeleteSource(idsToDelete);
+      setSelectedSourceIds([]);
+      // If the currently viewed source was deleted, clear it
+      if (sourceId && idsToDelete.includes(String(sourceId))) {
+        setCatalogState(prev => ({ ...prev, selectedSourceId: null }));
+      } else if (selectedSourceId && idsToDelete.includes(String(selectedSourceId))) {
+        setCatalogState(prev => ({ ...prev, selectedSourceId: null }));
+      }
     }
   };
 
@@ -1466,49 +1655,113 @@ export default function SourceCatalog({
   };
 
   return (
-    <div className="flex w-full h-full bg-surface overflow-hidden">
-      <aside className="w-80 border-r border-subtle bg-surface flex flex-col h-full shrink-0">
-        <div className="p-2 border-b border-subtle bg-background space-y-2 shrink-0">
-          <div className="mb-1 p-2 bg-surface border border-subtle rounded">
-            <label className="block text-xs font-bold text-accent uppercase mb-1">Snabb-import (AD/RA)</label>
-            <div className="flex gap-2">
+    <div className="flex flex-col w-full h-full bg-background overflow-hidden">
+      {/* Toolbar */}
+      <div className="bg-surface border-b border-subtle px-4 py-2 flex items-center gap-2 shadow-sm shrink-0">
+        <button 
+          className="px-3 py-1 bg-accent text-on-accent text-sm rounded hover:bg-accent font-medium flex items-center gap-1"
+          onClick={() => {
+            setPendingFocusNewSource(true);
+            if (onAddSource) onAddSource({});
+          }}
+        >
+          ➕ Ny
+        </button>
+        
+        <button 
+          className="px-3 py-1 bg-red-600 text-red-100 text-sm rounded hover:bg-red-700 font-medium disabled:opacity-50 flex items-center gap-1"
+          onClick={() => handleDeleteSource(selectedSourceId)}
+          disabled={!selectedSourceId && selectedSourceIds.length === 0}
+        >
+          🗑️ Radera
+        </button>
+
+        <button
+          className="px-3 py-1 bg-amber-600 text-amber-100 text-sm rounded hover:bg-amber-500 font-medium disabled:opacity-50 flex items-center gap-1"
+          onClick={() => setIsMergeDialogOpen(true)}
+          disabled={selectedSourceIds.length < 2}
+          title="Slå ihop markerade källor"
+        >
+          🔀 Slå ihop källor
+        </button>
+        
+        <div className="flex-1" />
+        
+        <input 
+          type="text" 
+          placeholder="Sök källa..." 
+          className="border border-subtle bg-background text-primary rounded px-3 py-1 text-sm w-64 focus:border-accent focus:outline-none shadow-sm" 
+          value={searchTerm || ''} 
+          onChange={handleSearch} 
+        />
+        
+        <select 
+          className="border border-subtle bg-background text-primary rounded px-3 py-1 text-sm focus:border-accent focus:outline-none" 
+          value={sortOrder} 
+          onChange={handleSortChange}
+        >
+          <option value="name_asc">Namn (A-Ö)</option>
+          <option value="name_desc">Namn (Ö-A)</option>
+          <option value="date_desc">Senast ändrad</option>
+        </select>
+
+        <button 
+          className="px-3 py-1 bg-green-600 text-green-100 text-sm rounded hover:bg-green-700 font-medium flex items-center gap-1"
+          onClick={() => { /* Implementera import om det finns en ref */ }}
+        >
+          📥 Importera
+        </button>
+        
+        <button 
+          className="px-3 py-1 bg-accent text-on-accent text-sm rounded hover:bg-accent font-medium flex items-center gap-1"
+          onClick={() => { /* Implementera export */ }}
+        >
+          📤 Exportera
+        </button>
+      </div>
+
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left: Tree View */}
+        <aside className="w-1/3 min-w-[300px] border-r border-subtle flex flex-col bg-surface h-full shrink-0">
+        <div className="p-2 border-b border-subtle bg-background shrink-0">
+          <details className="text-xs">
+            <summary className="cursor-pointer font-bold text-accent uppercase hover:text-accent-secondary">Snabb-import (AD/RA)</summary>
+            <div className="flex gap-2 mt-2">
               <textarea
-                className="flex-1 border border-subtle rounded p-1 text-xs h-8 resize-none focus:h-16 transition-all bg-background text-primary focus:ring-2 focus:ring-accent focus:border-accent"
+                className="flex-1 border border-subtle rounded p-1 text-xs h-12 resize-none bg-background text-primary focus:ring-1 focus:ring-accent"
                 placeholder="Klistra in källtext..."
                 value={importString}
                 onChange={(e) => setImportString(e.target.value)}
               />
-              <Button
-                onClick={parseSourceString}
-                variant="primary"
-                size="sm"
-                className="bg-accent text-on-accent border border-accent hover:opacity-90 font-semibold"
-              >
-                Tolka
-              </Button>
+              <Button onClick={parseSourceString} variant="primary" size="sm">Tolka</Button>
             </div>
+          </details>
+          
+          <div className="mt-2">
+            <button
+              onClick={() => setShowOrphanedOnly(!showOrphanedOnly)}
+              className={`w-full px-2 py-1 text-xs font-semibold rounded transition-colors ${
+                showOrphanedOnly 
+                  ? 'bg-yellow-900 text-yellow-200 border border-yellow-500' 
+                  : 'bg-surface-2 text-secondary border border-subtle hover:bg-surface-3'
+              }`}
+            >
+              {showOrphanedOnly ? '🗑️ Visar endast okopplade' : 'Visa alla källor'}
+            </button>
           </div>
-          <input type="text" placeholder="Sök..." className="w-full px-2 py-1 text-sm border border-subtle rounded bg-background text-primary placeholder-slate-500 focus:border-accent focus:outline-none shadow-sm" value={searchTerm || ''} onChange={handleSearch} />
-          <select className="w-full px-2 py-1 text-xs border border-subtle rounded bg-background text-primary focus:border-accent focus:outline-none" value={sortOrder} onChange={handleSortChange}>
-            <option value="name_asc">Namn (A-Ö)</option>
-            <option value="name_desc">Namn (Ö-A)</option>
-            <option value="date_desc">Senast ändrad (Nyast)</option>
-            <option value="date_asc">Senast ändrad (Äldst)</option>
-          </select>
-          <button
-            onClick={() => setShowOrphanedOnly(!showOrphanedOnly)}
-            className={`w-full px-2 py-1 text-xs font-semibold rounded transition-colors ${
-              showOrphanedOnly 
-                ? 'bg-yellow-900 text-yellow-200 border border-yellow-500' 
-                : 'bg-surface-2 text-secondary border border-subtle hover:bg-surface-3'
-            }`}
-            title="Visa endast okopplade källor"
-          >
-            {showOrphanedOnly ? '🗑️ Visa oklopplade' : 'Visa alla'}
-          </button>
         </div>
         <div className="flex-1 overflow-y-auto p-2 relative" ref={listContainerRef}>
-            {Object.keys(tree).sort().map(arkiv => (
+            {Object.keys(tree).filter(k => !k.startsWith('_')).sort((a, b) => {
+                const collator = new Intl.Collator('sv', { numeric: true, sensitivity: 'accent' });
+                if (sortOrder === 'name_asc' || sortOrder === 'name_desc') {
+                    const cmp = collator.compare(a, b);
+                    return sortOrder === 'name_asc' ? cmp : -cmp;
+                }
+                if (sortOrder === 'date_desc') {
+                    return (tree[b]?._maxDate || 0) - (tree[a]?._maxDate || 0);
+                }
+                return 0;
+            }).map(arkiv => (
                 <div key={arkiv} className="mb-1">
                     <SourceContextMenu
                 source={{ kind: 'folder', key: arkiv, ancestors: [arkiv] }}
@@ -1563,9 +1816,7 @@ export default function SourceCatalog({
                         <div className="text-xs text-muted">ID: {selectedSource.id}</div>
                     </div>
                     <div className="flex gap-2">
-                        {onAddSource && <Button onClick={onAddSource} variant="primary" size="sm">Ny källa</Button>}
                         {isDrawerMode && onLinkSource && <Button onClick={() => onLinkSource(selectedSource.id)} variant="success" size="sm">✓ Koppla källa</Button>}
-                        <Button onClick={() => { if(confirm('Ta bort källa?')) onDeleteSource(selectedSource.id); }} variant="danger" size="sm">Ta bort källa</Button>
                     </div>
                 </div>
 
@@ -1654,14 +1905,14 @@ export default function SourceCatalog({
                             <div className="flex items-end gap-1">
                               <div className="flex-1">
                                 <label className="block text-xs font-bold text-secondary uppercase">BildID (RA)</label>
-                                <input className="w-full border border-subtle rounded px-2 py-1 font-mono text-xs bg-background text-primary focus:border-accent focus:outline-none" value={selectedSource.bildid || ''} onChange={e => handleSave({ bildid: e.target.value })} />
+                                <input className="w-full border border-subtle rounded px-2 py-1 font-mono text-xs bg-background text-primary focus:border-accent focus:outline-none" value={selectedSource.bildid || selectedSource.bildId || ''} onChange={e => handleSave({ bildid: e.target.value })} />
                               </div>
-                              {selectedSource.bildid && (
+                              {(selectedSource.bildid || selectedSource.bildId) && (
                                 <Button
-                                  onClick={() => window.open(`https://sok.riksarkivet.se/bildvisning/${selectedSource.bildid}`, '_blank')}
+                                  onClick={() => window.open(`https://sok.riksarkivet.se/bildvisning/${selectedSource.bildid || selectedSource.bildId}`, '_blank')}
                                   variant="ghost"
                                   size="xs"
-                                  className="border border-sky-500 bg-sky-100 text-black font-semibold hover:bg-sky-200"
+                                  className="border border-sky-500 bg-sky-100 text-black font-semibold hover:bg-sky-200 min-w-[32px]"
                                 >RA</Button>
                               )}
                             </div>
@@ -1675,7 +1926,7 @@ export default function SourceCatalog({
                                   onClick={() => window.open(`https://sok.riksarkivet.se/?postid=ArkisRef%20${selectedSource.nad}`, '_blank')}
                                   variant="ghost"
                                   size="xs"
-                                  className="border border-violet-500 bg-violet-100 text-black font-semibold hover:bg-violet-200"
+                                  className="border border-violet-500 bg-violet-100 text-black font-semibold hover:bg-violet-200 min-w-[32px]"
                                 >NAD</Button>
                               )}
                             </div>
@@ -1707,6 +1958,7 @@ export default function SourceCatalog({
                                     <div>
                                       <label className="block text-xs font-bold text-secondary uppercase">Författare (AUTH)</label>
                                       <input 
+                                        ref={authorInputRef}
                                         className="w-full border border-subtle rounded px-2 py-1 text-xs bg-background text-primary focus:border-accent focus:outline-none"
                                         value={selectedSource.author || ''}
                                         onChange={e => handleSave({ author: e.target.value })}
@@ -2092,10 +2344,108 @@ export default function SourceCatalog({
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-muted">
             <p className="mb-2">← Välj en källa i listan</p>
-            {onAddSource && <Button onClick={onAddSource} variant="primary" size="md">Skapa ny källa</Button>}
           </div>
         )}
       </main>
+
+      {/* --- MODAL: SLÅ IHOP KÄLLOR --- */}
+      {isMergeDialogOpen && (
+        <div className="fixed inset-0 z-[12000] bg-black/60 flex items-center justify-center p-4">
+          <div className="w-full max-w-2xl bg-surface border border-subtle rounded-lg shadow-xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-subtle flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-primary">Slå ihop källor</h3>
+              <button
+                className="text-secondary hover:text-primary"
+                onClick={() => {
+                  setIsMergeDialogOpen(false);
+                  setMergeMasterId('');
+                  setMergeCustomName('');
+                }}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-4 max-h-[70vh] overflow-y-auto">
+              <p className="text-sm text-secondary">
+                Välj vilken källa som ska vara "Master". Alla kopplingar från de andra källorna flyttas till mastern, och de tas sedan bort.
+              </p>
+              
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-muted uppercase">Välj Master-källa:</label>
+                {selectedSourceIds.map(id => {
+                  const src = sources.find(s => String(s.id) === String(id));
+                  if (!src) return null;
+                  return (
+                    <label 
+                      key={id} 
+                      className={`flex items-center gap-3 p-3 rounded border cursor-pointer transition-colors ${
+                        mergeMasterId === id ? 'bg-accent/10 border-accent' : 'bg-surface border-subtle hover:bg-surface-2'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="mergeMaster"
+                        checked={mergeMasterId === id}
+                        onChange={() => {
+                            setMergeMasterId(id);
+                            setMergeCustomName(src.title || src.sourceTitle || '');
+                        }}
+                        className="h-4 w-4 accent-accent"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-bold text-primary truncate">{src.title || src.sourceTitle || 'Utan titel'}</div>
+                        <div className="text-[10px] text-muted truncate">{src.archiveTop || src.archive || 'Inget arkiv'} • {src.id}</div>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+
+              <div className="pt-2 border-t border-subtle">
+                <label className="block text-xs font-bold text-muted uppercase mb-1">Anpassat namn för den sammanslagna källan:</label>
+                <input
+                  type="text"
+                  className="w-full border border-subtle rounded px-3 py-2 text-sm bg-background text-primary focus:border-accent focus:outline-none"
+                  placeholder="Skriv in ett nytt namn eller behåll befintligt..."
+                  value={mergeCustomName}
+                  onChange={(e) => setMergeCustomName(e.target.value)}
+                />
+                <p className="text-[10px] text-muted mt-1 italic">
+                  Tips: Du kan skriva ett helt nytt namn här ifall ingen av källorna har det perfekta namnet.
+                </p>
+              </div>
+
+              <div className="bg-amber-900/10 border border-amber-900/30 p-3 rounded-md">
+                <h4 className="text-xs font-bold text-amber-500 uppercase flex items-center gap-1 mb-1">
+                  <span>⚠️</span> Viktig information
+                </h4>
+                <p className="text-[11px] text-amber-700 leading-relaxed">
+                  Denna åtgärd går inte att ångra i programmet förutom genom att stänga utan att spara. 
+                  Alla personkopplingar och media som är länkade till de andra källorna kommer att peka på din valda master instället.
+                </p>
+              </div>
+            </div>
+
+            <div className="px-4 py-3 border-t border-subtle bg-surface-2 flex items-center justify-end gap-3">
+              <button
+                className="px-4 py-2 text-sm text-secondary hover:text-primary transition-colors"
+                onClick={() => setIsMergeDialogOpen(false)}
+              >
+                Avbryt
+              </button>
+              <button
+                className="px-6 py-2 bg-amber-600 text-amber-100 text-sm rounded hover:bg-amber-500 font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                disabled={!mergeMasterId}
+                onClick={handleMergeSources}
+              >
+                Slå ihop källor
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      </div>
     </div>
   );
 }
