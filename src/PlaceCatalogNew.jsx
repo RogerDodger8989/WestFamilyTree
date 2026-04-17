@@ -46,7 +46,6 @@ function formatPlaceName(node) {
 // Ikoner för varje platstyp
 const PLACE_TYPE_ICONS = {
   'Country': '🌍',
-  'Landscape': '📜',
   'Province': '📜',
   'County': '🗺️',
   'Municipality': '🏛️',
@@ -63,7 +62,6 @@ const PLACE_TYPE_ICONS = {
 
 const PLACE_TYPE_LABELS = {
   'Country': 'Land',
-  'Landscape': 'Landskap',
   'Province': 'Landskap',
   'County': 'Län',
   'Municipality': 'Kommun',
@@ -346,6 +344,8 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
   const [pendingFocusId, setPendingFocusId] = useState(null);
   const [draggingNode, setDraggingNode] = useState(null);
   const [moveConfirmation, setMoveConfirmation] = useState(null);
+  const [sidePanelForm, setSidePanelForm] = useState({ name: '', type: 'Village', latitude: '', longitude: '' });
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const fileInputRef = useRef(null);
   const selectedPlaceIdSet = useMemo(() => new Set(selectedPlaceIds), [selectedPlaceIds]);
 
@@ -498,6 +498,17 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
   // Uppdatera noteringsutkast när plats byts
   useEffect(() => {
     setNoteDraft(selectedNode?.metadata?.note || '');
+    
+    // Synka även redigeringsformuläret i sidopanelen
+    if (selectedNode) {
+      setSidePanelForm({
+        name: selectedNode.name || '',
+        type: selectedNode.type || 'Village',
+        latitude: String(selectedNode.metadata?.latitude || ''),
+        longitude: String(selectedNode.metadata?.longitude || '')
+      });
+      setHasUnsavedChanges(false);
+    }
   }, [selectedNode]);
 
   function convertListToTree(placeList) {
@@ -1554,6 +1565,74 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
     }
   };
 
+  const handleSaveSidePanel = () => {
+    if (!selectedNode) return;
+    
+    const originalDbData = dbData;
+    const originalPlaces = places;
+    const targetId = selectedNode.metadata?.id || selectedNode.id;
+
+    // Skapa det uppdaterade objektet
+    const updatedMetadata = {
+      ...(selectedNode.metadata || {}),
+      ortnamn: sidePanelForm.name,
+      name: sidePanelForm.name,
+      type: sidePanelForm.type,
+      latitude: sidePanelForm.latitude ? parseFloat(sidePanelForm.latitude) : null,
+      longitude: sidePanelForm.longitude ? parseFloat(sidePanelForm.longitude) : null,
+      source: selectedNode.metadata?.source || 'user_override' // Markera som användarens data
+    };
+
+    // 1. Uppdatera dbData (personliga databasen)
+    setDbData(prev => {
+      const pList = Array.isArray(prev.places) ? prev.places : [];
+      const existsInDb = pList.some(p => String(p.id) === String(targetId) || String(p.metadata?.id) === String(targetId));
+
+      if (existsInDb) {
+        // Om den redan finns i db, uppdatera den
+        return {
+          ...prev,
+          places: pList.map(p => {
+            if (String(p.id) === String(targetId) || String(p.metadata?.id) === String(targetId)) {
+              return { ...p, ...updatedMetadata, metadata: updatedMetadata };
+            }
+            return p;
+          })
+        };
+      } else {
+        // Om den är officiell och saknas i db, lägg till som ny (Override)
+        const newEntry = {
+          id: targetId,
+          ...updatedMetadata,
+          metadata: updatedMetadata
+        };
+        return {
+          ...prev,
+          places: [...pList, newEntry]
+        };
+      }
+    });
+
+    // 2. Uppdatera lokala places-listan för omedelbar respons
+    setPlaces(prev => {
+      const existsInPlaces = prev.some(p => String(p.id) === String(targetId));
+      if (existsInPlaces) {
+        return prev.map(p => {
+          if (String(p.id) === String(targetId)) {
+            return { ...p, ...updatedMetadata, metadata: updatedMetadata, name: sidePanelForm.name, type: sidePanelForm.type };
+          }
+          return p;
+        });
+      } else {
+        // Detta borde inte hända om trädvyn är korrekt, men för säkerhets skull:
+        return [...prev, { id: targetId, ...updatedMetadata, metadata: updatedMetadata, name: sidePanelForm.name, type: sidePanelForm.type }];
+      }
+    });
+
+    setHasUnsavedChanges(false);
+    showStatus && showStatus(`Ändringar sparade för "${sidePanelForm.name}".`);
+  };
+
   // Importera XML-fil
   const handleImportXML = async (e) => {
     const file = e.target.files?.[0];
@@ -1896,63 +1975,95 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
               </div>
               <div className="flex-1 overflow-y-auto p-6">
                 {activeRightTab === 'info' && selectedNode && (
-                  <div className="flex flex-col gap-2">
+                  <div className="flex flex-col gap-5">
                     <div>
-                      <label className="block text-xs font-medium text-muted mb-1">Namn</label>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-muted mb-2">Namn på platsen</label>
                       <input
-                        className="w-full border border-subtle rounded px-2 py-1 text-sm"
-                        value={selectedNode?.name || ''}
-                        readOnly
+                        className="w-full bg-background border border-subtle rounded px-3 py-2 text-sm text-primary focus:ring-2 focus:ring-accent outline-none transition-all shadow-inner"
+                        value={sidePanelForm.name}
+                        onChange={(e) => {
+                          setSidePanelForm(prev => ({ ...prev, name: e.target.value }));
+                          setHasUnsavedChanges(true);
+                        }}
+                        placeholder="Namn..."
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-muted mb-1">Typ</label>
-                      <input
-                        className="w-full border border-subtle rounded px-2 py-1 text-sm"
-                        value={PLACE_TYPE_LABELS[selectedNode?.type] || PLACE_TYPE_LABELS.default}
-                        readOnly
-                      />
+                      <label className="block text-xs font-bold uppercase tracking-wider text-muted mb-2">Platstyp</label>
+                      <select
+                        className="w-full bg-background border border-subtle rounded px-3 py-2 text-sm text-primary focus:ring-2 focus:ring-accent outline-none transition-all cursor-pointer shadow-inner"
+                        value={sidePanelForm.type}
+                        onChange={(e) => {
+                          setSidePanelForm(prev => ({ ...prev, type: e.target.value }));
+                          setHasUnsavedChanges(true);
+                        }}
+                      >
+                        {[
+                          'Country', 'Province', 'County', 'Municipality', 'Parish', 
+                          'Village', 'Farm', 'Cottage', 'Hundred', 'Building', 
+                          'Cemetary', 'Address', 'default'
+                        ].map(val => (
+                          <option key={val} value={val}>
+                            {PLACE_TYPE_ICONS[val] || '📍'} {PLACE_TYPE_LABELS[val] || val}
+                          </option>
+                        ))}
+                      </select>
                     </div>
-                    <div className="flex gap-2">
-                      <div className="flex-1">
-                        <label className="block text-xs font-medium text-muted mb-1">Latitud</label>
-                        {selectedNode?.metadata?.latitude ? (
-                          <button
-                            className="w-full border border-accent rounded px-2 py-1 text-sm text-accent hover:bg-accent/10 transition"
-                            style={{ cursor: 'pointer' }}
-                            title="Flytta kartan till denna plats"
-                            onClick={() => flyToCoordinates([parseFloat(selectedNode.metadata.latitude), parseFloat(selectedNode.metadata.longitude)])}
-                          >
-                            {selectedNode.metadata.latitude}
-                          </button>
-                        ) : (
+                    
+                    <div className="bg-surface-2 p-4 rounded-lg border border-subtle">
+                      <label className="block text-xs font-bold uppercase tracking-wider text-muted mb-3 border-b border-subtle pb-1">Geografisk Position</label>
+                      <div className="flex gap-4">
+                        <div className="flex-1">
+                          <label className="block text-[10px] font-medium text-muted mb-1 ml-1 uppercase">Latitud</label>
                           <input
-                            className="w-full border border-subtle rounded px-2 py-1 text-sm"
-                            value={selectedNode?.metadata?.latitude || ''}
-                            readOnly
+                            type="text"
+                            className="w-full bg-background border border-subtle rounded px-3 py-2 text-sm text-primary font-mono focus:ring-2 focus:ring-accent outline-none shadow-inner"
+                            value={sidePanelForm.latitude}
+                            onChange={(e) => {
+                              setSidePanelForm(prev => ({ ...prev, latitude: e.target.value }));
+                              setHasUnsavedChanges(true);
+                            }}
+                            placeholder="T.ex. 55.60"
                           />
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <label className="block text-xs font-medium text-muted mb-1">Longitud</label>
-                        {selectedNode?.metadata?.longitude ? (
-                          <button
-                            className="w-full border border-accent rounded px-2 py-1 text-sm text-accent hover:bg-accent/10 transition"
-                            style={{ cursor: 'pointer' }}
-                            title="Flytta kartan till denna plats"
-                            onClick={() => flyToCoordinates([parseFloat(selectedNode.metadata.latitude), parseFloat(selectedNode.metadata.longitude)])}
-                          >
-                            {selectedNode.metadata.longitude}
-                          </button>
-                        ) : (
+                        </div>
+                        <div className="flex-1">
+                          <label className="block text-[10px] font-medium text-muted mb-1 ml-1 uppercase">Longitud</label>
                           <input
-                            className="w-full border border-subtle rounded px-2 py-1 text-sm"
-                            value={selectedNode?.metadata?.longitude || ''}
-                            readOnly
+                            type="text"
+                            className="w-full bg-background border border-subtle rounded px-3 py-2 text-sm text-primary font-mono focus:ring-2 focus:ring-accent outline-none shadow-inner"
+                            value={sidePanelForm.longitude}
+                            onChange={(e) => {
+                              setSidePanelForm(prev => ({ ...prev, longitude: e.target.value }));
+                              setHasUnsavedChanges(true);
+                            }}
+                            placeholder="T.ex. 13.00"
                           />
-                        )}
+                        </div>
                       </div>
+                      
+                      {selectedNode.metadata?.latitude && selectedNode.metadata?.longitude && (
+                        <button
+                          className="mt-3 w-full py-1.5 px-3 bg-surface text-accent text-xs rounded border border-accent/30 hover:bg-accent/10 transition-colors flex items-center justify-center gap-2 font-semibold"
+                          onClick={() => flyToCoordinates([parseFloat(selectedNode.metadata.latitude), parseFloat(selectedNode.metadata.longitude)])}
+                        >
+                          🌍 Visa nuvarande position på karta
+                        </button>
+                      )}
                     </div>
+
+                    {hasUnsavedChanges && (
+                      <div className="mt-4 pt-4 border-t border-subtle animate-in slide-in-from-bottom-2 duration-300">
+                        <button
+                          className="w-full py-3 px-4 bg-accent text-on-accent rounded-lg font-bold shadow-lg shadow-accent/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2"
+                          onClick={handleSaveSidePanel}
+                        >
+                          💾 Spara ändringar
+                        </button>
+                        <p className="text-[10px] text-center text-muted mt-2 uppercase tracking-tighter">
+                          Ändringarna sparas i din lokala databas
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
                 {activeRightTab === 'riksarkivet' && (
