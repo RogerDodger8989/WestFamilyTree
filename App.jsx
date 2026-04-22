@@ -860,10 +860,11 @@ function App() {
                   )}
                 </div>
               </div>
-            </>
-          )}
-        </div>
+            )}
+          </>
+        )}
       </div>
+    </div>
 
       {/* ====================================================== */}
       {/* FLYTTBAR KÄLLKATALOG (MODAL) */}
@@ -910,7 +911,9 @@ function App() {
               <button onClick={() => setIsGedcomImporterOpen(false)} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
             </div>
             <div className="p-6">
-              <GedcomImporter onImport={(imported) => {
+              <GedcomImporter 
+                dbPath={fileHandle?.path || fileHandle}
+                onImport={(imported) => {
                 setDbData(prev => {
                   const peopleMap = new Map((prev.people || []).map(p => [p.id, p]));
                   for (const np of imported.individuals) { if (!peopleMap.has(np.id)) peopleMap.set(np.id, np); }

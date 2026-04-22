@@ -2194,18 +2194,139 @@ ipcMain.handle('search-riksarkivet-archives', async (event, placeName, rows = 80
   }
 });
 
-// ✅ NY GEDCOM IMPORT HANDLER
+// ✅ FULLSTÄNDIG GEDCOM-IMPORT HANDLER (SÄKRAD OCH ROBUST)
 ipcMain.handle('import-gedcom', async (event, gedcomData) => {
+  const sqlite3 = require('sqlite3').verbose();
+  const dbPath = gedcomData.dbPath || gedcomData.fileHandle?.path || gedcomData.fileHandle || loadSettings().lastOpenedFile;
+  
+  if (!dbPath) {
+    console.error('[main.js] Ingen databas-sökväg hittades för import.');
+    return { success: false, message: 'Ingen databas öppen.' };
+  }
+
+  console.log(`[main.js] Påbörjar säker import till ${dbPath}.`);
+  
   try {
-    console.log(`[main.js] Mottog ${gedcomData.individuals.length} individer för import.`);
-    
-    // TODO: HÄR SKA DU ANROPA DIN FUNKTION FÖR ATT SPARA TILL DATABASEN
-    // Exempel: await database.saveImportedData(gedcomData);
-    
-    // Just nu returnerar vi bara success för att React ska bli glad
-    return { success: true, message: 'Importen mottogs av huvudprocessen.' };
+    const db = new sqlite3.Database(dbPath);
+    const placeReferenceHandler = require('../electron/placeReferenceHandler.cjs');
+    await placeReferenceHandler.initPlaceReferenceLibrary(require('path').join(__dirname, '..', 'docs'));
+
+    return await new Promise((resolve, reject) => {
+      let hasFailed = false;
+      const handleError = (msg, err) => {
+        if (hasFailed) return;
+        hasFailed = true;
+        console.error(`[import-gedcom] ${msg}`, err);
+        db.run('ROLLBACK', () => {
+          db.close();
+          reject(new Error(msg + (err ? ': ' + err.message : '')));
+        });
+      };
+
+      db.serialize(() => {
+        db.run('BEGIN TRANSACTION', (err) => { if(err) handleError('Kunde inte starta transaktion', err); });
+
+        // 1. Spara individer
+        if (gedcomData.individuals && !hasFailed) {
+          const personStmt = db.prepare(`INSERT OR REPLACE INTO people (id, refNumber, firstName, lastName, gender, events, notes, links, relations, media) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+          for (const p of gedcomData.individuals) {
+            personStmt.run([
+              p.id, p.refNumber, p.firstName || '', p.lastName || '', p.gender || 'U',
+              JSON.stringify(p.events || []), JSON.stringify(p.notes || p.personalNotes || []), 
+              JSON.stringify(p.links || {}), JSON.stringify(p.relations || {}), JSON.stringify(p.media || [])
+            ], (err) => { if(err) console.warn(`Fel vid person ${p.id}`, err); });
+          }
+          personStmt.finalize();
+        }
+
+        // 2. Spara källor
+        if (gedcomData.sources && !hasFailed) {
+          const sourceStmt = db.prepare(`INSERT OR REPLACE INTO sources (id, title, archive, volume, page, date, tags, note, aid, nad, bildid, imagePage, dateAdded, trust) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+          for (const s of gedcomData.sources) {
+            sourceStmt.run([
+              s.id, s.title || '', s.archive || '', s.volume || '', s.page || '', s.date || '',
+              s.tags || '', s.note || '', s.aid || '', s.nad || '', s.bildid || '', s.imagePage || '',
+              s.dateAdded || new Date().toISOString(), s.trust || 0
+            ]);
+          }
+          sourceStmt.finalize();
+        }
+
+        // 3. Spara platser (Stabilitets-loggning för Grönegatan etc)
+        const enrichedPlaces = [];
+        if (gedcomData.places && !hasFailed) {
+          const placeStmt = db.prepare(`INSERT OR REPLACE INTO places (id, country, region, municipality, parish, village, specific, matched_place_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
+          console.log(`[import-gedcom] Processar ${gedcomData.places.length} platser...`);
+          for (const pl of gedcomData.places) {
+            const rawString = typeof pl === 'string' ? pl : (pl.name || pl.raw || '');
+            const mapped = placeReferenceHandler.mapPlacStringToStructuredPlace(rawString);
+            const placeId = pl.id || (typeof pl === 'object' ? pl.id : `p_${Math.random().toString(36).substr(2, 9)}`);
+            
+            console.log(`[import-gedcom] PLATS: "${rawString}" -> ID=${placeId}, Kommun=${mapped.municipality || '-'}`);
+
+            const enrichedPlace = {
+              id: placeId,
+              ...mapped,
+              name: mapped.specific || mapped.municipality || rawString,
+              raw: rawString
+            };
+            enrichedPlaces.push(enrichedPlace);
+
+            placeStmt.run([
+              placeId,
+              mapped.country || 'Sverige',
+              mapped.region || '',
+              mapped.municipality || '',
+              mapped.parish || '',
+              mapped.village || '',
+              mapped.specific || '',
+              mapped.matched_place_id || ''
+            ]);
+          }
+          placeStmt.finalize();
+        }
+
+        // 4. Spara media (Stabil indexering)
+        if (gedcomData.mediaFiles && !hasFailed) {
+          const mediaStmt = db.prepare(`INSERT OR REPLACE INTO media (id, url, name, date, description, tags, connections, faces, libraryId, filePath, fileSize, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+          console.log(`[import-gedcom] Sparar ${gedcomData.mediaFiles.length} mediafiler...`);
+          for (const m of gedcomData.mediaFiles) {
+            mediaStmt.run([
+              m.id,
+              m.url || '',
+              m.name || '',
+              m.date || '',
+              m.description || '',
+              JSON.stringify(m.tags || []),
+              JSON.stringify(m.connections || { people: [], places: [], sources: [] }),
+              JSON.stringify(m.faces || []),
+              m.libraryId || 'imported',
+              m.filePath || '',
+              m.fileSize || 0,
+              m.note || ''
+            ]);
+          }
+          mediaStmt.finalize();
+        }
+
+        db.run('COMMIT', (err) => {
+          if (err) handleError('COMMIT misslyckades', err);
+          else {
+            console.log('[main.js] Import slutförd framgångsrikt.');
+            db.close();
+            resolve({ 
+              success: true, 
+              message: 'Import klar!', 
+              enriched: { 
+                places: enrichedPlaces 
+              } 
+            });
+          }
+        });
+      });
+    });
   } catch (error) {
-    console.error('[main.js] Fel vid hantering av GEDCOM-import:', error);
+    console.error('[main.js] Fatal Error:', error);
     return { success: false, message: error.message };
   }
 });
@@ -2253,4 +2374,9 @@ ipcMain.handle('save-as-database', async (event, data) => {
 
 ipcMain.handle('get-last-save-as-result', async () => {
   return global.__E2E_LAST_SAVE_AS_RESULT || null;
+});
+
+// ✅ NY HANDLER: Hämta nuvarande databassökväg
+ipcMain.handle('get-current-db-path', async () => {
+  return loadSettings().lastOpenedFile || null;
 });

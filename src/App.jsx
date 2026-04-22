@@ -1987,39 +1987,63 @@ function App() {
             </div>
             <div className="p-6">
               <GedcomImporter onImport={(imported) => {
+                if (!imported) {
+                  setIsGedcomImporterOpen(false);
+                  return;
+                }
                 setDbData(prev => {
                   const peopleMap = new Map((prev.people || []).map(p => [p.id, p]));
-                  for (const np of imported.individuals) { if (!peopleMap.has(np.id)) peopleMap.set(np.id, np); }
+                  if (imported.individuals) {
+                    imported.individuals.forEach(p => peopleMap.set(p.id, p));
+                  }
+                  
                   const sourceMap = new Map((prev.sources || []).map(s => [s.id, s]));
-                  for (const ns of imported.sources) { if (!sourceMap.has(ns.id)) sourceMap.set(ns.id, ns); }
+                  if (imported.sources) {
+                    imported.sources.forEach(s => sourceMap.set(s.id, s));
+                  }
+
                   const placeMap = new Map((prev.places || []).map(p => [p.id, p]));
-                  if (imported.places) { for (const npl of imported.places) { if (!placeMap.has(npl.id)) placeMap.set(npl.id, npl); } }
+                  if (imported.enriched?.places) {
+                    imported.enriched.places.forEach(pl => placeMap.set(pl.id, pl));
+                  } else if (imported.places) {
+                    imported.places.forEach(pl => placeMap.set(pl.id, pl));
+                  }
 
-                  // Ensure all people have a relations field
-                  const peopleWithRelations = Array.from(peopleMap.values()).map(p => {
-                    if (!p.relations) {
-                      return { ...p, relations: { parents: [], children: [], spouseId: null } };
+                  const mediaMap = new Map((prev.media || []).map(m => [m.id, m]));
+                  if (imported.mediaFiles) {
+                    imported.mediaFiles.forEach(m => mediaMap.set(m.id, m));
+                  }
+
+                  const peopleWithRelations = Array.from(peopleMap.values()).map(p => ({
+                    ...p,
+                    relations: {
+                      parents: Array.isArray(p.relations?.parents) ? p.relations.parents : [],
+                      children: Array.isArray(p.relations?.children) ? p.relations.children : [],
+                      spouseId: typeof p.relations?.spouseId !== 'undefined' ? p.relations.spouseId : null
                     }
-                    // If relations exists, ensure all keys are present
-                    return {
-                      ...p,
-                      relations: {
-                        parents: Array.isArray(p.relations.parents) ? p.relations.parents : [],
-                        children: Array.isArray(p.relations.children) ? p.relations.children : [],
-                        spouseId: typeof p.relations.spouseId !== 'undefined' ? p.relations.spouseId : null
-                      }
-                    };
-                  });
+                  }));
 
-                  return {
+                  const newState = {
                     ...prev,
                     people: peopleWithRelations,
                     sources: Array.from(sourceMap.values()),
                     places: Array.from(placeMap.values()),
+                    media: Array.from(mediaMap.values())
                   };
+                  
+                  return newState;
                 });
+                
                 setIsGedcomImporterOpen(false);
-                showStatus('Import klar!');
+                setIsDirty(true);
+                showStatus('Import slutförd och synkad!');
+                
+                // Tvinga en sparning direkt efter import för att undvika dataförlust vid eventuell omstart
+                setTimeout(() => {
+                   if (typeof handleSaveFile === 'function') {
+                     handleSaveFile();
+                   }
+                }, 500);
               }} />
             </div>
           </div>

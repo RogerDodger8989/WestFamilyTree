@@ -1,6 +1,8 @@
 import React from 'react';
 import { useMediaUrl } from '../hooks/useMediaUrl.js';
 
+import { ImageOff } from 'lucide-react';
+
 /**
  * Komponent för att visa bilder som hanterar media:// URLs automatiskt
  * @param {string} url - Bildens URL (kan vara media://, blob:, http://, eller data:)
@@ -13,11 +15,9 @@ export default function MediaImage({ url, alt, className, style, ...props }) {
 
   if (error) {
     return (
-      <div className={`flex items-center justify-center bg-red-900/20 border border-red-700/50 ${className || ''}`}>
-        <div className="text-center p-4">
-          <p className="text-red-400 text-sm font-bold">Fel: Kunde inte läsa in bilden.</p>
-          <p className="text-red-500 text-xs mt-1">{error}</p>
-        </div>
+      <div className={`flex flex-col items-center justify-center bg-surface-2 border border-dashed border-subtle text-muted rounded-lg overflow-hidden ${className || ''}`} style={style}>
+        <ImageOff size={24} className="opacity-40 mb-1" />
+        <span className="text-[10px] font-bold uppercase tracking-widest opacity-40">Saknas</span>
       </div>
     );
   }

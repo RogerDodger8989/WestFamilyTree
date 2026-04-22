@@ -85,7 +85,7 @@ function parseCsvLine(line) {
 function ensureCountySuffix(county) {
   const c = String(county || '').trim();
   if (!c) return '';
-  return c.toLowerCase().endsWith('lan') || c.toLowerCase().endsWith('län') ? c : `${c} län`;
+  return c; // Vi litar på din sträng direkt nu, utan att lägga till eller ändra något.
 }
 
 function buildSwedenLabel(place) {
@@ -102,15 +102,66 @@ function buildUsLabel(place) {
 
 function parseSwedishPlac(parts) {
   const clean = parts.map((p) => String(p || '').trim()).filter(Boolean);
-  const n = clean.length;
-  return {
-    specific: n > 5 ? clean.slice(0, n - 5).join(', ') : '',
-    village: n > 4 ? clean[n - 5] : '',
-    parish: n > 3 ? clean[n - 4] : '',
-    municipality: n > 2 ? clean[n - 3] : '',
-    region: n > 1 ? clean[n - 2] : '',
-    country: n > 0 ? clean[n - 1] : 'Sverige'
+  const res = { specific: '', village: '', parish: '', municipality: '', region: '', country: 'Sverige' };
+  
+  if (clean.length === 0) return res;
+
+  const countryTranslations = {
+    'sweden': 'Sverige', 'denmark': 'Danmark', 'norway': 'Norge', 'finland': 'Finland', 'germany': 'Tyskland', 'usa': 'USA', 'united states': 'USA'
   };
+
+  // 1. Land
+  const last = clean[clean.length - 1].toLowerCase();
+  if (countryTranslations[last] || SWEDEN_KEYWORDS.has(last)) {
+    res.country = countryTranslations[last] || 'Sverige';
+    clean.pop();
+  }
+
+  // 2. Region (Län) - Vi letar nu efter kristianstad etc direkt här
+  const regionIdx = clean.findIndex(p => / län| lan/i.test(p) || /kristianstad|malmöhus|län\s*\([A-Z]+\)/i.test(p.toLowerCase()));
+  if (regionIdx !== -1) {
+    res.region = clean.splice(regionIdx, 1)[0];
+    res.country = 'Sverige';
+  }
+
+  // 3. Specialhantering för begravningsplatser
+  const cemeteryKeywords = /kyrkogård|kyrkogard|minneslund|gravplats/i;
+  const cemeteryIdx = clean.findIndex(p => cemeteryKeywords.test(p));
+  if (cemeteryIdx !== -1) {
+    res.specific = clean.splice(cemeteryIdx, 1)[0];
+  }
+
+  // 4. Identifiera Församling (Parish)
+  const parishIdx = clean.findIndex(p => / församling| forsamling| socken/i.test(p));
+  if (parishIdx !== -1) {
+    res.parish = clean.splice(parishIdx, 1)[0];
+  }
+
+  // 5. Gatuadresser (namn + nummer eller nyckelord)
+  // Vi letar nu efter allt som ser ut som en gata, väg eller har ett nummer
+  const addressKeywords = /gatan|vägen|gränd|stig|plats|torg|allé|alle|väg|gata|g\./i;
+  const addressIdx = clean.findIndex(p => /\d+/.test(p) || addressKeywords.test(p));
+  if (addressIdx !== -1) {
+    const addr = clean.splice(addressIdx, 1)[0];
+    res.specific = res.specific ? `${addr}, ${res.specific}` : addr;
+  }
+
+  // 6. Resterande delar (Municipality & Village)
+  if (clean.length > 0) {
+    const lastPart = clean.pop();
+    res.municipality = lastPart;
+    if (!res.parish) res.parish = lastPart;
+    // Sätt även ortnamnet som village så att vi kan bygga en nivå för det i trädet
+    res.village = lastPart;
+    
+    // Om vi har resterande delar (som inte fångats av adress-indexet), lägg till dem i specific
+    if (clean.length > 0) {
+      const remaining = clean.join(', ');
+      res.specific = res.specific ? `${remaining}, ${res.specific}` : remaining;
+    }
+  }
+
+  return res;
 }
 
 function parseUsPlac(parts) {
@@ -184,13 +235,13 @@ function createPlaceFromSwedenEntry(entry, parsedPlac = {}) {
   const parishOrLocality = parsedPlac.parish || entry.locality || '';
   return {
     country: 'Sverige',
-    region: ensureCountySuffix(entry.county || parsedPlac.region),
-    municipality: entry.municipality || parsedPlac.municipality || '',
+    region: ensureCountySuffix(parsedPlac.region || entry.county),
+    municipality: parsedPlac.municipality || entry.municipality || '',
     parish: parishOrLocality,
     village: parsedPlac.village || (parishOrLocality && !/forsamling|församling|socken/i.test(parishOrLocality) ? parishOrLocality : ''),
     specific: parsedPlac.specific || '',
-    latitude: entry.lat,
-    longitude: entry.lon,
+    latitude: parsedPlac.latitude || entry.lat, // Prioritera användarens koordinater om de finns
+    longitude: parsedPlac.longitude || entry.lon,
     source: 'reference-sweden'
   };
 }
@@ -239,7 +290,14 @@ function mapPlacStringToStructuredPlace(placString) {
   }
 
   if (!best || best.score < 4) {
-    return { matched: false, confidence: 'low', place: null, countryHint, raw: placString };
+    const parsed = countryHint === 'US' ? parseUsPlac(parts) : parseSwedishPlac(parts);
+    return { 
+      matched: false, 
+      confidence: 'low', 
+      ...parsed, // Flattened
+      countryHint, 
+      raw: placString 
+    };
   }
 
   if (best.kind === 'SE') {
@@ -248,7 +306,7 @@ function mapPlacStringToStructuredPlace(placString) {
     return {
       matched: true,
       confidence: best.perfect ? 'perfect' : 'partial',
-      place,
+      ...place, // Flattened
       normalizedLabel: buildSwedenLabel(place),
       reference: { type: 'sweden', entry: best.entry },
       raw: placString
@@ -260,7 +318,7 @@ function mapPlacStringToStructuredPlace(placString) {
   return {
     matched: true,
     confidence: best.perfect ? 'perfect' : 'partial',
-    place,
+    ...place, // Flattened
     normalizedLabel: buildUsLabel(place),
     reference: { type: 'usa', entry: best.entry },
     raw: placString

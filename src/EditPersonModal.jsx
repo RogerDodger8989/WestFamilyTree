@@ -2009,7 +2009,11 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
       }
 
       const personMatch = personId
-        ? sortedPeopleForWitnesses.find((candidate) => String(candidate.id) === personId)
+        ? sortedPeopleForWitnesses.find((p) => {
+          const pid = String(p.id).toLowerCase().replace(/[^a-z0-9]/g, '');
+          const target = personId.toLowerCase().replace(/[^a-z0-9]/g, '');
+          return p.id === personId || pid === target;
+        })
         : null;
 
       const resolvedName = name || (personMatch ? formatWitnessPersonName(personMatch) : '');
@@ -5907,14 +5911,20 @@ export default function EditPersonModal({ person: initialPerson, allPlaces, onSa
                   {linkedPersonsForEvent.length > 0 ? (
                       <div className="mt-2 flex flex-wrap gap-2">
                       {linkedPersonsForEvent.map((personLink) => (
-                        <span
+                        <button
                           key={personLink.id}
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-accent-soft border border-accent text-on-accent text-xs"
-                          title={personLink.note || undefined}
+                          type="button"
+                          onClick={() => {
+                            if (personLink.personId && typeof onOpenEditModal === 'function') {
+                              onOpenEditModal(personLink.personId);
+                            }
+                          }}
+                          className={`inline-flex items-center gap-1 px-2 py-1 rounded-full bg-accent-soft border border-accent text-on-accent text-xs transition-colors ${personLink.personId ? 'cursor-pointer hover:bg-accent hover:text-white' : 'cursor-default'}`}
+                          title={personLink.personId ? `Klicka för att öppna ${personLink.name}` : (personLink.note || undefined)}
                         >
                           <span className="font-semibold">{personLink.role || 'Vittne'}:</span>
                           <span>{personLink.name}</span>
-                        </span>
+                        </button>
                       ))}
                     </div>
                   ) : (

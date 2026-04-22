@@ -35,6 +35,33 @@ const setMediaRoot = (folderPath) => {
   settings.mediaFolderPath = normalized;
   saveSettings(settings);
 };
+
+// Recursive file search helper
+function findFileRecursively(dir, filename) {
+  try {
+    const fs = require('fs');
+    if (!fs.existsSync(dir)) return null;
+    const files = fs.readdirSync(dir, { withFileTypes: true });
+    
+    // First pass: check direct files
+    for (const file of files) {
+      if (!file.isDirectory() && file.name.toLowerCase() === filename.toLowerCase()) {
+        return path.join(dir, file.name);
+      }
+    }
+    
+    // Second pass: recurse into subdirectories
+    for (const file of files) {
+      if (file.isDirectory()) {
+        const found = findFileRecursively(path.join(dir, file.name), filename);
+        if (found) return found;
+      }
+    }
+  } catch (err) {
+    console.error('[findFileRecursively] Error:', err);
+  }
+  return null;
+}
 // IPC handler for saving the entire database (people, sources, places, meta)
 ipcMain.handle('save-database', async (event, fileHandle, data) => {
   // DEBUG: Logga vad som sparas (allra först)
@@ -598,73 +625,40 @@ console.log('============================================================');
 // Hjälpfunktion: Kombinera rot-mappen med den relativa sökvägen från appen.
 function forceImageRoot(filePath) {
   const IMAGE_ROOT = getCurrentImageRoot();
+  const fs = require('fs');
   let relPath = filePath;
   
-  // Dekoda till UTF-8 om det är en Buffer eller felaktigt kodad sträng
   if (Buffer.isBuffer(relPath)) {
     relPath = relPath.toString('utf8');
   }
   
-  // Normalisera till forward slashes
   relPath = relPath.replace(/\\/g, '/');
   
-  // Om det är en absolut Windows-sökväg, extrahera bara filnamnet
-  if (relPath.includes(':')) {
-    // Ta bara filnamnet, inte hela sökvägen
+  if (relPath.includes(':') && !relPath.startsWith(IMAGE_ROOT)) {
     relPath = path.basename(relPath);
   }
   
-  // Om sökvägen redan börjar med IMAGE_ROOT, ta bara den relativa delen
   if (relPath.includes('media/')) {
     const idx = relPath.indexOf('media/');
-    relPath = relPath.slice(idx + 6); // Efter 'media/'
+    relPath = relPath.slice(idx + 6);
   }
   
-  // Om det innehåller slashes, ta bara filnamnet
-  if (relPath.includes('/')) {
-    relPath = path.basename(relPath);
+  const fullPath = path.join(IMAGE_ROOT, relPath);
+  
+  if (fs.existsSync(fullPath)) {
+    return fullPath;
   }
   
-  console.log('[forceImageRoot] Input:', filePath);
-  console.log('[forceImageRoot] Processed relPath:', relPath);
-  console.log('[forceImageRoot] IMAGE_ROOT:', IMAGE_ROOT);
+  console.log('[forceImageRoot] Fil ej funnen på primär plats, söker rekursivt:', relPath);
+  const fileName = path.basename(relPath);
+  const recursivePath = findFileRecursively(IMAGE_ROOT, fileName);
   
-  // Säkerställ att vi inte försöker gå "uppåt" i mappstrukturen (../)
-  const safeRelativePath = path.normalize(relPath).replace(/^(\.\.[/\\])+/, '');
-  const fullPath = path.join(IMAGE_ROOT, safeRelativePath);
-  
-  console.log('[forceImageRoot] Final fullPath:', fullPath);
-  
-  // Kolla om filen finns
-  // ...existing code...
-  if (!fs.existsSync(fullPath)) {
-    console.error('[forceImageRoot] WARNING: File does not exist at:', fullPath);
+  if (recursivePath) {
+    console.log('[forceImageRoot] Hittade fil rekursivt:', recursivePath);
+    return recursivePath;
   }
   
   return fullPath;
-  // --- Endast Arkiv-meny ---
-  const archiveMenu = [
-    {
-      label: 'Arkiv',
-      submenu: [
-        { label: 'Ny databas', click: () => win.webContents.send('menu-action', 'new-database') },
-        { label: 'Öppna...', click: () => win.webContents.send('menu-action', 'open-database') },
-        { label: 'Senaste fil...', click: () => win.webContents.send('menu-action', 'recent-files') },
-        { type: 'separator' },
-        { label: 'Spara', click: () => win.webContents.send('menu-action', 'save-database') },
-        { label: 'Spara som...', click: () => win.webContents.send('menu-action', 'save-as-database') },
-        { type: 'separator' },
-        { label: 'Exportera...', click: () => win.webContents.send('menu-action', 'export-data') },
-        { label: 'Importera...', click: () => win.webContents.send('menu-action', 'import-data') },
-        { type: 'separator' },
-        { label: 'Stäng databas', click: () => win.webContents.send('menu-action', 'close-database') },
-        { type: 'separator' },
-        { label: 'Inställningar...', click: () => win.webContents.send('menu-action', 'settings') },
-        { label: 'Skriv ut...', click: () => win.webContents.send('menu-action', 'print') }
-      ]
-    }
-  ];
-  Menu.setApplicationMenu(Menu.buildFromTemplate(archiveMenu));
 }
 
 // IPC handler for saving a file
@@ -978,9 +972,10 @@ app.whenReady().then(() => {
     const IMAGE_ROOT = getMediaRoot();
     const encodedPath = request.url.replace('media://', '');
     const relativePath = decodeURIComponent(encodedPath);
-    // relativePath kan vara antingen filnamn eller sökväg med undermapp (t.ex. "persons/image.jpg")
-    const filePath = path.join(IMAGE_ROOT, relativePath);
-    console.log('[media protocol] Loading:', encodedPath, '->', filePath);
+    
+    // Use forceImageRoot logic to handle recursive search
+    const filePath = forceImageRoot(relativePath);
+    console.log('[media protocol] Loading:', relativePath, '->', filePath);
     callback({ path: filePath });
   });
   createWindow();
@@ -1533,13 +1528,95 @@ ipcMain.handle('search-riksarkivet-archives', async (event, placeName, rows = 80
 // ✅ NY GEDCOM IMPORT HANDLER
 ipcMain.handle('import-gedcom', async (event, gedcomData) => {
   try {
-    console.log(`[main.js] Mottog ${gedcomData.individuals.length} individer för import.`);
-    
-    // TODO: HÄR SKA DU ANROPA DIN FUNKTION FÖR ATT SPARA TILL DATABASEN
-    // Exempel: await database.saveImportedData(gedcomData);
-    
-    // Just nu returnerar vi bara success för att React ska bli glad
-    return { success: true, message: 'Importen mottogs av huvudprocessen.' };
+    const { getDatabase } = require('./database');
+    const db = await getDatabase();
+    console.log(`[main.js] Mottog ${gedcomData.individuals?.length || 0} individer för import.`);
+
+    // Initiera referensbibliotek för platser om det inte är gjort
+    const placeReferenceHandler = require('./placeReferenceHandler.cjs');
+    await placeReferenceHandler.initPlaceReferenceLibrary(require('path').join(__dirname, '..', 'docs'));
+
+    await new Promise((resolve, reject) => {
+      db.serialize(() => {
+        db.run('BEGIN TRANSACTION');
+        
+        // Spara individer
+        if (gedcomData.individuals) {
+          const stmt = db.prepare(`INSERT OR REPLACE INTO people (id, refNumber, firstName, lastName, gender, events, notes, links, relations, media) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+          for (const p of gedcomData.individuals) {
+            stmt.run([
+              p.id,
+              p.refNumber || null,
+              p.firstName || '',
+              p.lastName || '',
+              p.gender || 'U',
+              JSON.stringify(p.events || []),
+              JSON.stringify(p.notes || []),
+              JSON.stringify(p.links || {}),
+              JSON.stringify(p.relations || { parents: [], children: [], spouseId: null }),
+              JSON.stringify(p.media || p.images || [])
+            ]);
+          }
+          stmt.finalize();
+        }
+
+        // Spara platser med referens-matchning
+        // Vi går igenom alla unika platssträngar som hittats i GEDCOM
+        if (gedcomData.places) {
+          const stmt = db.prepare(`INSERT OR REPLACE INTO places (id, country, region, municipality, parish, village, specific, matched_place_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
+          for (const pl of gedcomData.places) {
+            // Vi försöker mappa strängen till en strukturerad plats
+            const rawString = typeof pl === 'string' ? pl : (pl.name || pl.raw || '');
+            const mapped = placeReferenceHandler.mapPlacStringToStructuredPlace(rawString);
+            
+            const p = mapped.matched ? mapped.place : (typeof pl === 'object' ? pl : {});
+            
+            stmt.run([
+              pl.id || `p_${Math.random()}`,
+              p.country || 'Sverige',
+              p.region || '',
+              p.municipality || '',
+              p.parish || '',
+              p.village || '',
+              p.specific || rawString,
+              mapped.matched ? (mapped.reference?.entry?.id || '') : ''
+            ]);
+          }
+          stmt.finalize();
+        }
+
+        // Spara källor
+        if (gedcomData.sources) {
+          const stmt = db.prepare(`INSERT OR REPLACE INTO sources (id, title, author, publisher, page, note, archive, url, transcriptionText) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+          for (const s of gedcomData.sources) {
+            stmt.run([
+              s.id,
+              s.title || s.sourceTitle || 'Okänd källa',
+              s.author || '',
+              s.publisher || '',
+              s.page || '',
+              s.note || '',
+              s.archive || '',
+              s.url || '',
+              s.transcriptionText || ''
+            ]);
+          }
+          stmt.finalize();
+        }
+
+        db.run('COMMIT', (err) => {
+          if (err) {
+            console.error('[main.js] Transaction COMMIT failed:', err);
+            reject(err);
+          } else {
+            console.log('[main.js] GEDCOM-import COMMIT lyckades.');
+            resolve();
+          }
+        });
+      });
+    });
+
+    return { success: true, message: 'Import sparad till databas.' };
   } catch (error) {
     console.error('[main.js] Fel vid hantering av GEDCOM-import:', error);
     return { success: false, message: error.message };

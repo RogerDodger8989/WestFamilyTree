@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
     // ✅ TILLAGD: Bryggan för din nya GEDCOM-import
     importGedcom: (data) => ipcRenderer.invoke('import-gedcom', data),
+    getCurrentDbPath: () => ipcRenderer.invoke('get-current-db-path'),
 
     // GEDCOM helpers
     gedcomRead: (filePath) => ipcRenderer.invoke('gedcom:read', filePath),

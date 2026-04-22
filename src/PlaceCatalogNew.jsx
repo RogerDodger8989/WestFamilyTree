@@ -26,7 +26,9 @@ function formatPlaceName(node) {
   }
   if (node.type === 'Län') {
     const kod = node.metadata.lanskod;
-    return onlyOneKod(cleanName(node.metadata.lansnamn || node.name) + ' län', kod);
+    const baseName = node.metadata.lansnamn || node.name || '';
+    const needsSuffix = !/län$|lan$/i.test(baseName.trim());
+    return onlyOneKod(cleanName(baseName) + (needsSuffix ? ' län' : ''), kod);
   }
   if (node.type === 'Kommun') {
     const kod = node.metadata.lanskod;
@@ -41,7 +43,7 @@ function formatPlaceName(node) {
     return onlyOneKod(namn, kod);
   }
 
-  return onlyOneKod(cleanName(node.metadata.ortnamn || node.name), node.metadata.lanskod);
+  return onlyOneKod(cleanName(node.metadata.specific || node.metadata.ortnamn || node.name), node.metadata.lanskod);
 }
 
 // Ikoner för varje platstyp
@@ -537,59 +539,75 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
     allNodes.set('root', root);
 
     // Hjälpfunktion för att normalisera namn för skelett-noder
-    const getCleanName = (name) => String(name || '').replace(/\s*\(K-\d{4}\)/g, '').trim();
+    const getCleanName = (name) => {
+      let n = String(name || '').replace(/\s*\(K-\d{4}\)/g, '').trim();
+      // Ta bort eventuella länskoder (L), (M) etc för att kunna matcha rent
+      n = n.replace(/\s*\([A-ZÅÄÖ]{1,2}\)$/, '').trim();
+      // Ta bort " län" eller " lan" från slutet om det finns
+      n = n.replace(/\s+län$|\s+lan$/i, '').trim();
+      return n;
+    };
 
     // 2. Första passet: Identifiera alla unika administrativa behållare och skapa skelett
     for (const place of (placeList || [])) {
       if (!place || !place.id) continue;
       
-      const p_lan = place.lansnamn || place.region;
-      const p_kommun = place.kommunnamn || place.municipality;
-      const p_forsamling = place.sockenstadnamn || place.parish;
+      const p_lan_raw = place.lansnamn || place.region;
+      const p_kommun_raw = place.kommunnamn || place.municipality;
+      const p_forsamling_raw = place.sockenstadnamn || place.parish;
 
-      if (p_lan && !counties.has(p_lan)) {
-        const node = {
-          id: `lan-${p_lan}`,
-          name: `${getCleanName(p_lan)} län`,
-          type: 'County',
-          children: [],
-          metadata: { lansnamn: p_lan, lanskod: place.lanskod }
-        };
-        counties.set(p_lan, node);
-        allNodes.set(node.id, node);
-        root.children.push(node);
-      }
-
-      if (p_lan && p_kommun && !municipalities.has(`${p_lan}|${p_kommun}`)) {
-        const key = `${p_lan}|${p_kommun}`;
-        const node = {
-          id: `kommun-${p_kommun}`,
-          name: `${getCleanName(p_kommun)} kommun`,
-          type: 'Municipality',
-          children: [],
-          metadata: { kommunnamn: p_kommun, kommunkod: place.kommunkod, lansnamn: p_lan, lanskod: place.lanskod }
-        };
-        municipalities.set(key, node);
-        allNodes.set(node.id, node);
-        counties.get(p_lan).children.push(node);
-      }
-
-      if (p_lan && p_kommun && p_forsamling && !parishes.has(`${p_lan}|${p_kommun}|${p_forsamling}`)) {
-        const key = `${p_lan}|${p_kommun}|${p_forsamling}`;
-        let label = getCleanName(p_forsamling);
-        if (label && !label.toLowerCase().endsWith('församling') && !label.toLowerCase().endsWith('socken')) {
-          label += ' församling';
+      if (p_lan_raw) {
+        const p_lan_clean = getCleanName(p_lan_raw);
+        if (!counties.has(p_lan_clean)) {
+          const node = {
+            id: `lan-${p_lan_clean}`,
+            name: `${p_lan_clean} län`, // formatPlaceName fixar (L) sen
+            type: 'County',
+            children: [],
+            metadata: { lansnamn: p_lan_clean, lanskod: place.lanskod }
+          };
+          counties.set(p_lan_clean, node);
+          allNodes.set(node.id, node);
+          root.children.push(node);
         }
-        const node = {
-          id: `forsamling-${p_forsamling}`,
-          name: label,
-          type: 'Parish',
-          children: [],
-          metadata: { sockenstadnamn: p_forsamling, sockenstadkod: place.sockenstadkod, kommunnamn: p_kommun, kommunkod: place.kommunkod, lansnamn: p_lan, lanskod: place.lanskod }
-        };
-        parishes.set(key, node);
-        allNodes.set(node.id, node);
-        municipalities.get(`${p_lan}|${p_kommun}`).children.push(node);
+
+        if (p_kommun_raw) {
+          const p_kommun_clean = getCleanName(p_kommun_raw);
+          const k_key = `${p_lan_clean}|${p_kommun_clean}`;
+          if (!municipalities.has(k_key)) {
+            const node = {
+              id: `kommun-${p_kommun_clean}`,
+              name: `${p_kommun_clean} kommun`,
+              type: 'Municipality',
+              children: [],
+              metadata: { kommunnamn: p_kommun_clean, kommunkod: place.kommunkod, lansnamn: p_lan_clean, lanskod: place.lanskod }
+            };
+            municipalities.set(k_key, node);
+            allNodes.set(node.id, node);
+            counties.get(p_lan_clean).children.push(node);
+          }
+
+          if (p_forsamling_raw) {
+            const p_forsamling_clean = getCleanName(p_forsamling_raw);
+            const f_key = `${p_lan_clean}|${p_kommun_clean}|${p_forsamling_clean}`;
+            if (!parishes.has(f_key)) {
+              let label = p_forsamling_clean;
+              if (label && !label.toLowerCase().endsWith('församling') && !label.toLowerCase().endsWith('socken')) {
+                label += ' församling';
+              }
+              const node = {
+                id: `forsamling-${p_forsamling_clean}`,
+                name: label,
+                type: 'Parish',
+                children: [],
+                metadata: { sockenstadnamn: p_forsamling_clean, sockenstadkod: place.sockenstadkod, kommunnamn: p_kommun_clean, kommunkod: place.kommunkod, lansnamn: p_lan_clean, lanskod: place.lanskod }
+              };
+              parishes.set(f_key, node);
+              allNodes.set(node.id, node);
+              municipalities.get(k_key).children.push(node);
+            }
+          }
+        }
       }
     }
 
@@ -598,7 +616,7 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
       const nodeType = place.type ? (typeMap[place.type] || place.type) : 'Village';
       const node = {
         id: place.id,
-        name: place.ortnamn || place.village || place.specific || place.name || '',
+        name: place.specific || place.ortnamn || place.village || place.name || '',
         type: nodeType,
         children: [],
         metadata: place
@@ -620,9 +638,15 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
         }
       } else {
         // Fallback: Använd administrativa hierarkin
-        const p_lan = place.lansnamn || place.region;
-        const p_kommun = place.kommunnamn || place.municipality;
-        const p_forsamling = place.sockenstadnamn || place.parish;
+        const p_lan_raw = place.lansnamn || place.region;
+        const p_kommun_raw = place.kommunnamn || place.municipality;
+        const p_forsamling_raw = place.sockenstadnamn || place.parish;
+        const p_by_raw = place.village || place.ortnamn; // Orten/Byn
+
+        const p_lan = getCleanName(p_lan_raw);
+        const p_kommun = getCleanName(p_kommun_raw);
+        const p_forsamling = getCleanName(p_forsamling_raw);
+        const p_by = getCleanName(p_by_raw);
 
         let fallbackParent = null;
         if (p_lan && p_kommun && p_forsamling) {
@@ -632,6 +656,26 @@ export default function PlaceCatalog({ catalogState, setCatalogState, onPick, on
         } else if (p_lan) {
           fallbackParent = counties.get(p_lan);
         }
+
+        // --- NY LOGIK FÖR ATT LÄGGA ADRESS UNDER ORT ---
+        // Skapa bara en extra nivå om ortnamnet faktiskt skiljer sig från själva namnet på platsen/adressen
+        if (fallbackParent && p_by && getCleanName(p_by) !== getCleanName(node.name)) {
+          const villageKey = `${p_lan}|${p_kommun}|${p_forsamling}|${p_by}`;
+          let vNode = allNodes.get(`village-${villageKey}`);
+          if (!vNode) {
+            vNode = {
+              id: `village-${villageKey}`,
+              name: p_by_raw, // Använd råa namnet för visning
+              type: 'Village',
+              children: [],
+              metadata: { ...place, specific: '', village: p_by_raw, ortnamn: p_by_raw }
+            };
+            allNodes.set(vNode.id, vNode);
+            fallbackParent.children.push(vNode);
+          }
+          fallbackParent = vNode;
+        }
+        // ---------------------------------------------
 
         if (fallbackParent) {
           if (!fallbackParent.children.some(c => c.id === node.id)) {
